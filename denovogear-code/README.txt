@@ -52,7 +52,7 @@ The output format is a single row for each putative de novo mutation (DNM), with
 11. DNM_configuration
 
 12. Code that indicates if the most likely DNM is a transition (4) or transversion (5)
-13. I dont know what this code is, right now!
+13. I dont know what this code is, right now!!
 
 15-17. Read depth of child, parent 1 and parent 2. 
 19-20. Root mean square of the mapping qualities of all reads mapping to the site for child, parent 1 and parent2. 
