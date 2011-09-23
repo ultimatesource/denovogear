@@ -1,30 +1,50 @@
-/*
- * The Broad Institute
- * SOFTWARE COPYRIGHT NOTICE AGREEMENT
- * This software and its documentation are copyright 2008 by the
- * Broad Institute/Massachusetts Institute of Technology. All rights are reserved.
- *
- * This software is supplied without any warranty or guaranteed support whatsoever.
- * Neither the Broad Institute nor MIT can be responsible for its use, misuse,
- * or functionality.
- */
+/* The MIT License
+
+   Copyright (c) 2008 Broad Institute / Massachusetts Institute of Technology
+
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
+
+   The above copyright notice and this permission notice shall be included in
+   all copies or substantial portions of the Software.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+   THE SOFTWARE.
+*/
 
 #ifndef __BGZF_H
 #define __BGZF_H
 
 #include <stdint.h>
 #include <stdio.h>
-#include "zlib.h"
-#include <stdbool.h>
-//#include "zutil.h"
+#include <zlib.h>
+#ifdef _USE_KNETFILE
+#include "knetfile.h"
+#endif
 
 //typedef int8_t bool;
 
 typedef struct {
     int file_descriptor;
     char open_mode;  // 'r' or 'w'
-    bool owned_file;
+    int16_t owned_file, compress_level;
+#ifdef _USE_KNETFILE
+	union {
+		knetFile *fpr;
+		FILE *fpw;
+	} x;
+#else
     FILE* file;
+#endif
     int uncompressed_block_size;
     int compressed_block_size;
     void* uncompressed_block;
@@ -32,7 +52,9 @@ typedef struct {
     int64_t block_address;
     int block_length;
     int block_offset;
+	int cache_size;
     const char* error;
+	void *cache; // a pointer to a hash table
 } BGZF;
 
 #ifdef __cplusplus
@@ -83,7 +105,7 @@ int bgzf_write(BGZF* fp, const void* data, int length);
  * Return value is non-negative on success.
  * Returns -1 on error.
  */
-int64_t bgzf_tell(BGZF* fp);
+#define bgzf_tell(fp) ((fp->block_address << 16) | (fp->block_offset & 0xFFFF))
 
 /*
  * Set the file to read from the location specified by pos, which must
@@ -95,8 +117,41 @@ int64_t bgzf_tell(BGZF* fp);
  */
 int64_t bgzf_seek(BGZF* fp, int64_t pos, int where);
 
+/*
+ * Set the cache size. Zero to disable. By default, caching is
+ * disabled. The recommended cache size for frequent random access is
+ * about 8M bytes.
+ */
+void bgzf_set_cache_size(BGZF *fp, int cache_size);
+
+int bgzf_check_EOF(BGZF *fp);
+int bgzf_read_block(BGZF* fp);
+int bgzf_flush(BGZF* fp);
+int bgzf_flush_try(BGZF *fp, int size);
+int bgzf_check_bgzf(const char *fn);
+
 #ifdef __cplusplus
 }
 #endif
+
+static inline int bgzf_getc(BGZF *fp)
+{
+	int c;
+	if (fp->block_offset >= fp->block_length) {
+		if (bgzf_read_block(fp) != 0) return -2; /* error */
+		if (fp->block_length == 0) return -1; /* end-of-file */
+	}
+	c = ((unsigned char*)fp->uncompressed_block)[fp->block_offset++];
+    if (fp->block_offset == fp->block_length) {
+#ifdef _USE_KNETFILE
+        fp->block_address = knet_tell(fp->x.fpr);
+#else
+        fp->block_address = ftello(fp->file);
+#endif
+        fp->block_offset = 0;
+        fp->block_length = 0;
+    }
+	return c;
+}
 
 #endif
