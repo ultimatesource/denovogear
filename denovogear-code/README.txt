@@ -1,6 +1,6 @@
 #### Rough Draft Instructions for compiling denovogear #########
-Author: Don Conrad
-06/12/10
+Authors: Don Conrad & Avinash Ramu
+09/23/11
 
 
 ***** INSTALLATION ******
@@ -12,55 +12,59 @@ cd to newmat, if you have gnu compiler you can compile with
 after compiling newmat, change back to this directory and 
 compile with "make". If you chose to keep the newmat 
 library elsewhere, be sure to edit the denovogear Makefile 
-NEWMAT= definition accordingly.
+NEWMAT= definition accordingly. 
 
 ***** RUNNING THE CODE *****
 
-Input requires three GLF files and a lookup file called "lookup.txt".
+Input requires a PED file, a BCF file and 2 lookup files called "lookup.txt" and "lookup_indel.txt"
 
+usage:
+	./denovogear sample.ped sample.bcf
 
-usage is:
-./denovogear child.glf parent1.glf parent2.glf > outfile
+about sample.bcf:
+BCF files can be generated from the alignment files using the samtools mpileup command. The -D option of the mpileup command retains the per-sample read depth which is preferred by denovogear (but note that DNG will work without per-sample RD information). 
 
-about "lookup.txt":
+For example to generate a bcf file from sample.bam the command is:
+	samtools mpileup -gDf reference.fa sample.bam > sample.bcf
+
+Note that the -g option specifies a compressed output and the -f option is used to indicate the reference.
+
+about sample.ped:
+The PED file contains information about the trios present in the BCF file. Please make sure that all the members of the trios specified in the PED file are present in the BCF file. The PED file can be used to specify a subset of individuals for analysis from the BCF (that is not every sample in the BCF need be represented in the PED file). An example PED file, CEU.ped, is included in the distribution directory. 
+
+about "lookup.txt" and "lookup_indel.txt":
 This is a table with precomputed priors (and other useful numbers) for all possible 
 trio configurations, under the null (no mutation present) and alternative (true de novo). 
-This file needs to be in the working directory. The default table was generated using a prior 
-of 1 x 10 ^-8 /bp/generation on the haploid germline mutation rate. 
+This file needs to be in the working directory. The default tables were generated using a prior of 1 x 10 ^-8 /bp/generation on the haploid germline point mutation rate, and 1 x 10 ^-9 /bp/generation on the haploid germline indel mutation rate. 
 
-new versions of the table, for instance using a different prior on the mutation rate, using 
-the enclosed utility program "make_lookup.pl"
+New versions of the table, for instance using a different prior on the mutation rate, can be generated using the enclosed utility program "make_lookup.pl". Run the script without arguments to see usage. A similar lookup table for indels is stored in the "lookup_indel.txt" file.
 
 
 ***** OUTPUT FORMAT *******
 
 The output format is a single row for each putative de novo mutation (DNM), with the following fields:
+1. Event type (POINT MUTATION or INDEL)
+2. Sample ID of offspring with the DNM
+3. Chromosome 
+4. Physical Position 
+5. Base present in reference sequence at this position
+6. maxlike_null  - likelihood of the most likely mendelian-compatible config.
+7. pp_null - posterior probability of most likely mendelian configuration        
+8. tgt  - genotypes of the most likely mendelian configuration
+9. Code that indicates whether the configuration shown in field 6 is monomorphic (1) or contains variation (2)
+10. This field seems to be redundant to field 7, except the codes are (6) and (9).
 
-1.Chromosome 
-2. Position 
-3. Reference_base  base present in ucsc18/NCBI36 at this position
+11. maxlike_DNM  -11, 12 and 13 are analogous to 6,7,8, but for a de novo mutation
+12. posterior_probability_DNM
+13. tgt: DNM_configuration
 
-4. likelihood_mendelian  - likelihood of the most likely mendelian-compatible config.
-5. posterior_probability_mendelian  posterior probability         
-6. mendelian_configuration  - genotypes of the most likely mendelian configuration
+14. Code that indicates if the most likely DNM is a transition (4) or transversion (5)
+15. This is a flag that indicates wether the data for the site passed internal QC thresholds (for development use only).
 
-7. Code that indicates whether the configuration shown in field 6 is monomorphic (1) or contains variation (2)
-8. I believe this field is completely redundant to field 7, except the codes are (6) and (9).
+16-18. Read depth of child, parent 1 and parent 2. 
+19-21. Root mean square of the mapping qualities of all reads mapping to the site for child, parent 1 and parent2. Currently these values are the same for all samples when using BCF as the input format.
 
-9. likelihood_DNM  - 7, 8 and 9 are analogous to 4,5,6, but for a de novo mutation
-10. posterior_probability_DNM
-11. DNM_configuration
+Fields 16-21 are meant for filtering out low quality sites. 
 
-12. Code that indicates if the most likely DNM is a transition (4) or transversion (5)
-13. I dont know what this code is, right now!!
-
-15-17. Read depth of child, parent 1 and parent 2. 
-19-20. Root mean square of the mapping qualities of all reads mapping to the site for child, parent 1 and parent2. 
-
-Fields 15-20 are meant for filtering out low quality sites. 
-
-Example:
-
-chr1 16347710 C 9.53194e-10 0.131685 CT/CT/CC 2 9 9.98e-09 0.868315 CT/CC/CC 4 0 depth 14       21      17       Qs 60  60      60
 
 ############
