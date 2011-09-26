@@ -13,7 +13,8 @@
 typedef struct { //New struct for Q calls
 	char chr[3]; /* Chromosome Number. */
 	long pos; /* position, the first base in a chromosome has offset zero. */
-	unsigned char ref_base; /* Either A, C, G or T */
+	char ref_base; /* Either A, C, G or T */
+	char alt[20]; /* ALT string */
 	int depth; /* number of mapped reads */
 	int rms_mapQ; /* RMS mapping quality */
 	int min_lk; /* minimum lk capped at 255 */	
