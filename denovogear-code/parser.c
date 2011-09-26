@@ -126,10 +126,10 @@ int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t* mom_snp, qcall_t* dad_s
 				strcpy( mom_snp->chr, h->ns[b->tid] );
 				mom_snp->pos = b->pos+1;
 				mom_snp->ref_base = *b->ref;
+				strcpy(mom_snp->alt, b->alt);
 				mom_snp->depth = d;
 				mom_snp->rms_mapQ = mq;
 				strcpy( mom_snp->id, h->sns[i] );
-				//printf("\nsample: %s, pos %d ",h->sns[i], b->pos+1 );
 				for (l1 = 0; l1 < b->n_gi; ++l1) { //CHECK IF PER SAMPLE DEPTH AVAILABLE
 					if (b->gi[l1].fmt == bcf_str2int("DP", 2)) {
 						mom_snp->depth = ((uint16_t*)b->gi[l1].data)[i];
@@ -174,6 +174,7 @@ int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t* mom_snp, qcall_t* dad_s
 				strcpy( dad_snp->chr, h->ns[b->tid] );
 				dad_snp->pos = b->pos+1;
 				dad_snp->ref_base = *b->ref;
+				strcpy(dad_snp->alt, b->alt);
 				dad_snp->depth = d;
 				dad_snp->rms_mapQ = mq;
 				strcpy( dad_snp->id, h->sns[i] );
@@ -223,6 +224,7 @@ int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t* mom_snp, qcall_t* dad_s
 				strcpy( child_snp->chr, h->ns[b->tid] );
 				child_snp->pos = b->pos+1;
 				child_snp->ref_base = *b->ref;
+				strcpy(child_snp->alt, b->alt);
 				child_snp->depth = d;
 				child_snp->rms_mapQ = mq;
 				strcpy( child_snp->id, h->sns[i] );

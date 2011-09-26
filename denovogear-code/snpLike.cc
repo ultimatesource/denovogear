@@ -72,9 +72,7 @@ int read_lookup(vector<vector<string > > & tgt, lookup_t & lookup)
     cerr <<"cannot open lookup table"<<endl; 
     exit(1);
   }
-  
-  cerr<<"Entered read lookup"<<endl;
-  
+    
   while (getline(lookup_file,line)) {
     istringstream iss(line);
     iss >> blah;
@@ -119,7 +117,7 @@ int read_lookup(vector<vector<string > > & tgt, lookup_t & lookup)
   lookup.gref << tmp9;
   lookup.tref << tmp10;
 
-  cerr<<" Read "<<k <<" elements from lookup"<<endl;
+  cerr<<" Read "<<k <<" elements from SNP lookup"<<endl;
   cerr <<" First mrate"<< lookup.mrate(1,1) <<" Last "<< lookup.mrate(100,10)<<endl;
   cerr <<" First "<< lookup.code(1,1) <<" Last "<< lookup.code(100,10)<<endl;
   cerr <<" First "<< tgt[0][0] <<" Last "<< tgt[99][9] <<endl;
@@ -205,7 +203,7 @@ void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag, vector<vec
 
   if ( pp_denovo > 0.001 ) {
     cout<<"\nDENOVO-SNP CHILD ID: "<<child.id;
-    cout<<" ref_name: "<<ref_name<<" coor: "<<coor<<" ref_base: "<<mom.ref_base;
+    cout<<" ref_name: "<<ref_name<<" coor: "<<coor<<" ref_base: "<<mom.ref_base<<" ALT: "<<mom.alt;
     cout<<" maxlike_null: "<<maxlike_null<<" pp_null: "<<pp_null<<" tgt: "<<tgt[i-1][j-1];
     cout<<" snpcode: "<<lookup.snpcode(i,j)<<" code: "<<lookup.code(i,j);
     cout<<" maxlike_dnm: "<<maxlike_denovo<<" pp_dnm: "<<pp_denovo;
