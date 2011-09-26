@@ -114,7 +114,7 @@ int read_indelLookup( vector<vector<string > >  & tgtIndel, lookup_t & lookupInd
             lookupIndel.priors << tmp7;
             
 
-            cerr<<" Read "<<k <<" elements from lookup"<<endl;
+            cerr<<"\n Read "<<k <<" elements from INDEL lookup"<<endl;
             cerr <<" First mrate"<< lookupIndel.mrate(1,1) <<" Last "<< lookupIndel.mrate(9,3)<<endl;
             cerr <<" First "<< lookupIndel.code(1,1) <<" Last "<< lookupIndel.code(9,3)<<endl;
             cerr <<" First "<< tgtIndel[0][0] <<" Last "<< tgtIndel[8][2] <<endl;
@@ -199,7 +199,7 @@ void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag, vector
     
     if ( pp_denovo > 0.001 ) {
     	cout<<"\nDENOVO-INDEL CHILD ID: "<<child->id;
-    	cout<<" ref_name: "<<ref_name<<" coor: "<<coor<<" ref_base: "<<mom->ref_base;
+    	cout<<" ref_name: "<<ref_name<<" coor: "<<coor<<" ref_base: "<<mom->ref_base<<" ALT: "<<mom->alt;
     	cout<<" maxlike_null: "<<maxlike_null<<" pp_null: "<<pp_null<<" tgt: "<<tgtIndel[i-1][j-1];
     	cout<<" snpcode: "<<lookupIndel.snpcode(i,j)<<" code: "<<lookupIndel.code(i,j);
     	cout<<" maxlike_dnm: "<<maxlike_denovo<<" pp_dnm: "<<pp_denovo;
