@@ -30,7 +30,6 @@ libnewmat : $(NM)
 	ar rc libnewmat.a $(NM)
 
 clean:
-	rm denovogear
 	rm *.o
 	rm utils/*.o
 	rm $(NEWMAT)/*.[ao]
