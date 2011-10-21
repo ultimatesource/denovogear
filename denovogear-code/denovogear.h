@@ -35,12 +35,20 @@ using namespace RBD_LIBRARIES;
 
 Trio trios[ MAX_TRIOS ];
 
-int autLength[24] = { 0, 247249719, 242951149, 199501827, 191263066, 180837866, 170896992, 158821424, 146274818, 140273252, 135374737, 134452384, 132289542, 114127979, 106360583, 100338915, 88822253, 78654741, 76117153, 63806651, 62435958, 46944323, 49591432, 154913754} ;
+int autLength[24] = {0, 247249719, 242951149, 199501827, 191263066, 180837866, 
+	170896992, 158821424, 146274818, 140273252, 135374737, 134452384, 132289542, 
+	114127979, 106360583, 100338915, 88822253, 78654741, 76117153, 63806651, 
+	62435958, 46944323, 49591432, 154913754} ;
 int X_length = 154913754 ;
 
 
-void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag, vector<vector<string> > &tgt, lookup_t & lookup);
-void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag, vector<vector<string> > &tgtIndel, lookup_t & lookupIndel);
-int read_lookup (vector<vector<string> > &tgt, lookup_t & lookup);
-int read_indelLookup (vector<vector<string> > &tgtIndel, lookup_t & lookupIndel);
-
+void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag, 
+				   vector<vector<string> > &tgt, lookup_t & lookup);
+void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag, 
+					 vector<vector<string> > &tgtIndel, lookup_t & lookupIndel, double mu_scale);
+int readSNPLookup (vector<vector<string> > &tgt, lookup_t & lookup);
+int readIndelLookup (vector<vector<string> > &tgtIndel, lookup_t & lookupIndel);
+void makeLookup(string table_type, double Mrate, double IndelMrate, double PolyRate);
+void makeLookup(string table_type, double Mrate, double IndelMrate, 
+				double PolyRate, vector<vector<string > > & tgt, 
+				lookup_t & lookup);
