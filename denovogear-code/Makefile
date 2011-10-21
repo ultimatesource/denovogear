@@ -1,5 +1,5 @@
-CC=gcc -g
-CPP=g++ -g -Wall -O2
+CC=gcc
+CPP=g++ -Wall -O2
 LIB=-lm -lz -lnewmat
 NEWMAT=newmat
 DIRS=utils
