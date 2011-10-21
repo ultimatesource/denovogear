@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+ #!/usr/bin/perl
 use warnings;
 
 
@@ -7,17 +7,16 @@ $MRATE=1e-8;
 $INDEL_MRATE=1e-9;
 $INDEL_FDR=0.05;
 $POLY_RATE=1e-3;
-$INDEL_THETA=1e-4; #NOT CURRENTLY USED
 
 $TABLE_TYPE=$ARGV[0];
 
 
 my $cid=0,$mid=0,$did=0;
- @inf=(); #trio coding 
- @tprob=(); #transmission prob
- @snp_status=(); #number of alleles in trio
+@inf=(); #trio coding 
+@tprob=(); #transmission prob
+@snp_status=(); #number of alleles in trio
 
-  $k=0;
+$k=0;
 
 
 
@@ -25,8 +24,8 @@ my $cid=0,$mid=0,$did=0;
 #### CHECK COMMAND LINE ARGS #############
 
 if ($#ARGV<0){
-
-    print_usage(); exit();
+	print_usage(); 
+	exit();
 }
 
 if ($TABLE_TYPE ne "indel" && $TABLE_TYPE ne "point") { print_usage(); exit();}
@@ -53,146 +52,175 @@ my @seq2=("A","C","G","T","C","G","T","G","T","T");
 # hz =1 means non-missing parent is homozygous
 
 
-open(OUT,">snp_lookup.txt");
+open(OUT,">perlsnp_lookup.txt");
 
 for ($did=0;$did<10;$did++){
 
-    for ($cid=0;$cid<10;$cid++){
+	for ($cid=0;$cid<10;$cid++){
 
-	for ($mid=0;$mid<10;$mid++){
+		for ($mid=0;$mid<10;$mid++){
 
 
-	    $denovo=1-$MRATE; #probability of not seeing denovo event
+			$denovo=1-$MRATE; #probability of not seeing denovo event
 
-            
-	    $gt_string=join ("/",$seqs[$cid].$seq2[$cid],$seqs[$mid].$seq2[$mid],$seqs[$did].$seq2[$did]);
+						
+			$gt_string=join ("/",$seqs[$cid].$seq2[$cid],$seqs[$mid].$seq2[$mid],$seqs[$did].$seq2[$did]);
 
-	    my $prev = 'nonesuch';
-         
-	    @alleles=($seqs[$cid],$seq2[$cid],$seqs[$mid],$seq2[$mid],$seqs[$did],$seq2[$did]);
-            @sa = sort {$a cmp $b} @alleles;
-                     
-	    @uniqalleles = grep($_ ne $prev && (($prev) = $_),@sa);
-                  
-	    $snp_status[$k]=$#uniqalleles+1;
+			my $prev = 'nonesuch';
+				 
+			@alleles=($seqs[$cid],$seq2[$cid],$seqs[$mid],$seq2[$mid],$seqs[$did],$seq2[$did]);
+						@sa = sort {$a cmp $b} @alleles;
+										 
+			@uniqalleles = grep($_ ne $prev && (($prev) = $_),@sa);
+									
+			$snp_status[$k]=$#uniqalleles+1;
 
-	    $ret=get_priors(\@alleles,$#uniqalleles);
-            @priors=@{$ret}; 
+			$ret=get_priors(\@alleles,$#uniqalleles);
+						@priors=@{$ret}; 
 
 	#    print "uniq $#uniqalleles $alleles[0]\n";
 
 #4 or more alleles, abort
-	    if ($#uniqalleles>=3){
-
+	if ($#uniqalleles>=3){
 		$tprob[$k]=0;
-                $inf[$k]=9; 
-		print_info();
-
-                $k++;
-		next;
-
-	    }
-
-#triallelic, simplified analysis
-	    if ($#uniqalleles==2){
-           
-		$inf[$k]=9;
-
-            #check that child alleles in parents    
-		if (grep(/$seqs[$cid]/,($seqs[$did],$seq2[$did]))!=0 && grep(/$seq2[$cid]/,($seqs[$mid],$seq2[$mid]))!=0	     	){ 
-#print "mendelian triallelic $gts[$cid] $gts[$mid] $gts[$did]\n";
-
-if ($seqs[$cid] eq $seq2[$cid]){$tprob[$k]=.25}
-elsif ($seqs[$mid] eq $seq2[$mid] || $seqs[$did] eq $seq2[$did]){ $tprob[$k]=.5;}
-else{ $tprob[$k]=.25;}
-
-}
-		else{$tprob[$k]=0;}
-
-
+		$inf[$k]=9; 
 		print_info();
 		$k++;
 		next;
-	    }
+	}
 
-# 1. Child is missing data or homozygous
-         if ($seqs[$cid] eq $seq2[$cid]){
-        
-# 1b.mom and dad homozygous for same allele; class D
-     if ($seqs[$did] eq $seq2[$did] && $seqs[$mid] eq $seq2[$mid]){$inf[$k]=6; $tprob[$k]=1;}
-     
-     # 1c. mom homozygous or missing data, dad heterozygous; class E
-     elsif ($seqs[$did] ne $seq2[$did] && $seqs[$mid] eq $seq2[$mid]){$inf[$k]=7; $tprob[$k]=.5;}
+#triallelic, simplified analysis
+	if ($#uniqalleles==2){
+		$inf[$k]=9;
+		#check that child alleles in parents    
+		if (grep(/$seqs[$cid]/,($seqs[$did],$seq2[$did]))!=0 && grep(/$seq2[$cid]/,($seqs[$mid],$seq2[$mid]))!=0 ){ 
+			#print "mendelian triallelic $gts[$cid] $gts[$mid] $gts[$did]\n";
+			if ($seqs[$cid] eq $seq2[$cid]){$tprob[$k]=.25}
+			elsif ($seqs[$mid] eq $seq2[$mid] || $seqs[$did] eq $seq2[$did]){ $tprob[$k]=.5;}
+			else{ $tprob[$k]=.25;}
+
+		}
+	
+		else {
+			$tprob[$k]=0;
+			#print "\nGT string is ".$gt_string;
+		}
+		print_info();
+        print "\nchk0 ".$gt_string.$k;
+
+		$k++;
+		next;
+	}
+
+	# 1. Child is missing data or homozygous
+	if ($seqs[$cid] eq $seq2[$cid]){
+				
+		# 1b.mom and dad homozygous for same allele; class D
+		if ($seqs[$did] eq $seq2[$did] && $seqs[$mid] eq $seq2[$mid]){$inf[$k]=6; $tprob[$k]=1;}
+		 
+		# 1c. mom homozygous or missing data, dad heterozygous; class E
+		elsif ($seqs[$did] ne $seq2[$did] && $seqs[$mid] eq $seq2[$mid]){$inf[$k]=7; $tprob[$k]=.5;}
  
-     # 1d. dad homozygous or missing data, mom heterozygous; class F
-     elsif ($seqs[$mid] ne $seq2[$mid] && $seqs[$did] eq $seq2[$did]){$inf[$k]=8; $tprob[$k]=.5;}
-  
-     #  both parents het   G
-         elsif ($seqs[$mid] ne $seq2[$mid] && $seqs[$did] ne $seq2[$did]){$inf[$k]=9; $tprob[$k]=.25;}
- }
-     
-     
+		# 1d. dad homozygous or missing data, mom heterozygous; class F
+		elsif ($seqs[$mid] ne $seq2[$mid] && $seqs[$did] eq $seq2[$did]){$inf[$k]=8; $tprob[$k]=.5;}
+	
+		#  both parents het   G
+		elsif ($seqs[$mid] ne $seq2[$mid] && $seqs[$did] ne $seq2[$did]){$inf[$k]=9; $tprob[$k]=.25;}
+ 	}
+		 
+		 
 #2. Child is Het 
-    else {
+		else {
 
 
 $inf[$k]=9;
 
-    # 2a.mom and dad homozygous for same allele;
-     if ($seqs[$mid] eq $seq2[$mid] && $seqs[$did] eq $seq2[$did]){$tprob[$k]=1;}
+		# 2a.mom and dad homozygous for same allele;
+			if ($seqs[$mid] eq $seq2[$mid] && $seqs[$did] eq $seq2[$did]){$tprob[$k]=1; }
 
-     # 2b. mom homozygous or missing data, dad heterozygous; 
-     elsif ($seqs[$did] ne $seq2[$did] && $seqs[$mid] eq $seq2[$mid]){$tprob[$k]=.5;}
+		 # 2b. mom homozygous or missing data, dad heterozygous; 
+		 elsif ($seqs[$did] ne $seq2[$did] && $seqs[$mid] eq $seq2[$mid]){$tprob[$k]=.5;}
  
-     # 2c. dad homozygous or missing data, mom heterozygous;
-     elsif ($seqs[$mid] ne $seq2[$mid] && $seqs[$did] eq $seq2[$did]){$tprob[$k]=.5;}
+		 # 2c. dad homozygous or missing data, mom heterozygous;
+		 elsif ($seqs[$mid] ne $seq2[$mid] && $seqs[$did] eq $seq2[$did]){$tprob[$k]=.5;}
 
-     # 2d. dad het, mom heterozygous;
-     elsif ($seqs[$mid] ne $seq2[$mid] && $seqs[$did] ne $seq2[$did]){$tprob[$k]=.25;}
+		 # 2d. dad het, mom heterozygous;
+		 elsif ($seqs[$mid] ne $seq2[$mid] && $seqs[$did] ne $seq2[$did]){$tprob[$k]=.5;}
 
 }
-   
-  if ($inf[$k] == 0){die "problems with assigning trio config in main $seqs[$cid] $seq2[$cid] $seqs[$mid] $seq2[$mid] $seqs[$did] $seq2[$did]\n";
-                               }
+	 
+	if ($inf[$k] == 0){die "problems with assigning trio config in main $seqs[$cid] $seq2[$cid] $seqs[$mid] $seq2[$mid] $seqs[$did] $seq2[$did]\n";
+															 }
 
 
-  
-#Check for MIs
-        
-         $p1=0;$p2=0;$p12=0;$p22=0;
+	
+#Check for MIs, This following routine is always run
+				
+		$p1=0;$p2=0;$p12=0;$p22=0;
 
-     if (($seqs[$cid] eq $seq2[$mid]) || ($seqs[$cid] eq $seqs[$mid])) {$p1++;}
-     if (($seqs[$cid] eq $seq2[$did]) || ($seqs[$cid] eq $seqs[$did])) {$p2++;}
-     if (($p1==0) && ($p2==0)) {$test2=1;} else {$test2=0;}    
-     
-       if ($seq2[$cid] eq $seqs[$mid]){$p12++;}
-       if ($seq2[$cid] eq $seq2[$mid]){$p12++;}
-       if ($seq2[$cid] eq $seqs[$did]){$p22++;}
-       if ($seq2[$cid] eq $seq2[$did]){$p22++;}
-       if(($p12==0) && ($p22==0)){$test3=1;} else {$test3=0;}
-       $p1=$p1+$p12;
-       $p2=$p2+$p22;      
-       if(($test2==0)||($test3==0)){
-         if ($p1==0){$z++;$d=1;$dc=2;$inf[$k]=1;} #dc=2 indicates mom is deletion carrier
-         elsif ($p2==0){$z++;$d=1;$dc=1;$inf[$k]=2;}
-         
-     }
-         if ($test2==1 || $test3==1) {$inf[$k]=3;}
-
-
-if ($inf[$k]<6){$tprob[$k]=0;}
-if ($inf[$k]==3){
-
-    
-
-		 $inf[$k]=ts_tv_call(\@alleles); #call transition or transversion
-		 $dflag=1; $nflag=0; #normal and denovo flags for DNG
-}       else {$dflag=0; $nflag=1;}
-	    print_info();
-	  #  if ($inf[$k]>3){ print "mendelian  normal $gts[$cid] $gts[$mid] $gts[$did]\n" ;}
-	    $k++;
-	}
-    }
+			#Check if child allle 1 is in mom
+		if (($seqs[$cid] eq $seq2[$mid]) || ($seqs[$cid] eq $seqs[$mid])) {$p1++;}
+			#Check if child allele 1 is in dad
+		if (($seqs[$cid] eq $seq2[$did]) || ($seqs[$cid] eq $seqs[$did])) {$p2++;}
+			#If child allele 1 is not found in either parent test2=1
+		if (($p1==0) && ($p2==0)) {$test2=1;} else {$test2=0;}    
+	
+			#Now check the second allele
+			if ($seq2[$cid] eq $seqs[$mid]){$p12++;}
+			if ($seq2[$cid] eq $seq2[$mid]){$p12++;}
+			if ($seq2[$cid] eq $seqs[$did]){$p22++;}
+			if ($seq2[$cid] eq $seq2[$did]){$p22++;}
+			#If child allele 2 is not found in either parent test3=1;
+			if(($p12==0) && ($p22==0)){$test3=1;} else {$test3=0;}
+            $p1=$p1+$p12;
+			$p2=$p2+$p22;      
+			if(($test2==0) && ($test3==0)){ #both child alleles seen in at least one parent
+				if ($p1==0){$inf[$k]=1;} #both child alleles are seen in dad 
+				if ($p2==0){$inf[$k]=2;} #both child alleles are in mom
+            }
+			if ($test2==1 || $test3==1) {$inf[$k]=3;} #at least one DNM
+			#For configuration inf[k]=1 and inf[k]=2, make parsimony assumption that only one mutation occurred
+			
+			if ($inf[$k]==1){
+                print "\nchk1 ".$gt_string.$k;
+				$tprob[$k] = 1;		
+				$denovo = $MRATE; # both alleles in dad, denovo from mom
+				if (grep(/[AG]/,@alleles[0..1])!=0 && grep(/[CT]/,@alleles[2..3])!=0){$inf[$k]=5;} # transv
+				elsif (grep(/[CT]/,@alleles[0..1])!=0 && grep(/[AG]/,@alleles[2..3])!=0){$inf[$k]=5;} # transv
+				else {$inf[$k]=4;} # transition
+				$dflag=1; 
+				$nflag=0; # normal and denovo flags for DNG
+			}
+			
+			elsif ($inf[$k] == 2){
+				print "\nchk2 ".$gt_string.$k;
+				$tprob[$k] = 1;		
+				$denovo = $MRATE; # both alleles in mom, denovo from dad
+				if (grep(/[AG]/,@alleles[0..1])!=0 && grep(/[CT]/,@alleles[4..5])!=0){ $inf[$k]=5; } # transv
+				elsif (grep(/[CT]/,@alleles[0..1])!=0 && grep(/[AG]/,@alleles[4..5])!=0){ $inf[$k]=5; } # transv
+				else {$inf[$k]=4;} # transition
+				$dflag=1; 
+				$nflag=0; # normal and denovo flags for DNG
+			}
+			
+			elsif ($inf[$k] == 3){
+                print "\nchk3 ".$gt_string.$k;
+				$tprob[$k] = 1;		
+				$inf[$k] = ts_tv_call(\@alleles); # call transition or transversion
+				$dflag=1; 
+                $nflag=0; # normal and denovo flags for DNG
+			}  
+			
+			else {
+                print "\nchk4 ".$gt_string.$k;
+				$dflag=0; 
+				$nflag=1;
+			}
+			
+			print_info();
+			$k++;
+		}
+		}
 
 }
 
@@ -213,29 +241,29 @@ my @seq2=("R","D","D");
 
 
 
-    open(OUT,">indel_lookup.txt") or die "Can't open indel_lookup.txt for printing\n";
+		open(OUT,">perlindel_lookup.txt") or die "Can't open indel_lookup.txt for printing\n";
 
 for ($did=0;$did<3;$did++){
 
-    for ($cid=0;$cid<3;$cid++){
+		for ($cid=0;$cid<3;$cid++){
 
 	for ($mid=0;$mid<3;$mid++){
 
 
-	    $denovo=1-($INDEL_MRATE);
+			$denovo=1-($INDEL_MRATE);
 
-            
-	    $gt_string=join ("/",$seqs[$cid].$seq2[$cid],$seqs[$mid].$seq2[$mid],$seqs[$did].$seq2[$did]);
+						
+			$gt_string=join ("/",$seqs[$cid].$seq2[$cid],$seqs[$mid].$seq2[$mid],$seqs[$did].$seq2[$did]);
 
 
-            @alleles=($seqs[$cid],$seq2[$cid],$seqs[$mid],$seq2[$mid],$seqs[$did],$seq2[$did]);
-            @sa = sort {$a cmp $b} @alleles;
-                     
-	    @uniqalleles = grep($_ ne $prev && (($prev) = $_),@sa);
-            $snp_status[$k]=$#uniqalleles+1;
+						@alleles=($seqs[$cid],$seq2[$cid],$seqs[$mid],$seq2[$mid],$seqs[$did],$seq2[$did]);
+						@sa = sort {$a cmp $b} @alleles;
+										 
+			@uniqalleles = grep($_ ne $prev && (($prev) = $_),@sa);
+						$snp_status[$k]=$#uniqalleles+1;
 
-            $ret=get_priors_indel(\@alleles,$#uniqalleles);
-            @priors=@{$ret}; 
+						$ret=get_priors_indel(\@alleles,$#uniqalleles);
+						@priors=@{$ret}; 
 
 
 
@@ -243,89 +271,90 @@ for ($did=0;$did<3;$did++){
 ######### CHECK FOR MENDEL STATUS & CALCULATE TRANSMISSION PROBABILITIES ##############
 
 # 1. Child is missing data or homozygous
-         if ($seqs[$cid] eq $seq2[$cid]){
-        
+				 if ($seqs[$cid] eq $seq2[$cid]){
+				
 # 1b.mom and dad homozygous for same allele; class D
-     if ($seqs[$did] eq $seq2[$did] && $seqs[$mid] eq $seq2[$mid]){$inf[$k]=6; $tprob[$k]=1;}
-     
-     # 1c. mom homozygous or missing data, dad heterozygous; class E
-     elsif ($seqs[$did] ne $seq2[$did] && $seqs[$mid] eq $seq2[$mid]){$inf[$k]=7; $tprob[$k]=.5;}
+		 if ($seqs[$did] eq $seq2[$did] && $seqs[$mid] eq $seq2[$mid]){$inf[$k]=6; $tprob[$k]=1;}
+		 
+		 # 1c. mom homozygous or missing data, dad heterozygous; class E
+		 elsif ($seqs[$did] ne $seq2[$did] && $seqs[$mid] eq $seq2[$mid]){$inf[$k]=7; $tprob[$k]=.5;}
  
-     # 1d. dad homozygous or missing data, mom heterozygous; class F
-     elsif ($seqs[$mid] ne $seq2[$mid] && $seqs[$did] eq $seq2[$did]){$inf[$k]=8; $tprob[$k]=.5;}
-  
-     #  both parents het   G
-         elsif ($seqs[$mid] ne $seq2[$mid] && $seqs[$did] ne $seq2[$did]){$inf[$k]=9; $tprob[$k]=.25;}
+		 # 1d. dad homozygous or missing data, mom heterozygous; class F
+		 elsif ($seqs[$mid] ne $seq2[$mid] && $seqs[$did] eq $seq2[$did]){$inf[$k]=8; $tprob[$k]=.5;}
+	
+		 #  both parents het   G
+				 elsif ($seqs[$mid] ne $seq2[$mid] && $seqs[$did] ne $seq2[$did]){$inf[$k]=9; $tprob[$k]=.25;}
  }
-     
-     
+		 
+		 
 #2. Child is Het 
-    else {
+		else {
 
 
 $inf[$k]=9;
 
-    # 2a.mom and dad homozygous for same allele;
-     if ($seqs[$mid] eq $seq2[$mid] && $seqs[$did] eq $seq2[$did]){$tprob[$k]=1;}
+		# 2a.mom and dad homozygous for same allele;
+		 if ($seqs[$mid] eq $seq2[$mid] && $seqs[$did] eq $seq2[$did]){$tprob[$k]=1;}
 
-     # 2b. mom homozygous or missing data, dad heterozygous; 
-     elsif ($seqs[$did] ne $seq2[$did] && $seqs[$mid] eq $seq2[$mid]){$tprob[$k]=.5;}
+		 # 2b. mom homozygous or missing data, dad heterozygous; 
+		 elsif ($seqs[$did] ne $seq2[$did] && $seqs[$mid] eq $seq2[$mid]){$tprob[$k]=.5;}
  
-     # 2c. dad homozygous or missing data, mom heterozygous;
-     elsif ($seqs[$mid] ne $seq2[$mid] && $seqs[$did] eq $seq2[$did]){$tprob[$k]=.5;}
+		 # 2c. dad homozygous or missing data, mom heterozygous;
+		 elsif ($seqs[$mid] ne $seq2[$mid] && $seqs[$did] eq $seq2[$did]){$tprob[$k]=.5;}
 
-     # 2d. dad het, mom heterozygous;
-     elsif ($seqs[$mid] ne $seq2[$mid] && $seqs[$did] ne $seq2[$did]){$tprob[$k]=.25;}
+		 # 2d. dad het, mom heterozygous;
+		 elsif ($seqs[$mid] ne $seq2[$mid] && $seqs[$did] ne $seq2[$did]){$tprob[$k]=.5;}
 
 }
-   
-  if ($inf[$k] == 0){die "problems with assigning trio config in main $seqs[$cid] $seq2[$cid] $seqs[$mid] $seq2[$mid] $seqs[$did] $seq2[$did]\n";
-                               }
+	 
+	if ($inf[$k] == 0){die "problems with assigning trio config in main $seqs[$cid] $seq2[$cid] $seqs[$mid] $seq2[$mid] $seqs[$did] $seq2[$did]\n";
+															 }
 
 
-  
+	
 #Check for MIs
-        
-         $p1=0;$p2=0;$p12=0;$p22=0;
+				
+				 $p1=0;$p2=0;$p12=0;$p22=0;
 
-     if (($seqs[$cid] eq $seq2[$mid]) || ($seqs[$cid] eq $seqs[$mid])) {$p1++;}
-     if (($seqs[$cid] eq $seq2[$did]) || ($seqs[$cid] eq $seqs[$did])) {$p2++;}
-     if (($p1==0) && ($p2==0)) {$test2=1;} else {$test2=0;}    
-     
-       if ($seq2[$cid] eq $seqs[$mid]){$p12++;}
-       if ($seq2[$cid] eq $seq2[$mid]){$p12++;}
-       if ($seq2[$cid] eq $seqs[$did]){$p22++;}
-       if ($seq2[$cid] eq $seq2[$did]){$p22++;}
-       if(($p12==0) && ($p22==0)){$test3=1;} else {$test3=0;}
-       $p1=$p1+$p12;
-       $p2=$p2+$p22;      
-       if(($test2==0)||($test3==0)){
-         if ($p1==0){$z++;$d=1;$dc=2;$inf[$k]=1;} #dc=2 indicates mom is deletion carrier
-         elsif ($p2==0){$z++;$d=1;$dc=1;$inf[$k]=2;}
-         
-     }
-         if ($test2==1 || $test3==1) {$inf[$k]=3;}
+		 if (($seqs[$cid] eq $seq2[$mid]) || ($seqs[$cid] eq $seqs[$mid])) {$p1++;}
+		 if (($seqs[$cid] eq $seq2[$did]) || ($seqs[$cid] eq $seqs[$did])) {$p2++;}
+		 if (($p1==0) && ($p2==0)) {$test2=1;} else {$test2=0;}    
+		 
+			 if ($seq2[$cid] eq $seqs[$mid]){$p12++;}
+			 if ($seq2[$cid] eq $seq2[$mid]){$p12++;}
+			 if ($seq2[$cid] eq $seqs[$did]){$p22++;}
+			 if ($seq2[$cid] eq $seq2[$did]){$p22++;}
+			 if(($p12==0) && ($p22==0)){$test3=1;} else {$test3=0;}
+			 $p1=$p1+$p12;
+			 $p2=$p2+$p22;      
+			 if(($test2==0)||($test3==0)){
+				 if ($p1==0){$z++;$d=1;$dc=2;$inf[$k]=1;} #dc=2 indicates mom is deletion carrier
+				 elsif ($p2==0){$z++;$d=1;$dc=1;$inf[$k]=2;}
+				 
+		 }
+				 if ($test2==1 || $test3==1) {$inf[$k]=3;}
 
 
 if ($inf[$k]<6){$tprob[$k]=0;}
 if ($inf[$k]==3){
-    $tprob[$k]=1;
-    $inf[$k]=3; #not meaningfulhere, would have held ts/tv info for point mutant
-                     if ($cid == 0) { $denovo = ($INDEL_MRATE) *($INDEL_MRATE); }# two mutation
-                     if ($cid == 1) { $denovo = ($INDEL_MRATE);} # single mutation
-		     if ($cid==2){ $denovo = ($INDEL_MRATE) *($INDEL_MRATE); }# two mutation
-    
-    $dflag=1; $nflag=0;} else {$dflag=0;$nflag=1;}    
-	       
+		$tprob[$k]=1;
+		$inf[$k]=3; #not meaningfulhere, would have held ts/tv info for point mutant
+										 if ($cid == 0) { $denovo = ($INDEL_MRATE) *($INDEL_MRATE); }# two mutation
+		if ($cid == 1) { #print"\nINF == 3 ".$gt_string;
+					$denovo = ($INDEL_MRATE);} # single mutation
+		if ($cid==2){ $denovo = ($INDEL_MRATE) *($INDEL_MRATE); }# two mutation
+		
+		$dflag=1; $nflag=0;} else {$dflag=0;$nflag=1;}    
+				 
 
 
-	    print_info();
-	  #  if ($inf[$k]>3){ print "mendelian  normal $gts[$cid] $gts[$mid] $gts[$did]\n" ;}
-	    $k++;	
+			print_info();
+			# if ($inf[$k]>3){ print "mendelian  normal $gts[$cid] $gts[$mid] $gts[$did]\n" ;}
+			$k++;	
 
 
-       }
-    }
+			 }
+		}
 }
 
 close(OUT);
@@ -335,19 +364,19 @@ close(OUT);
 
 sub ts_tv_call{
 
-    my @alleles=@{$_[0]};
-    my $out=3;
+		my @alleles=@{$_[0]};
+		my $out=3;
 
-   # foreach $el (@alleles){print "$el ";}print "\n";
-  #  $test  = grep /A/,@alleles;
- #   $test2 = grep /G/,@alleles;
-#    print "ts tv $test $test2\n";
+	# foreach $el (@alleles){print "$el ";}print "\n";
+	#  $test  = grep /A/,@alleles;
+	#   $test2 = grep /G/,@alleles;
+	#    print "ts tv $test $test2\n";
 
-    if ($alleles[0] eq $alleles[1]){$out=3;$denovo=($MRATE)*($MRATE);} #homozygous child
-    elsif (grep(/C/,@alleles)!=0 && grep(/T/,@alleles)!=0){$out=4;$denovo=$MRATE;} #transition
-    elsif (grep(/A/,@alleles)!=0 && grep(/G/,@alleles)!=0){$out=4;$denovo=$MRATE;} #transition
-    else {$out=5;$denovo=$MRATE;} #transversion
-    return $out;
+		if ($alleles[0] eq $alleles[1]){$out=3;$denovo=($MRATE)*($MRATE);} #homozygous child
+		elsif (grep(/C/,@alleles)!=0 && grep(/T/,@alleles)!=0){$out=4;$denovo=$MRATE;} #transition
+		elsif (grep(/A/,@alleles)!=0 && grep(/G/,@alleles)!=0){$out=4;$denovo=$MRATE;} #transition
+		else {$out=5;$denovo=$MRATE;} #transversion
+		return $out;
 
 }
 
@@ -355,64 +384,59 @@ sub ts_tv_call{
 
 
 
-sub print_info{
-
-	    print OUT "$snp_status[$k] $inf[$k] $tprob[$k] $gt_string $denovo $dflag $nflag ";
-
-#combine priors and transmission likelihoods
-
-	    foreach $el (@priors){ $o=$el*$tprob[$k]; print OUT "$o ";} print OUT "\n";
-      
-#    print OUT " $#uniqalleles $seqs[$cid] $seq2[$cid] $seqs[$mid] $seq2[$mid] $seqs[$did] $seq2[$did] $inf[$k] $tprob[$k]\n";
-
+sub print_info
+{
+	print OUT "$snp_status[$k] $inf[$k] $tprob[$k] $gt_string $denovo $dflag $nflag";
+	foreach $el (@priors) { 
+		$o=$el	; 
+		print OUT " $o";
+	} 
+	print OUT "\n";
 }
 
 
 sub get_priors_indel{
 
-my    @all=@{$_[0]}[2..5] ;#just retain parents mom,dad alleles
+my @all=@{$_[0]}[2..5] ;#just retain parents mom,dad alleles
 my @priors;
 my $i=0;
 my @sa = sort {$a cmp $b} @all;
-
 my $prev='nonesuch';    
 @uniq = grep($_ ne $prev && (($prev) = $_),@sa);
-
-
-    $nhit=grep /R/,@all;
+$nhit=grep /R/,@all;
 
 
 
 #ref not in the genotypes
-    if ($nhit == 0){
+		if ($nhit == 0){
 
-    if ($#uniq==0){$priors[$i]=(3.0/5.0)*(1.0/5.0);} #0 copies of ref in parents
+		if ($#uniq==0){$priors[$i]=(3.0/5.0)*(1.0/5.0);} #0 copies of ref in parents
 
 #    else {$priors[$i]=$POLY_RATE*$POLY_RATE;} #triallelic  
 }
 #ref in the genotypes
-    elsif ($nhit >0){
+		elsif ($nhit >0){
 
 	if ($nhit==4){$priors[$i]=1;} #4 copies of the ref, site look monomorphic in parents
 
-        elsif ($nhit==3){$priors[$i]=(3.0/5.0)*(4.0/5.0)*.5  ;} #3 copy of ref in parents
-        
-        elsif ($nhit==2){ #two 
+				elsif ($nhit==3){$priors[$i]=(3.0/5.0)*(4.0/5.0)*.5  ;} #3 copy of ref in parents
+				
+				elsif ($nhit==2){ #two 
 
-	    if ($all[0] eq $all[1] && $all[2] eq $all[3]){$priors[$i]=(2.0/5.0)*(1.0/5.0)*.5;} 
+			if ($all[0] eq $all[1] && $all[2] eq $all[3]){$priors[$i]=(2.0/5.0)*(1.0/5.0)*.5;} 
 
-	    elsif ($all[0] ne $all[1] && $all[2] ne $all[3]){$priors[$i]=(2.0/5.0)*(2.0/5.0);} 
-            
-            else {print "\n  all $all[0] $all[1] $all[2] $all[3]\n"; die "Exception 1 in priors\n";}
+			elsif ($all[0] ne $all[1] && $all[2] ne $all[3]){$priors[$i]=(2.0/5.0)*(2.0/5.0);} 
+						
+						else {print "\n  all $all[0] $all[1] $all[2] $all[3]\n"; die "Exception 1 in priors\n";}
 	}
 
-        elsif ($nhit==1){ #one 
+				elsif ($nhit==1){ #one 
 	
-         $priors[$i]=(2.0/5.0)*(2.0/5.0) *.5;} 
+				 $priors[$i]=(2.0/5.0)*(2.0/5.0) *.5;} 
 
-    
+		
 	else {die "Exception 2 in priors\n";}
-    }
+		}
 
 
 ####### ADD IN PRIOR ON PROBABILITY THAT SITE IS FALSE POSITIVE #######
@@ -421,7 +445,7 @@ if ($nhit==4) {
 
  $priors[$i]*=$INDEL_FDR;} else {
 if (! defined($priors[$i])){   print "NOT DEFINED $nhit $#uniq $all[0] $all[1] $all[2] $all[3] $#all \n";}
-    $priors[$i]*=(1-$INDEL_FDR); }
+		$priors[$i]*=(1-$INDEL_FDR); }
 
 
 return \@priors;
@@ -441,51 +465,51 @@ my	@ref=("A","C","G","T");
 my @priors;
 my $i=0;
 my $prev='nonesuch';
-            my @sa = sort {$a cmp $b} @all;
-                     
-	    @uniq = grep($_ ne $prev && (($prev) = $_),@sa);
+						my @sa = sort {$a cmp $b} @all;
+										 
+			@uniq = grep($_ ne $prev && (($prev) = $_),@sa);
 
 
 
 for ($i=0;$i<4;$i++){ # LOOP OVER ALL 4 POSSIBLE BASES IN REFERENCE
 
-    if ($nuniq > 2 ) {$priors[$i]=$MIN_LIKE; next;}
-    if ($nuniq == 2 ){ $priors[$i]=$POLY_RATE * $POLY_RATE ; next;}
+		if ($nuniq > 2 ) {$priors[$i]=$MIN_LIKE; next;}
+		if ($nuniq == 2 ){ $priors[$i]=$POLY_RATE * $POLY_RATE ; next;}
 
-    $nhit=grep /$ref[$i]/,@all;
+		$nhit=grep /$ref[$i]/,@all;
 
-    
+		
 #ref not in the genotypes
-    if ($nhit == 0){
+		if ($nhit == 0){
 
-    if ($#uniq==0){$priors[$i]=.002*(3.0/5.0)*(1.0/5.0);} #0 copies of ref in parents
+		if ($#uniq==0){$priors[$i]=.002*(3.0/5.0)*(1.0/5.0);} #0 copies of ref in parents
 
-    else {$priors[$i]=$POLY_RATE*$POLY_RATE;} #triallelic  
+		else {$priors[$i]=$POLY_RATE*$POLY_RATE;} #triallelic  
 }
 #ref in the genotypes
-    elsif ($nhit >0){
+		elsif ($nhit >0){
 
 	if ($nhit==4){$priors[$i]=.998;} #4 copies of the ref
 
-        elsif ($nhit==3){$priors[$i]=.002*(3.0/5.0)*(4.0/5.0)*.5  ;} #3 copy of ref in parents
-        
-        elsif ($nhit==2){ #two 
+				elsif ($nhit==3){$priors[$i]=.002*(3.0/5.0)*(4.0/5.0)*.5  ;} #3 copy of ref in parents
+				
+				elsif ($nhit==2){ #two 
 
-	    if ($all[0] eq $all[1] && $all[2] eq $all[3]){$priors[$i]=.002*(2.0/5.0)*(1.0/5.0)*.5;} 
+			if ($all[0] eq $all[1] && $all[2] eq $all[3]){$priors[$i]=.002*(2.0/5.0)*(1.0/5.0)*.5;} 
 
-	    elsif ($all[0] ne $all[1] && $all[2] ne $all[3]){$priors[$i]=.002*(2.0/5.0)*(2.0/5.0);} 
-            
-            else {print "\n $ref[$i] all $all[0] $all[1] $all[2] $all[3]\n"; die "Exception 1 in priors\n";}
+			elsif ($all[0] ne $all[1] && $all[2] ne $all[3]){$priors[$i]=.002*(2.0/5.0)*(2.0/5.0);} 
+						
+						else {print "\n $ref[$i] all $all[0] $all[1] $all[2] $all[3]\n"; die "Exception 1 in priors\n";}
 	}
 
-        elsif ($nhit==1){ #one 
-	
-         $priors[$i]=.002*(2.0/5.0)*(2.0/5.0) *.5;} 
+				elsif ($nhit==1){ #one 
+	            $priors[$i]=.002*(2.0/5.0)*(2.0/5.0) *.5;} 
 
-    
-	else {die "Exception 2 in priors\n";}
+		
+    else {
+        die "Exception 2 in priors\n";}
     }
-    else {die "exception 3 in priors\n";}
+	else {die "exception 3 in priors\n";}
 
 }
 #            foreach $el (@priors){ print "$el "; } print  "\n";
@@ -493,12 +517,13 @@ return \@priors;
 }
 
 
-	       
+				 
 sub print_usage{
 
-print STDERR "MAKE_LOOKUP usage:\n This script produces lookup tables for calculating indel and point mutation rates
-please specify either one or the other, ie
-perl make_lookup.pl indel
-perl make_lookup.pl snp\n";
+print STDERR "MAKE_LOOKUP \nusage: This script produces lookup tables for ".
+"calculating indel and point mutation rates. ".
+"Please specify either one or the other, ie. ".
+"\nperl make_lookup.pl indel\n or \n".
+"perl make_lookup.pl point\n";
 
 }
