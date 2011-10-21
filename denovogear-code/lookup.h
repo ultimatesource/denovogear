@@ -10,17 +10,14 @@ using namespace std;
 using namespace RBD_LIBRARIES;
 #endif
 
-
 #ifndef VERSION
 #define VERSION "dummy"
 #endif
 
 #define MRATE 5e-7
-#define MIN_READ_DEPTH 0
+#define MIN_READ_DEPTH_SNP 10
 #define MIN_READ_DEPTH_INDEL 10
 #define MIN_MAPQ 40 
-
-
 
 typedef struct {
   Matrix aref; /*priors for "A" reference allele */
@@ -34,5 +31,6 @@ typedef struct {
   Matrix mrate; /*mutation probability*/
   Matrix denovo; /*code for identifying de novo events + mutation rate*/
   Matrix norm; /*code for identifying de novo events + mutation rate*/
+  Matrix hit; /* multiplication factor for indel mu */
 } lookup_t;
 
