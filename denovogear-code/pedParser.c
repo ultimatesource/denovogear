@@ -1,17 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include "pedParser.h"
 
-
+// Parse PED file and get trio information
 int parse_ped(const char* ped_file, Trio* trios)
 {
 	
 	FILE *fp;
 	fp = fopen( ped_file, "r");
 	if (fp == NULL) {
-         printf("Unable to open PED file, Exiting !");
+         printf("\nUnable to open PED file, Exiting !\n");
          exit(0);
 	}
 	
@@ -25,11 +24,11 @@ int parse_ped(const char* ped_file, Trio* trios)
 	while (fgets (line , 100 , fp) != NULL) {
 		sscanf(line, "%s %s %s %s", fID1, cID1, dID1, mID1);
 		if( strcmp(mID1, "0") && strcmp(dID1, "0") ) {
-			strcpy( trios[trio_count].fID, fID1);
-			strcpy( trios[trio_count].cID, cID1);
-			strcpy( trios[trio_count].dID, dID1);
-			strcpy( trios[trio_count].mID, mID1);
-			trio_count++;
+			strcpy( trios[trio_count].fID, fID1); // Get Family ID
+			strcpy( trios[trio_count].cID, cID1); // Get Child ID
+			strcpy( trios[trio_count].dID, dID1); // Get Dad ID
+          	strcpy( trios[trio_count].mID, mID1); // Get Mom ID
+			trio_count++; // Increase trio count
 		}
 	}
 	
