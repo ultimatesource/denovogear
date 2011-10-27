@@ -1,15 +1,16 @@
 #ifndef PARSER_H_
 #define PARSER_H_
+
 #include "bcf.h"
+
+#ifndef PED_PARSER_H
+#define PED_PARSER_H
 #include "pedParser.h"
+#endif
+
 #define MAX_QCALL_LINE 2048
-#define ID_LENGTH 100
 
-#define MIN_READ_DEPTH 0
-#define MIN_MAPQ 40 
-
-//int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, vector<vector<string > >  & tgt, lookup_t & lookup);
-
+// Store QCall Line
 typedef struct { //New struct for Q calls
 	char chr[3]; /* Chromosome Number. */
 	long pos; /* position, the first base in a chromosome has offset zero. */
@@ -22,6 +23,7 @@ typedef struct { //New struct for Q calls
 	char id[ID_LENGTH]; /* string for sample ID */
 } qcall_t;
 
+// Store INDEL line
 typedef struct { //New struct for Indels
 	char chr[3]; /* chromosome Number. */
 	long pos; /* position, the first base in a chromosome has offset zero. */
@@ -35,7 +37,9 @@ typedef struct { //New struct for Indels
 	int length; /* to be filled in by Ruth */
 } indel_t;
 
-int parse(char* ped_file, char* bcf_file);
-int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t* mom, qcall_t* dad, qcall_t* child, indel_t* mom_indel, indel_t* dad_indel, indel_t* child_indel, int& flag);
+int parse(char* ped_file, char* bcf_file); // Parse BCF file
+int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t* mom, 
+               qcall_t* dad, qcall_t* child, indel_t* mom_indel, 
+               indel_t* dad_indel, indel_t* child_indel, int& flag); // BCF to QCALL
 
 #endif
