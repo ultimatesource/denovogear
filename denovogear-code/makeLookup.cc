@@ -9,17 +9,18 @@
 #include "lookup.h"
 using namespace std;
 
-const double g_kMinLike = 1e-26;
-double g_Mrate = 1e-8;
-double g_IndelMrate = 1e-9;
+const double g_kMinLike = 1e-26; // Minimum Likelihood value
+double g_Mrate = 1e-8; // SNP mutation rate
+double g_IndelMrate = 1e-9; // Indel mutation rate
 const double g_kIndelFDR = 0.05;
 double g_PolyRate = 1e-3;
-const double g_kIndelTheta = 1e-4; // NOT USED CURRENTLY
 double g_t_prob, g_priors[4], g_kDenovorate; 
-int g_inf, g_n_u_alleles;
-string g_gts;
-bool g_dflag, g_nflag;
+int g_inf, g_n_u_alleles; // Transition/Transversion, Number of unique alleles
+string g_gts; // Genotype string of trio
+bool g_dflag, g_nflag; // Denovo flag, Normal Flag
+int ta_c = 0, ta_c2 = 0, ta_c3 = 0;
 
+// Write to SNP Lookup table file and struct
 void readSNPLookup(ofstream& fout, vector<vector<string > > & tgt, 
 					lookup_t & lookup, float lines[][1000])
 {
@@ -39,7 +40,6 @@ void readSNPLookup(ofstream& fout, vector<vector<string > > & tgt,
 	lines[7][l] = g_priors[1];
 	lines[8][l] = g_priors[2];
 	lines[9][l++] = g_priors[3];
-	//cout<<endl<<snp_index<<" "<<k<<" "<<l;
 	tgt[k][snp_index++] = g_gts;
 	if (snp_index == 10) {
 		k++;
@@ -48,8 +48,9 @@ void readSNPLookup(ofstream& fout, vector<vector<string > > & tgt,
 	fout<<"\n";
 }
 
-void readIndelLookup(ofstream& fout, vector<vector<string > > & tgt, 
-					  lookup_t & lookup, float lines[][27])
+// Write to Indel lookup table file and struct
+void readIndelLookup(ofstream& fout, vector<vector<string > > & tgt,
+                     lookup_t & lookup, float lines[][27])      
 {
 	static int indel_index = 0, k = 0, l = 0;
 	fout<<g_n_u_alleles<<" "<<g_inf<<" "<<g_t_prob<<" "<<g_gts<<" ";
@@ -62,7 +63,6 @@ void readIndelLookup(ofstream& fout, vector<vector<string > > & tgt,
 	lines[4][l] = g_dflag;
 	lines[5][l] = g_nflag;
 	lines[6][l++] = g_priors[0];
-	//cout<<endl<<indel_index<<" "<<k;
 	tgt[k][indel_index++] = g_gts;
 	if (indel_index == 3) {
 		k++;
@@ -71,6 +71,7 @@ void readIndelLookup(ofstream& fout, vector<vector<string > > & tgt,
 	fout<<"\n";
 }
 
+// Calculate Indel prior
 void getIndelPriors(string g_gts, int n_uniqa)
 {
     string m_d_alleles = g_gts.substr(2, 4);
@@ -130,67 +131,80 @@ void getIndelPriors(string g_gts, int n_uniqa)
 
 }
 
+// Calculate SNP priors
 void getSNPPriors(string g_gts, int n_uniqa)
 {
     string m_d_alleles = g_gts.substr(2, 4);
     char ref[] = { 'A', 'C', 'G', 'T' };
     set<char> m_d_uniq_a;
+    
 
     m_d_uniq_a.insert(m_d_alleles[0]);
     m_d_uniq_a.insert(m_d_alleles[1]);
     m_d_uniq_a.insert(m_d_alleles[2]);
     m_d_uniq_a.insert(m_d_alleles[3]);
     int m_d_nuniq = m_d_uniq_a.size();
+  
     for (int i=0; i<4; i++) { // LOOP OVER ALL 4 POSSIBLE BASES IN REFERENCE
-		if (n_uniqa > 3) {
-			g_priors[i] = g_kMinLike; 
-			continue;
-		}
-		if (n_uniqa == 3) {
+      
+        if (n_uniqa > 3) {
+            g_priors[i] = g_kMinLike; 
+            continue;
+        }
+      
+        if(m_d_nuniq == 3) {
+          g_priors[i] = 0.002 * 0.002 / 414;  // prior split equally amongst all triallelic cases
+          continue;
+        }
+          
+        else if (n_uniqa == 3) { // 3rd allele in child case
+            //cout<<"\nc1 "<<g_gts;
 			g_priors[i] = g_PolyRate * g_PolyRate;
 			continue;
 		}
 	 	
-	 	int nhit = 0;
-	 	for( int j =0; j<4; j++) {
-	 		//cout<<"\nm_d ref"<<m_d_alleles[j]<<" "<<ref[i];
+	 	int nhit = 0; 
+	 	for( int j = 0; j<4; j++) {
 	 		if (m_d_alleles[j] == ref[i])
 	 			nhit++;
 		}
 	
 		//ref not in the genotypes
-		if (nhit == 0) {
-	    	if (m_d_nuniq == 1) { //0 copies of ref in parents
-	    		g_priors[i] = 0.002 * (3.0/5.0) * (1.0/5.0);
+		if (nhit == 0) { // 0 copies of ref in parents
+	    	if (m_d_nuniq == 1) { // biallelic
+	    		g_priors[i] = 0.995 * 0.002 * (3.0/5.0) * (1.0/5.0);
 	    	} 
-	    	else { //triallelic  
-	    		g_priors[i] = g_PolyRate * g_PolyRate;
-	    	} 
+	    	else if (m_d_nuniq == 2) { // triallelic 
+              g_priors[i] = 0.002 * 0.002 / 414; // prior split equally amongst all triallelic cases
+            } 
+            else { 
+              g_priors[i] = g_PolyRate * g_PolyRate;
+	    	}          
 		}
 		
 		//ref in the genotypes
 		else if (nhit > 0) {
 	    	if (nhit == 4) { // 4 copies of the ref
-	    		g_priors[i] = 0.998;
+	    		g_priors[i] = 0.995 * 0.998;
 	    	} 
-	    	else if (nhit == 3) { // 3 copy of ref in parents
-	    		g_priors[i] = 0.002 * (3.0/5.0) * (4.0/5.0) * 0.5;
+	    	else if (nhit == 3) { // 3 copies of ref in parents
+	    		g_priors[i] = 0.995 * 0.002 * (3.0/5.0) * (4.0/5.0) * 0.5;
 	    	} 
-	    	else if (nhit == 2) { // two 
+	    	else if (nhit == 2) { // 2 copies of the ref in parents
 				if ((m_d_alleles[0] == m_d_alleles[1]) && (m_d_alleles[2] == m_d_alleles[3])) {
-					g_priors[i] = 0.002 * (2.0/5.0) * (1.0/5.0) * 0.5;
+					g_priors[i] = 0.995 * 0.002 * (2.0/5.0) * (1.0/5.0) * 0.5;
 				} 
 				else if ((m_d_alleles[0] != m_d_alleles[1]) &&  (m_d_alleles[2] != m_d_alleles[3])) { 
-					g_priors[i] = 0.002 * (2.0/5.0) * (2.0/5.0);
+					g_priors[i] = 0.995 * 0.002 * (2.0/5.0) * (2.0/5.0);
 				} 
 				else {
-					cout<<"\nref[i] all  all[0]  all[1]  all[2]  all[3]\n"; 
+					cout<<"\n"<<ref[i]<<" "<<g_gts; 
 					cout<<"\nException 1 in g_priors\n";
 					exit(1);
 				}
 			}
 	    	else if (nhit == 1) { //one 
-		 		g_priors[i] = 0.002 * (2.0/5.0) * (2.0/5.0) * 0.5;
+		 		g_priors[i] = 0.995 * 0.002 * (2.0/5.0) * (2.0/5.0) * 0.5;
 			} 
 	    	else {
 		    	cout<<"\nExiting! Exception 2 in g_priors\n";
@@ -201,10 +215,10 @@ void getSNPPriors(string g_gts, int n_uniqa)
 			cout<<"\nExiting! Exception 3 in g_priors\n";
 			exit(1);
 		}
-		//cout<<"\n"<<g_priors[i];
     }
 }	
 
+// Create SNP lookup
 void makeSNPLookup(vector<vector<string > > & tgt, lookup_t & lookup)
 {
 	float lines[10][1000]; 
@@ -251,7 +265,7 @@ void makeSNPLookup(vector<vector<string > > & tgt, lookup_t & lookup)
 				
 				getSNPPriors(alleles, g_n_u_alleles);
 
-				// 4 alleles => abort
+				// 4 unique alleles 
 				if (g_n_u_alleles == 4) {
 					g_t_prob = 0.0;
 					g_inf = 9;
@@ -260,7 +274,8 @@ void makeSNPLookup(vector<vector<string > > & tgt, lookup_t & lookup)
 					readSNPLookup(fout, tgt, lookup, lines);
 					continue;
 				}
-
+                
+                // triallelic case
 				if (g_n_u_alleles == 3) {
 					g_inf = 9;
 					if ((seq1[cid] == seq1[did] || seq1[cid] == seq2[did]) 
@@ -271,37 +286,40 @@ void makeSNPLookup(vector<vector<string > > & tgt, lookup_t & lookup)
 							g_t_prob = 0.5;	
 						else
 							g_t_prob = 0.25;
+                      g_dflag = false; 
+                      g_nflag = true;
 					}
-					else
-						g_t_prob = 0;
-                    g_dflag = false; 
-                    g_nflag = true;
+					else {
+                      g_t_prob = 0;
+                      g_dflag = true; 
+                      g_nflag = false;
+                    }                   
 					readSNPLookup(fout, tgt, lookup, lines);
 					continue;
 				}
 				
 
-				// 1. Child is missing data or homozygous
+				// Child is missing data or homozygous
 				if (seq1[cid] == seq2[cid]) {
-					// 1b. mom and dad homozygous for same allele; class D
+					// Mom and dad homozygous for same allele
 		    		if (seq1[did] == seq2[did] &&  seq1[mid] ==  seq2[mid]) {
 			    		 g_inf = 6; 
 			    		 g_t_prob = 1.0;
 			    	}		    
 		    		
-		    		// 1c. mom homozygous or missing data, dad heterozygous; class E
+		    		// Mom homozygous or missing data, dad heterozygous
 		    		else if ((seq1[did] != seq2[did]) &&  (seq1[mid] == seq2[mid])) {
 		    			g_inf = 7;
 		    			g_t_prob = 0.5;
 		    		}
 		    
-		    		// 1d. dad homozygous or missing data, mom heterozygous; class F
+		    		// Dad homozygous or missing data, mom heterozygous
 		    		else if ((seq1[mid] != seq2[mid]) && (seq1[did] == seq2[did])) { 
 			    		g_inf = 8;
 			    		g_t_prob = 0.5;
 			    	}
 		    
-		    		// 1e. both parents het;   class G
+		    		// Both parents het
 		    		else if ((seq1[mid] != seq2[mid]) && (seq1[did] != seq2[did])) { 
 			    		g_inf = 9;
 			    		g_t_prob = 0.25;
@@ -309,26 +327,26 @@ void makeSNPLookup(vector<vector<string > > & tgt, lookup_t & lookup)
 				}
 		
 		
-				// 2. Child is Het 
+				// Child is Heterozygous 
 				else {
 		     		g_inf = 9;
 
-		    		// 2a.mom and dad homozygous for same allele;
+		    		// Mom and Dad homozygous for same allele
 		    		if ((seq1[mid] == seq2[mid]) && (seq1[did] == seq2[did])) {
 		    			g_t_prob = 1.0;
 		    		}
 
-		    		//2b. mom homozygous or missing data, dad heterozygous; 
+		    		// Mom homozygous or missing data, dad heterozygous
 		    		else if ((seq1[did] != seq2[did]) && (seq1[mid] == seq2[mid])) {
 		    			g_t_prob = 0.5;
 		    		}
 		    
-		    		// 2c. dad homozygous or missing data, mom heterozygous;
+		    		// Dad homozygous or missing data, mom heterozygous
 		    		else if ((seq1[mid] != seq2[mid]) && (seq1[did] == seq2[did])) { 
 			    		g_t_prob = 0.5;
 			    	}
 
-		    		// 2d. dad het, mom heterozygous;
+		    		// Dad heterozygous, mom heterozygous;
 		    		else if ((seq1[mid] != seq2[mid]) && (seq1[did] != seq2[did])) {
 		    			g_t_prob = 0.5;
 		    		}
@@ -351,7 +369,7 @@ void makeSNPLookup(vector<vector<string > > & tgt, lookup_t & lookup)
 				if ((seq1[cid] == seq2[did]) || (seq1[cid] == seq1[did])) {
 					p2++;
 				}
-				// If child allele 1 is not found in either parent test3 = 1
+				// If child allele 1 is not found in either parent test3 is true
 				if ((p1==0) && (p2==0)) {
 					test2 = true;
 				} else {
@@ -363,7 +381,7 @@ void makeSNPLookup(vector<vector<string > > & tgt, lookup_t & lookup)
 				// Check if child allele 2 is in dad
 				if (seq2[cid] == seq1[did] || seq2[cid] == seq2[did])
 					p22++;
-				// If child allele 2 is not found in either parent test3 = 1 
+				// If child allele 2 is not found in either parent test3 is true 
 				if ((p12==0) && (p22==0)) {
 					test3 = true;
 				} else {
@@ -372,11 +390,12 @@ void makeSNPLookup(vector<vector<string > > & tgt, lookup_t & lookup)
 				
 				sum1 = p1 + p12;
 				sum2 = p2 + p22;      
-				
-				if ((test2 == false) || (test3 == false)) { //both child alleles seen in at least one parent
-					if (sum1 == 0) { // both child alleles are seen in dad
+              
+				// both child alleles seen in one parent
+				if ((test2 == false) || (test3 == false)) { 
+					if (sum1 == 0) { // both child alleles seen in dad
 						g_inf = 1; 
-					} else if (sum2 == 0) { // both child alleles are seen in mum
+					} else if (sum2 == 0) { // both child alleles seen in mum
 						g_inf = 2;
 					}				    
 				}
@@ -384,8 +403,9 @@ void makeSNPLookup(vector<vector<string > > & tgt, lookup_t & lookup)
 				if (test2 == true || test3 == true) {
 					g_inf = 3;
 				}
-				//For configuration inf[k]=1 and inf[k]=2, make parsimony assumption that only one mutation occurred
-				if(g_inf == 1) { // both alleles in dad, denovo from mom
+              
+				// both alleles in dad, denovo from mom
+                if(g_inf == 1) { 
 					g_t_prob = 1.0;
 					g_kDenovorate = g_Mrate;
 					if((alleles[0] == 'A' || alleles[1] == 'A' || alleles[0] == 'G' || alleles[1] == 'G') && (alleles[2] == 'C' || alleles[3] == 'T'))
@@ -407,7 +427,7 @@ void makeSNPLookup(vector<vector<string > > & tgt, lookup_t & lookup)
 					   g_inf = 4; // transition	
 					g_dflag = true; // normal and denovo flags for DNG
 				    g_nflag = false; 
-				} else if (g_inf == 3) {
+				} else if (g_inf == 3) { // DNM
 					g_t_prob = 1.0;
 					bool flagA = false, flagC = false, flagG = false, flagT = false;
 					for(unsigned int k=0; k < alleles.length(); k++) {
@@ -421,7 +441,7 @@ void makeSNPLookup(vector<vector<string > > & tgt, lookup_t & lookup)
 							flagG = true;
 					}
 
-					if (seq1[cid] == seq2[cid]) { // #homozygous child
+					if (seq1[cid] == seq2[cid]) { // homozygous child
 						g_kDenovorate = g_Mrate * g_Mrate;
 					} 
     				else if (flagC && flagT) { // transition
@@ -438,7 +458,7 @@ void makeSNPLookup(vector<vector<string > > & tgt, lookup_t & lookup)
 	    			}
 
 				    g_dflag = true; 
-				    g_nflag = false; // normal and denovo flags for DNG
+				    g_nflag = false; 
 				} else {
 					g_dflag = false; 
 					g_nflag = true;
@@ -460,9 +480,9 @@ void makeSNPLookup(vector<vector<string > > & tgt, lookup_t & lookup)
 	lookup.tref << lines[9];
 }
 
+// Make Indel lookup table
 void makeIndelLookup(vector<vector<string > > & tgt, lookup_t & lookupIndel)
 {
-	//string gts[] = { "RR", "RD", "DD" };
 	float lines[7][27];
 	string seq1[] = { "R", "R", "D" };
 	string seq2[] = { "R", "D", "D" };
@@ -500,61 +520,58 @@ void makeIndelLookup(vector<vector<string > > & tgt, lookup_t & lookupIndel)
 				u_alleles.insert(seq2[did]);
 				g_n_u_alleles = u_alleles.size();
 				string alleles = seq1[cid] + seq2[cid] + seq1[mid] + seq2[mid] + seq1[did] + seq2[did];
-				//cout<<"\n"<<" GT string: "<<g_gts;
-				//cout<<" The number of unique u_alleles is: "<<g_n_u_alleles;				
 				getIndelPriors(alleles, g_n_u_alleles);
 
-				// 1. Child is missing data or homozygous
+				// Child is missing data or homozygous
 				if (seq1[cid] == seq2[cid]) {
-					// 1b. mom and dad homozygous for same allele; class D
+					// Mom and Dad homozygous for same allele
 		    		if (seq1[did] == seq2[did] && seq1[mid] ==  seq2[mid]) {
 			    		 g_inf = 6; 
 			    		 g_t_prob = 1.0;
 			    	}		    
 		    		
-		    		// 1c. mom homozygous or missing data, dad heterozygous; class E
+		    		// Mom homozygous or missing data, dad heterozygous
 		    		else if ((seq1[did] != seq2[did]) && (seq1[mid] == seq2[mid])) {
 		    			g_inf = 7;
 		    			g_t_prob = 0.5;
 		    		}
 		    
-		    		// 1d. dad homozygous or missing data, mom heterozygous; class F
+		    		// Dad homozygous or missing data, mom heterozygous
 		    		else if ((seq1[mid] != seq2[mid]) && (seq1[did] == seq2[did])) { 
 			    		g_inf = 8;
 			    		g_t_prob = 0.5;
 			    	}
 		    
-		    		// 1e. both parents het;   class G
+		    		// Both parents heterozygous
 		    		else if ((seq1[mid] != seq2[mid]) && (seq1[did] != seq2[did])) { 
 			    		g_inf = 9;
 			    		g_t_prob = 0.25;
 			    	}
 				}
 		
-		
-				// 2. Child is Het 
-				else {
-		     		g_inf = 9;
+            
+                // Child is Het 
+                else {
+                      g_inf = 9;
+                      // Mom and dad homozygous for same allele
+                      if ((seq1[mid] == seq2[mid]) && (seq1[did] == seq2[did])) {
+                        g_t_prob = 1.0;
+                      }
 
-		    		// 2a.mom and dad homozygous for same allele;
-		    		if ((seq1[mid] == seq2[mid]) && (seq1[did] == seq2[did])) {
-		    			g_t_prob = 1.0;
-		    		}
+                      // Mom homozygous or missing data, dad heterozygous
+                      else if ((seq1[did] != seq2[did]) && (seq1[mid] == seq2[mid])) {
+                          g_t_prob = 0.5;
+                      }
+              
+                      // Dad homozygous or missing data, mom heterozygous
+                      else if ((seq1[mid] != seq2[mid]) && (seq1[did] == seq2[did])) { 
+                          g_t_prob = 0.5;
+                      }
 
-		    		//2b. mom homozygous or missing data, dad heterozygous; 
-		    		else if ((seq1[did] != seq2[did]) && (seq1[mid] == seq2[mid])) {
-		    			g_t_prob = 0.5;
-		    		}
-		    
-		    		// 2c. dad homozygous or missing data, mom heterozygous;
-		    		else if ((seq1[mid] != seq2[mid]) && (seq1[did] == seq2[did])) { 
-			    		g_t_prob = 0.5;
-			    	}
-
-		    		// 2d. dad het, mom heterozygous;
-		    		else if ((seq1[mid] != seq2[mid]) && (seq1[did] != seq2[did])) {
-		    			g_t_prob = 0.5;
-		    		}
+                      // Dad het, mom heterozygous
+                      else if ((seq1[mid] != seq2[mid]) && (seq1[did] != seq2[did])) {
+                          g_t_prob = 0.5;
+                      }
 				}
 		
 				if (g_inf == 0) {
@@ -565,23 +582,29 @@ void makeIndelLookup(vector<vector<string > > & tgt, lookup_t & lookupIndel)
 				// Check for MIs
 				int p1 = 0, p2 = 0, p12 = 0, p22 = 0;
 				bool test2, test3;
-
+              
+                // Check for C1 in M1 and M2
 				if ((seq1[cid] == seq2[mid]) || (seq1[cid] == seq1[mid])) {
 					p1++;
 				}
+                // Check for C1 in D1 and D2
 				if ((seq1[cid] == seq2[did]) || (seq1[cid] == seq1[did])) {
 					p2++;
 				}
+                // C1 not found in M & D => test2 is true
 				if ((p1==0) && (p2==0)) {
 					test2 = true;
 				} else {
 					test2 = false;
 				}    
 		
+                // Check for C2 in M1 and M2
 				if ((seq2[cid] == seq1[mid]) || (seq2[cid] == seq2[mid]))
 					p12++;
+                // Check for C2 in D1 and D2
 				if ((seq2[cid] == seq1[did]) || (seq2[cid] == seq2[did]))
 					p22++;
+                // C2 not found in M & D => test3 is true
 				if ((p12==0) && (p22==0)) {
 					test3 = true;
 				} else { 
@@ -589,14 +612,17 @@ void makeIndelLookup(vector<vector<string > > & tgt, lookup_t & lookupIndel)
 				}
 				
 				p1 = p1+p12;
-				p2 = p2+p22;      				
+				p2 = p2+p22;      
+                
+                // Both child alleles seen in one parent
 				if ((test2 == false) || (test3 == false)) {
-					if (p1==0) { 
+					if (p1==0) { // Both alleles seen in dad
 						g_inf = 1;
-					} else if (p2==0) {
+					} else if (p2==0) { // Both alleles seen in mom
 						g_inf = 2;
 					}				    
 				}
+                // C1 or C2 not found in M and D
 				if (test2 == true || test3 == true) {
 					g_inf = 3;
 				}
@@ -604,15 +630,13 @@ void makeIndelLookup(vector<vector<string > > & tgt, lookup_t & lookupIndel)
 				if (g_inf < 6) {
 					g_t_prob = 0;
 				}
-
-				if (g_inf==3) {
-					
+                // DNM
+				if (g_inf==3) {					
 					g_t_prob = 1;
 		    		if (cid == 0) { // two mutation
 			    		g_kDenovorate = 2; 
 			    	}
 		    		if (cid == 1) { // single mutation
-						//cout<<"\ng inf == 3"<<g_gts;
 			    		g_kDenovorate = 1;
 			    	} 
 		    		if (cid == 2) { // two mutation
@@ -642,6 +666,7 @@ void makeIndelLookup(vector<vector<string > > & tgt, lookup_t & lookupIndel)
 
 }
 
+// Make SNP and Lookup Indels
 void makeLookup(string table_type, double Mrate, double IndelMrate, double PolyRate, 
 				vector<vector<string > > & tgt, lookup_t & lookup) 
 {
