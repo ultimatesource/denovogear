@@ -5,14 +5,17 @@
 #include "newmatap.h"
 #include "newmatio.h"
 
+#define MIN_READ_DEPTH_INDEL 10
+
 using namespace std;
 
+// Calculate DNM and Null PP
 void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag, 
 					 vector<vector<string > > & tgtIndel, 
 					 lookup_t & lookupIndel, double mu_scale)
 {    
     Real a[3];   
-    Real maxlike_null,maxlike_denovo,pp_null,pp_denovo,denom,numer;       
+    Real maxlike_null,maxlike_denovo,pp_null,pp_denovo,denom;       
     Matrix M(1,3);
     Matrix C(3,1);
     Matrix D(3,1);
@@ -32,26 +35,27 @@ void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag,
     	return;
     }
 
-	bool is_insertion;
-	int len_diff = strlen(mom->ref_base) - strlen(mom->alt);
+	bool is_insertion; // insertion/deletion event
+	int len_diff = strlen(mom->ref_base) - strlen(mom->alt); // diff b/w alt, ref
 	if (len_diff < 0) {
 		is_insertion = true;
 		len_diff = -len_diff;
 	} else if (len_diff > 0) {
 		is_insertion = false;
 	}
-	//cout<<endl<<mom->ref_base<<" "<<mom->alt<<" "<<len_diff<<" "<<is_insertion;
-	double indel_mrate, new_indel_mrate;
+
+    // mu_scale is the variable used to scale the mu function
+    double indel_mrate, new_indel_mrate;
 	if(is_insertion) 
-		indel_mrate = mu_scale * (-22.8689 - (0.2994 * len_diff));
+		indel_mrate = mu_scale * (-22.8689 - (0.2994 * len_diff)); // insertion
 	else
-		indel_mrate = mu_scale * (-21.9313 - (0.2856 * len_diff));	
-	indel_mrate = exp(indel_mrate);
+		indel_mrate = mu_scale * (-21.9313 - (0.2856 * len_diff)); // deletion
+	indel_mrate = exp(indel_mrate); // antilog of log ratio
 	
 	for (int j = 1; j <= 9; j++)
 		for (int l = 1; l <= 3; l++) {
-			new_indel_mrate = pow(indel_mrate, lookupIndel.hit(j,l));
-			lookupIndel.mrate(j,l) = new_indel_mrate;
+			new_indel_mrate = pow(indel_mrate, lookupIndel.hit(j,l)); // hit is 0,1 or 2
+			lookupIndel.mrate(j,l) = new_indel_mrate; 
 		}
 	
 	//Currently, samtools creates indel records are created for every trio in the BCF regardless of whether they have data
@@ -71,9 +75,14 @@ void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag,
       
 	P = KP(M,D);    
 	F = KP(P,C);    
-	T = SP(F,lookupIndel.tp); //combine with transmission probs 
+    // combine with transmission probs 
+	T = SP(F,lookupIndel.tp); 
+    // combine with priors
     L = SP(T, lookupIndel.priors);
+    // combine with mutation rate
 	DN = SP(L,lookupIndel.mrate);    
+  
+    // Find max likelihood of null configuration
     PP = SP(DN,lookupIndel.norm);   //zeroes out configurations with mendelian error
     maxlike_null = PP.maximum2(i,j);       
     
@@ -83,10 +92,10 @@ void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag,
        
     //make proper posterior probs
     denom = DN.sum();
-    numer = PP.sum();
-    pp_denovo = maxlike_denovo/denom;
-    pp_null = 1 - pp_denovo;
+    pp_denovo = maxlike_denovo/denom; // denovo posterior probability
+    pp_null = 1 - pp_denovo; // null posterior probability
        
+    // Check for PP cutoff
     if ( pp_denovo > 0.0001 ) {
     	cout<<"\nDENOVO-INDEL child id: "<<child->id;
     	cout<<" ref_name: "<<ref_name<<" coor: "<<coor<<" ref_base: "<<mom->ref_base<<" ALT: "<<mom->alt;
