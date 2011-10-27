@@ -2,6 +2,7 @@
 #define ID_LENGTH 100
 #define LINE_LENGTH 1000
 
+// Trio Structure
 typedef struct  {
 	char fID[ID_LENGTH];	// family ID
 	char cID[ID_LENGTH];	// child sampleID
@@ -9,4 +10,5 @@ typedef struct  {
 	char mID[ID_LENGTH];	// mom sampleID
 } Trio;
 
+// Parse Trios in PED file
 int parse_ped(const char* ped_file, Trio* trios);

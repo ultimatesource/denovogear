@@ -12,6 +12,9 @@
 #include "kseq.h"
 
 
+#define MIN_READ_DEPTH 10
+#define MIN_READ_DEPTH_INDEL 10
+#define MIN_MAPQ 40 
 
 static int8_t nt4_table[256] = {
 	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
@@ -46,6 +49,7 @@ static int read_I16(bcf1_t *b, int anno[16])
 	return 0;
 }
 
+// Convert BCF to Qcall format
 int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t* mom_snp, qcall_t* dad_snp, qcall_t* child_snp, indel_t* mom_indel, indel_t* dad_indel, indel_t* child_indel, int& flag)
 {
 	int a[4], k, g[10], l, map[4], k1, l1, j, i, i0, anno[16], dp, mq, d_rest, indel = 0, found_trio = 3;
@@ -106,18 +110,7 @@ int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t* mom_snp, qcall_t* dad_s
 				g[j++] = p[y * (y+1) / 2 + x];
 			}
 		}
-		
-		/*for (k1 = 0; k1 < h->n_smpl; ++k1) 
-			for (l1 = 0; l1 < b->n_gi; ++l1) 
-				if (b->gi[k1].fmt == bcf_str2int("DP", 2)) {
-					//printf("\nin %d %s", k1, h->sns[k1]);
-					//kputw(((uint16_t*)b->gi[i].data)[j], s);
-					//printf("\n\nAVI_CHK: %d\n", ((uint16_t*)b->gi[k1].data)[l1]);
-				}*/
-		
-		//printf("\nFound trio is %d", found_trio);
-		//printf("\n*%s*%s**%s**%s*", t.cID, t.dID, t.mID, h->sns[i] );
-		
+				
 		//found Mom
 		if( strcmp( t.mID, h->sns[i] ) == 0 ) {
 			found_trio--;
@@ -217,7 +210,7 @@ int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t* mom_snp, qcall_t* dad_s
 		}
 		
 		//found Child
-		if( strcmp( t.cID, h->sns[i] ) == 0 ) {
+		if (strcmp( t.cID, h->sns[i]) == 0 ) {
 			found_trio--;
 			
 			if( indel == 0 ) { // Write to Childs SNP object
@@ -268,19 +261,11 @@ int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t* mom_snp, qcall_t* dad_s
 	}
 	
 	//found entire trio, return
-	if( found_trio == 0 ) { 
+	if ( found_trio == 0 ) { 
 		return indel;
-	}
-	
-	
-	else {
+	} else {
 		printf("\n\nUnable to find trio, exiting Denovogear! ( %d, %d) ", found_trio, i);
 		return -3; //missing member	
 	}
 	
 }
-
-
-
-
-
