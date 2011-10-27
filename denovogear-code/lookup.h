@@ -1,24 +1,11 @@
 #include <math.h>
-
 #define WANT_STREAM       // include iostream and iomanipulators
 #include "newmatap.h"
 #include "newmatio.h"
 
 using namespace std;
 
-#ifdef use_namespace
-using namespace RBD_LIBRARIES;
-#endif
-
-#ifndef VERSION
-#define VERSION "dummy"
-#endif
-
-#define MRATE 5e-7
-#define MIN_READ_DEPTH_SNP 10
-#define MIN_READ_DEPTH_INDEL 10
-#define MIN_MAPQ 40 
-
+// Struct to hold Lookup Table
 typedef struct {
   Matrix aref; /*priors for "A" reference allele */
   Matrix cref; /*priors for "C" reference allele */
