@@ -5,8 +5,8 @@
 #include <math.h>
 #include "bcf.h"
 #include "bgzf.h"
-#include "lookup.h"
 #include "parser.h"
+#include "makeLookup.h"
 
 #define WANT_STREAM       // include iostream and iomanipulators
 #include "newmatap.h"
@@ -31,13 +31,20 @@ using namespace RBD_LIBRARIES;
 #define MRATE 5e-7
 #define MIN_MAPQ 40 
 
+// Find DNMs
+int findDenovo(char* ped_file, char* bcf_file, double snp_mrate, 
+               double indel_mrate, double poly_rate, double mu_scale);
+
 // Calculate SNP DNM PP
 void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag, 
-				   vector<vector<string> > &tgt, lookup_t & lookup);
+				   vector<vector<string> > &tgt, lookup_snp_t & lookup);
+
 // Calculate INDEL DNM PP
 void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag, 
-					 vector<vector<string> > &tgtIndel, lookup_t & lookupIndel, double mu_scale);
-// Make SNP and INDEL lookup tables
-void makeLookup(string table_type, double Mrate, double IndelMrate, 
-				double PolyRate, vector<vector<string > > & tgt, 
-				lookup_t & lookup);
+					 vector<vector<string> > &tgtIndel, 
+					 lookup_indel_t & lookupIndel, double mu_scale);
+
+// Calculate Pair PP
+void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair, 
+					 lookup_pair_t & lookupPair, int flag);
+
