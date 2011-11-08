@@ -4,7 +4,8 @@
 #include "pedParser.h"
 
 // Parse PED file and get trio information
-int parse_ped(const char* ped_file, Trio* trios)
+void parse_ped(const char* ped_file, Trio* trios, Pair* pairs, int& trio_count, 
+               int& pair_count)
 {
 	
 	FILE *fp;
@@ -15,23 +16,26 @@ int parse_ped(const char* ped_file, Trio* trios)
 	}
 	
 	char line[LINE_LENGTH];
-	char fID1[ID_LENGTH];	// family ID
-	char cID1[ID_LENGTH];	// child sampleID
-	char dID1[ID_LENGTH];	// dad sampleID
-	char mID1[ID_LENGTH];	// mom sampleID
-	int trio_count = 0;
+	char col[4][ID_LENGTH];	
 	
 	while (fgets (line , 100 , fp) != NULL) {
-		sscanf(line, "%s %s %s %s", fID1, cID1, dID1, mID1);
-		if( strcmp(mID1, "0") && strcmp(dID1, "0") ) {
-			strcpy( trios[trio_count].fID, fID1); // Get Family ID
-			strcpy( trios[trio_count].cID, cID1); // Get Child ID
-			strcpy( trios[trio_count].dID, dID1); // Get Dad ID
-          	strcpy( trios[trio_count].mID, mID1); // Get Mom ID
+		sscanf(line, "%s %s %s %s", col[0], col[1], col[2], col[3]);     
+      
+		if ((strcmp(col[2], "0") != 0) && (strcmp(col[3], "0") != 0)) {
+			strcpy (trios[trio_count].fID, col[0]); // Get Family ID
+			strcpy (trios[trio_count].cID, col[1]); // Get Child ID
+			strcpy (trios[trio_count].dID, col[2]); // Get Dad ID
+          	strcpy (trios[trio_count].mID, col[3]); // Get Mom ID
 			trio_count++; // Increase trio count
 		}
+      
+        else if ((strcmp(col[2], "0") != 0) && (strcmp(col[3], "0") == 0)) {
+          strcpy (pairs[pair_count].pairID, col[0]); // Get Pair ID
+          strcpy (pairs[pair_count].tumorID, col[1]); // Get Tumor Sample ID
+          strcpy (pairs[pair_count].normalID, col[2]); // Get Normal Sample ID
+          pair_count++; // Increase pair count
+        }
 	}
 	
 	fclose(fp);
-	return trio_count;
 }
