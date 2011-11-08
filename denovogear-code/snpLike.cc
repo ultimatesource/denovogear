@@ -1,19 +1,19 @@
 #include <vector>
 #include <iostream>
+#include <string.h>
 #include "parser.h"
 #include "lookup.h"
 #include "newmatap.h"
 #include "newmatio.h"
 
-#define MIN_READ_DEPTH_SNP 10
-
 using namespace std;
 
 // Calculate DNM and Null PP
-void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag, vector<vector<string > > & tgt, lookup_t & lookup)
+void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag, 
+  vector<vector<string > > & tgt, lookup_snp_t & lookup)
 {
   Real a[10];   
-  Real maxlike_null,maxlike_denovo,pp_null,pp_denovo,denom;   
+  Real maxlike_null, maxlike_denovo, pp_null, pp_denovo, denom;   
   Matrix M(1,10);
   Matrix C(10,1);
   Matrix D(10,1);
@@ -42,31 +42,31 @@ void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag, vector<vec
   M<<a;
   
   for (j = 0; j != 10; ++j) 
-  	a[j]=pow(10,-dad.lk[j]/10.);
+  	a[j] = pow(10, -dad.lk[j]/10.);
   D<<a;
   
   for (j = 0; j != 10; ++j) 
-  	a[j]=pow(10,-child.lk[j]/10.);
+  	a[j] = pow(10, -child.lk[j]/10.);
   C<<a;
         
-  P=KP(M,D);
-  F=KP(P,C);
+  P = KP(M, D); // 10 * 10
+  F = KP(P, C); // 100 * 10
   // Combine transmission probs L(Gc | Gm, Gf)
-  T=SP(F,lookup.tp); 
+  T = SP(F, lookup.tp); //100 * 10
 
   // Combine prior L(Gm, Gf) 
   switch(mom.ref_base) {
     case 'A':
-	  L=SP(T,lookup.aref); break;
+	  L = SP(T,lookup.aref); break;
 
     case 'C':
-	  L=SP(T,lookup.cref); break;
+	  L = SP(T,lookup.cref); break;
 
     case 'G':
-	  L=SP(T,lookup.gref); break;
+	  L = SP(T,lookup.gref); break;
 
     case 'T':
-	  L=SP(T,lookup.tref); break;
+	  L = SP(T,lookup.tref); break;
 
     default: L=T; break;
   }
