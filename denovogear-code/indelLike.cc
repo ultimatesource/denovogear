@@ -1,5 +1,6 @@
 #include <vector>
 #include <iostream>
+#include <string.h>
 #include "parser.h"
 #include "lookup.h"
 #include "newmatap.h"
@@ -12,7 +13,7 @@ using namespace std;
 // Calculate DNM and Null PP
 void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag, 
 					 vector<vector<string > > & tgtIndel, 
-					 lookup_t & lookupIndel, double mu_scale)
+					 lookup_indel_t & lookupIndel, double mu_scale)
 {    
     Real a[3];   
     Real maxlike_null,maxlike_denovo,pp_null,pp_denovo,denom;       
@@ -35,7 +36,7 @@ void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag,
     	return;
     }
 
-	bool is_insertion; // insertion/deletion event
+	bool is_insertion = false; // insertion/deletion event
 	int len_diff = strlen(mom->ref_base) - strlen(mom->alt); // diff b/w alt, ref
 	if (len_diff < 0) {
 		is_insertion = true;

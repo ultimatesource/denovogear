@@ -1,6 +1,6 @@
 #### Rough Draft Instructions for compiling denovogear #########
 Authors: Don Conrad & Avinash Ramu
-09/26/11
+11/2/11
 
 
 ***** INSTALLATION ******
@@ -16,34 +16,70 @@ NEWMAT= definition accordingly.
 
 ***** RUNNING THE CODE *****
 
-Input requires a PED file, a BCF file and 2 lookup files called "lookup.txt" and "lookup_indel.txt"
+Input requires a PED file and a BCF file.
 
 usage:
-	./denovogear sample.ped sample.bcf
+	./denovogear --ped sample.ped --bcf sample.bcf
 
 about sample.bcf:
-BCF files can be generated from the alignment files using the samtools mpileup command. The -D option of the mpileup command retains the per-sample read depth which is preferred by denovogear (but note that DNG will work without per-sample RD information). 
+BCF files can be generated from the alignment files using the samtools mpileup 
+command.  
 
 For example the command to generate a bcf file from sample.bam is:
 	samtools mpileup -gDf reference.fa sample.bam > sample.bcf
 
-Note that the -g option specifies a compressed output and the -f option is used to indicate the reference.
+The -D option of the samtools mpileup command retains the per-sample read depth 
+which is preferred by denovogear (but note that DNG will work without per-sample 
+RD information). The -g option specifies a compressed output and the -f option 
+is used to indicate the reference. 
 
 about sample.ped:
-The PED file contains information about the trios present in the BCF file. Please make sure that all the members of the trios specified in the PED file are present in the BCF file. The PED file can be used to specify a subset of individuals for analysis from the BCF (that is not every sample in the BCF need be represented in the PED file).
+The PED file contains information about the trios present in the BCF file. 
+Please make sure that all the members of the trios specified in the PED file 
+are present in the BCF file. The PED file can be used to specify a subset of 
+individuals for analysis from the BCF (that is not every sample in the BCF need 
+be represented in the PED file).
 
-The PED file is a tab delimited file. The first six columns of the PED file are mandatory, these are Family ID, Individual ID, Paternal ID, Maternal ID, Sex (1=male; 2=female; other=unknown) and Phenotype. The sample ID's in the PED file need to be exactly the same as they appear in the BCF file header. Sample order within the PED file does not matter, as family relationships are completely specified by the value of the child/mother/father fields in each row. For example, a single line in the PED file looks like:
-
+The PED file is a tab delimited file. The first six columns of the PED file are 
+mandatory, these are Family ID, Individual ID, Paternal ID, Maternal ID, 
+Sex (1 = male; 2 = female; other = unknown) and Phenotype. The sample ID's in 
+the PED file need to be exactly the same as they appear in the BCF file header. 
+Sample order within the PED file does not matter, as family relationships are 
+completely specified by the value of the child/mother/father fields in each row.
+ 
+For example, a single line in the PED file that specifies a trio looks like:
 CEU	NA12878_vald-sorted.bam.bam	NA12891_vald-sorted.bam.bam	NA12892_vald-sorted.bam.bam	2	2
 
 An example PED file, CEU.ped, is included in the distribution directory. 
 
-about "lookup.txt" and "lookup_indel.txt":
-This is a table with precomputed priors (and other useful numbers) for all possible 
+about "snp_lookup.txt" and "indel_lookup.txt":
+These are tables with precomputed priors (and other useful numbers) for all possible 
 trio configurations, under the null (no mutation present) and alternative (true de novo). 
-This file needs to be in the working directory. The default tables were generated using a prior of 1 x 10 ^-8 /bp/generation on the haploid germline point mutation rate, and 1 x 10 ^-9 /bp/generation on the haploid germline indel mutation rate. 
+The default tables are generated during each program run using a prior of 
+1 x 10 ^-8 /bp/generation on the haploid germline point mutation rate, 
+and 1 x 10 ^-9 /bp/generation on the haploid germline indel mutation rate. 
 
-New versions of the table, for instance using a different prior on the mutation rate, can be generated using the enclosed utility program "make_lookup.pl". Run the script without arguments to see usage. A similar lookup table for indels is stored in the "lookup_indel.txt" file.
+If you wish to change the default point or indel mutation rates use the --snp_mrate 
+or --indel_mrate switches respectively. 
+
+For example
+	./denovogear --ped sample.ped --bcf sample.bcf --snp_mrate 2e-10 --indel_mrate 1e-11
+
+The indel mutation rate varies according to the length of the insertion or deletion, 
+separate models are used for insertions and deletions. The two models were calibrated
+based on the indel observations from the 1000Genomes phase 1 data.
+
+The insertion mutation rate is modeled using the function
+ 	log (mrate) = mu_scale * (-22.8689 - (0.2994 * insertionLength))
+
+The deletion mutation rate is modeled using the function
+	log (mrate) = mu_scale * (-21.9313 - (0.2856 * deletionLength))
+
+Note that a constant factor is used to scale the mutation rate, it is set to 1.0 
+by default and can be set using the switch --mu_scale. 
+
+For example, 
+	./denovogear --ped sample.ped --bcf sample.bcf --mu_scale 3
 
 
 ***** OUTPUT FORMAT *******
@@ -66,10 +102,10 @@ The output format is a single row for each putative de novo mutation (DNM), with
 14. tgt: DNM_configuration
 
 15. Code that indicates if the most likely DNM is a transition (4) or transversion (5)
-16. This is a flag that indicates wether the data for the site passed internal QC thresholds (for development use only).
+16. This is a flag that indicates whether the data for the site passed internal QC thresholds (for development use only).
 
 17-19. Read depth of child, parent 1 and parent 2. 
-20-22. Root mean square of the mapping qualities of all reads mapping to the site for child, parent 1 and parent2. Currently these values are the same for all samples when using BCF as the input format.
+20-22. Root mean square of the mapping qualities of all reads mapping to the site for child, parent 1 and parent 2. Currently these values are the same for all samples when using BCF as the input format.
 
 Fields 17-22 are meant for filtering out low quality sites. 
 
