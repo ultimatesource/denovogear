@@ -48,7 +48,7 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
   
   P = KP(N, T); // 10 * 10
   // Combine transmission probs L(Gc | Gm, Gf)
-  DN = SP(P, lookupPair.priors); //10 * 10
+  DN = SP(P, lookupPair.priors); // 10 * 10
 
 
   // Find max likelihood of null configuration
@@ -56,13 +56,13 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
   maxlike_null = PP.maximum2(i,j);   
   
   // Find max likelihood of de novo trio configuration
-  PP=SP(DN, lookupPair.denovo);   //zeroes out configurations with mendelian inheritance
-  maxlike_denovo=PP.maximum2(k,l); 
+  PP = SP(DN, lookupPair.denovo);   //zeroes out configurations with mendelian inheritance
+  maxlike_denovo = PP.maximum2(k,l); 
 
-  denom=DN.sum();
+  denom = DN.sum();
 
-  pp_denovo=maxlike_denovo/denom; // denovo posterior probability
-  pp_null=1-pp_denovo; // null posterior probability
+  pp_denovo = maxlike_denovo / denom; // denovo posterior probability
+  pp_null = 1 - pp_denovo; // null posterior probability
 
   // Check for PP cutoff 
   if ( pp_denovo > 0.1 ) {
