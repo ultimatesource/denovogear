@@ -675,12 +675,12 @@ void makeSNPLookup(double SNPMrate, double PolyRate,
 void makePairedLookup(double pairMrate, vector<vector<string > > & tgt, lookup_pair_t & lookup)
 {
 	
-	float d_flag[100], n_flag[100], n_alleles[100], priors[100]; 
+	double d_flag[100], n_flag[100], n_alleles[100], priors[100]; 
 	string seq1[] = { "A","A","A","A","C","C","C","G","G","T" };
 	string seq2[] = { "A","C","G","T","C","G","T","G","T","T" };
 	ofstream fout("pair_lookup.txt");
-	fout.precision(10); 
-	
+	fout.precision(11); 
+	cerr<<"\nThe paired mrate is "<<pairMrate;
 	lookup.priors.resize(10, 10); 
 	lookup.denovo.resize(10, 10);
     lookup.norm.resize(10, 10);
@@ -692,7 +692,7 @@ void makePairedLookup(double pairMrate, vector<vector<string > > & tgt, lookup_p
 			int index = tum*10 + nor;
            	d_flag[index] = false; // denovo flag
 			n_flag[index] = true; // normal flag
-            g_kDenovorate = 1.0 - pairMrate;
+            priors[index] = 1.0 - pairMrate;
 			set<string> u_alleles;
 			g_gts = seq1[nor];
 			u_alleles.insert(seq1[nor]);
@@ -737,7 +737,7 @@ void makePairedLookup(double pairMrate, vector<vector<string > > & tgt, lookup_p
 						priors[index] = pairMrate;
 					}
 			fout<<n_alleles[index]<<" "<<g_gts<<" "<<d_flag[index];
-			fout<<" "<<n_flag[index]<<" "<<g_kDenovorate<<"\n";
+			fout<<" "<<n_flag[index]<<" "<<priors[index]<<"\n";
 
 		}
 	}
