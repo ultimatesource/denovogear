@@ -21,6 +21,8 @@ using namespace std;
 #include <fstream>
 #include <sstream>
 
+#include "phaser.h"
+
 #ifdef use_namespace
 using namespace RBD_LIBRARIES;
 #endif
@@ -34,7 +36,6 @@ using namespace RBD_LIBRARIES;
 #define MIN_READ_DEPTH 10
 #define MIN_READ_DEPTH_INDEL 10
 #define MIN_MAPQ 40 
-
 
 int findDenovo(char* ped_file, char* bcf_file, double snp_mrate, 
                double indel_mrate, double poly_rate, double pair_mrate, double mu_scale) 
@@ -59,7 +60,7 @@ int findDenovo(char* ped_file, char* bcf_file, double snp_mrate,
 		tgt.push_back(tmpV);
 	lookup_snp_t lookup;
 	makeSNPLookup(snp_mrate, poly_rate, tgt, lookup);	
-	cout<<"\nRead SNP lookup table\n";
+	cout<<"\nCreated SNP lookup table\n";
 	cerr <<" First mrate "<< lookup.mrate(1,1) <<" Last "<< lookup.mrate(100,10)<<endl;
 	cerr <<" First code "<< lookup.code(1,1) <<" Last "<< lookup.code(100,10)<<endl;
 	cerr <<" First tgt "<< tgt[0][0] <<" Last "<< tgt[99][9] <<endl;
@@ -74,7 +75,7 @@ int findDenovo(char* ped_file, char* bcf_file, double snp_mrate,
         tgtIndel.push_back(tmpIndel);
 	lookup_indel_t lookupIndel;
 	makeIndelLookup(indel_mrate, poly_rate, tgtIndel, lookupIndel);
-	cout<<"\nRead indel lookup table";
+	cout<<"\nCreated indel lookup table";
 	cerr <<endl<<" First mrate "<< lookupIndel.mrate(1,1) <<" Last "<< lookupIndel.mrate(9,3)<<endl;
     cerr <<" First code "<< lookupIndel.code(1,1) <<" Last "<< lookupIndel.code(9,3)<<endl;
     cerr <<" First tgt "<< tgtIndel[0][0] <<" Last "<< tgtIndel[8][2] <<endl;
@@ -89,15 +90,17 @@ int findDenovo(char* ped_file, char* bcf_file, double snp_mrate,
         tgtPair.push_back(tmpPair);
     lookup_pair_t lookupPair;
     makePairedLookup(pair_mrate, tgtPair, lookupPair);
+    cerr<<"\nCreated paired lookup table"<<endl;
     cerr <<" First tgt "<< tgtPair[0][0] <<" Last "<< tgtPair[9][9] <<endl;
-    cerr <<" First prior "<< lookupPair.priors(1,1) <<" Last "<< lookupPair.priors(9,9) <<endl;
+    cerr <<" First prior "<< lookupPair.priors(1,1) <<" Last "<< lookupPair.priors(10,10) <<endl;
 
 	// Iterate each position of BCF file
     qcall_t mom_snp, dad_snp, child_snp;
 	indel_t mom_indel, dad_indel, child_indel;
 	pair_t tumor, normal;	
 	bcf_hdr_t *hout, *hin;
-	bcf_t *bp = vcf_open(bcf_file, "rb");
+	bcf_t *bp = NULL;
+	bp = vcf_open(bcf_file, "rb");
 	hin = hout = vcf_hdr_read(bp);
 	bcf1_t *b;
 	b = static_cast<bcf1_t *> (calloc(1, sizeof(bcf1_t)));  
@@ -144,7 +147,7 @@ int findDenovo(char* ped_file, char* bcf_file, double snp_mrate,
 }
 
 
-int main(int argc, char *argv[])
+int mainDNG(int argc, char *argv[])
 {
 	char ped_f[50] = "EMPTY", bcf_f[50] = "EMPTY";
 	double indel_mrate = 1e-9, snp_mrate = 1e-8, poly_rate = 1e-3, mu_scale = 1.0, pair_mrate = 1e-9;
@@ -199,4 +202,11 @@ int main(int argc, char *argv[])
 	findDenovo(ped_f, bcf_f, snp_mrate, indel_mrate, poly_rate, pair_mrate, mu_scale);
 	cerr<<"\nDone !\n";
 	return 0;
+}
+
+int main(int argc, char* argv[])
+{
+	if (strcmp(argv[1], "dnm") == 0) return mainDNG(argc-1, argv+1);
+	else if (strcmp(argv[1], "phaser") == 0) return mainPhaser(argc-1, argv+1);
+
 }

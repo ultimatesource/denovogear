@@ -13,6 +13,11 @@ bcf_t *bcf_open(const char *fn, const char *mode)
 	} else {
 		b->fp = strcmp(fn, "-")? bgzf_open(fn, mode) : bgzf_fdopen(fileno(stdin), mode);
 	}
+	
+	if(!b->fp) {	//AVINASH
+		printf("\nUnable to open BCF file! Exiting !\n");
+		exit(1);
+	}
 #ifndef BCF_LITE
 	b->fp->owned_file = 1;
 #endif
