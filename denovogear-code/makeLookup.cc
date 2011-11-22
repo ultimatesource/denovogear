@@ -1,3 +1,7 @@
+/*
+Make lookup table for paired samples, SNPs and Indels. Calculate prior probabilities, transmission
+probabilities and denovo, normal flags for all genotype configurations. 
+*/
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -69,7 +73,7 @@ void readIndelLookup(ofstream& fout, vector<vector<string > > & tgt,
 	fout<<"\n";
 }
 
-// Calculate Indel prior
+// Calculate Indel priors
 void getIndelPriors(string g_gts, int n_uniqa)
 {
     string m_d_alleles = g_gts.substr(2, 4);
@@ -672,6 +676,7 @@ void makeSNPLookup(double SNPMrate, double PolyRate,
 	lookup.tref << lines[9];
 }
 
+// Lookup table for paired samples
 void makePairedLookup(double pairMrate, vector<vector<string > > & tgt, lookup_pair_t & lookup)
 {
 	
@@ -680,7 +685,6 @@ void makePairedLookup(double pairMrate, vector<vector<string > > & tgt, lookup_p
 	string seq2[] = { "A","C","G","T","C","G","T","G","T","T" };
 	ofstream fout("pair_lookup.txt");
 	fout.precision(11); 
-	cerr<<"\nThe paired mrate is "<<pairMrate;
 	lookup.priors.resize(10, 10); 
 	lookup.denovo.resize(10, 10);
     lookup.norm.resize(10, 10);
@@ -707,6 +711,7 @@ void makePairedLookup(double pairMrate, vector<vector<string > > & tgt, lookup_p
 			string alleles = seq1[nor] + seq2[nor] + seq1[tum] + seq2[tum];
 			tgt[tum][nor] = g_gts; // genotype string
 
+			// set prior when tumor different from normal sample
 			if (seq1[nor] != seq1[tum]) {
 				if (seq1[nor] != seq2[tum]) 
 					if (seq2[nor] != seq1[tum]) {
