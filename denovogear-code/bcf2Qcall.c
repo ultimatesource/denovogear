@@ -50,6 +50,7 @@ static int read_I16(bcf1_t *b, int anno[16])
 }
 
 // Convert BCF to Qcall format - for each line iterate through samples and look for particular trio
+// Parsing code adapted from BCFtools code
 int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t* mom_snp, qcall_t* dad_snp, qcall_t* child_snp, indel_t* mom_indel, indel_t* dad_indel, indel_t* child_indel, int& flag)
 {
 	int a[4], k, g[10], l, map[4], k1, l1, j, i, i0, anno[16], dp, mq, d_rest, indel = 0, found_trio = 3;
