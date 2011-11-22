@@ -6,8 +6,8 @@ DIRS=utils
 
 all: denovogear
 
-denovogear: denovogear.cc denovogear.h bcf2Qcall.o bcf2Paired.o pedParser.o snpLike.o indelLike.o  pairLike.o makeLookup.o utils
-	$(CPP) -Iutils -I$(NEWMAT) -o denovogear denovogear.cc snpLike.o indelLike.o pairLike.o bcf2Qcall.o bcf2Paired.o pedParser.o makeLookup.o utils/bcf.o utils/vcf.o utils/bcfutils.o utils/knetfile.o utils/kstring.o utils/bgzf.o utils/array.o utils/dict.o $(LIB) -L. -L$(NEWMAT)
+denovogear: denovogear.cc denovogear.h bcf2Qcall.o bcf2Paired.o pedParser.o snpLike.o indelLike.o pairLike.o makeLookup.o phaser.o utils
+	$(CPP) -Iutils -I$(NEWMAT) -o denovogear denovogear.cc snpLike.o indelLike.o pairLike.o bcf2Qcall.o bcf2Paired.o pedParser.o makeLookup.o phaser.o utils/bcf.o utils/vcf.o utils/bcfutils.o utils/knetfile.o utils/kstring.o utils/bgzf.o utils/array.o utils/dict.o utils/sam.o utils/bam.o utils/bedidx.o utils/bam_aux.o utils/sam_header.o utils/bam_import.o utils/bam_pileup.o utils/bam_index.o utils/sam_view.o utils/faidx.o utils/razf.o $(LIB) -L. -L$(NEWMAT)
 
 bcf2Qcall.o: bcf2Qcall.c pedParser.o
 	$(CPP) -c -Iutils -o bcf2Qcall.o bcf2Qcall.c 
@@ -29,6 +29,9 @@ pedParser.o: pedParser.c pedParser.h
 
 makeLookup.o: makeLookup.cc makeLookup.h
 	$(CPP) -c -I$(NEWMAT) -o makeLookup.o makeLookup.cc
+
+phaser.o: phaser.cc
+	$(CPP) -c -o phaser.o phaser.cc
 
 utils: force_update
 	set -e; $(MAKE) -C utils
