@@ -103,14 +103,20 @@ int usage(int is_long_help);
 
 int main_samview(int argc, char *argv[])
 {
+	
 	int c, is_header = 0, is_header_only = 0, is_bamin = 1, ret = 0, compress_level = -1, is_bamout = 0, is_count = 0;
 	int of_type = BAM_OFDEC, is_long_help = 0;
 	int count = 0;
 	samfile_t *in = 0, *out = 0;
 	char in_mode[5], out_mode[5], *fn_out = 0, *fn_list = 0, *fn_ref = 0, *fn_rg = 0;
 
+	/*****/
+	optind = 1; // DEFAULT VALUE NOT SET TO 1 for some reason, C compiler ?- AVINASH
+	/*****/
+
 	/* parse command-line options */
 	strcpy(in_mode, "r"); strcpy(out_mode, "w");
+	int check=0;
 	while ((c = getopt(argc, argv, "Sbct:h1Ho:q:f:F:ul:r:xX?T:R:L:")) >= 0) {
 		switch (c) {
 		case 'c': is_count = 1; break;
@@ -134,9 +140,10 @@ int main_samview(int argc, char *argv[])
 		case '?': is_long_help = 1; break;
 		case 'T': fn_ref = strdup(optarg); is_bamin = 0; break;
 		default: return usage(is_long_help);
-		}
+		}	
+		check++;	
 	}
-	if (compress_level >= 0) is_bamout = 1;
+
 	if (is_header_only) is_header = 1;
 	if (is_bamout) strcat(out_mode, "b");
 	else {
@@ -167,6 +174,7 @@ int main_samview(int argc, char *argv[])
 	// generate the fn_list if necessary
 	if (fn_list == 0 && fn_ref) fn_list = samfaipath(fn_ref);
 	// open file handlers
+		
 	if ((in = samopen(argv[optind], in_mode, fn_list)) == 0) {
 		fprintf(stderr, "[main_samview] fail to open \"%s\" for reading.\n", argv[optind]);
 		ret = 1;
