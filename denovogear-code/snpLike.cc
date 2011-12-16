@@ -6,7 +6,10 @@
 #include "newmatap.h"
 #include "newmatio.h"
 
+#define MIN_READ_DEPTH_SNP 10
+ 
 using namespace std;
+
 
 // Calculate DNM and Null PP
 void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag, 
@@ -28,7 +31,7 @@ void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag,
   char ref_name[3];
   strcpy( ref_name, child.chr); // Name of the reference sequence
   
-  // Filter low read depths
+  // Filter low read depths ( < 10 )
   if (child.depth < MIN_READ_DEPTH_SNP ||
       (mom.depth < MIN_READ_DEPTH_SNP && dad.depth < MIN_READ_DEPTH_SNP)) {
     return;
@@ -87,7 +90,7 @@ void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag,
   pp_null=1-pp_denovo; // null posterior probability
 
   // Check for PP cutoff 
-  if ( pp_denovo > 0.1 ) {
+  if ( pp_denovo > 0.001 ) {
     cout<<"\nDENOVO-SNP CHILD ID: "<<child.id;
     cout<<" ref_name: "<<ref_name<<" coor: "<<coor<<" ref_base: "<<mom.ref_base<<" ALT: "<<mom.alt;
     cout<<" maxlike_null: "<<maxlike_null<<" pp_null: "<<pp_null<<" tgt: "<<tgt[i-1][j-1];

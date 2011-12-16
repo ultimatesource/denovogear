@@ -33,9 +33,13 @@ using namespace RBD_LIBRARIES;
 #endif
 
 #define MRATE 5e-7
-#define MIN_READ_DEPTH 10
-#define MIN_READ_DEPTH_INDEL 10
-#define MIN_MAPQ 40 
+
+void usage()
+{
+  	cout<<"Usage \n\t./denovogear dnm --bcf bcf_f --ped ped_f \nOR";
+	cout<<"\n\t./denovogear phaser --dnm dnm_F --pgt pgts_f --bam bam_f --window INT[1000]";
+	cout<<endl;
+}
 
 int findDenovo(char* ped_file, char* bcf_file, double snp_mrate, 
                double indel_mrate, double poly_rate, double pair_mrate, double mu_scale) 
@@ -206,7 +210,17 @@ int mainDNG(int argc, char *argv[])
 
 int main(int argc, char* argv[])
 {
-	if (strcmp(argv[1], "dnm") == 0) return mainDNG(argc-1, argv+1);
-	else if (strcmp(argv[1], "phaser") == 0) return mainPhaser(argc-1, argv+1);
-
+  if(argc < 2) {
+    usage();
+    exit(1);
+  }
+  else if (strcmp(argv[1], "dnm") == 0) return mainDNG(argc-1, argv+1);
+  else if (strcmp(argv[1], "phaser") == 0) return mainPhaser(argc-1, argv+1);
+  else {
+    usage();
+    exit(1);
+  }
+  return 0;
 }
+
+
