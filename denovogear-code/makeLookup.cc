@@ -237,7 +237,7 @@ void makeIndelLookup(double IndelMrate, double PolyRate,
     lookupIndel.code.resize(9,3);  
     lookupIndel.tp.resize(9,3);  
     lookupIndel.mrate.resize(9,3);
-	lookupIndel.hit.resize(9,3);
+    lookupIndel.hit.resize(9,3);
     lookupIndel.denovo.resize(9,3);
     lookupIndel.norm.resize(9,3);
 	
@@ -713,7 +713,7 @@ void makePairedLookup(double pairMrate, vector<vector<string > > & tgt, lookup_p
 
 			// set prior when tumor different from normal sample
 			if (seq1[nor] != seq1[tum]) {
-				if (seq1[nor] != seq2[tum]) 
+				if (seq1[nor] != seq2[tum]) {
 					if (seq2[nor] != seq1[tum]) {
 						d_flag[index] = true; // denovo flag
 						n_flag[index] = false; // normal flag					
@@ -723,8 +723,9 @@ void makePairedLookup(double pairMrate, vector<vector<string > > & tgt, lookup_p
 						d_flag[index] = true; // denovo flag
 						n_flag[index] = false; // normal flag					
 						priors[index] = pairMrate;
-					}	
-				else if (seq2[nor] != seq1[tum]) 
+					}
+				}	
+				else if (seq2[nor] != seq1[tum]) {
 					if (seq2[nor] != seq2[tum]) {
 						d_flag[index] = true; // denovo flag
 						n_flag[index] = false; // normal flag						
@@ -735,12 +736,13 @@ void makePairedLookup(double pairMrate, vector<vector<string > > & tgt, lookup_p
 						n_flag[index] = false; // normal flag				
 						priors[index] = pairMrate;
 					}
+				}
 			}
 			else if (seq2[nor] != seq2[tum]) {
 						d_flag[index] = true; // denovo flag
 						n_flag[index] = false; // normal flag						
 						priors[index] = pairMrate;
-					}
+			}
 			fout<<n_alleles[index]<<" "<<g_gts<<" "<<d_flag[index];
 			fout<<" "<<n_flag[index]<<" "<<priors[index]<<"\n";
 
