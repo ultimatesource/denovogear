@@ -23,7 +23,7 @@
 
 
 using namespace std;
-const int g_kFileNameLength = 200;
+const int g_kFileNameLength = 500;
 
 extern "C" { // from utils/sam_view.c
   int main_samview(int argc, char *argv[]);// to get the individual reads
@@ -183,7 +183,24 @@ int processReads(char* reads_file, long dnm_pos, long hap_pos, string gt1, strin
     map<string, int>::iterator it;
     cout<<endl<<"\tHAP POS "<<hap_pos<<" p1 "<<gt1<<" p2 "<<gt2;
     for(it = pair_count.begin(); it != pair_count.end(); it++) {
-      cout<<" DNM_base "<<(*it).first[0]<<" HAP_base "<<(*it).first[1]<<"\t"<<" COUNT "<<(*it).second;
+      char dnm_b = (*it).first[0];
+      char hap_b = (*it).first[1];
+      int count = (*it).second;
+      string parent_of_origin = "N/A";
+
+      if (dnm_b == gt1[0] || dnm_b == gt1[1]) {
+        if (dnm_b != gt2[0] && dnm_b == gt2[1])
+          parent_of_origin = "p1";
+      }
+      
+      else if (dnm_b == gt2[0] || dnm_b == gt2[1]) {
+        if (dnm_b != gt2[0] && dnm_b == gt2[1])
+          parent_of_origin = "p2";
+      }
+          
+      cout<<" DNM_base "<<dnm_b<<" HAP_base "<<hap_b<<"\t";
+      cout<<" COUNT "<<count<<" PARENT OF ORIGIN "<<parent_of_origin;
+      
     }
     return 0;
   }
@@ -201,8 +218,8 @@ void getReadsFromBAM(char* bam_f, int chr1, long dnm_pos, long hap_pos, string g
   //char op1[] = "-S\0"; // SAM format option
   char op[] = "-o\0";
   char temp_file[] = "temp_reads\0";
-  char file[100];
-  strcpy(file, bam_f);
+  //char file[100];
+  //strcpy(file, bam_f);
   char region[30];
   long int start = hap_pos, end = dnm_pos;
   if (dnm_pos < hap_pos) {
@@ -210,7 +227,7 @@ void getReadsFromBAM(char* bam_f, int chr1, long dnm_pos, long hap_pos, string g
     end = hap_pos;
   }
   sprintf(region, "%d:%ld-%ld", chr1, start, end);
-  char* argv1[] = {program, command, op, temp_file, file, region};
+  char* argv1[] = {program, command, op, temp_file, bam_f, region};
   int argc1 = sizeof(argv1)/sizeof(char *);
   main_samview(argc1-1, argv1+1);
   processReads(temp_file, dnm_pos, hap_pos, gt1, gt2);
