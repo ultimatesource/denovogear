@@ -182,6 +182,7 @@ int processReads(char* reads_file, long dnm_pos, long hap_pos, string gt1, strin
     //cout<<"\n";
     map<string, int>::iterator it;
     cout<<endl<<"\tHAP POS "<<hap_pos<<" p1: "<<gt1<<" p2: "<<gt2;
+    cout<<", Number of Reads "<<pair_count.size();
     for(it = pair_count.begin(); it != pair_count.end(); it++) {
       char dnm_b = (*it).first[0];
       char hap_b = (*it).first[1];
@@ -198,7 +199,7 @@ int processReads(char* reads_file, long dnm_pos, long hap_pos, string gt1, strin
           parent_of_origin = "p2";
       }
 
-      cout<<"\n\t\tDNM_base "<<dnm_b<<" HAP_base "<<hap_b<<"\t";
+      cout<<"\n\t\tDNM_base "<<dnm_b<<" phasing_base "<<hap_b<<"\t";
       cout<<" PARENT OF ORIGIN "<<parent_of_origin<<" COUNT "<<count;
       
     }
@@ -217,7 +218,9 @@ void getReadsFromBAM(char* bam_f, int chr1, long dnm_pos, long hap_pos, string g
   char command[] = "view\0";
   //char op1[] = "-S\0"; // SAM format option
   char op[] = "-o\0";
-  char temp_file[] = "temp_reads\0";
+  char temp_file[] = "XXXXXX";
+  int fd;
+  fd = mkstemp(temp_file);
   //char file[100];
   //strcpy(file, bam_f);
   char region[30];
@@ -231,6 +234,7 @@ void getReadsFromBAM(char* bam_f, int chr1, long dnm_pos, long hap_pos, string g
   int argc1 = sizeof(argv1)/sizeof(char *);
   main_samview(argc1-1, argv1+1);
   processReads(temp_file, dnm_pos, hap_pos, gt1, gt2);
+  remove(temp_file);
   return;
 }
 
