@@ -181,25 +181,25 @@ int processReads(char* reads_file, long dnm_pos, long hap_pos, string gt1, strin
     fin1.close();
     //cout<<"\n";
     map<string, int>::iterator it;
-    cout<<endl<<"\tHAP POS "<<hap_pos<<" p1 "<<gt1<<" p2 "<<gt2;
+    cout<<endl<<"\tHAP POS "<<hap_pos<<" p1: "<<gt1<<" p2: "<<gt2;
     for(it = pair_count.begin(); it != pair_count.end(); it++) {
       char dnm_b = (*it).first[0];
       char hap_b = (*it).first[1];
       int count = (*it).second;
       string parent_of_origin = "N/A";
 
-      if (dnm_b == gt1[0] || dnm_b == gt1[1]) {
-        if (dnm_b != gt2[0] && dnm_b == gt2[1])
+      if ((hap_b == gt1[0]) || (hap_b == gt1[1])) {
+        if ((hap_b != gt2[0]) && (hap_b != gt2[1]))
           parent_of_origin = "p1";
       }
-      
-      else if (dnm_b == gt2[0] || dnm_b == gt2[1]) {
-        if (dnm_b != gt2[0] && dnm_b == gt2[1])
+
+      else if ((hap_b == gt2[0]) || (hap_b == gt2[1])) {
+        if ((hap_b != gt1[0]) && (hap_b != gt1[1]))
           parent_of_origin = "p2";
       }
-          
-      cout<<" DNM_base "<<dnm_b<<" HAP_base "<<hap_b<<"\t";
-      cout<<" COUNT "<<count<<" PARENT OF ORIGIN "<<parent_of_origin;
+
+      cout<<"\n\t\tDNM_base "<<dnm_b<<" HAP_base "<<hap_b<<"\t";
+      cout<<" PARENT OF ORIGIN "<<parent_of_origin<<" COUNT "<<count;
       
     }
     return 0;
