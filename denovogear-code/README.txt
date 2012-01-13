@@ -19,7 +19,7 @@ NEWMAT= definition accordingly.
 Input requires a PED file and a BCF file.
 
 usage:
-	./denovogear --ped sample.ped --bcf sample.bcf
+	./denovogear dnm --ped sample.ped --bcf sample.bcf
 
 about sample.bcf:
 BCF files can be generated from the alignment files using the samtools mpileup 
@@ -63,7 +63,7 @@ If you wish to change the default point or indel mutation rates use the --snp_mr
 or --indel_mrate switches respectively. 
 
 For example
-	./denovogear --ped sample.ped --bcf sample.bcf --snp_mrate 2e-10 --indel_mrate 1e-11
+	./denovogear dnm --ped sample.ped --bcf sample.bcf --snp_mrate 2e-10 --indel_mrate 1e-11
 
 The indel mutation rate varies according to the length of the insertion or deletion, 
 separate models are used for insertions and deletions. The two models were calibrated
@@ -79,7 +79,7 @@ Note that a constant factor is used to scale the mutation rate, it is set to 1.0
 by default and can be set using the switch --mu_scale. 
 
 For example, 
-	./denovogear --ped sample.ped --bcf sample.bcf --mu_scale 3
+	./denovogear dnm --ped sample.ped --bcf sample.bcf --mu_scale 3
 
 
 ***** OUTPUT FORMAT *******
@@ -109,5 +109,40 @@ The output format is a single row for each putative de novo mutation (DNM), with
 
 Fields 17-22 are meant for filtering out low quality sites. 
 
+***** PAIRED SAMPLE ANALYSIS *****
+DNG can be used to analyze paired samples, it is run the same way as for trios, 
+	 ./denovogear dnm --ped paired.ped --bcf sample.bcf
 
-############
+About the arguments, 
+	
+	1. paired.ped is a ped file containing the family-name and the name of the two samples in the bcf file. The last three columns are mandated by the 	PED format but are ignored by the program. An example line looks like
+		F150    NA19240_blood_vald-sorted.bam.bam NA19240_vald-sorted.bam.bam   0       0       0
+	2. sample.bcf is a bcf file containing both the samples. 
+
+***** PHASER *****
+DNG can be used to obtain parental phasing information for Denovo Mutations where phase informative sites are present. 
+
+Run the phaser as follows
+
+./denovogear phaser --dnm dnms_file --pgt parental_gts_file --bam alignment --window NUM[1000]
+
+About the arguments, 
+
+	1. 	dnms_file is the list of DNMs whose parental origin is to be determined. It is a tab delimited file of the format
+	  	chr pos
+	2.	parental_gts_file contains the genotypes of the parents. It is a tab delimited file of the format
+		chr pos parent1_GT parent2_GT
+	3. 	The third argument is the alignment file containing the reads covering the DNM. 
+	4. 	Window size is an optional argument which is the maximum distance between the DNM and a phasing site. The default value is 1000, the insert size 	 of the library would be a reasonable value. 
+
+Output
+	DNM_pos 1:182974758
+        HAP POS 182974328 p1: CC p2: TC, Number of Reads 0
+        HAP POS 182974572 p1: CC p2: TC, Number of Reads 2
+                DNM_base A phasing_base C        PARENT OF ORIGIN N/A COUNT 3
+                DNM_base G phasing_base T        PARENT OF ORIGIN p2 COUNT 3
+
+	For each DNM, a list of of eligible phasing sites is obtained, these are the loci which lie within the window and which do not have a het/het GT configuration for the parents. The number of DNM and phasing  allele combinations from the read level information is also provided. For the phasing sites, if possible the inferred parental origin is also provided, for example if the phasing base is T and the parental genotypes are P1:CC and p2:TC then the parent of origin is obviously p2, hence the DNM which is on the same read and hence same DNA molecule is from the same parent.
+
+	
+
