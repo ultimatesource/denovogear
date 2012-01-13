@@ -63,7 +63,7 @@ void formatSeq(string& seq, int& pos, char op, int num)
 }
 
 // Extract CIGAR from reads, expand reads and get the denovo and hap base
-int processReads(char* reads_file, long dnm_pos, long hap_pos, string gt1, string gt2)
+int processReads(char* reads_file, long dnm_pos, long hap_pos, string gt1, string gt2, char variant_base)
 {
   ifstream fin1(reads_file, ios::in);	
   if (!fin1.is_open()) {
@@ -182,7 +182,7 @@ int processReads(char* reads_file, long dnm_pos, long hap_pos, string gt1, strin
     //cout<<"\n";
     map<string, int>::iterator it;
     cout<<endl<<"\tHAP POS "<<hap_pos<<" p1: "<<gt1<<" p2: "<<gt2;
-    cout<<", Number of Reads "<<pair_count.size();
+    cout<<" Number of denovo-phasing pairs found: "<<pair_count.size();
     for(it = pair_count.begin(); it != pair_count.end(); it++) {
       char dnm_b = (*it).first[0];
       char hap_b = (*it).first[1];
@@ -191,16 +191,37 @@ int processReads(char* reads_file, long dnm_pos, long hap_pos, string gt1, strin
 
       if ((hap_b == gt1[0]) || (hap_b == gt1[1])) {
         if ((hap_b != gt2[0]) && (hap_b != gt2[1]))
-          parent_of_origin = "p1";
+          if (variant_base == dnm_b)
+            parent_of_origin = "p1";
+          else 
+            parent_of_origin = "p2";
       }
 
       else if ((hap_b == gt2[0]) || (hap_b == gt2[1])) {
         if ((hap_b != gt1[0]) && (hap_b != gt1[1]))
-          parent_of_origin = "p2";
+         if (variant_base == dnm_b)
+            parent_of_origin = "p2";
+          else 
+            parent_of_origin = "p1";
       }
 
-      cout<<"\n\t\tDNM_base "<<dnm_b<<" phasing_base "<<hap_b<<"\t";
-      cout<<" PARENT OF ORIGIN "<<parent_of_origin<<" COUNT "<<count;
+      if ((hap_b == gt1[0]) && (hap_b == gt1[1])) {        
+          if (variant_base == dnm_b)
+            parent_of_origin = "p1";
+          else 
+            parent_of_origin = "p2";
+      }
+
+      else if ((hap_b == gt2[0]) && (hap_b == gt2[1])) {
+         if (variant_base == dnm_b)
+            parent_of_origin = "p2";
+          else 
+            parent_of_origin = "p1";
+      }
+     
+
+      cout<<"\n\t\tBase at DNM position: "<<dnm_b<<" Base at phasing position: "<<hap_b<<"\t";
+      cout<<" INFERRED PARENT OF ORIGIN for DNM: "<<parent_of_origin<<" SUPPORTING READ COUNT: "<<count;
       
     }
     return 0;
@@ -208,7 +229,7 @@ int processReads(char* reads_file, long dnm_pos, long hap_pos, string gt1, strin
 }
 
 // Call samtools to get the reads from the bam file
-void getReadsFromBAM(char* bam_f, int chr1, long dnm_pos, long hap_pos, string gt1, string gt2)
+void getReadsFromBAM(char* bam_f, int chr1, long dnm_pos, long hap_pos, char* temp_file)
 {
   long interval = hap_pos-dnm_pos;
   if (interval < 0) 
@@ -218,7 +239,7 @@ void getReadsFromBAM(char* bam_f, int chr1, long dnm_pos, long hap_pos, string g
   char command[] = "view\0";
   //char op1[] = "-S\0"; // SAM format option
   char op[] = "-o\0";
-  char temp_file[] = "XXXXXX";
+  strcpy(temp_file, "XXXXXX");
   int fd;
   fd = mkstemp(temp_file);
   //char file[100];
@@ -233,8 +254,6 @@ void getReadsFromBAM(char* bam_f, int chr1, long dnm_pos, long hap_pos, string g
   char* argv1[] = {program, command, op, temp_file, bam_f, region};
   int argc1 = sizeof(argv1)/sizeof(char *);
   main_samview(argc1-1, argv1+1);
-  processReads(temp_file, dnm_pos, hap_pos, gt1, gt2);
-  remove(temp_file);
   return;
 }
 
@@ -278,42 +297,62 @@ int mainPhaser( int argc, char* argv[])
 
   cout<<"\nList of DNMs: "<<DNM_f<<", List of parental GTs: "<<parentGT_f<<endl;
   ifstream fin1(DNM_f, ios::in);
-	
+	// DNM FILE FORMAT - chr posn inherited_base variant_base
   if(fin1.is_open()) { // PARSE THROUGH DNMs
     int chr1;
     long dnm_pos;
+    char inherited_base, variant_base;
     char token1[200]; // token for parsing
     int line_n1 = 0;
+    fin1.getline(token1, 20, '\t' );
     while (fin1.good()) {
       line_n1++;	
-      fin1.getline(token1, 20, '\t' );
-      chr1 = atoi(token1);// chromosome of DNM
-      fin1.getline(token1, 20);
+      
+      if (strstr(token1, "chr")) {
+            char* token1_p = token1 + 3;
+            chr1 = atoi(token1_p);
+      } 
+      else      
+        chr1 = atoi(token1);// chromosome of DNM, PROBLEM WITH SEX CHR
+      fin1.getline(token1, 20, '\t');
       dnm_pos = atol(token1);// posn of DNM
-      cout<<"\nDNM_pos "<<chr1<<":"<<dnm_pos;
+      fin1.getline(token1, 20, '\t');
+      inherited_base = token1[0];// inherited base at DNM position
+      fin1.getline(token1, 20);
+      variant_base = token1[0];// variant base i.e DNM base
+      cout<<"\n\nDNM_pos "<<chr1<<":"<<dnm_pos<<"\tINHERITED "<<inherited_base<<"\tVARIANT "<<variant_base;
       //cout<<"\nline_n1 "<<line_n1<<" chr1 "<<chr1<<" dnm_pos "<<dnm_pos;
       fstream fin2(parentGT_f, ios::in);
       if(fin2.is_open()) { // PARSE Parental GTs
       	int chr2;
-      	string gt1, gt2;
+      	string gt1, gt2, gt3;
       	long hap_pos;
       	char token2[200]; // token for parsing
       	int line_n2 = 0;
+        fin2.getline(token2, 20, '\t');
       	while (fin2.good()) {
-      	  line_n2++;	
-      	  fin2.getline(token2, 20, '\t');
-      	  chr2 = atoi(token2); // chr of phasing site
+      	  line_n2++;	      	  
+          if (strstr(token2, "chr")) {
+            char* token2_p = token2 + 3;
+            //cout<<"\ntoken2_p "<<token2_p;
+            chr2 = atoi(token2_p);
+            //cout<<"\nchr2 "<<chr2;
+          } 
+          else
+      	    chr2 = atoi(token2); // chr of phasing site, PROBLEM WITH SEX CHR
       	  fin2.getline(token2, 20, '\t');
       	  hap_pos = atol(token2); // position of phasing site
       	  fin2.getline(token2, 20, '\t');
       	  gt1 = token2; // genotype of first parent
-      	  fin2.getline(token2, 20);
+      	  fin2.getline(token2, 20, '\t');
       	  gt2 = token2; // genotype of second parent
-      	  long dist = hap_pos - dnm_pos; // distance b/w DNM and phasing site
+      	  fin2.getline(token2, 20);
+          gt3 = token2; // genotype of child
+          long dist = hap_pos - dnm_pos; // distance b/w DNM and phasing site
       	  if (dist < 0)
       	    dist = -dist;
       	  //cout<<"\n\tline_n2 "<<line_n2<<" dist "<<dist;
-      	  //cout<<" hap_pos "<<chr2<<":"<<hap_pos<<" gt1 "<<gt1<<" gt2 "<<gt2; 
+      	  //cout<<" hap_pos "<<chr2<<":"<<hap_pos<<" gt1 "<<gt1<<" gt2 "<<gt2<<" gt3 "<<gt3; 
       	  if ((chr2 > chr1) || 
               ((chr2 == chr1) && ((hap_pos - dnm_pos) > window))) 
       	    break;
@@ -322,11 +361,18 @@ int mainPhaser( int argc, char* argv[])
       	      continue;
       	    if (gt1[0] != gt1[1] && gt2[0] != gt2[1]) // both parents het, not informative
       	      continue;
+            // ignore triallelic case for now
+            if (gt3[0] == gt3[1])
+              continue; 
       	    else { 
       	      //cout<<"\nInformative position "<<chr1<<" "<<dnm_pos<<" "<<hap_pos;
-      	      getReadsFromBAM(bam_f, chr1, dnm_pos, hap_pos, gt1, gt2); // get reads corresponding to the positions
+      	      char temp_file[20];
+              getReadsFromBAM(bam_f, chr1, dnm_pos, hap_pos, temp_file); // get reads corresponding to the positions
+              processReads(temp_file, dnm_pos, hap_pos, gt1, gt2, variant_base);
+              remove(temp_file);
       	    }
       	  }
+          fin2.getline(token2, 20, '\t');
       	}
   	    fin2.close();
   	    //cout<<"\nThe number of lines read GT file is "<<line_n2<<" DNM is "<<line_n1;
@@ -335,6 +381,7 @@ int mainPhaser( int argc, char* argv[])
   	    cout<<"\nUnable to open parent GT file: "<<parentGT_f<<" ! Exiting!\n";
   	    exit(1);
       }
+      fin1.getline(token1, 20, '\t' );
     }
     fin1.close();
     cout<<"\nThe number of lines read DNM file is "<<line_n1;
