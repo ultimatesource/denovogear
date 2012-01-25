@@ -211,7 +211,7 @@ int bcf2Paired (bcf_hdr_t *h, bcf1_t *b, Pair pair1, pair_t* tumor, pair_t* norm
 				
 	}
 	
-	//found entire trio, return
+	//found entire pair, return
 	if ( found_pair == 0 ) { 
 		return is_indel;
 	} else {
