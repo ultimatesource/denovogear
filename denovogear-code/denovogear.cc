@@ -80,7 +80,7 @@ int findDenovo(char* ped_file, char* bcf_file, double snp_mrate,
 	lookup_indel_t lookupIndel;
 	makeIndelLookup(indel_mrate, poly_rate, tgtIndel, lookupIndel);
 	cout<<"\nCreated indel lookup table";
-	cerr <<endl<<" First mrate "<< lookupIndel.mrate(1,1) <<" Last "<< lookupIndel.mrate(9,3)<<endl;
+	//cerr <<endl<<" First mrate "<< lookupIndel.mrate(1,1) <<" Last "<< lookupIndel.mrate(9,3)<<endl;
     cerr <<" First code "<< lookupIndel.code(1,1) <<" Last "<< lookupIndel.code(9,3)<<endl;
     cerr <<" First tgt "<< tgtIndel[0][0] <<" Last "<< tgtIndel[8][2] <<endl;
     cerr <<" First prior "<< lookupIndel.priors(1,1) <<" Last "<< lookupIndel.priors(9,3) <<endl;
@@ -111,6 +111,7 @@ int findDenovo(char* ped_file, char* bcf_file, double snp_mrate,
 	while ( vcf_read(bp, hin, b) > 0 ) {
 		int j = 0, flag =0;
 		//printf("Position Number %d", pos++);
+		// PROCESS ALL TRIOS
 		for ( j=0; j<trio_count; j++) {
 			int is_indel = bcf_2qcall(hout, b, trios[j],  &mom_snp, &dad_snp, 
 									  &child_snp, &mom_indel, &dad_indel, 
@@ -128,7 +129,7 @@ int findDenovo(char* ped_file, char* bcf_file, double snp_mrate,
 				exit(1);
 			}
 		}  
-		
+		// PROCESS ALL PAIRS
 		for ( j=0; j<pair_count; j++) {
 			int is_indel = bcf2Paired (hout, b, pairs[j], &tumor, &normal, flag);
 			if ( is_indel == 0 ) 
@@ -153,7 +154,7 @@ int findDenovo(char* ped_file, char* bcf_file, double snp_mrate,
 
 int mainDNG(int argc, char *argv[])
 {
-	char ped_f[50] = "EMPTY", bcf_f[50] = "EMPTY";
+	char ped_f[500] = "EMPTY", bcf_f[500] = "EMPTY";
 	double indel_mrate = 1e-9, snp_mrate = 1e-8, poly_rate = 1e-3, mu_scale = 1.0, pair_mrate = 1e-9;
     
     // Read in Command Line arguments
