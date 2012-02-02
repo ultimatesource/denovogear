@@ -62,7 +62,7 @@ void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag,
 	//Currently, samtools creates indel records are created for every trio in the BCF regardless of whether they have data
     //skip sites with both parents missing or child data missing (could still see de novo with data in child and one parent e.g. DD/NN/RR)
     if (child->depth < MIN_READ_DEPTH_INDEL ||
-		(mom->depth < MIN_READ_DEPTH_INDEL && dad->depth < MIN_READ_DEPTH_INDEL)) {
+		mom->depth < MIN_READ_DEPTH_INDEL || dad->depth < MIN_READ_DEPTH_INDEL) {
 		return;
 	}
     
