@@ -492,11 +492,15 @@ void makeSNPLookup(double SNPMrate, double PolyRate,
                       g_nflag = true;
 					}
 					else {
-                      g_t_prob = 0;
+					  if (seq1[cid] != seq1[did] && seq1[cid] != seq2[did] && seq1[cid] != seq1[mid] && seq1[cid] != seq2[mid] 
+							&& seq2[cid] != seq1[did] && seq2[cid] != seq2[did] && seq2[cid] != seq1[mid] && seq2[cid] != seq2[mid]) // TWO MUTATIONS
+						g_kDenovorate = g_Mrate * g_Mrate;
+					  else
+					  	g_kDenovorate = g_Mrate; // ONE MUTATION
+                      g_t_prob = 1;
                       g_dflag = true; 
                       g_nflag = false;
                     }                   
-					//readSNPLookup(fout, tgt, lines);
 					readSNPLookup(tgt, lines);
 					continue;
 				}
@@ -608,7 +612,7 @@ void makeSNPLookup(double SNPMrate, double PolyRate,
 				}
               
 				// both alleles in dad, denovo from mom
-                if(g_inf == 1) { 
+                if(g_inf == 1) {  // AA/BB/AA
 					g_t_prob = 1.0;
 					g_kDenovorate = g_Mrate;
 					if((alleles[0] == 'A' || alleles[1] == 'A' || alleles[0] == 'G' || alleles[1] == 'G') && (alleles[2] == 'C' || alleles[3] == 'T'))
@@ -619,7 +623,7 @@ void makeSNPLookup(double SNPMrate, double PolyRate,
 							g_inf = 4; // transition	
 					g_dflag = true; // normal and denovo flags for DNG
 				    g_nflag = false; 
-				} else if(g_inf == 2) { // both alleles in mum, denovo from dad
+				} else if(g_inf == 2) { // both alleles in mum, denovo from dad AA/AA/BB
 					g_t_prob = 1.0;
 					g_kDenovorate = g_Mrate;
 					if((alleles[0] == 'A' || alleles[1] == 'A' || alleles[0] == 'G' || alleles[1] == 'G') && (alleles[4] == 'C' || alleles[5] == 'T'))
@@ -630,8 +634,9 @@ void makeSNPLookup(double SNPMrate, double PolyRate,
 					   g_inf = 4; // transition	
 					g_dflag = true; // normal and denovo flags for DNG
 				    g_nflag = false; 
-				} else if (g_inf == 3) { // DNM
+				} else if (g_inf == 3) { // DNM, the ones we are interested in 
 					g_t_prob = 1.0;
+
 					bool flagA = false, flagC = false, flagG = false, flagT = false;
 					for(unsigned int k=0; k < alleles.length(); k++) {
 						if(alleles[k] == 'C')
@@ -646,6 +651,7 @@ void makeSNPLookup(double SNPMrate, double PolyRate,
 
 					if (seq1[cid] == seq2[cid]) { // homozygous child
 						g_kDenovorate = g_Mrate * g_Mrate;
+						//cout<<"\nAlleles is: "<<alleles;
 					} 
     				else if (flagC && flagT) { // transition
 	    				g_inf = 4;
