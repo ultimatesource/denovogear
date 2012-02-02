@@ -10,7 +10,7 @@
 #include "newmatio.h"
 #endif
 
-#define MIN_READ_DEPTH_INDEL 10
+#define MIN_READ_DEPTH_PAIRED 10
 
 using namespace std;
 
@@ -31,7 +31,7 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
   strcpy( ref_name, tumor.chr); // Name of the reference sequence
   
   // Filter low read depths
-  if (tumor.depth < MIN_READ_DEPTH_SNP || normal.depth < MIN_READ_DEPTH_SNP) {
+  if (tumor.depth < MIN_READ_DEPTH_PAIRED || normal.depth < MIN_READ_DEPTH_PAIRED) {
     return;
   }
   
