@@ -1,7 +1,7 @@
 #define MAX_TRIOS 1000 // max number of trios in the bcf filed
 #define MAX_PAIRS 100 // max number of paired samples in the bcf file
-#define ID_LENGTH 100
-#define LINE_LENGTH 1000
+#define ID_LENGTH 1000
+#define LINE_LENGTH 10000
 
 // Trio Structure
 typedef struct  {
