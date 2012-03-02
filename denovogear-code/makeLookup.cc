@@ -9,6 +9,17 @@ probabilities and denovo, normal flags for all genotype configurations.
 #include <set>
 
 #include "makeLookup.h"
+
+//#define LOOKUP_ENABLED 1 // enable this flag if you want to generate lookup tables
+
+#ifdef LOOKUP_ENABLED
+	ofstream fout_snp("snp_lookup.txt");
+	ofstream fout_pair("pair_lookup.txt");
+	ofstream fout_indel("indel_lookup.txt");
+#endif
+
+
+
 using namespace std;
 
 const double g_kMinLike = 1e-26; // Minimum Likelihood value
@@ -30,11 +41,13 @@ void readSNPLookup(vector<vector<string > > & tgt,
 	 float lines[][1000])
 {
 	static int snp_index = 0, k = 0, l=0;
-	//fout<<g_n_u_alleles<<" "<<g_inf<<" "<<g_t_prob<<" "<<g_gts<<" ";
-	//fout<<g_kDenovorate<<" "<<g_dflag<<" "<<g_nflag;
-	//for(int i=0; i<4; i++) {
-		//fout<<" "<<g_priors[i];
-	//}
+	#ifdef LOOKUP_ENABLED
+		fout_snp<<g_n_u_alleles<<" "<<g_inf<<" "<<g_t_prob<<" "<<g_gts<<" ";
+		fout_snp<<g_kDenovorate<<" "<<g_dflag<<" "<<g_nflag;
+		for(int i=0; i<4; i++) {
+			fout_snp<<" "<<g_priors[i];
+		}
+	#endif
 	lines[0][l] = g_n_u_alleles;
 	lines[1][l] = g_inf;
 	lines[2][l] = g_t_prob;
@@ -49,8 +62,10 @@ void readSNPLookup(vector<vector<string > > & tgt,
 	if (snp_index == 10) {
 		k++;
 		snp_index = 0;
-	}		
-	//fout<<"\n";
+	}	
+	#ifdef LOOKUP_ENABLED	
+		fout_snp<<"\n";
+	#endif
 }
 
 // Write to Indel lookup table file and struct
@@ -60,9 +75,12 @@ void readIndelLookup(vector<vector<string > > & tgt,
 	float lines[][27])     
 {
 	static int indel_index = 0, k = 0, l = 0;
-	//fout<<g_n_u_alleles<<" "<<g_inf<<" "<<g_t_prob<<" "<<g_gts<<" ";
-	//fout<<g_kDenovorate<<" "<<g_dflag<<" "<<g_nflag;
-	//fout<<" "<<g_priors[0]; // ONLY ONE INDEL PRIOR
+
+	#ifdef LOOKUP_ENABLED	
+		fout_indel<<g_n_u_alleles<<" "<<g_inf<<" "<<g_t_prob<<" "<<g_gts<<" ";
+		fout_indel<<g_kDenovorate<<" "<<g_dflag<<" "<<g_nflag;
+		fout_indel<<" "<<g_priors[0]; // ONLY ONE INDEL PRIOR
+	#endif
 	lines[0][l] = g_n_u_alleles;
 	lines[1][l] = g_inf;
 	lines[2][l] = g_t_prob;
@@ -75,7 +93,9 @@ void readIndelLookup(vector<vector<string > > & tgt,
 		k++;
 		indel_index = 0;
 	}
-	//fout<<"\n";
+	#ifdef LOOKUP_ENABLED
+		fout_indel<<"\n";
+	#endif
 }
 
 // Calculate Indel priors
@@ -229,14 +249,17 @@ void getSNPPriors(string g_gts, int n_uniqa)
 void makeIndelLookup(double IndelMrate, double PolyRate, 
 	vector<vector<string > > & tgt, lookup_indel_t & lookupIndel)
 {
+	#ifdef LOOKUP_ENABLED
+		fout_indel.precision(10);
+	#endif
+
 	g_IndelMrate = IndelMrate;
 	g_PolyRate = PolyRate;
 
 	float lines[7][27];
 	string seq1[] = { "R", "R", "D" };
 	string seq2[] = { "R", "D", "D" };
-	//ofstream fout("indel_lookup.txt");
-	//fout.precision(10);
+	
 	lookupIndel.priors.resize(9, 3);
     lookupIndel.snpcode.resize(9,3);  
     lookupIndel.code.resize(9,3);  
@@ -404,7 +427,9 @@ void makeIndelLookup(double IndelMrate, double PolyRate,
 		}
 	}
 
-	//fout.close();
+	#ifdef LOOKUP_ENABLED
+		fout_indel.close();
+	#endif
 	
 	lookupIndel.snpcode << lines[0];
 	lookupIndel.code << lines[1];
@@ -419,14 +444,18 @@ void makeIndelLookup(double IndelMrate, double PolyRate,
 void makeSNPLookup(double SNPMrate, double PolyRate, 
 	vector<vector<string > > & tgt, lookup_snp_t & lookup)
 {
+	#ifdef LOOKUP_ENABLED
+		fout_snp.precision(10);
+	#endif
+
 	g_Mrate = SNPMrate;
 	g_PolyRate = PolyRate;
 
 	float lines[10][1000]; 
 	string seq1[] = { "A","A","A","A","C","C","C","G","G","T" };
 	string seq2[] = { "A","C","G","T","C","G","T","G","T","T" };
-	//ofstream fout("snp_lookup.txt");
-	//fout.precision(10);
+	
+	
 	lookup.aref.resize(100,10);
 	lookup.cref.resize(100,10);
 	lookup.gref.resize(100,10);
@@ -678,7 +707,10 @@ void makeSNPLookup(double SNPMrate, double PolyRate,
 		}
 	}
 
-	//fout.close();
+	#ifdef LOOKUP_ENABLED
+		fout_snp.close();
+	#endif
+	
 	lookup.snpcode << lines[0];
 	lookup.code << lines[1];
 	lookup.tp << lines[2];
@@ -694,12 +726,16 @@ void makeSNPLookup(double SNPMrate, double PolyRate,
 // Lookup table for paired samples
 void makePairedLookup(double pairMrate, vector<vector<string > > & tgt, lookup_pair_t & lookup)
 {
+	#ifdef LOOKUP_ENABLED
+		fout_pair.precision(10);
+	#endif
 	
 	double d_flag[100], n_flag[100], n_alleles[100], priors[100]; 
 	string seq1[] = { "A","A","A","A","C","C","C","G","G","T" };
 	string seq2[] = { "A","C","G","T","C","G","T","G","T","T" };
-	//ofstream fout("pair_lookup.txt");
-	//fout.precision(11); 
+	
+	
+
 	lookup.priors.resize(10, 10); 
 	lookup.denovo.resize(10, 10);
     lookup.norm.resize(10, 10);
@@ -758,33 +794,21 @@ void makePairedLookup(double pairMrate, vector<vector<string > > & tgt, lookup_p
 						n_flag[index] = false; // normal flag						
 						priors[index] = pairMrate;
 			}
-			//fout<<n_alleles[index]<<" "<<g_gts<<" "<<d_flag[index];
-			//fout<<" "<<n_flag[index]<<" "<<priors[index]<<"\n";
+
+			#ifdef LOOKUP_ENABLED
+				fout_pair<<n_alleles[index]<<" "<<g_gts<<" "<<d_flag[index];
+				fout_pair<<" "<<n_flag[index]<<" "<<priors[index]<<"\n";
+			#endif
 
 		}
 	}
-	//fout.close();
+	#ifdef LOOKUP_ENABLED
+		fout_pair.close();
+	#endif
+
 	lookup.snpcode << n_alleles;
 	lookup.denovo << d_flag;
 	lookup.norm << n_flag;
 	lookup.priors << priors;
 }
 
-/*// Make SNP and Lookup Indels
-void makeLookup(string table_type, , 
-				vector<vector<string > > & tgt, lookup_t & lookup) 
-{
-	g_Mrate = Mrate;
-	g_IndelMrate = IndelMrate;
-	g_PolyRate = PolyRate;
-	if(table_type == "point") {
-		makeSNPLookup(tgt, lookup);
-	} 
-	else if(table_type == "indel") {
-		makeIndelLookup(tgt, lookup);
-	}
-	else {
-		cout<<"\nInvalid Table Type !";
-		exit(1);
-	}
-}*/
