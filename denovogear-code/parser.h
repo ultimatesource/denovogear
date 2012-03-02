@@ -27,8 +27,8 @@ typedef struct { //New struct for Q calls
 typedef struct { //New struct for Indels
 	char chr[3]; /* chromosome Number. */
 	long pos; /* position, the first base in a chromosome has offset zero. */
-	char ref_base[2048]; /* Either A, C, G or T */
-	char alt[2048]; /* ALT string */
+	char ref_base[10000]; /* Either A, C, G or T */
+	char alt[10000]; /* ALT string */
 	int depth; /* number of mapped reads */
 	int rms_mapQ; /* RMS mapping quality */
 	int min_lk; /* minimum lk capped at 255 */	

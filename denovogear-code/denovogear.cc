@@ -36,6 +36,7 @@ using namespace RBD_LIBRARIES;
 
 void usage()
 {
+  	cout<<"DeNovoGear - Identify denovo mutations from next-gen sequencing data.\n";
   	cout<<"Usage \n\t./denovogear dnm --bcf bcf_f --ped ped_f \nOR";
 	cout<<"\n\t./denovogear phaser --dnm dnm_F --pgt pgts_f --bam bam_f --window INT[1000]";
 	cout<<endl;
@@ -155,7 +156,12 @@ int findDenovo(char* ped_file, char* bcf_file, double snp_mrate,
 int mainDNG(int argc, char *argv[])
 {
 	char ped_f[500] = "EMPTY", bcf_f[500] = "EMPTY";
-	double indel_mrate = 1e-9, snp_mrate = 1e-8, poly_rate = 1e-3, mu_scale = 1.0, pair_mrate = 1e-9;
+
+	double indel_mrate = 1e-9;// indel mutation rate
+	double snp_mrate = 1e-8;// snp mutation rate
+	double poly_rate = 1e-3;// polymorphism rate - used in prior calculations
+	double pair_mrate = 1e-9;// mutation rate in paired samples
+	double mu_scale = 1.0;// scaling factor for indel priors
     
     // Read in Command Line arguments
 	while (1) {
