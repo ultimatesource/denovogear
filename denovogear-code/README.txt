@@ -121,14 +121,14 @@ DNG can be used to obtain parental phasing information for Denovo Mutations wher
 
 Usage:
 
-./denovogear phaser --dnm dnms_file --pgt parental_gts_file --bam alignment --window NUM[1000]
+./denovogear phaser --dnm dnms_file --pgt gts_file --bam alignment --window NUM[1000]
 
 About the arguments, 
 
 	1. 	dnms_file is the list of DNMs whose parental origin is to be determined. It is a tab delimited file of the format
 	  	chr pos inherited_base mutant_base
-	2.	parental_gts_file contains the genotypes of the parents. It is a tab delimited file of the format
-		chr pos parent1_GT parent2_GT
+	2.	gts_file contains the genotypes of the parents and the child. It is a tab delimited file of the format
+		chr pos parent1_GT parent2_GT child_GT
 	3. 	The third argument is the alignment file (.bam) containing the reads covering the DNM. 
 	4. 	Window size is an optional argument which is the maximum distance between the DNM and a phasing site. The default value is 1000. 
 
