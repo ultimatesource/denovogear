@@ -1,32 +1,32 @@
-##### Rough Draft Instructions for using denovogear 
+# Rough Draft Instructions for using denovogear 
 Authors: Don Conrad, Avinash Ramu and Reed Cartwright
 
-#### COMPILING 
+## COMPILING 
 Compilation requires CMake.  You can download CMake installers from the CMake
 website <http://www.cmake.org/cmake/resources/software.html>.  Most Linux
 distributions allow you to install CMake using their package software.
 
 Compiling and Installing on Linux:
-  tar xvzf denovogear*.tar.gz
-  cd denovogear*/build
-  cmake ..
-  make
-  sudo make install
+        tar xvzf denovogear*.tar.gz
+        cd denovogear*/build
+        cmake ..
+        make
+        sudo make install
 
 Creating Packages:
   make package
   make package_source
 
-#### RUNNING THE CODE
+## RUNNING THE CODE
 
 ### Finding Denovo Mutations
 
 The program takes in a PED file and a BCF file as input.
 
-## usage:
-	./denovogear dnm --ped sample.ped --bcf sample.bcf
+#### usage:
+	     ./denovogear dnm --ped sample.ped --bcf sample.bcf
 
-# about sample.bcf:
+#####  about sample.bcf:
 BCF files can be generated from the alignment using the samtools mpileup 
 command. The command to generate a bcf file from sample.bam is:
 	samtools mpileup -gDf reference.fa sample.bam > sample.bcf
@@ -36,7 +36,7 @@ which is preferred by denovogear (but note that DNG will work without per-sample
 RD information). The -g option specifies a compressed output and the -f option 
 is used to indicate the reference the alignment was built against. 
 
-# about sample.ped: 
+#####  about sample.ped: 
 The PED file contains information about the trios present in the BCF file. 
 Please make sure that all the members of the trios specified in the PED file 
 are present in the BCF file. The PED file can be used to specify a subset of 
@@ -53,7 +53,7 @@ CEU	NA12878_vald-sorted.bam.bam	NA12891_vald-sorted.bam.bam	NA12892_vald-sorted.
 
 An example PED file, sample_CEU.ped, is included in the distribution directory. 
 
-# about "snp_lookup.txt" and "indel_lookup.txt": 
+##### about "snp_lookup.txt" and "indel_lookup.txt": 
 These are tables with precomputed priors (and other useful numbers) for all possible 
 trio configurations, under the null (no mutation present) and alternative (true de novo). 
 The default tables are generated during each program run using a prior of 
@@ -64,7 +64,7 @@ If you wish to change the default point or indel mutation rates use the --snp_mr
 or --indel_mrate switches respectively. 
 
 For example
-	./denovogear dnm --ped sample.ped --bcf sample.bcf --snp_mrate 2e-10 --indel_mrate 1e-11
+	     ./denovogear dnm --ped sample.ped --bcf sample.bcf --snp_mrate 2e-10 --indel_mrate 1e-11
 
 The indel mutation rate varies according to the length of the insertion or deletion, 
 separate models are used for insertions and deletions. The two models were calibrated
@@ -80,10 +80,10 @@ Note that a constant factor is used to scale the mutation rate, it is set to 1.0
 by default and can be set using the switch --mu_scale. 
 
 For example, 
-	./denovogear dnm --ped sample.ped --bcf sample.bcf --mu_scale 3
+	     ./denovogear dnm --ped sample.ped --bcf sample.bcf --mu_scale 3
 
 
-## OUTPUT FORMAT
+#### OUTPUT FORMAT
 
 The output format is a single row for each putative de novo mutation (DNM), with the following fields:
 1. Event type (POINT MUTATION or INDEL)
@@ -109,7 +109,8 @@ Fields 17-22 are meant for filtering out low quality sites.
 
 ### PAIRED SAMPLE ANALYSIS 
 DNG can be used to analyze paired samples, it is run the same way as for trios the only difference being the way samples are specified in the PED file,
-Usage: 
+#### Usage:
+ 
         ./denovogear dnm --ped paired.ped --bcf sample.bcf
 
 About the arguments, 
@@ -123,9 +124,9 @@ A sample PED file sample_paired.ped for paired sample analysis is provided with 
 ### PHASER 
 DNG can be used to obtain parental phasing information for Denovo Mutations where phase informative sites are present. This is done by looking at reads which cover both the denovo base and a phase informative positions. Phase informative positions lie within a certain window from the denovo site, the default value is 1000 but it can be set by the user.
 
-## Usage:
+#### Usage:
 
-./denovogear phaser --dnm dnms_file --pgt gts_file --bam alignment --window NUM[1000]
+        ./denovogear phaser --dnm dnms_file --pgt gts_file --bam alignment --window NUM[1000]
 
 About the arguments, 
 
@@ -136,7 +137,7 @@ About the arguments,
 	3. 	The third argument is the alignment file (.bam) containing the reads covering the DNM. 
 	4. 	Window size is an optional argument which is the maximum distance between the DNM and a phasing site. The default value is 1000. 
 
-## Output
+#### Output
 	DNM_pos 1:182974758     INHERITED G     VARIANT A
         HAP POS 182974328 p1: CC p2: TC Number of denovo-phasing pairs found: 0
         HAP POS 182974572 p1: CC p2: TC Number of denovo-phasing pairs found: 2
