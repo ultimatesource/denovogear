@@ -85,7 +85,8 @@ For example,
 
 #### OUTPUT FORMAT
 
-The output format is a single row for each putative de novo mutation (DNM), with the following fields:
+The output format is a single row for each putative de novo mutation (DNM), with the following fields
+
         1. Event type (POINT MUTATION or INDEL)
         2. Sample ID of offspring with the DNM
         3. Chromosome 
