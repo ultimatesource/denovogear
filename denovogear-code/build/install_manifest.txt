@@ -1,0 +1,3 @@
+/Applications/doc/README.txt
+/Applications/doc/COPYING.txt
+/Applications/bin/denovogear
