@@ -14,8 +14,8 @@ Compiling and Installing on Linux:
         sudo make install
 
 Creating Packages:
-  make package
-  make package_source
+        make package
+        make package_source
 
 ## RUNNING THE CODE
 
@@ -86,24 +86,24 @@ For example,
 #### OUTPUT FORMAT
 
 The output format is a single row for each putative de novo mutation (DNM), with the following fields:
-1. Event type (POINT MUTATION or INDEL)
-2. Sample ID of offspring with the DNM
-3. Chromosome 
-4. Physical Position 
-5. Base present in reference sequence at this position
-6. ALT - Comma separated list of alternate non-reference alleles called on at-least one sample.
-7. maxlike_null  - likelihood of the most likely mendelian-compatible config.
-8. pp_null - posterior probability of most likely mendelian configuration        
-9. tgt  - genotypes of the most likely mendelian configuration
-10. Code that indicates whether the configuration shown in field 6 is monomorphic (1) or contains variation (2)
-11. This field seems to be redundant to field 7, except the codes are (6) and (9).
-12. maxlike_DNM  -11, 12 and 13 are analogous to 6,7,8, but for a de novo mutation
-13. posterior_probability_DNM
-14. tgt: DNM_configuration
-15. Code that indicates if the most likely DNM is a transition (4) or transversion (5)
-16. This is a flag that indicates whether the data for the site passed internal QC thresholds (for development use only).
-17-19. Read depth of child, parent 1 and parent 2. 
-20-22. Root mean square of the mapping qualities of all reads mapping to the site for child, parent 1 and parent 2. Currently these values are the same for all samples when using BCF as the input format.
+  1. Event type (POINT MUTATION or INDEL)
+  2. Sample ID of offspring with the DNM
+  3. Chromosome 
+  4. Physical Position 
+  5. Base present in reference sequence at this position
+  6. ALT - Comma separated list of alternate non-reference alleles called on at-least one sample.
+  7. maxlike_null  - likelihood of the most likely mendelian-compatible config.
+  8. pp_null - posterior probability of most likely mendelian configuration        
+  9. tgt  - genotypes of the most likely mendelian configuration
+  10. Code that indicates whether the configuration shown in field 6 is monomorphic (1) or contains variation (2)
+  11. This field seems to be redundant to field 7, except the codes are (6) and (9).
+  12. maxlike_DNM  -11, 12 and 13 are analogous to 6,7,8, but for a de novo mutation
+  13. posterior_probability_DNM
+  14. tgt: DNM_configuration
+  15. Code that indicates if the most likely DNM is a transition (4) or transversion (5)
+  16. This is a flag that indicates whether the data for the site passed internal QC thresholds (for development use only).
+  17-19. Read depth of child, parent 1 and parent 2. 
+  20-22. Root mean square of the mapping qualities of all reads mapping to the site for child, parent 1 and parent 2. Currently these values are the same for all samples when using BCF as the input format.
 
 Fields 17-22 are meant for filtering out low quality sites. 
 
