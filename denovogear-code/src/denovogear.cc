@@ -37,25 +37,26 @@ using namespace RBD_LIBRARIES;
 void usage()
 {
   	cout<<"DeNovoGear - Identify denovo mutations from next-gen sequencing data.\n";
-  	cout<<"Usage \n\t./denovogear dnm --bcf bcf_f --ped ped_f \nOR";
-	cout<<"\n\t./denovogear phaser --dnm dnm_F --pgt pgts_f --bam bam_f --window INT[1000]";
+  	cout<<"Usage\n\tAutosomes\n\n\t\t./denovogear dnm auto --bcf bcf_f --ped ped_f ";
+  	cout<<"\n\n\tX in male offspring\n\n\t\t./denovogear dnm XS --bcf bcf_f --ped ped_f ";
+  	cout<<"\n\n\tX in female offspring\n\n\t\t./denovogear dnm XD --bcf bcf_f --ped ped_f ";
+	cout<<"\n\n\tPhaser\n\n\t\t./denovogear phaser --dnm dnm_F --pgt pgts_f --bam bam_f --window INT[1000]";
 	cout<<endl;
 }
 
-int findDenovo(char* ped_file, char* bcf_file, double snp_mrate, 
+int findDenovo_auto(char* ped_file, char* bcf_file, double snp_mrate, 
                double indel_mrate, double poly_rate, double pair_mrate, double mu_scale) 
 {
 	printf("\nPED file : %s, BCF file : %s", ped_file, bcf_file); 
   
 	// Parse PED files and read in trios
-    Trio trios[ MAX_TRIOS ];
-    Pair pairs[ MAX_PAIRS ];
+	Trio* trios;
+    Pair* pairs;
     int trio_count = 0, pair_count = 0;
-    parse_ped (ped_file, trios, pairs, trio_count, pair_count); 
+    parse_ped (ped_file, &trios, &pairs, trio_count, pair_count); 
 	printf ("\nThe number of trios in the ped file : %d", trio_count);
     printf ("\nThe number of paired samples in the ped file : %d\n\n", pair_count);
-
-	
+    
     // Create SNP lookup
 	vector<vector<string > > tgt;
 	vector<string> tmpV;
@@ -86,7 +87,7 @@ int findDenovo(char* ped_file, char* bcf_file, double snp_mrate,
     cerr <<" First tgt "<< tgtIndel[0][0] <<" Last "<< tgtIndel[8][2] <<endl;
     cerr <<" First prior "<< lookupIndel.priors(1,1) <<" Last "<< lookupIndel.priors(9,3) <<endl;
 
-    // Create Pair INDEL lookup
+    // Create Paired lookup
     vector<vector<string > > tgtPair;
 	vector<string> tmpPair;
     for (int l=0; l<10; l++)
@@ -112,7 +113,7 @@ int findDenovo(char* ped_file, char* bcf_file, double snp_mrate,
 	while ( vcf_read(bp, hin, b) > 0 ) {
 		int j = 0, flag =0;
 		//printf("Position Number %d", pos++);
-		// PROCESS ALL TRIOS
+		// PROCESS TRIOS
 		for ( j=0; j<trio_count; j++) {
 			int is_indel = bcf_2qcall(hout, b, trios[j],  &mom_snp, &dad_snp, 
 									  &child_snp, &mom_indel, &dad_indel, 
@@ -125,12 +126,13 @@ int findDenovo(char* ped_file, char* bcf_file, double snp_mrate,
 								tgtIndel, lookupIndel, mu_scale);  
 			}
 			else if ( is_indel < 0 ) {
-				printf("\n BCF PARSING ERROR !  %d", is_indel);
-				printf("\n Exiting !");
+				printf("\nBCF PARSING ERROR !  %d", is_indel);
+				printf("\nExiting !\n\n");
 				exit(1);
 			}
-		}  
-		// PROCESS ALL PAIRS
+		}
+		  
+		// PROCESS  PAIRS
 		for ( j=0; j<pair_count; j++) {
 			int is_indel = bcf2Paired (hout, b, pairs[j], &tumor, &normal, flag);
 			if ( is_indel == 0 ) 
@@ -152,6 +154,30 @@ int findDenovo(char* ped_file, char* bcf_file, double snp_mrate,
    
 }
 
+int findDenovo_XS(char* ped_file, char* bcf_file, double snp_mrate, 
+               double indel_mrate, double poly_rate, double pair_mrate, double mu_scale)
+{
+	printf("\n\n\tXS Model");
+	printf("\nPED file : %s, BCF file : %s", ped_file, bcf_file); 
+  
+	// Parse PED files and read in trios
+	Trio* trios;
+    Pair* pairs;
+    int trio_count = 0, pair_count = 0;
+    parse_ped (ped_file, &trios, &pairs, trio_count, pair_count); 
+	printf ("\nThe number of trios in the ped file : %d", trio_count);
+    printf ("\nThe number of paired samples in the ped file : %d\n\n", pair_count);
+
+    return 0;
+
+    
+}	         
+int findDenovo_XD(char* ped_file, char* bcf_file, double snp_mrate, 
+               double indel_mrate, double poly_rate, double pair_mrate, double mu_scale)
+{
+	
+}
+
 
 int mainDNG(int argc, char *argv[])
 {
@@ -169,7 +195,7 @@ int mainDNG(int argc, char *argv[])
 		static struct option long_options[] = {{"ped", 1, 0, 0}, 
 			{"bcf", 1, 0, 1}, {"snp_mrate", 1, 0, 2}, {"indel_mrate", 1, 0, 3}, 
 			{"poly_rate", 1, 0, 4}, {"pair_mrates", 1, 0, 5}, {"indel_mu_scale", 1, 0, 6}};
-		int c = getopt_long (argc, argv, "", long_options, &option_index);
+		int c = getopt_long (argc-1, argv+1, "", long_options, &option_index);
 		if (c == -1)
 			break;
 		switch(c) 
@@ -200,6 +226,10 @@ int mainDNG(int argc, char *argv[])
 				mu_scale = atof(optarg);
 				cout<<"\nThe new indel mutation rate scaling factor rate is : "<<mu_scale;
 				break;
+			default:
+				cerr<<"\nUnrecognized option ! "<<argv[c]<<" Exiting !";
+				usage();
+    			exit(1);
 		}
 	}
   
@@ -209,8 +239,18 @@ int mainDNG(int argc, char *argv[])
 		exit(1);
 	}
   
-    // Create lookup table and read ped, BCF files.
-	findDenovo(ped_f, bcf_f, snp_mrate, indel_mrate, poly_rate, pair_mrate, mu_scale);
+    // Create lookup table and read ped, BCF files. Separate for autosomes, X in males and X in females.
+    if (strcmp(argv[1], "auto") == 0)
+		findDenovo_auto(ped_f, bcf_f, snp_mrate, indel_mrate, poly_rate, pair_mrate, mu_scale);
+	else if (strcmp(argv[1], "XS") == 0)
+		findDenovo_XS(ped_f, bcf_f, snp_mrate, indel_mrate, poly_rate, pair_mrate, mu_scale);
+	else if (strcmp(argv[1], "XD") == 0)
+		findDenovo_XD(ped_f, bcf_f, snp_mrate, indel_mrate, poly_rate, pair_mrate, mu_scale);
+	else {
+    	usage();
+    	exit(1);
+  	}
+
 	cerr<<"\nDone !\n";
 	return 0;
 }
