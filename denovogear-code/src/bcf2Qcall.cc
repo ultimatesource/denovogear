@@ -265,7 +265,7 @@ int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t* mom_snp, qcall_t* dad_s
 	if ( found_trio == 0 ) { 
 		return indel;
 	} else {
-		printf("\n\nUnable to find trio, exiting Denovogear! ( %d, %d) ", found_trio, i);
+		printf("\n\nUnable to find trio. Code %d:%d ", found_trio, i);
 		return -3; //missing member	
 	}
 	
