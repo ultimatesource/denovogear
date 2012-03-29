@@ -27,6 +27,7 @@ SET(PROJ_NAME "denovogear")
 SET(PROJ_NAME_PRO "DeNovoGear")
 SET(PROJ_EMAIL "dng@scit.us")
 
+
 ################################################################################
 # Version Information
 
@@ -232,7 +233,7 @@ ELSEIF(APPLE)
 ELSE(WIN32 AND NOT UNIX)
   SET(CPACK_GENERATOR "TGZ")
   SET(CPACK_SOURCE_GENERATOR "TGZ") 
-  SET(CPACK_STRIP_FILES "bin/denogear")
+  SET(CPACK_STRIP_FILES "bin/denovogear")
 ENDIF(WIN32 AND NOT UNIX)
 
 INCLUDE(CPack)
