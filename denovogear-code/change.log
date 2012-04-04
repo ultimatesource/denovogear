@@ -11,4 +11,5 @@ ver0.3
 - look at additional trio configs compared to initial version
 
 ver0.2
+- incorporated BCF parser
 - denovo INDEL calling
