@@ -3,7 +3,7 @@
 #include <string.h>
 #include "pedParser.h"
 
-#define DEBUG_ENABLED
+//#define DEBUG_ENABLED
 // Parse PED file and get trio information
 void parse_ped(const char* ped_file, Trio** t, Pair** p, int& trio_count, 
                int& pair_count)
