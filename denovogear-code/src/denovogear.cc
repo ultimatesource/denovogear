@@ -168,14 +168,158 @@ int findDenovo_XS(char* ped_file, char* bcf_file, double snp_mrate,
 	printf ("\nThe number of trios in the ped file : %d", trio_count);
     printf ("\nThe number of paired samples in the ped file : %d\n\n", pair_count);
 
-    return 0;
+    // Create SNP lookup
+	vector<vector<string > > tgt;
+	vector<string> tmpV;
+	for (int l=0; l<10; l++)
+		tmpV.push_back("NA");
+	for (int l=0; l<100; l++)
+		tgt.push_back(tmpV);
+	lookup_snp_t lookup;
+	makeXSSNPLookup(snp_mrate, poly_rate, tgt, lookup);	
+	cout<<"\nCreated SNP lookup table - XS\n";
+	//Check to see if lookup looks OK
+	cerr <<" First mrate "<< lookup.mrate(1,1) <<" Last "<< lookup.mrate(100,10)<<endl;
+	cerr <<" First code "<< lookup.code(1,1) <<" Last "<< lookup.code(100,10)<<endl;
+	cerr <<" First tgt "<< tgt[0][0] <<" Last "<< tgt[99][9] <<endl;
+	cerr <<" First tref "<< lookup.tref(1,1) <<" Last "<< lookup.tref(100,10) <<endl;
+
+	 // Create INDEL lookup
+	vector<vector<string > > tgtIndel;
+	vector<string> tmpIndel;
+    for (int l=0; l<3; l++)
+        tmpIndel.push_back("NA");
+    for (int l=0; l<9; l++)
+        tgtIndel.push_back(tmpIndel);
+	lookup_indel_t lookupIndel;
+	makeXSIndelLookup(indel_mrate, poly_rate, tgtIndel, lookupIndel);
+	cout<<"\nCreated indel lookup table - XS";
+	//cerr <<endl<<" First mrate "<< lookupIndel.mrate(1,1) <<" Last "<< lookupIndel.mrate(9,3)<<endl;
+    cerr <<endl<<" First code "<< lookupIndel.code(1,1) <<" Last "<< lookupIndel.code(9,3)<<endl;
+    cerr <<" First tgt "<< tgtIndel[0][0] <<" Last "<< tgtIndel[8][2] <<endl;
+    cerr <<" First prior "<< lookupIndel.priors(1,1) <<" Last "<< lookupIndel.priors(9,3) <<endl;
+
+    // Iterate each position of BCF file
+    qcall_t mom_snp, dad_snp, child_snp;
+	indel_t mom_indel, dad_indel, child_indel;
+	bcf_hdr_t *hout, *hin;
+	bcf_t *bp = NULL;
+	bp = vcf_open(bcf_file, "rb");
+	hin = hout = vcf_hdr_read(bp);
+	bcf1_t *b;
+	b = static_cast<bcf1_t *> (calloc(1, sizeof(bcf1_t)));  
+	while ( vcf_read(bp, hin, b) > 0 ) {
+		int j = 0, flag =0;
+		//printf("Position Number %d", pos++);
+		// PROCESS TRIOS
+		for ( j=0; j<trio_count; j++) {
+			int is_indel = bcf_2qcall(hout, b, trios[j],  &mom_snp, &dad_snp, 
+									  &child_snp, &mom_indel, &dad_indel, 
+									  &child_indel, flag);
+			if ( is_indel == 0 ) {
+				trio_like_snp(child_snp, mom_snp, dad_snp, flag, tgt, lookup);   			
+			}   
+			else if ( is_indel == 1 ) {
+				trio_like_indel(&child_indel, &mom_indel, &dad_indel, flag, 
+								tgtIndel, lookupIndel, mu_scale);  
+			}
+			else if ( is_indel < 0 ) {
+				printf("\nBCF PARSING ERROR !  %d", is_indel);
+				printf("\nExiting !\n\n");
+				exit(1);
+			}
+		}
+	}
+
+    bcf_hdr_destroy(hin);
+	bcf_destroy(b);
+	bcf_close(bp);
+	return 0;
 
     
 }	         
+
 int findDenovo_XD(char* ped_file, char* bcf_file, double snp_mrate, 
                double indel_mrate, double poly_rate, double pair_mrate, double mu_scale)
 {
-	
+	printf("\n\n\tXD Model");
+	printf("\nPED file : %s, BCF file : %s", ped_file, bcf_file); 
+  
+	// Parse PED files and read in trios
+	Trio* trios;
+    Pair* pairs;
+    int trio_count = 0, pair_count = 0;
+    parse_ped (ped_file, &trios, &pairs, trio_count, pair_count); 
+	printf ("\nThe number of trios in the ped file : %d", trio_count);
+    printf ("\nThe number of paired samples in the ped file : %d\n\n", pair_count);
+
+    // Create SNP lookup
+	vector<vector<string > > tgt;
+	vector<string> tmpV;
+	for (int l=0; l<10; l++)
+		tmpV.push_back("NA");
+	for (int l=0; l<100; l++)
+		tgt.push_back(tmpV);
+	lookup_snp_t lookup;
+	makeXDSNPLookup(snp_mrate, poly_rate, tgt, lookup);	
+	cout<<"\nCreated SNP lookup table - XD\n";
+	//Check to see if lookup looks OK
+	cerr <<" First mrate "<< lookup.mrate(1,1) <<" Last "<< lookup.mrate(100,10)<<endl;
+	cerr <<" First code "<< lookup.code(1,1) <<" Last "<< lookup.code(100,10)<<endl;
+	cerr <<" First tgt "<< tgt[0][0] <<" Last "<< tgt[99][9] <<endl;
+	cerr <<" First tref "<< lookup.tref(1,1) <<" Last "<< lookup.tref(100,10) <<endl;
+
+	 // Create INDEL lookup
+	vector<vector<string > > tgtIndel;
+	vector<string> tmpIndel;
+    for (int l=0; l<3; l++)
+        tmpIndel.push_back("NA");
+    for (int l=0; l<9; l++)
+        tgtIndel.push_back(tmpIndel);
+	lookup_indel_t lookupIndel;
+	makeXDIndelLookup(indel_mrate, poly_rate, tgtIndel, lookupIndel);
+	cout<<"\nCreated indel lookup table - XD";
+	//cerr <<endl<<" First mrate "<< lookupIndel.mrate(1,1) <<" Last "<< lookupIndel.mrate(9,3)<<endl;
+    cerr <<endl<<" First code "<< lookupIndel.code(1,1) <<" Last "<< lookupIndel.code(9,3)<<endl;
+    cerr <<" First tgt "<< tgtIndel[0][0] <<" Last "<< tgtIndel[8][2] <<endl;
+    cerr <<" First prior "<< lookupIndel.priors(1,1) <<" Last "<< lookupIndel.priors(9,3) <<endl;
+
+    // Iterate each position of BCF file
+    qcall_t mom_snp, dad_snp, child_snp;
+	indel_t mom_indel, dad_indel, child_indel;
+	bcf_hdr_t *hout, *hin;
+	bcf_t *bp = NULL;
+	bp = vcf_open(bcf_file, "rb");
+	hin = hout = vcf_hdr_read(bp);
+	bcf1_t *b;
+	b = static_cast<bcf1_t *> (calloc(1, sizeof(bcf1_t)));  
+	while ( vcf_read(bp, hin, b) > 0 ) {
+		int j = 0, flag =0;
+		//printf("Position Number %d", pos++);
+		// PROCESS TRIOS
+		for ( j=0; j<trio_count; j++) {
+			int is_indel = bcf_2qcall(hout, b, trios[j],  &mom_snp, &dad_snp, 
+									  &child_snp, &mom_indel, &dad_indel, 
+									  &child_indel, flag);
+			if ( is_indel == 0 ) {
+				trio_like_snp(child_snp, mom_snp, dad_snp, flag, tgt, lookup);   			
+			}   
+			else if ( is_indel == 1 ) {
+				trio_like_indel(&child_indel, &mom_indel, &dad_indel, flag, 
+								tgtIndel, lookupIndel, mu_scale);  
+			}
+			else if ( is_indel < 0 ) {
+				printf("\nBCF PARSING ERROR !  %d", is_indel);
+				printf("\nExiting !\n\n");
+				exit(1);
+			}
+		}
+	}
+
+    bcf_hdr_destroy(hin);
+	bcf_destroy(b);
+	bcf_close(bp);
+	return 0;
 }
 
 
