@@ -24,7 +24,7 @@ Creating Packages:
 The program takes in a PED file and a BCF file as input.
 
 #### usage:
-	     ./denovogear dnm --ped sample.ped --bcf sample.bcf
+	     ./denovogear auto dnm --ped sample.ped --bcf sample.bcf
 
 #####  about sample.bcf:
 BCF files can be generated from the alignment using the samtools mpileup 
@@ -64,7 +64,7 @@ If you wish to change the default point or indel mutation rates use the --snp_mr
 or --indel_mrate switches respectively. 
 
 For example
-	     ./denovogear dnm --ped sample.ped --bcf sample.bcf --snp_mrate 2e-10 --indel_mrate 1e-11
+	     ./denovogear auto dnm --ped sample.ped --bcf sample.bcf --snp_mrate 2e-10 --indel_mrate 1e-11
 
 The indel mutation rate varies according to the length of the insertion or deletion, 
 separate models are used for insertions and deletions. The two models were calibrated
@@ -80,7 +80,7 @@ Note that a constant factor is used to scale the mutation rate, it is set to 1.0
 by default and can be set using the switch --mu_scale. 
 
 For example, 
-	     ./denovogear dnm --ped sample.ped --bcf sample.bcf --mu_scale 3
+	     ./denovogear auto dnm --ped sample.ped --bcf sample.bcf --mu_scale 3
 
 
 #### OUTPUT FORMAT
@@ -108,11 +108,28 @@ The output format is a single row for each putative de novo mutation (DNM), with
 
 Fields 17-22 are meant for filtering out low quality sites. 
 
+### Separate models for the X chromosome
+
+Denovogear has separate models for autosomes, X chromosome in male offspring and X chromosome in female offspring, 
+
+#### Autosomes model usage
+
+        ./denovogear dnm auto --ped paired.ped --bcf sample.bcf
+
+#### X in male offspring model usage 
+
+        ./denovogear dnm XS --ped paired.ped --bcf sample.bcf
+
+#### X in female offspring model usage 
+
+        ./denovogear dnm XD --ped paired.ped --bcf sample.bcf
+
 ### PAIRED SAMPLE ANALYSIS 
 DNG can be used to analyze paired samples, it is run the same way as for trios the only difference being the way samples are specified in the PED file,
+
 #### Usage:
  
-        ./denovogear dnm --ped paired.ped --bcf sample.bcf
+        ./denovogear dnm auto --ped paired.ped --bcf sample.bcf
 
 About the arguments, 
 	
