@@ -1,11 +1,9 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "pedParser.h"
+using namespace std;
 
 //#define DEBUG_ENABLED
 // Parse PED file and get trio information
-void parse_ped(const char* ped_file, Trio** t, Pair** p, int& trio_count, 
+void parse_ped(string ped_file, Trio** t, Pair** p, int& trio_count, 
                int& pair_count)
 {
 	Trio* trios;
@@ -26,7 +24,7 @@ void parse_ped(const char* ped_file, Trio** t, Pair** p, int& trio_count,
 	}
 
 	FILE *fp;
-	fp = fopen( ped_file, "r");
+	fp = fopen( ped_file.c_str(), "r");
 	if (fp == NULL) {
          printf("\nUnable to open PED file, Exiting !\n");
          exit(0);

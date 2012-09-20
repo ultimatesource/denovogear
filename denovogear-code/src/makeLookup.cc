@@ -16,7 +16,7 @@ Updates
 
 #include "makeLookup.h"
 
-//#define LOOKUP_ENABLED 1 // enable this flag if you want to generate lookup tables
+#define LOOKUP_ENABLED 1 // enable this flag if you want to generate lookup tables
 
 #ifdef LOOKUP_ENABLED
 	ofstream fout_snp("snp_lookup.txt");
@@ -58,6 +58,7 @@ void setSNPLines(vector<vector<string > > & tgt,
 			for(int i=0; i<4; i++) {
 				fout_XSsnp<<" "<<g_priors[i];
 			}
+			fout_XSsnp<<"\n";
 		#endif
 	}
 	else if (is_X == 2) { // XD
@@ -67,6 +68,7 @@ void setSNPLines(vector<vector<string > > & tgt,
 			for(int i=0; i<4; i++) {
 				fout_XDsnp<<" "<<g_priors[i];
 			}
+			fout_XDsnp<<"\n";
 		#endif
 	}
 	else { // auto
@@ -76,6 +78,7 @@ void setSNPLines(vector<vector<string > > & tgt,
 			for(int i=0; i<4; i++) {
 				fout_snp<<" "<<g_priors[i];
 			}
+			fout_snp<<"\n";
 		#endif
 	}
 
@@ -94,23 +97,6 @@ void setSNPLines(vector<vector<string > > & tgt,
 		k++;
 		snp_index = 0;
 	}	
-
-	if (is_X == 1) { // XS
-		#ifdef LOOKUP_ENABLED	
-			fout_XSsnp<<"\n";
-		#endif
-	}
-	else if (is_X == 2) { // XD
-		#ifdef LOOKUP_ENABLED	
-			fout_XDsnp<<"\n";
-		#endif
-	}
-	else { // auto
-		#ifdef LOOKUP_ENABLED	
-			fout_snp<<"\n";
-		#endif
-	}
-
 }
 
 // Write to Indel lookup table file and struct
@@ -596,10 +582,13 @@ void makeSNPLookup(double SNPMrate, double PolyRate,
 				}
                 
                 // triallelic case
-				if (g_n_u_alleles == 3) {
+				if (g_n_u_alleles == 3) { 
 					g_inf = 9;
-					if ((seq1[cid] == seq1[did] || seq1[cid] == seq2[did]) 
-						&& (seq2[cid] == seq1[mid] || seq2[cid] == seq2[mid])) {
+					if (((seq1[cid] == seq1[did] || seq1[cid] == seq2[did]) 
+						&& (seq2[cid] == seq1[mid] || seq2[cid] == seq2[mid])) || 
+						((seq1[cid] == seq1[mid] || seq1[cid] == seq2[mid]) 
+						&& (seq2[cid] == seq1[did] || seq2[cid] == seq2[did])) ) {
+						//cerr<<g_gts<<endl;
 						if (seq1[cid] == seq2[cid])
 							g_t_prob = 0.25;
 						else if ((seq1[mid] == seq2[mid]) || (seq1[did] == seq2[did]))
