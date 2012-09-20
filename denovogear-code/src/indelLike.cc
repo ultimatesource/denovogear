@@ -1,5 +1,6 @@
 #include <vector>
 #include <iostream>
+#include <fstream>
 #include <string.h>
 #include "parser.h"
 #include "lookup.h"
@@ -13,7 +14,8 @@ using namespace std;
 // Calculate DNM and Null PP
 void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag, 
 					 vector<vector<string > > & tgtIndel, 
-					 lookup_indel_t & lookupIndel, double mu_scale)
+					 lookup_indel_t & lookupIndel, double mu_scale, 
+                     string op_vcf_f, ofstream& fo_vcf)
 {    
     Real a[3];   
     Real maxlike_null,maxlike_denovo,pp_null,pp_denovo,denom;       
@@ -106,6 +108,25 @@ void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag,
     	cout<<" tgt: "<<tgtIndel[k-1][l-1]<<" lookup: "<<lookupIndel.code(k,l)<<" flag: "<<flag;
     	printf(" READ_DEPTH child: %d dad: %d mom: %d", child->depth, dad->depth, mom->depth);
     	printf(" MAPPING_QUALITY child: %d dad: %d mom: %d\n", child->rms_mapQ, dad->rms_mapQ, mom->rms_mapQ);
+
+        if(op_vcf_f != "EMPTY") {
+          fo_vcf<<ref_name<<"\t";
+          fo_vcf<<coor<<"\t";
+          fo_vcf<<".\t";// Don't know the rsID
+          fo_vcf<<mom->ref_base<<"\t";
+          fo_vcf<<mom->alt<<"\t";
+          fo_vcf<<"0\t";// Quality of the Call
+          fo_vcf<<"PASS\t";// passed the read depth filter
+          fo_vcf<<"RD_MOM="<<mom->depth<<";RD_DAD="<<dad->depth;
+          fo_vcf<<";MQ_MOM="<<mom->rms_mapQ<<";MQ_DAD="<<dad->rms_mapQ;  
+          fo_vcf<<";NULL_CONFIG="<<tgtIndel[i-1][j-1]<<";PP_NULL="<<pp_null;  
+          fo_vcf<<";INDELcode="<<lookupIndel.snpcode(i,j)<<";\t";
+          fo_vcf<<"DNM_CONFIG:PP_DNM:RD:MQ\t";
+          fo_vcf<<tgtIndel[k-1][l-1]<<":"<<pp_denovo<<":"<<child->depth<<":"<<child->rms_mapQ; 
+          fo_vcf<<"\n";
+        }
   	}
+
+    
     
 }

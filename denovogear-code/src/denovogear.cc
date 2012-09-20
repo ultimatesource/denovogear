@@ -1,3 +1,8 @@
+
+#include <vector>
+#include <iostream>
+#include <fstream>
+#include <sstream>
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
@@ -6,6 +11,7 @@
 #include <getopt.h>
 
 
+using namespace std;
 #include "bcf.h"
 #include "bgzf.h"
 #include "denovogear.h"
@@ -13,14 +19,6 @@
 #define WANT_STREAM       // include iostream and iomanipulators
 #include "newmatap.h"
 #include "newmatio.h"
-
-using namespace std;
-
-#include <vector>
-#include <iostream>
-#include <fstream>
-#include <sstream>
-
 #include "phaser.h"
 
 #ifdef use_namespace
@@ -44,18 +42,19 @@ void usage()
 	cout<<endl;
 }
 
-int findDenovo_auto(char* ped_file, char* bcf_file, double snp_mrate, 
-               double indel_mrate, double poly_rate, double pair_mrate, double mu_scale) 
+int findDenovo_auto(string ped_file, string bcf_file, double snp_mrate, 
+               double indel_mrate, double poly_rate, double pair_mrate, 
+               double mu_scale, string op_vcf_f) 
 {
-	printf("\nPED file : %s, BCF file : %s", ped_file, bcf_file); 
+	cout<<"\nPED file : "<<ped_file<<", BCF file : "<<bcf_file; 
   
 	// Parse PED files and read in trios
 	Trio* trios;
     Pair* pairs;
     int trio_count = 0, pair_count = 0;
     parse_ped (ped_file, &trios, &pairs, trio_count, pair_count); 
-	printf ("\nThe number of trios in the ped file : %d", trio_count);
-    printf ("\nThe number of paired samples in the ped file : %d\n\n", pair_count);
+	cout<<"\nThe number of trios in the ped file : "<<trio_count<<endl;
+    cout<<"The number of paired samples in the ped file : "<<pair_count<<endl<<endl;
     
     // Create SNP lookup
 	vector<vector<string > > tgt;
@@ -100,16 +99,49 @@ int findDenovo_auto(char* ped_file, char* bcf_file, double snp_mrate,
     cerr <<" First tgt "<< tgtPair[0][0] <<" Last "<< tgtPair[9][9] <<endl;
     cerr <<" First prior "<< lookupPair.priors(1,1) <<" Last "<< lookupPair.priors(10,10) <<endl;
 
+    //create output vcf
+    ofstream fo_vcf;
+    if(op_vcf_f != "EMPTY") {
+    	fo_vcf.open(op_vcf_f.c_str());
+    	if(fo_vcf == NULL) { 
+      		cerr<<"Unable to open vcf file for writing output. Exiting !"<<endl;
+    	}
+    	fo_vcf<<"##fileformat=VCFv4.1\n";
+    	fo_vcf<<"##source=DeNovoGear\n";
+    	fo_vcf<<"##INPUT - BCF:"<<bcf_file<<" PED:"<<ped_file<<"\n";
+    	fo_vcf<<"##INFO=<ID=RD_MOM,Number=1,Type=Integer,Description=\"Read depth for MOM\">\n";
+    	fo_vcf<<"##INFO=<ID=RD_DAD,Number=1,Type=Integer,Description=\"Read depth for DAD\">\n";
+    	fo_vcf<<"##INFO=<ID=RD_NORMAL,Number=1,Type=Integer,Description=\"Read depth for Normal sample in Paired Sample Analysis\">\n";
+    	fo_vcf<<"##INFO=<ID=MQ_MOM,Number=1,Type=Integer,Description=\"Mapping quality for MOM\">\n";
+    	fo_vcf<<"##INFO=<ID=MQ_DAD,Number=1,Type=Integer,Description=\"Mapping quality for DAD\">\n";
+    	fo_vcf<<"##INFO=<ID=MQ_NORMAL,Number=1,Type=Integer,Description=\"Mapping quality for Normal sample in Paired Sample Analysis\">\n";
+    	fo_vcf<<"##INFO=<ID=NULL_CONFIG,Number=1,Type=String,Description=\"NULL trio configuration\">\n";
+    	fo_vcf<<"##INFO=<ID=PP_NULL,Number=1,Type=Float,Description=\"Posterior probability for the NULL configuration\">\n";
+    	fo_vcf<<"##INFO=<ID=ML_NULL,Number=1,Type=Float,Description=\"Maximum Likelihood for the NULL configuration\">\n";
+    	fo_vcf<<"##INFO=<ID=ML_DNM,Number=1,Type=Float,Description=\"Maximum Likelihood for the DNM configuration\">\n";
+    	fo_vcf<<"##INFO=<ID=SNPcode,Number=1,Type=Integer,Description=\"Code that shows whether DNM configuration shown is monomorphic or contains variation\">\n";
+    	fo_vcf<<"##INFO=<ID=INDELcode,Number=1,Type=Integer,Description=\" \">\n"; //// Needs Detail
+    	fo_vcf<<"##INFO=<ID=PairSNPcode,Number=1,Type=Integer,Description=\" \">\n"; //// Needs Detail
+    	fo_vcf<<"##INFO=<ID=code,Number=1,Type=Integer,Description=\" \">\n"; //// Needs Detail
+    	fo_vcf<<"##FORMAT=<ID=DNM_CONFIG,Number=1,Type=String,Description=\"DNM trio configuration\">\n";
+    	fo_vcf<<"##FORMAT=<ID=PP_DNM,Number=1,Type=Float,Description=\"Posterior probability for the DNM configuration\">\n";
+    	fo_vcf<<"##FORMAT=<ID=RD,Number=1,Type=Integer,Description=\"Read Depth of the child\">\n";
+    	fo_vcf<<"##FORMAT=<ID=MQ,Number=1,Type=Integer,Description=\"Mapping quality of the child\">\n";
+    	fo_vcf<<"##FORMAT=<ID=RD_T,Number=1,Type=Integer,Description=\"Read Depth of the tumor sample\">\n";
+    	fo_vcf<<"##FORMAT=<ID=MQ_T,Number=1,Type=Integer,Description=\"Mapping quality of the normal sample\">\n";
+  	}
+
 	// Iterate each position of BCF file
     qcall_t mom_snp, dad_snp, child_snp;
 	indel_t mom_indel, dad_indel, child_indel;
 	pair_t tumor, normal;	
 	bcf_hdr_t *hout, *hin;
 	bcf_t *bp = NULL;
-	bp = vcf_open(bcf_file, "rb");
+	bp = vcf_open(bcf_file.c_str(), "rb");
 	hin = hout = vcf_hdr_read(bp);
 	bcf1_t *b;
-	b = static_cast<bcf1_t *> (calloc(1, sizeof(bcf1_t)));  
+	b = static_cast<bcf1_t *> (calloc(1, sizeof(bcf1_t))); 
+	int firstLine = 0; 
 	while ( vcf_read(bp, hin, b) > 0 ) {
 		int j = 0, flag =0;
 		//printf("Position Number %d", pos++);
@@ -118,12 +150,20 @@ int findDenovo_auto(char* ped_file, char* bcf_file, double snp_mrate,
 			int is_indel = bcf_2qcall(hout, b, trios[j],  &mom_snp, &dad_snp, 
 									  &child_snp, &mom_indel, &dad_indel, 
 									  &child_indel, flag);
-			if ( is_indel == 0 ) {
-				trio_like_snp(child_snp, mom_snp, dad_snp, flag, tgt, lookup);   			
+			if ( is_indel == 0 ) {				
+				if(firstLine == 0) {
+					fo_vcf<<"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t"<<child_snp.id<<"\n";
+					firstLine = 1;
+				}
+				trio_like_snp(child_snp, mom_snp, dad_snp, flag, tgt, lookup, op_vcf_f, fo_vcf);   			
 			}   
 			else if ( is_indel == 1 ) {
+				if(firstLine == 0) {
+					fo_vcf<<"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t"<<child_indel.id<<"\n";
+					firstLine = 1;
+				}
 				trio_like_indel(&child_indel, &mom_indel, &dad_indel, flag, 
-								tgtIndel, lookupIndel, mu_scale);  
+								tgtIndel, lookupIndel, mu_scale, op_vcf_f, fo_vcf);   
 			}
 			else if ( is_indel < 0 ) {
 				printf("\nBCF PARSING ERROR !  %d", is_indel);
@@ -135,8 +175,13 @@ int findDenovo_auto(char* ped_file, char* bcf_file, double snp_mrate,
 		// PROCESS  PAIRS
 		for ( j=0; j<pair_count; j++) {
 			int is_indel = bcf2Paired (hout, b, pairs[j], &tumor, &normal, flag);
-			if ( is_indel == 0 ) 
-				pair_like (tumor, normal, tgtPair, lookupPair, flag);	
+			if ( is_indel == 0 ) {
+				if(firstLine == 0) {
+					fo_vcf<<"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t"<<tumor.id<<"\n";
+					firstLine = 1;
+				}
+				pair_like (tumor, normal, tgtPair, lookupPair, flag, op_vcf_f, fo_vcf);
+			}	
 			else if ( is_indel < 0 ) {
 				printf("\n BCF PARSING ERROR - Paired Sample!  %d", is_indel);
 				printf("\n Exiting !\n");
@@ -150,15 +195,17 @@ int findDenovo_auto(char* ped_file, char* bcf_file, double snp_mrate,
 	bcf_hdr_destroy(hin);
 	bcf_destroy(b);
 	bcf_close(bp);
+	fo_vcf.close();
 	return 0;
    
 }
 
-int findDenovo_XS(char* ped_file, char* bcf_file, double snp_mrate, 
-               double indel_mrate, double poly_rate, double pair_mrate, double mu_scale)
+int findDenovo_XS(string ped_file, string bcf_file, double snp_mrate, 
+               double indel_mrate, double poly_rate, double pair_mrate, 
+               double mu_scale, string op_vcf_f)
 {
-	printf("\n\n\tXS Model");
-	printf("\nPED file : %s, BCF file : %s", ped_file, bcf_file); 
+	cout<<"\n\n\tXS Model";
+	cout<<"\nPED file : "<<ped_file<<", BCF file : "<<bcf_file; 
   
 	// Parse PED files and read in trios
 	Trio* trios;
@@ -199,15 +246,19 @@ int findDenovo_XS(char* ped_file, char* bcf_file, double snp_mrate,
     cerr <<" First tgt "<< tgtIndel[0][0] <<" Last "<< tgtIndel[8][2] <<endl;
     cerr <<" First prior "<< lookupIndel.priors(1,1) <<" Last "<< lookupIndel.priors(9,3) <<endl;
 
+    //create output vcf
+    ofstream fo_vcf;
+
     // Iterate each position of BCF file
     qcall_t mom_snp, dad_snp, child_snp;
 	indel_t mom_indel, dad_indel, child_indel;
 	bcf_hdr_t *hout, *hin;
 	bcf_t *bp = NULL;
-	bp = vcf_open(bcf_file, "rb");
+	bp = vcf_open(bcf_file.c_str(), "rb");
 	hin = hout = vcf_hdr_read(bp);
 	bcf1_t *b;
-	b = static_cast<bcf1_t *> (calloc(1, sizeof(bcf1_t)));  
+	b = static_cast<bcf1_t *> (calloc(1, sizeof(bcf1_t))); 
+	int firstLine = 0; 
 	while ( vcf_read(bp, hin, b) > 0 ) {
 		int j = 0, flag =0;
 		//printf("Position Number %d", pos++);
@@ -217,11 +268,19 @@ int findDenovo_XS(char* ped_file, char* bcf_file, double snp_mrate,
 									  &child_snp, &mom_indel, &dad_indel, 
 									  &child_indel, flag);
 			if ( is_indel == 0 ) {
-				trio_like_snp(child_snp, mom_snp, dad_snp, flag, tgt, lookup);   			
+				if(firstLine == 0) {
+					fo_vcf<<"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t"<<child_snp.id<<"\n";
+					firstLine = 1;
+				}
+				trio_like_snp(child_snp, mom_snp, dad_snp, flag, tgt, lookup, op_vcf_f, fo_vcf);   			
 			}   
 			else if ( is_indel == 1 ) {
+				if(firstLine == 0) {
+					fo_vcf<<"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t"<<child_indel.id<<"\n";
+					firstLine = 1;
+				}
 				trio_like_indel(&child_indel, &mom_indel, &dad_indel, flag, 
-								tgtIndel, lookupIndel, mu_scale);  
+								tgtIndel, lookupIndel, mu_scale, op_vcf_f, fo_vcf);  
 			}
 			else if ( is_indel < 0 ) {
 				printf("\nBCF PARSING ERROR !  %d", is_indel);
@@ -234,24 +293,26 @@ int findDenovo_XS(char* ped_file, char* bcf_file, double snp_mrate,
     bcf_hdr_destroy(hin);
 	bcf_destroy(b);
 	bcf_close(bp);
+	fo_vcf.close();
 	return 0;
 
     
 }	         
 
-int findDenovo_XD(char* ped_file, char* bcf_file, double snp_mrate, 
-               double indel_mrate, double poly_rate, double pair_mrate, double mu_scale)
+int findDenovo_XD(string ped_file, string bcf_file, double snp_mrate, 
+               double indel_mrate, double poly_rate, double pair_mrate, 
+               double mu_scale, string op_vcf_f)
 {
-	printf("\n\n\tXD Model");
-	printf("\nPED file : %s, BCF file : %s", ped_file, bcf_file); 
+	cout<<"\n\n\tXD Model";
+	cout << "\nPED file : "<<ped_file<<", BCF file : "<<bcf_file; 
   
 	// Parse PED files and read in trios
 	Trio* trios;
     Pair* pairs;
     int trio_count = 0, pair_count = 0;
     parse_ped (ped_file, &trios, &pairs, trio_count, pair_count); 
-	printf ("\nThe number of trios in the ped file : %d", trio_count);
-    printf ("\nThe number of paired samples in the ped file : %d\n\n", pair_count);
+	cout << "\nThe number of trios in the ped file : "<<trio_count<<endl;
+    cout << "The number of paired samples in the ped file : "<<pair_count<<endl<<endl;
 
     // Create SNP lookup
 	vector<vector<string > > tgt;
@@ -284,15 +345,19 @@ int findDenovo_XD(char* ped_file, char* bcf_file, double snp_mrate,
     cerr <<" First tgt "<< tgtIndel[0][0] <<" Last "<< tgtIndel[8][2] <<endl;
     cerr <<" First prior "<< lookupIndel.priors(1,1) <<" Last "<< lookupIndel.priors(9,3) <<endl;
 
+    //create output vcf
+    ofstream fo_vcf;
+
     // Iterate each position of BCF file
     qcall_t mom_snp, dad_snp, child_snp;
 	indel_t mom_indel, dad_indel, child_indel;
 	bcf_hdr_t *hout, *hin;
 	bcf_t *bp = NULL;
-	bp = vcf_open(bcf_file, "rb");
+	bp = vcf_open(bcf_file.c_str(), "rb");
 	hin = hout = vcf_hdr_read(bp);
 	bcf1_t *b;
-	b = static_cast<bcf1_t *> (calloc(1, sizeof(bcf1_t)));  
+	b = static_cast<bcf1_t *> (calloc(1, sizeof(bcf1_t)));
+	int firstLine = 0;  
 	while ( vcf_read(bp, hin, b) > 0 ) {
 		int j = 0, flag =0;
 		//printf("Position Number %d", pos++);
@@ -302,11 +367,19 @@ int findDenovo_XD(char* ped_file, char* bcf_file, double snp_mrate,
 									  &child_snp, &mom_indel, &dad_indel, 
 									  &child_indel, flag);
 			if ( is_indel == 0 ) {
-				trio_like_snp(child_snp, mom_snp, dad_snp, flag, tgt, lookup);   			
+				trio_like_snp(child_snp, mom_snp, dad_snp, flag, tgt, lookup, op_vcf_f, fo_vcf); 
+				if(firstLine == 0) {
+					fo_vcf<<"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t"<<child_snp.id<<"\n";
+					firstLine = 1;
+				}   			
 			}   
 			else if ( is_indel == 1 ) {
 				trio_like_indel(&child_indel, &mom_indel, &dad_indel, flag, 
-								tgtIndel, lookupIndel, mu_scale);  
+								tgtIndel, lookupIndel, mu_scale, op_vcf_f, fo_vcf);   
+				if(firstLine == 0) {
+					fo_vcf<<"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t"<<child_indel.id<<"\n";
+					firstLine = 1;
+				}
 			}
 			else if ( is_indel < 0 ) {
 				printf("\nBCF PARSING ERROR !  %d", is_indel);
@@ -319,13 +392,16 @@ int findDenovo_XD(char* ped_file, char* bcf_file, double snp_mrate,
     bcf_hdr_destroy(hin);
 	bcf_destroy(b);
 	bcf_close(bp);
+	fo_vcf.close();
 	return 0;
 }
 
 
 int mainDNG(int argc, char *argv[])
 {
-	char ped_f[500] = "EMPTY", bcf_f[500] = "EMPTY";
+	string ped_f = "EMPTY"; // ped file
+	string bcf_f = "EMPTY"; // bcf file
+	string op_vcf_f = "EMPTY"; // vcf output -- optional
 
 	double indel_mrate = 1e-9;// indel mutation rate
 	double snp_mrate = 1e-8;// snp mutation rate
@@ -338,37 +414,41 @@ int mainDNG(int argc, char *argv[])
 		int option_index = 0;
 		static struct option long_options[] = {{"ped", 1, 0, 0}, 
 			{"bcf", 1, 0, 1}, {"snp_mrate", 1, 0, 2}, {"indel_mrate", 1, 0, 3}, 
-			{"poly_rate", 1, 0, 4}, {"pair_mrates", 1, 0, 5}, {"indel_mu_scale", 1, 0, 6}};
+			{"poly_rate", 1, 0, 4}, {"pair_mrates", 1, 0, 5}, {"indel_mu_scale", 1, 0, 6}, {"output", 1, 0, 7}};
 		int c = getopt_long (argc-1, argv+1, "", long_options, &option_index);
 		if (c == -1)
 			break;
 		switch(c) 
 		{      
 			case 0:
-				strcpy(ped_f, optarg);
+				ped_f = optarg;
 				break;
 			case 1:
-				strcpy(bcf_f, optarg);
+				bcf_f = optarg;
 				break;
 			case 2:
 				snp_mrate = atof(optarg);
-				cout<<"\nThe new point mutation rate is : "<<snp_mrate;
+				cerr<<"\nThe new point mutation rate is : "<<snp_mrate;
 				break;
 			case 3:
 				indel_mrate = atof(optarg);
-				cout<<"\nThe new indel mutation rate is : "<<indel_mrate;
+				cerr<<"\nThe new indel mutation rate is : "<<indel_mrate;
 				break;
 			case 4:
 				poly_rate = atof(optarg);
-				cout<<"\nThe new polymorphism rate is : "<<poly_rate;
+				cerr<<"\nThe new polymorphism rate is : "<<poly_rate;
 				break;
 			case 5:
 				pair_mrate = atof(optarg);
-				cout<<"\nThe new paired-sample mutation rate is : "<<pair_mrate;
+				cerr<<"\nThe new paired-sample mutation rate is : "<<pair_mrate;
 				break;
 			case 6:
 				mu_scale = atof(optarg);
-				cout<<"\nThe new indel mutation rate scaling factor rate is : "<<mu_scale;
+				cerr<<"\nThe new indel mutation rate scaling factor rate is : "<<mu_scale;
+				break;
+			case 7:
+				op_vcf_f = optarg;
+				cerr<<"\nThe output vcf file is : "<<op_vcf_f;
 				break;
 			default:
 				cerr<<"\nUnrecognized option ! "<<argv[c]<<" Exiting !";
@@ -377,19 +457,19 @@ int mainDNG(int argc, char *argv[])
 		}
 	}
   
-	if(!strcmp(bcf_f, "EMPTY") || !strcmp(ped_f, "EMPTY")) {
-		cout<<"ERROR ! Please specify both the PED file and BCF file !"
+	if((bcf_f == "EMPTY") || (ped_f == "EMPTY")) {
+		cerr<<"ERROR ! Please specify both the PED file and BCF file !"
         "Exiting!\n";
 		exit(1);
 	}
   
     // Create lookup table and read ped, BCF files. Separate for autosomes, X in males and X in females.
     if (strcmp(argv[1], "auto") == 0)
-		findDenovo_auto(ped_f, bcf_f, snp_mrate, indel_mrate, poly_rate, pair_mrate, mu_scale);
+		findDenovo_auto(ped_f, bcf_f, snp_mrate, indel_mrate, poly_rate, pair_mrate, mu_scale, op_vcf_f);
 	else if (strcmp(argv[1], "XS") == 0)
-		findDenovo_XS(ped_f, bcf_f, snp_mrate, indel_mrate, poly_rate, pair_mrate, mu_scale);
+		findDenovo_XS(ped_f, bcf_f, snp_mrate, indel_mrate, poly_rate, pair_mrate, mu_scale, op_vcf_f);
 	else if (strcmp(argv[1], "XD") == 0)
-		findDenovo_XD(ped_f, bcf_f, snp_mrate, indel_mrate, poly_rate, pair_mrate, mu_scale);
+		findDenovo_XD(ped_f, bcf_f, snp_mrate, indel_mrate, poly_rate, pair_mrate, mu_scale, op_vcf_f);
 	else {
     	usage();
     	exit(1);
