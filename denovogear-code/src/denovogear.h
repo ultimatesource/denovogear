@@ -37,14 +37,17 @@ int findDenovo(char* ped_file, char* bcf_file, double snp_mrate,
 
 // Calculate SNP DNM PP
 void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag, 
-				   vector<vector<string> > &tgt, lookup_snp_t & lookup);
+				   vector<vector<string> > &tgt, lookup_snp_t & lookup, 
+				   string op_vcf_f, ofstream& fo_vcf);
 
 // Calculate INDEL DNM PP
 void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag, 
 					 vector<vector<string> > &tgtIndel, 
-					 lookup_indel_t & lookupIndel, double mu_scale);
+					 lookup_indel_t & lookupIndel, double mu_scale, 
+					 string op_vcf_f, ofstream& fo_vcf);
 
 // Calculate Pair PP
 void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair, 
-					 lookup_pair_t & lookupPair, int flag);
+					 lookup_pair_t & lookupPair, int flag, 
+					 string op_vcf_f, ofstream& fo_vcf);
 
