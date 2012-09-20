@@ -1,5 +1,6 @@
 #include <vector>
 #include <iostream>
+#include <fstream>
 #include <string.h>
 #include "parser.h"
 #include "lookup.h"
@@ -16,7 +17,7 @@ using namespace std;
 
 // Calculate Pair PP
 void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair, 
-	       lookup_pair_t & lookupPair, int flag)
+	       lookup_pair_t & lookupPair, int flag, string op_vcf_f, ofstream& fo_vcf)
 {
   Real a[10];   
   Real maxlike_null, maxlike_denovo, pp_null, pp_denovo, denom;   
@@ -65,7 +66,7 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
   pp_null = 1 - pp_denovo; // null posterior probability
 
   // Check for PP cutoff 
-  if ( pp_denovo > 0.1 ) {
+  if ( pp_denovo > 0.0001 ) {
     cout<<"\nDENOVO-PAIR TUMOR ID: "<<tumor.id;
     cout<<" ref_name: "<<ref_name<<" coor: "<<coor<<" ref_base: "<<tumor.ref_base<<" ALT: "<<tumor.alt;
     cout<<" maxlike_null: "<<maxlike_null<<" pp_null: "<<pp_null<<" tgt: "<<tgtPair[i-1][j-1];
@@ -74,7 +75,22 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
     cout<<" tgt: "<<tgtPair[k-1][l-1]<<" flag: "<<flag;
     printf(" READ_DEPTH tumor: %d normal: %d", tumor.depth, normal.depth);
     printf(" MAPPING_QUALITY tumor: %d normal: %d\n", tumor.rms_mapQ, normal.rms_mapQ);
-  }
-	
 
+    if(op_vcf_f != "EMPTY") {
+      fo_vcf<<ref_name<<"\t";
+      fo_vcf<<coor<<"\t";
+      fo_vcf<<".\t";// Don't know the rsID
+      fo_vcf<<tumor.ref_base<<"\t";
+      fo_vcf<<tumor.alt<<"\t";
+      fo_vcf<<"0\t";// Quality of the Call
+      fo_vcf<<"PASS\t";// passed the read depth filter
+      fo_vcf<<"RD_NORMAL="<<normal.depth<<";";
+      fo_vcf<<";MQ_NORMAL="<<normal.rms_mapQ<<";";  
+      fo_vcf<<";NULL_CONFIG="<<tgtPair[i-1][j-1]<<";PP_NULL="<<pp_null;  
+      fo_vcf<<";PairSNPcode="<<lookupPair.snpcode(i,j)<<";\t";
+      fo_vcf<<"DNM_CONFIG:PP_DNM:RD_T:MQ_T\t";
+      fo_vcf<<tgtPair[k-1][l-1]<<":"<<pp_denovo<<":"<<tumor.depth<<":"<<tumor.rms_mapQ; 
+      fo_vcf<<"\n";
+    }    
+  }
 }

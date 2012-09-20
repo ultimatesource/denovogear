@@ -1,6 +1,7 @@
 #include <vector>
 #include <iostream>
-#include <string.h>
+#include <string>
+#include <fstream>
 #include "parser.h"
 #include "lookup.h"
 #include "newmatap.h"
@@ -13,8 +14,9 @@ using namespace std;
 
 
 // Calculate DNM and Null PP
-void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag, 
-  vector<vector<string > > & tgt, lookup_snp_t & lookup)
+void trio_like_snp( qcall_t child, qcall_t mom, qcall_t dad, int flag, 
+                    vector<vector<string > > & tgt, lookup_snp_t & lookup, 
+                    string op_vcf_f, ofstream& fo_vcf)
 {
   Real a[10];   
   Real maxlike_null, maxlike_denovo, pp_null, pp_denovo, denom;   
@@ -30,7 +32,7 @@ void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag,
   int i,j,k,l;  
   int coor = child.pos;
   char ref_name[3];
-  strcpy( ref_name, child.chr); // Name of the reference sequence
+  strcpy(ref_name, child.chr); // Name of the reference sequence
   
   // Filter low read depths ( < 10 )
   if (child.depth < MIN_READ_DEPTH_SNP ||
@@ -151,6 +153,25 @@ void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag,
     cout<<" tgt: "<<tgt[k-1][l-1]<<" lookup: "<<lookup.code(k,l)<<" flag: "<<flag;
     printf(" READ_DEPTH child: %d dad: %d mom: %d", child.depth, dad.depth, mom.depth);
     printf(" MAPPING_QUALITY child: %d dad: %d mom: %d\n", child.rms_mapQ, dad.rms_mapQ, mom.rms_mapQ);
+   
+    if(op_vcf_f != "EMPTY") {
+      fo_vcf<<ref_name<<"\t";
+      fo_vcf<<coor<<"\t";
+      fo_vcf<<".\t";// Don't know the rsID
+      fo_vcf<<mom.ref_base<<"\t";
+      fo_vcf<<mom.alt<<"\t";
+      fo_vcf<<"0\t";// Quality of the Call
+      fo_vcf<<"PASS\t";// passed the read depth filter
+      fo_vcf<<"RD_MOM="<<mom.depth<<";RD_DAD="<<dad.depth;
+      fo_vcf<<";MQ_MOM="<<mom.rms_mapQ<<";MQ_DAD="<<dad.rms_mapQ;  
+      fo_vcf<<";NULL_CONFIG="<<tgt[i-1][j-1]<<";PP_NULL="<<pp_null;  
+      cout<<";ML_NULL="<<maxlike_null<<";ML_DNM="<<maxlike_denovo;
+      fo_vcf<<";SNPcode="<<lookup.snpcode(i,j)<<";code="<<lookup.code(i,j)<<";\t";
+      fo_vcf<<"DNM_CONFIG:PP_DNM:RD:MQ\t";
+      fo_vcf<<tgt[k-1][l-1]<<":"<<pp_denovo<<":"<<child.depth<<":"<<child.rms_mapQ; 
+      fo_vcf<<"\n";
+
+    }
   }
-	
+	  
 }
