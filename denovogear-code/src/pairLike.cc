@@ -28,7 +28,7 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
   Matrix PP(100,10);
   int i,j,k,l;  
   int coor = tumor.pos;
-  char ref_name[3];
+  char ref_name[50];
   strcpy( ref_name, tumor.chr); // Name of the reference sequence
   
   // Filter low read depths
