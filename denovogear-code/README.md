@@ -11,15 +11,15 @@ website <http://www.cmake.org/cmake/resources/software.html>.  Most Linux
 distributions allow you to install CMake using their package software.
 
 Compiling and Installing on Linux:
-        tar xvzf denovogear*.tar.gz
-        cd denovogear*/build
-        cmake ..
-        make
-        sudo make install
+        `tar xvzf denovogear*.tar.gz`
+        `cd denovogear*/build`
+        `cmake ..`
+        `make`
+        `sudo make install`
 
 Creating Packages:
-        make package
-        make package_source
+        `make package`
+        `make package_source`
 
 ## RUNNING THE CODE
 
@@ -28,12 +28,12 @@ Creating Packages:
 The program takes in a PED file and a BCF file as input.
 
 #### usage:
-	     ./denovogear auto dnm --ped sample.ped --bcf sample.bcf
+	     `./denovogear auto dnm --ped sample.ped --bcf sample.bcf`
 
 #####  about sample.bcf:
 BCF files can be generated from the alignment using the samtools mpileup 
 command. The command to generate a bcf file from sample.bam is:
-	samtools mpileup -gDf reference.fa sample.bam > sample.bcf
+	`samtools mpileup -gDf reference.fa sample.bam > sample.bcf`
 
 The -D option of the samtools mpileup command retains the per-sample read depth 
 which is preferred by denovogear (but note that DNG will work without per-sample 
@@ -68,7 +68,7 @@ If you wish to change the default point or indel mutation rates use the --snp_mr
 or --indel_mrate switches respectively. 
 
 For example
-	     ./denovogear auto dnm --ped sample.ped --bcf sample.bcf --snp_mrate 2e-10 --indel_mrate 1e-11
+	     `./denovogear auto dnm --ped sample.ped --bcf sample.bcf --snp_mrate 2e-10 --indel_mrate 1e-11`
 
 The indel mutation rate varies according to the length of the insertion or deletion, 
 separate models are used for insertions and deletions. The two models were calibrated
@@ -84,7 +84,7 @@ Note that a constant factor is used to scale the mutation rate, it is set to 1.0
 by default and can be set using the switch --mu_scale. 
 
 For example, 
-	     ./denovogear auto dnm --ped sample.ped --bcf sample.bcf --mu_scale 3
+	     `./denovogear auto dnm --ped sample.ped --bcf sample.bcf --mu_scale 3`
 
 
 #### OUTPUT FORMAT
@@ -118,22 +118,22 @@ Denovogear has separate models for autosomes, X chromosome in male offspring and
 
 #### Autosomes model usage
 
-        ./denovogear dnm auto --ped paired.ped --bcf sample.bcf
+        `./denovogear dnm auto --ped paired.ped --bcf sample.bcf`
 
 #### X in male offspring model usage 
 
-        ./denovogear dnm XS --ped paired.ped --bcf sample.bcf
+        `./denovogear dnm XS --ped paired.ped --bcf sample.bcf`
 
 #### X in female offspring model usage 
 
-        ./denovogear dnm XD --ped paired.ped --bcf sample.bcf
+        `./denovogear dnm XD --ped paired.ped --bcf sample.bcf`
 
 ### PAIRED SAMPLE ANALYSIS 
 DNG can be used to analyze paired samples, it is run the same way as for trios the only difference being the way samples are specified in the PED file,
 
 #### Usage:
  
-        ./denovogear dnm auto --ped paired.ped --bcf sample.bcf
+        `./denovogear dnm auto --ped paired.ped --bcf sample.bcf`
 
 About the arguments, 
 	
@@ -148,7 +148,7 @@ DNG can be used to obtain parental phasing information for Denovo Mutations wher
 
 #### Usage:
 
-        ./denovogear phaser --dnm dnms_file --pgt gts_file --bam alignment --window NUM[1000]
+        `./denovogear phaser --dnm dnms_file --pgt gts_file --bam alignment --window NUM[1000]`
 
 About the arguments, 
 
