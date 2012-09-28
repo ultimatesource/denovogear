@@ -4,6 +4,7 @@
 #include <fstream>
 #include "parser.h"
 #include "lookup.h"
+#include <string.h>
 #include "newmatap.h"
 #include "newmatio.h"
 
