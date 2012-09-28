@@ -12,7 +12,7 @@
 
 // Store SNP info 
 typedef struct { //New struct for Q calls
-	char chr[3]; /* Chromosome Number. */
+	char chr[50]; /* Chromosome Number. */
 	long pos; /* position, the first base in a chromosome has offset zero. */
 	char ref_base; /* Either A, C, G or T */
 	char alt[20]; /* ALT string */
@@ -25,7 +25,7 @@ typedef struct { //New struct for Q calls
 
 // Store INDEL 
 typedef struct { //New struct for Indels
-	char chr[3]; /* chromosome Number. */
+	char chr[50]; /* chromosome Number. */
 	long pos; /* position, the first base in a chromosome has offset zero. */
 	char ref_base[10000]; /* Either A, C, G or T */
 	char alt[10000]; /* ALT string */
@@ -39,7 +39,7 @@ typedef struct { //New struct for Indels
 
 // Store Paired Samples
 typedef struct { //New struct for Q calls
-  char chr[3]; /* Chromosome Number. */
+  char chr[50]; /* Chromosome Number. */
   long pos; /* position, the first base in a chromosome has offset zero. */
   char ref_base; /* Either A, C, G or T */
   char alt[20]; /* ALT string */
