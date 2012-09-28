@@ -1,3 +1,6 @@
+ver 0.5.1
+- fixed bug in triallelic denovo configurations.
+
 ver0.5
 - switched to cmake
 - separate models for X chromosome calling in male offspring, female offspring

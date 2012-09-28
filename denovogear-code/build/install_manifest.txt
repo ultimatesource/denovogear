@@ -1,3 +1,0 @@
-/usr/local/doc/README.txt
-/usr/local/doc/COPYING.txt
-/usr/local/bin/denovogear
