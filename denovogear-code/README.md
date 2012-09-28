@@ -1,5 +1,9 @@
 # Rough Draft Instructions for using denovogear 
-Authors: Don Conrad, Avinash Ramu and Reed Cartwright
+Authors: Don Conrad, Avinash Ramu ( aramu at genetics dot wustl dot edu ) and Reed Cartwright
+
+## RELEASE NOTES
+v0.5.1
+Fixed bug in triallelic configuration. Some trialleic denovo configurations were being called incorrectly.
 
 ## COMPILING 
 Compilation requires CMake.  You can download CMake installers from the CMake
