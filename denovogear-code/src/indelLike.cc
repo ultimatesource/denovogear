@@ -30,7 +30,7 @@ void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag,
     Matrix PP(9,3);
     int i,j,k,l;
     int coor = child->pos;
-    char ref_name[3];
+    char ref_name[50];
     strcpy( ref_name, child->chr); // Name of the reference sequence
         
     // this is the case where child has more than 1 alt, ignore for now

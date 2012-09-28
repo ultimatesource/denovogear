@@ -32,7 +32,7 @@ void trio_like_snp( qcall_t child, qcall_t mom, qcall_t dad, int flag,
   Matrix PP(100,10);
   int i,j,k,l;  
   int coor = child.pos;
-  char ref_name[3];
+  char ref_name[50];
   strcpy(ref_name, child.chr); // Name of the reference sequence
   
   // Filter low read depths ( < 10 )
