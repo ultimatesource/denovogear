@@ -30,3 +30,6 @@ denovogear
 *.chain
 
 bk
+
+# Build files
+build/*
