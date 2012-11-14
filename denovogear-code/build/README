@@ -1,0 +1,5 @@
+Compile in this directory.
+
+
+Command:
+cmake ..
