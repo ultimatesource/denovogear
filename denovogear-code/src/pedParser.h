@@ -1,7 +1,12 @@
+#include <iostream>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string>
+
 #define MAX_TRIOS 1000 // max number of trios in the bcf filed
 #define MAX_PAIRS 100 // max number of paired samples in the bcf file
-#define ID_LENGTH 100
-#define LINE_LENGTH 1000
+#define ID_LENGTH 1000
+#define LINE_LENGTH 10000
 
 // Trio Structure
 typedef struct  {
@@ -18,6 +23,4 @@ typedef struct  {
   char normalID[ID_LENGTH]; // normal sample ID
 } Pair;
 
-// Parse Trios in PED file
-void parse_ped(const char* ped_file, Trio* trios, Pair* pairs, int & trio_count, 
-                int & pair_count);
+void parse_ped(std::string ped_file, Trio** t, Pair** p, int& trio_count, int& pair_count);

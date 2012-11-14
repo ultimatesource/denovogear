@@ -1,3 +1,29 @@
+/*
+	License from the original SamTools code.
+	The MIT License
+
+   Copyright (c) 2008-2010 Genome Research Ltd (GRL).
+
+   Permission is hereby granted, free of charge, to any person obtaining
+   a copy of this software and associated documentation files (the
+   "Software"), to deal in the Software without restriction, including
+   without limitation the rights to use, copy, modify, merge, publish,
+   distribute, sublicense, and/or sell copies of the Software, and to
+   permit persons to whom the Software is furnished to do so, subject to
+   the following conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+   BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+   ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+   CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+*//* From samtools0.1.17, modified to be used with DNG */
 #include <string.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -61,6 +87,7 @@ int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t* mom_snp, qcall_t* dad_s
 	}
 	if (b->ref[1] != 0 || b->n_alleles > 4) { // ref is not a single base ***
 		//printf("\nposition %d ref not a single base", b->pos+1);
+		//printf(" %s:%d", b->ref, b->n_alleles);
 		//indel = 1;
 		//return 10;
 	} 
@@ -73,7 +100,8 @@ int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t* mom_snp, qcall_t* dad_s
 	mq = (int)(sqrt((double)(anno[9] + anno[11]) / dp) + .499);
 	i0 = i;
 	a[0] = nt4_table[(int)b->ref[0]];
-	if (a[0] > 3) { // ref is not A/C/G/T *** 
+	if (a[0] > 3) { // ref is not A/C/G/T *** Most likely 'N'
+		//printf("\nposition %d ref not A/C/G/T", b->pos+1);
 		return 10; 
 	}
 	a[1] = a[2] = a[3] = -2; // -1 has a special meaning
@@ -81,7 +109,7 @@ int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t* mom_snp, qcall_t* dad_s
 	map[0] = map[1] = map[2] = map[3] = -2;
 	map[a[0]] = 0;
 	for (k = 0, s = b->alt, k1 = -1; k < 3 && *s; ++k, s += 2) {
-		if (s[1] != ',' && s[1] != 0)  { // ALT is not single base *** // LINES WITH BOTH SNP, INDEL ??
+		if (s[1] != ',' && s[1] != 0)  { // ALT is not single base *** 
 			//printf("\nposition %d alt not a single base", b->pos+1); 
 			//indel =1 ;
 			//return 10; 
@@ -226,14 +254,29 @@ int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t* mom_snp, qcall_t* dad_s
 				for (l1 = 0; l1 < b->n_gi; ++l1) { //CHECK IF PER SAMPLE DEPTH AVAILABLE
 					if (b->gi[l1].fmt == bcf_str2int("DP", 2)) {
 						child_snp->depth = ((uint16_t*)b->gi[l1].data)[i];
-						//printf("\ndepth1 %d depth2: %d depth3: %d length: %d\n",((uint16_t*)b->gi[l1].data)[0], ((uint16_t*)b->gi[l1].data)[1], ((uint16_t*)b->gi[l1].data)[2], b->gi[l1].len);
+						#ifdef DEBUG_ENABLED
+						  printf("\ndepth1 %d depth2: %d depth3: %d length: %d\n",((uint16_t*)b->gi[l1].data)[0], ((uint16_t*)b->gi[l1].data)[1], ((uint16_t*)b->gi[l1].data)[2], b->gi[l1].len);
+						#endif
 					}
 				}
-				for (j = 0; j < 10; ++j) 
+
+				#ifdef DEBUG_ENABLED
+				  printf("\nchild liks"); // 2/22/12 Debug - Avi
+				#endif
+
+				for (j = 0; j < 10; ++j) {
 					child_snp->lk[j] = g[j];
+					#ifdef DEBUG_ENABLED
+					  printf("\t%d", g[j]);
+					#endif
+				} 
+					
 				if (child_snp->rms_mapQ < MIN_MAPQ || child_snp->depth < MIN_READ_DEPTH) 
 					flag =1;
-				//printf("\nSNP child position %d depth %d", b->pos+1, child_snp->depth); 
+
+				#ifdef DEBUG_ENABLED
+				  printf("\nSNP child position %d depth %d", b->pos+1, child_snp->depth); 
+				#endif
 			}
 			else {
 				uint8_t *likl = static_cast<uint8_t *>(static_cast<uint8_t *>(b->gi[i0].data) + i * b->gi[i0].len);
@@ -244,7 +287,11 @@ int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t* mom_snp, qcall_t* dad_s
 				child_indel->depth = d;
 				child_indel->rms_mapQ = mq;
 				strcpy( child_indel->id, h->sns[i] );
-				//printf("\nsample: %s, pos %d ",h->sns[i], b->pos+1 );
+				
+				#ifdef DEBUG_ENABLED
+				  printf("\nsample: %s, pos %d ",h->sns[i], b->pos+1 );
+				#endif
+
 				for (l1 = 0; l1 < b->n_gi; ++l1) { //CHECK IF PER SAMPLE DEPTH AVAILABLE
 					if (b->gi[l1].fmt == bcf_str2int("DP", 2)) {
 						child_indel->depth = ((uint16_t*)b->gi[l1].data)[i];
@@ -252,9 +299,12 @@ int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t* mom_snp, qcall_t* dad_s
 					}
 				}
 				for (j = 0; j < 3; ++j) // R/R, R/A and A/A
-					child_indel->lk[j] = likl[j];
-				//printf("\n\nINDEL child position: %d id: %s depth: %d lik: %d, %d, %d", b->pos+1, child_indel->id, d,  likl[0], likl[1], likl[2]); 
-				//printf("\nref base:%s alt:%s quality:%d", child_indel->ref_base, child_indel->alt, child_indel->rms_mapQ);
+					child_indel->lk[j] = likl[j];								
+				
+				#ifdef DEBUG_ENABLED
+				  printf("\n\nINDEL child position: %d id: %s depth: %d lik: %d, %d, %d", b->pos+1, child_indel->id, d,  likl[0], likl[1], likl[2]); 
+				  printf("\nref base:%s alt:%s quality:%d", child_indel->ref_base, child_indel->alt, child_indel->rms_mapQ);
+				#endif
 			}
 		}
 		

@@ -1,0 +1,34 @@
+# Compiled Object files
+*.slo
+*.lo
+*.o
+
+# Compiled Dynamic libraries
+*.so
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+
+# Data files
+*.bcf
+*.vcf
+*.glf
+*.sam
+*.bam
+*.bai
+*.bci
+*.fa
+*.fai
+
+# misc
+denovogear
+*~
+*temp*
+
+*.chain
+
+bk
+
+.gitignore
