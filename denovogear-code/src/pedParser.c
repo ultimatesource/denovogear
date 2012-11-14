@@ -7,7 +7,14 @@
 void parse_ped(const char* ped_file, Trio* trios, Pair* pairs, int& trio_count, 
                int& pair_count)
 {
-	
+	trios_allocated=10;
+	trios = (Trio*) calloc (trios_allocated, sizeof(Trio));
+	if(trios == NULL) {
+		cout<<"Error allocating memory(1). Exiting!";
+		exit(1);
+	}
+
+
 	FILE *fp;
 	fp = fopen( ped_file, "r");
 	if (fp == NULL) {
@@ -17,16 +24,40 @@ void parse_ped(const char* ped_file, Trio* trios, Pair* pairs, int& trio_count,
 	
 	char line[LINE_LENGTH];
 	char col[4][ID_LENGTH];	
+
+
 	
-	while (fgets (line , 100 , fp) != NULL) {
+	while (fgets (line , 10000 , fp) != NULL) {
 		sscanf(line, "%s %s %s %s", col[0], col[1], col[2], col[3]);     
       
 		if ((strcmp(col[2], "0") != 0) && (strcmp(col[3], "0") != 0)) {
+			//check memory usage
+			if(trio_count+1 > trios_allocated) {
+				trios_allocated += 10;
+				temp_trios = (Trio*) realloc(trios, trios_allocated*sizeof(Trio));	
+				if(temp_trios == NULL) {
+					cout<<"\nError allocating memory(2). Exiting!";
+					exit(1);
+				}
+				else 
+					trios=temp_trios;							 
+			}
+
 			strcpy (trios[trio_count].fID, col[0]); // Get Family ID
 			strcpy (trios[trio_count].cID, col[1]); // Get Child ID
 			strcpy (trios[trio_count].dID, col[2]); // Get Dad ID
           	strcpy (trios[trio_count].mID, col[3]); // Get Mom ID
 			trio_count++; // Increase trio count
+
+			#ifdef DEBUG_ENABLED
+				printf("\nLine\t%s", line);
+				printf("\nfID\t%s", col[0]);
+				printf("\ncID\t%s", col[1]);
+				printf("\ndID\t%s", col[2]);
+				printf("\nmID\t%s", col[3]);
+				printf("\ntrios_allocated\t%d", trios_allocated);
+				printf("\ntrio_count\t%d", trio_count);
+			#endif
 		}
       
         else if ((strcmp(col[2], "0") != 0) && (strcmp(col[3], "0") == 0)) {
