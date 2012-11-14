@@ -205,7 +205,7 @@ int processReads(char* reads_file, long dnm_pos, long hap_pos, string gt1, strin
             parent_of_origin = "p1";
       }
 
-      if ((hap_b == gt1[0]) && (hap_b == gt1[1])) {        
+      if ((hap_b == gt1[0]) && (hap_b == gt1[1])) {
           if (variant_base == dnm_b)
             parent_of_origin = "p1";
           else 
@@ -321,7 +321,14 @@ int mainPhaser( int argc, char* argv[])
       fin1.getline(token1, 20);
       variant_base = token1[0];// variant base i.e DNM base
       cout<<"\n\nDNM_pos "<<chr1<<":"<<dnm_pos<<"\tINHERITED "<<inherited_base<<"\tVARIANT "<<variant_base;
-      //cout<<"\nline_n1 "<<line_n1<<" chr1 "<<chr1<<" dnm_pos "<<dnm_pos;
+
+      if(inherited_base==variant_base) {
+        cout<<"\nInherited base same as variant base";
+        cout<<"\nline_n1 "<<line_n1<<" chr1 "<<chr1<<" dnm_pos "<<dnm_pos;  
+        cout<<"\nExiting!";
+        exit(1);
+      }
+      
       fstream fin2(parentGT_f, ios::in);
       if(fin2.is_open()) { // PARSE Parental GTs
       	int chr2;
@@ -362,7 +369,7 @@ int mainPhaser( int argc, char* argv[])
       	    if (gt1[0] != gt1[1] && gt2[0] != gt2[1]) // both parents het, not informative
       	      continue;
             // ignore triallelic case for now
-            if (gt3[0] == gt3[1])
+            if (gt3[0] == gt3[1]) // child hom, not informative
               continue; 
       	    else { 
       	      //cout<<"\nInformative position "<<chr1<<" "<<dnm_pos<<" "<<hap_pos;
