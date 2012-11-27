@@ -1,0 +1,32 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/Users/dclab/conradlab/denovogear/denovogear-code/denovogear-code/src/phaser.cc
+iostream
+-
+fstream
+-
+sstream
+-
+vector
+-
+map
+-
+stdio.h
+-
+string.h
+-
+assert.h
+-
+stdlib.h
+-
+math.h
+-
+getopt.h
+-
+
