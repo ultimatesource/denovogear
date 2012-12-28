@@ -123,8 +123,8 @@ void trio_like_snp( qcall_t child, qcall_t mom, qcall_t dad, int flag,
  
   // Find max likelihood of de novo trio configuration
   PP=SP(DN,lookup.denovo);   //zeroes out configurations with mendelian inheritance
-  maxlike_denovo=PP.maximum2(k,l); 
- 
+  maxlike_denovo=PP.maximum2(k,l);
+
   #ifdef DEBUG_ENABLED
     cout<<"\n\nPP denovo\n\n";
     cout << setw(10) << setprecision(20) << PP;
@@ -166,7 +166,7 @@ void trio_like_snp( qcall_t child, qcall_t mom, qcall_t dad, int flag,
       fo_vcf<<"RD_MOM="<<mom.depth<<";RD_DAD="<<dad.depth;
       fo_vcf<<";MQ_MOM="<<mom.rms_mapQ<<";MQ_DAD="<<dad.rms_mapQ;  
       fo_vcf<<";NULL_CONFIG="<<tgt[i-1][j-1]<<";PP_NULL="<<pp_null;  
-      cout<<";ML_NULL="<<maxlike_null<<";ML_DNM="<<maxlike_denovo;
+      fo_vcf<<";ML_NULL="<<maxlike_null<<";ML_DNM="<<maxlike_denovo;
       fo_vcf<<";SNPcode="<<lookup.snpcode(i,j)<<";code="<<lookup.code(i,j)<<";\t";
       fo_vcf<<"DNM_CONFIG:PP_DNM:RD:MQ\t";
       fo_vcf<<tgt[k-1][l-1]<<":"<<pp_denovo<<":"<<child.depth<<":"<<child.rms_mapQ; 
