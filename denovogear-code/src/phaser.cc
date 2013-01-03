@@ -421,5 +421,5 @@ int mainPhaser( int argc, char* argv[])
     exit(1);
   } 
   cout<<"\n";
-  return 0;
+  exit(0);
 }

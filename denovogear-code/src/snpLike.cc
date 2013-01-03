@@ -146,14 +146,15 @@ void trio_like_snp( qcall_t child, qcall_t mom, qcall_t dad, int flag,
     if ( pp_denovo > 0.0001 ) 
   #endif
   {
-    cout<<"\nDENOVO-SNP CHILD ID: "<<child.id;
+    cout<<"DENOVO-SNP CHILD ID: "<<child.id;
     cout<<" ref_name: "<<ref_name<<" coor: "<<coor<<" ref_base: "<<mom.ref_base<<" ALT: "<<mom.alt;
     cout<<" maxlike_null: "<<maxlike_null<<" pp_null: "<<pp_null<<" tgt: "<<tgt[i-1][j-1];
     cout<<" snpcode: "<<lookup.snpcode(i,j)<<" code: "<<lookup.code(i,j);
     cout<<" maxlike_dnm: "<<maxlike_denovo<<" pp_dnm: "<<pp_denovo;
     cout<<" tgt: "<<tgt[k-1][l-1]<<" lookup: "<<lookup.code(k,l)<<" flag: "<<flag;
-    printf(" READ_DEPTH child: %d dad: %d mom: %d", child.depth, dad.depth, mom.depth);
-    printf(" MAPPING_QUALITY child: %d dad: %d mom: %d\n", child.rms_mapQ, dad.rms_mapQ, mom.rms_mapQ);
+    cout<<" READ_DEPTH child: "<<child.depth<<" dad: "<<dad.depth<<" mom: "<<mom.depth;
+    cout<<" MAPPING_QUALITY child: "<<child.rms_mapQ<<" dad: "<<dad.rms_mapQ<<" mom: "<<mom.rms_mapQ;
+    cout<<endl;
    
     if(op_vcf_f != "EMPTY") {
       fo_vcf<<ref_name<<"\t";

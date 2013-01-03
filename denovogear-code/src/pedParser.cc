@@ -44,7 +44,7 @@ void parse_ped(string ped_file, Trio** t, Pair** p, int& trio_count,
 			strcpy (trios[trio_count].cID, col[1]); // Get Child ID
 			strcpy (trios[trio_count].dID, col[2]); // Get Dad ID
           	strcpy (trios[trio_count].mID, col[3]); // Get Mom ID
-			trio_count++; // Increase trio count
+			trio_count++; 
 
 			//check memory usage
 			if(trio_count > trios_allocated) {
