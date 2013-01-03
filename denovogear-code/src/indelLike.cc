@@ -9,14 +9,30 @@
 
 #define MIN_READ_DEPTH_INDEL 10
 
+// parameters for the indel mutation rate model
+const float INSERTION_SLOPE = -0.2994;
+const float INSERTION_INTERCEPT = -22.8689;
+const float DELETION_SLOPE = -0.2856;
+const float DELETION_INTERCEPT = -21.9313;
+
+
+
 using namespace std;
 
 // Calculate DNM and Null PP
 void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag, 
-					 vector<vector<string > > & tgtIndel, 
-					 lookup_indel_t & lookupIndel, double mu_scale, 
+					           vector<vector<string > > & tgtIndel,
+                     lookup_indel_t & lookupIndel, double mu_scale, 
                      string op_vcf_f, ofstream& fo_vcf)
-{    
+{  
+  // Read depth filter
+  if (child->depth < MIN_READ_DEPTH_INDEL ||
+    mom->depth < MIN_READ_DEPTH_INDEL || dad->depth < MIN_READ_DEPTH_INDEL) {
+    return;
+  }
+
+
+
     Real a[3];   
     Real maxlike_null,maxlike_denovo,pp_null,pp_denovo,denom;       
     Matrix M(1,3);
@@ -47,26 +63,23 @@ void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag,
 		is_insertion = false;
 	}
 
-    // mu_scale is the variable used to scale the mu function
-    double indel_mrate, new_indel_mrate;
+  // mu_scale is the variable used to scale the mutation rate prior
+  double log_indel_mrate, indel_mrate, new_indel_mrate;
 	if(is_insertion) 
-		indel_mrate = mu_scale * (-22.8689 - (0.2994 * len_diff)); // insertion
+		log_indel_mrate = mu_scale * (INSERTION_SLOPE*len_diff + INSERTION_INTERCEPT); 
 	else
-		indel_mrate = mu_scale * (-21.9313 - (0.2856 * len_diff)); // deletion
-	indel_mrate = exp(indel_mrate); // antilog of log ratio
+		log_indel_mrate = mu_scale * (DELETION_SLOPE*len_diff + DELTION_INTERCEPT); 
+	indel_mrate = exp(log_indel_mrate); // antilog of log ratio
 	
-	for (int j = 1; j <= 9; j++)
+	for (int j = 1; j <= 9; j++) {
 		for (int l = 1; l <= 3; l++) {
-			new_indel_mrate = pow(indel_mrate, lookupIndel.hit(j,l)); // hit is 0,1 or 2
+			new_indel_mrate = pow(indel_mrate, lookupIndel.hit(j,l)); // hit is 0,1 or 2 (number of indels in the trio config)
 			lookupIndel.mrate(j,l) = new_indel_mrate; 
 		}
+  }
 	
-	//Currently, samtools creates indel records are created for every trio in the BCF regardless of whether they have data
-    //skip sites with both parents missing or child data missing (could still see de novo with data in child and one parent e.g. DD/NN/RR)
-    if (child->depth < MIN_READ_DEPTH_INDEL ||
-		mom->depth < MIN_READ_DEPTH_INDEL || dad->depth < MIN_READ_DEPTH_INDEL) {
-		return;
-	}
+	
+  
     
     //Load likelihood vectors    
     for (j = 0; j != 3; ++j) a[j]=pow(10,-mom->lk[j]/10.);
@@ -100,14 +113,15 @@ void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag,
        
     // Check for PP cutoff
     if ( pp_denovo > 0.0001 ) {
-    	cout<<"\nDENOVO-INDEL child id: "<<child->id;
+    	cout<<"DENOVO-INDEL child id: "<<child->id;
     	cout<<" ref_name: "<<ref_name<<" coor: "<<coor<<" ref_base: "<<mom->ref_base<<" ALT: "<<mom->alt;
     	cout<<" maxlike_null: "<<maxlike_null<<" pp_null: "<<pp_null<<" tgt: "<<tgtIndel[i-1][j-1];
     	cout<<" snpcode: "<<lookupIndel.snpcode(i,j)<<" code: "<<lookupIndel.code(i,j);
     	cout<<" maxlike_dnm: "<<maxlike_denovo<<" pp_dnm: "<<pp_denovo;
     	cout<<" tgt: "<<tgtIndel[k-1][l-1]<<" lookup: "<<lookupIndel.code(k,l)<<" flag: "<<flag;
-    	printf(" READ_DEPTH child: %d dad: %d mom: %d", child->depth, dad->depth, mom->depth);
-    	printf(" MAPPING_QUALITY child: %d dad: %d mom: %d\n", child->rms_mapQ, dad->rms_mapQ, mom->rms_mapQ);
+    	cout<<" READ_DEPTH child: "<<child->depth<<" dad: "<<dad->depth<<" mom: "<<mom->depth;
+      cout<<" MAPPING_QUALITY child: "<<child->rms_mapQ<<" dad: "<<dad->rms_mapQ<<" mom: "<<mom->rms_mapQ;
+      cout<<endl;
 
         if(op_vcf_f != "EMPTY") {
           fo_vcf<<ref_name<<"\t";
