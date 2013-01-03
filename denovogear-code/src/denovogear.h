@@ -23,11 +23,6 @@ using namespace std;
 using namespace RBD_LIBRARIES;
 #endif
 
-
-#ifndef VERSION
-#define VERSION "dummy"
-#endif
-
 #define MRATE 5e-7
 #define MIN_MAPQ 40 
 
