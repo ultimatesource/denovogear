@@ -29,6 +29,16 @@ using namespace RBD_LIBRARIES;
 #define VERSION "Denovogear0.5.2"
 #endif
 
+int RD_cutoff = 10; // cutoff for the read depth filter
+double PP_cutoff = 0.0001; // posterior probability cutoff
+
+
+double indel_mrate = 1e-9; // indel mutation prior
+double snp_mrate = 1e-8; // snp mutation prior
+double poly_rate = 1e-3; // polymorphism rate - used in prior calculations
+double pair_mrate = 1e-9; // mutation prior for paired samples
+double mu_scale = 1.0; // scaling factor for indel priors
+
 
 void usage()
 {
@@ -41,7 +51,7 @@ void usage()
 	exit(1);
 }
 
-int callMakeSNPLookup(vector<vector<string > >& tgtSNP, lookup_snp_t& lookupSNP, const double& snp_mrate, const double& poly_rate, string model)
+int callMakeSNPLookup(vector<vector<string > >& tgtSNP, lookup_snp_t& lookupSNP, string model)
 {
 	vector<string> tmp;
 	for (int l=0; l<10; l++)
@@ -66,13 +76,13 @@ int callMakeSNPLookup(vector<vector<string > >& tgtSNP, lookup_snp_t& lookupSNP,
 	return 0;
 }
 
-int callMakeINDELLookup(vector<vector<string > >& tgtIndel, lookup_indel_t& lookupIndel, const double& indel_mrate, const double& poly_rate, string model)
+int callMakeINDELLookup(vector<vector<string > >& tgtIndel, lookup_indel_t& lookupIndel, string model)
 {
 	vector<string> tmp;
 	for (int l=0; l<3; l++)
-        tmp.push_back("NA");
-    for (int l=0; l<9; l++)
-        tgtIndel.push_back(tmp);
+    tmp.push_back("NA");
+  for (int l=0; l<9; l++)
+    tgtIndel.push_back(tmp);
 	
 
 	if (model == "auto") makeIndelLookup(indel_mrate, poly_rate, tgtIndel, lookupIndel);
@@ -85,24 +95,23 @@ int callMakeINDELLookup(vector<vector<string > >& tgtIndel, lookup_indel_t& look
 	
 	cerr<<"\nCreated indel lookup table";
 	cerr <<" First code: "<< lookupIndel.code(1,1) <<" last: "<< lookupIndel.code(9,3)<<endl;
-    cerr <<" First target string: "<< tgtIndel[0][0] <<" last: "<< tgtIndel[8][2] <<endl;
-    cerr <<" First prior: "<< lookupIndel.priors(1,1) <<" last: "<< lookupIndel.priors(9,3) <<endl;	
-    return 0;
+  cerr <<" First target string: "<< tgtIndel[0][0] <<" last: "<< tgtIndel[8][2] <<endl;
+  cerr <<" First prior: "<< lookupIndel.priors(1,1) <<" last: "<< lookupIndel.priors(9,3) <<endl;	
+  return 0;
 }
 
-int callMakePairedLookup(vector<vector<string > >& tgtPair, lookup_pair_t lookupPair, const double& pair_mrate, const double& poly_rate)
+int callMakePairedLookup(vector<vector<string > >& tgtPair, lookup_pair_t lookupPair)
 {
 	vector<string> tmp;
 	for (int l=0; l<10; l++)
-        tmp.push_back("NA");
-    for (int l=0; l<10; l++)
-        tgtPair.push_back(tmp);
-    
-    makePairedLookup(pair_mrate, tgtPair, lookupPair);
-    cerr<<"\nCreated paired lookup table"<<endl;
-    cerr <<" First target string: "<< tgtPair[0][0] <<" last: "<< tgtPair[9][9] <<endl;
-    cerr <<" First prior "<< lookupPair.priors(1,1) <<" last: "<< lookupPair.priors(10,10) <<endl;
-    return 0;
+    tmp.push_back("NA");
+  for (int l=0; l<10; l++)
+    tgtPair.push_back(tmp);
+  makePairedLookup(pair_mrate, tgtPair, lookupPair);
+  cerr<<"\nCreated paired lookup table"<<endl;
+  cerr <<" First target string: "<< tgtPair[0][0] <<" last: "<< tgtPair[9][9] <<endl;
+  cerr <<" First prior "<< lookupPair.priors(1,1) <<" last: "<< lookupPair.priors(10,10) <<endl;
+  return 0;
 }
 
 int writeVCFHeader(std::ofstream& fo_vcf, string op_vcf_f, string bcf_file, string ped_file, string sample)
@@ -113,7 +122,11 @@ int writeVCFHeader(std::ofstream& fo_vcf, string op_vcf_f, string bcf_file, stri
 	}
 	fo_vcf<<"##fileformat=VCFv4.1\n";
 	fo_vcf<<"##source= "<<VERSION<<"\n";
-	fo_vcf<<"##INPUT - BCF:"<<bcf_file<<" PED:"<<ped_file<<"\n";
+	fo_vcf<<"##INPUT - BCF file: "<<bcf_file<<"; PED file: "<<ped_file<<"\n";
+	fo_vcf<<"##READ DEPTH CUTOFF: "<<RD_cutoff<<"; Posterior probability cutoff: "<<PP_cutoff;
+	fo_vcf<<"##SNP mutation rate: "<<snp_mrate<<"; INDEL mutation rate: "<<indel_mrate<<"\n";
+	fo_vcf<<"##Paired mutation rate: "<<pair_mrate<<"; Polymorphism rate: "<<poly_rate<<"\n";
+	fo_vcf<<"##Indel mutation rate scaling constant: "<<mu_scale;
 	fo_vcf<<"##INFO=<ID=RD_MOM,Number=1,Type=Integer,Description=\"Read depth for MOM\">\n";
 	fo_vcf<<"##INFO=<ID=RD_DAD,Number=1,Type=Integer,Description=\"Read depth for DAD\">\n";
 	fo_vcf<<"##INFO=<ID=RD_NORMAL,Number=1,Type=Integer,Description=\"Read depth for Normal sample in Paired Sample Analysis\">\n";
@@ -138,26 +151,25 @@ int writeVCFHeader(std::ofstream& fo_vcf, string op_vcf_f, string bcf_file, stri
 	return 0;
 }
 
-int callDenovoFromBCF(string ped_file, string bcf_file, double snp_mrate, 
-               double indel_mrate, double poly_rate, double pair_mrate, 
-               double mu_scale, string op_vcf_f, string model)
+int callDenovoFromBCF(string ped_file, string bcf_file, 
+								string op_vcf_f, string model)
 {
 	
 
-    // Create SNP lookup
-    lookup_snp_t lookupSNP;
+  // Create SNP lookup
+  lookup_snp_t lookupSNP;
 	vector<vector<string > > tgtSNP;
-	callMakeSNPLookup(tgtSNP, lookupSNP, snp_mrate, poly_rate, model);	
+	callMakeSNPLookup(tgtSNP, lookupSNP, model);	
 
-    // Create INDEL lookup
-    lookup_indel_t lookupIndel;
+  // Create INDEL lookup
+  lookup_indel_t lookupIndel;
 	vector<vector<string > > tgtIndel;
-	callMakeINDELLookup(tgtIndel, lookupIndel, indel_mrate, poly_rate, model);    
+	callMakeINDELLookup(tgtIndel, lookupIndel, model);    
     
-    // Create paired lookup
-    lookup_pair_t lookupPair;
-    vector<vector<string > > tgtPair;
-    callMakePairedLookup(tgtPair, lookupPair, pair_mrate, poly_rate); 
+  // Create paired lookup
+  lookup_pair_t lookupPair;
+  vector<vector<string > > tgtPair;
+  callMakePairedLookup(tgtPair, lookupPair); 
 
 	// Iterate each position of BCF file
 	Trio* trios;
@@ -168,15 +180,15 @@ int callDenovoFromBCF(string ped_file, string bcf_file, double snp_mrate,
 	//create output vcf -- assumes theres only one trio/pair
 	string sample;
 	if(trio_count > 0)
-  		sample = trios[0].cID;
-  	else
-  		sample = pairs[0].tumorID;
-    ofstream fo_vcf;
-    if(op_vcf_f != "EMPTY") {
-    	writeVCFHeader(fo_vcf, op_vcf_f, bcf_file, ped_file, sample);
-  	}
+  	sample = trios[0].cID;
+	else
+		sample = pairs[0].tumorID;
+  ofstream fo_vcf;
+  if(op_vcf_f != "EMPTY") {
+  	writeVCFHeader(fo_vcf, op_vcf_f, bcf_file, ped_file, sample);
+	}
   	
-    qcall_t mom_snp, dad_snp, child_snp;
+  qcall_t mom_snp, dad_snp, child_snp;
 	indel_t mom_indel, dad_indel, child_indel;
 	pair_t tumor, normal;	
 	bcf_hdr_t *hout, *hin;
@@ -185,6 +197,9 @@ int callDenovoFromBCF(string ped_file, string bcf_file, double snp_mrate,
 	hin = hout = vcf_hdr_read(bp);
 	bcf1_t *b;
 	b = static_cast<bcf1_t *> (calloc(1, sizeof(bcf1_t))); 
+	int snp_total_count = 0, snp_fail_count = 0;
+	int indel_total_count = 0, indel_fail_count = 0; 
+	int pair_total_count = 0, pair_fail_count = 0;
 
 	while ( vcf_read(bp, hin, b) > 0 ) {
 		int j = 0, flag =0;
@@ -194,13 +209,17 @@ int callDenovoFromBCF(string ped_file, string bcf_file, double snp_mrate,
 			int is_indel = bcf_2qcall(hout, b, trios[j],  &mom_snp, &dad_snp, 
 									  &child_snp, &mom_indel, &dad_indel, 
 									  &child_indel, flag);
-			if ( is_indel == 0 ) {				
+			if (is_indel == 0) {
+				snp_total_count++;			
 				trio_like_snp(child_snp, mom_snp, dad_snp, flag, 
-								tgtSNP, lookupSNP, op_vcf_f, fo_vcf);   			
+								tgtSNP, lookupSNP, op_vcf_f, fo_vcf, 
+								PP_cutoff, RD_cutoff, snp_fail_count);   			
 			}   
 			else if ( is_indel == 1 ) {
+				indel_total_count++;
 				trio_like_indel(&child_indel, &mom_indel, &dad_indel, flag, 
-								tgtIndel, lookupIndel, mu_scale, op_vcf_f, fo_vcf);   
+								tgtIndel, lookupIndel, mu_scale, op_vcf_f, fo_vcf, 
+								PP_cutoff, RD_cutoff, indel_fail_count);    
 			}
 			else if ( is_indel < 0 ) {
 				printf("\n BCF PARSING ERROR - Paired Sample!  %d\n Exiting !\n", is_indel);
@@ -209,11 +228,13 @@ int callDenovoFromBCF(string ped_file, string bcf_file, double snp_mrate,
 		}
 		  
 		// PROCESS  PAIRS
-		if(model == "auto") { // paired sample model not developed for XS, XD
+		if(model == "auto") { // paired sample model not developed for XS, XD yet
 			for ( j=0; j<pair_count; j++) {
 				int is_indel = bcf2Paired (hout, b, pairs[j], &tumor, &normal, flag);
 				if ( is_indel == 0 ) {
-					pair_like (tumor, normal, tgtPair, lookupPair, flag, op_vcf_f, fo_vcf);
+					pair_total_count++;
+					pair_like (tumor, normal, tgtPair, lookupPair, flag, op_vcf_f, fo_vcf, 
+							PP_cutoff, RD_cutoff, pair_fail_count);    
 				}	
 				else if ( is_indel < 0 ) {
 					printf("\n BCF PARSING ERROR - Paired Sample!  %d\n Exiting !\n", is_indel);
@@ -222,6 +243,14 @@ int callDenovoFromBCF(string ped_file, string bcf_file, double snp_mrate,
 			} 
 		} 				  
 	}
+
+
+	cerr<<endl<<"Total number of SNP sites interrogated: "<<snp_total_count;
+	cerr<<endl<<"Total number of SNP sites failing read-depth filters: "<<snp_fail_count;
+	cerr<<endl<<"Total number of INDEL sites interrogated: "<<indel_total_count;
+	cerr<<endl<<"Total number of INDEL sites failing read-depth filters: "<<indel_fail_count;
+	cerr<<endl<<"Total number of Paired sample sites interrogated: "<<pair_total_count;
+	cerr<<endl<<"Total number of Paired sample sites failing read-depth filters: "<<pair_fail_count;
 
 	bcf_hdr_destroy(hin);
 	bcf_destroy(b);
@@ -241,22 +270,14 @@ int mainDNG(int argc, char *argv[])
 	string bcf_f = "EMPTY"; // bcf file
 	string op_vcf_f = "EMPTY"; // vcf output -- optional
 
-	double indel_mrate = 1e-9; // indel mutation prior
-	double snp_mrate = 1e-8; // snp mutation prior
-	double poly_rate = 1e-3; // polymorphism rate - used in prior calculations
-	double pair_mrate = 1e-9; // mutation prior for paired samples
-	double mu_scale = 1.0; // scaling factor for indel priors
 
-	float posterior_prob_cutoff = 0.0001;
-	int min_RD = 10; // read depth cutoff
-    
-    // Read in Command Line arguments
+	// Read in Command Line arguments
 	while (1) {
 		int option_index = 0;
 		static struct option long_options[] = {{"ped", 1, 0, 0}, 
 			{"bcf", 1, 0, 1}, {"snp_mrate", 1, 0, 2}, {"indel_mrate", 1, 0, 3}, 
 			{"poly_rate", 1, 0, 4}, {"pair_mrates", 1, 0, 5}, {"indel_mu_scale", 1, 0, 6}, {"output_vcf", 1, 0, 7},
-			{"posterior_prob_cutoff", 1, 0, 8}, {"read_depth_cutoff", 1, 0, 9}, {"h", 1, 0, 10}};
+			{"pp_cutoff", 1, 0, 8}, {"rd_cutoff", 1, 0, 9}, {"h", 1, 0, 10}};
 		int c = getopt_long (argc-1, argv+1, "", long_options, &option_index);
 		if (c == -1)
 			break;
@@ -293,16 +314,15 @@ int mainDNG(int argc, char *argv[])
 				cerr<<"\noutput vcf file: "<<op_vcf_f;
 				break;
 			case 8:
-				posterior_prob_cutoff = atof(optarg);
-				cerr<<"\nposterior probability cutoff: "<<posterior_prob_cutoff;
+				PP_cutoff = atof(optarg);
+				cerr<<"\nposterior probability cutoff: "<<PP_cutoff;
 				break;
 			case 9:
-				min_RD = atoi(optarg);
-				cerr<<"\nread depth filter: "<<min_RD;
+				RD_cutoff = atoi(optarg);
+				cerr<<"\nread depth filter: "<<RD_cutoff;
 				break;
 			default:
 				usage();
-    			exit(1);
 		}
 	}
   
@@ -314,7 +334,7 @@ int mainDNG(int argc, char *argv[])
   	
     // Create lookup table and read ped, BCF files. Separate for autosomes, X in males and X in females.
     if (model ==  "auto" || model == "XS" || model == "XD"){
-    	callDenovoFromBCF(ped_f, bcf_f, snp_mrate, indel_mrate, poly_rate, pair_mrate, mu_scale, op_vcf_f, model);
+    	callDenovoFromBCF(ped_f, bcf_f, op_vcf_f, model);
 	}
 	else {
     	usage();
