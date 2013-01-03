@@ -11,14 +11,19 @@
 #include "newmatio.h"
 #endif
 
-#define MIN_READ_DEPTH_PAIRED 10
-
 using namespace std;
 
 // Calculate Pair PP
 void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair, 
-	       lookup_pair_t & lookupPair, int flag, string op_vcf_f, ofstream& fo_vcf)
+	       lookup_pair_t & lookupPair, int flag, string op_vcf_f, ofstream& fo_vcf, 
+         double pp_cutoff, int RD_cutoff, int& n_site_fail)
 {
+  // Filter low read depths
+  if (tumor.depth < RD_cutoff || normal.depth < RD_cutoff) {
+    n_site_fail += 1;
+    return;
+  }
+
   Real a[10];   
   Real maxlike_null, maxlike_denovo, pp_null, pp_denovo, denom;   
   Matrix N(1,10);
@@ -30,12 +35,7 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
   int coor = tumor.pos;
   char ref_name[50];
   strcpy( ref_name, tumor.chr); // Name of the reference sequence
-  
-  // Filter low read depths
-  if (tumor.depth < MIN_READ_DEPTH_PAIRED || normal.depth < MIN_READ_DEPTH_PAIRED) {
-    return;
-  }
-  
+    
   //Load Likelihood matrices L(D|Gt) and L(D|Gn) 
   for (j = 0; j != 10; ++j)	{ 
   	a[j]=pow(10,-normal.lk[j]/10.); 
@@ -66,15 +66,16 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
   pp_null = 1 - pp_denovo; // null posterior probability
 
   // Check for PP cutoff 
-  if ( pp_denovo > 0.0001 ) {
-    cout<<"\nDENOVO-PAIR TUMOR ID: "<<tumor.id;
+  if ( pp_denovo > pp_cutoff ) {
+    cout<<"DENOVO-PAIR TUMOR ID: "<<tumor.id;
     cout<<" ref_name: "<<ref_name<<" coor: "<<coor<<" ref_base: "<<tumor.ref_base<<" ALT: "<<tumor.alt;
     cout<<" maxlike_null: "<<maxlike_null<<" pp_null: "<<pp_null<<" tgt: "<<tgtPair[i-1][j-1];
     cout<<" snpcode: "<<lookupPair.snpcode(i,j);
     cout<<" maxlike_dnm: "<<maxlike_denovo<<" pp_dnm: "<<pp_denovo;
     cout<<" tgt: "<<tgtPair[k-1][l-1]<<" flag: "<<flag;
-    printf(" READ_DEPTH tumor: %d normal: %d", tumor.depth, normal.depth);
-    printf(" MAPPING_QUALITY tumor: %d normal: %d\n", tumor.rms_mapQ, normal.rms_mapQ);
+    cout<<" READ_DEPTH tumor: "<<tumor.depth<<" normal: "<<normal.depth;
+    cout<<" MAPPING_QUALITY tumor: "<<tumor.rms_mapQ<<" normal: "<<normal.rms_mapQ;
+    cout<<endl;
 
     if(op_vcf_f != "EMPTY") {
       fo_vcf<<ref_name<<"\t";
