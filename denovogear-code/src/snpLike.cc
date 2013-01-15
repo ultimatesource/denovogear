@@ -143,10 +143,10 @@ void trio_like_snp( qcall_t child, qcall_t mom, qcall_t dad, int flag,
   {
     cout<<"DENOVO-SNP CHILD ID: "<<child.id;
     cout<<" ref_name: "<<ref_name<<" coor: "<<coor<<" ref_base: "<<mom.ref_base<<" ALT: "<<mom.alt;
-    cout<<" maxlike_null: "<<maxlike_null<<" pp_null: "<<pp_null<<" tgt: "<<tgt[i-1][j-1];
+    cout<<" maxlike_null: "<<maxlike_null<<" pp_null: "<<pp_null<<" tgt(child/mom/dad): "<<tgt[i-1][j-1];
     cout<<" snpcode: "<<lookup.snpcode(i,j)<<" code: "<<lookup.code(i,j);
     cout<<" maxlike_dnm: "<<maxlike_denovo<<" pp_dnm: "<<pp_denovo;
-    cout<<" tgt: "<<tgt[k-1][l-1]<<" lookup: "<<lookup.code(k,l)<<" flag: "<<flag;
+    cout<<" tgt(child/mom/dad): "<<tgt[k-1][l-1]<<" lookup: "<<lookup.code(k,l)<<" flag: "<<flag;
     cout<<" READ_DEPTH child: "<<child.depth<<" dad: "<<dad.depth<<" mom: "<<mom.depth;
     cout<<" MAPPING_QUALITY child: "<<child.rms_mapQ<<" dad: "<<dad.rms_mapQ<<" mom: "<<mom.rms_mapQ;
     cout<<endl;
