@@ -1811,16 +1811,16 @@ void makePairedLookup(double pairMrate, vector<vector<string > > & tgt, lookup_p
 
 	lookup.priors.resize(10, 10); 
 	lookup.denovo.resize(10, 10);
-    lookup.norm.resize(10, 10);
-    lookup.snpcode.resize(10, 10);
+  lookup.norm.resize(10, 10);
+  lookup.snpcode.resize(10, 10);
 
 	// Iterate through all genotypes
 	for( int tum = 0; tum < 10; tum++) {
 		for( int nor = 0; nor < 10; nor++) {	
 			int index = tum*10 + nor;
-           	d_flag[index] = false; // denovo flag
+      d_flag[index] = false; // denovo flag
 			n_flag[index] = true; // normal flag
-            priors[index] = 1.0 - pairMrate;
+      priors[index] = 1.0 - pairMrate;
 			set<string> u_alleles;
 			g_gts = seq1[nor];
 			u_alleles.insert(seq1[nor]);

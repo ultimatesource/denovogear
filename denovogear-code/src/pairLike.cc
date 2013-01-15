@@ -37,16 +37,14 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
   strcpy( ref_name, tumor.chr); // Name of the reference sequence
     
   //Load Likelihood matrices L(D|Gt) and L(D|Gn) 
-  for (j = 0; j != 10; ++j)	{ 
-  	a[j]=pow(10,-normal.lk[j]/10.); 
-  }
+  for (j = 0; j != 10; ++j)	
+  	a[j]=pow(10, -normal.lk[j]/10.); 
   N<<a;
   
   for (j = 0; j != 10; ++j) 
   	a[j] = pow(10, -tumor.lk[j]/10.);
   T<<a;
-  
-  
+
   P = KP(N, T); // 10 * 10
   // Combine transmission probs L(Gc | Gm, Gf)
   DN = SP(P, lookupPair.priors); // 10 * 10
@@ -67,12 +65,12 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
 
   // Check for PP cutoff 
   if ( pp_denovo > pp_cutoff ) {
-    cout<<"DENOVO-PAIR TUMOR ID: "<<tumor.id;
+    cout<<"DENOVO-PAIR TUMOR ID: "<<tumor.id<<" NORMAL ID: "<<normal.id;
     cout<<" ref_name: "<<ref_name<<" coor: "<<coor<<" ref_base: "<<tumor.ref_base<<" ALT: "<<tumor.alt;
-    cout<<" maxlike_null: "<<maxlike_null<<" pp_null: "<<pp_null<<" tgt: "<<tgtPair[i-1][j-1];
+    cout<<" maxlike_null: "<<maxlike_null<<" pp_null: "<<pp_null<<" tgt(normal/tumor): "<<tgtPair[i-1][j-1];
     cout<<" snpcode: "<<lookupPair.snpcode(i,j);
     cout<<" maxlike_dnm: "<<maxlike_denovo<<" pp_dnm: "<<pp_denovo;
-    cout<<" tgt: "<<tgtPair[k-1][l-1]<<" flag: "<<flag;
+    cout<<" tgt(normal/tumor): "<<tgtPair[k-1][l-1]<<" flag: "<<flag;
     cout<<" READ_DEPTH tumor: "<<tumor.depth<<" normal: "<<normal.depth;
     cout<<" MAPPING_QUALITY tumor: "<<tumor.rms_mapQ<<" normal: "<<normal.rms_mapQ;
     cout<<endl;
@@ -87,9 +85,9 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
       fo_vcf<<"PASS\t";// passed the read depth filter
       fo_vcf<<"RD_NORMAL="<<normal.depth<<";";
       fo_vcf<<";MQ_NORMAL="<<normal.rms_mapQ<<";";  
-      fo_vcf<<";NULL_CONFIG="<<tgtPair[i-1][j-1]<<";PP_NULL="<<pp_null;  
+      fo_vcf<<";NULL_CONFIG(normal/tumor)="<<tgtPair[i-1][j-1]<<";PP_NULL="<<pp_null;  
       fo_vcf<<";PairSNPcode="<<lookupPair.snpcode(i,j)<<";\t";
-      fo_vcf<<"DNM_CONFIG:PP_DNM:RD_T:MQ_T\t";
+      fo_vcf<<"DNM_CONFIG(normal/tumor):PP_DNM:RD_T:MQ_T\t";
       fo_vcf<<tgtPair[k-1][l-1]<<":"<<pp_denovo<<":"<<tumor.depth<<":"<<tumor.rms_mapQ; 
       fo_vcf<<"\n";
     }    
