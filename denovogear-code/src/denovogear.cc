@@ -42,12 +42,32 @@ double mu_scale = 1.0; // scaling factor for indel priors
 
 void usage()
 {
-  	cout<<VERSION<<endl;
-  	cout<<"Usage\n\tAutosomes\n\n\t\t./denovogear dnm auto --bcf bcf_f --ped ped_f ";
-  	cout<<"\n\n\tX in male offspring\n\n\t\t./denovogear dnm XS --bcf bcf_f --ped ped_f ";
-  	cout<<"\n\n\tX in female offspring\n\n\t\t./denovogear dnm XD --bcf bcf_f --ped ped_f ";
-	cout<<"\n\n\tPhaser\n\n\t\t./denovogear phaser --dnm dnm_F --pgt pgts_f --bam bam_f --window INT[1000]";
-	cout<<endl;
+  cerr<<"\nUsage:\n";
+  cerr<<"Autosomes:\n";
+  cerr<<"\t./denovogear dnm auto --bcf bcf_f --ped ped_f\n";
+  cerr<<"X chromosome in male offspring:\n";
+  cerr<<"\t./denovogear dnm XS --bcf bcf_f --ped ped_f\n";
+  cerr<<"X chromosome in female offspring:\n";
+  cerr<<"\t./denovogear dnm XD --bcf bcf_f --ped ped_f\n";
+	cerr<<"Phaser:\n";
+	cerr<<"\t./denovogear phaser --dnm dnm_f --pgt pgt_f --bam bam_f --window INT[1000]\n";
+	cerr<<"\nInput:\n";
+	cerr<<"DNM:\n";
+	cerr<<"--ped:\t Ped file to describe relationship between the samples.\n";
+	cerr<<"--bcf:\t BCF file from samtools, contains per-sample read depths and genotype likelihoods.\n";
+	cerr<<"Phaser:\n";
+	cerr<<"--dnm_f: Tab delimited list of denovo mutations to be phased, format: chr pos inherited_base denovo_base.[example: 1 2000 A C]\n";
+	cerr<<"--pgt_f: Tab delimited genotypes of child and parents at SNP sites near denovo sites, format: chr pos GT_child GT_parent1 GT_parent2.[example: 1 2000 AC AC AA]\n";
+	cerr<<"\nOutput:\n";
+	cerr<<"--output_vcf:\t vcf file to store the output.\n";
+	cerr<<"\nParameters:\n";
+	cerr<<"--snp_mrate:\t Mutation rate prior for SNPs. [1e-8]\n";
+	cerr<<"--indel_mrate:\t Mutation rate prior for INDELs. [1e-9]\n";
+	cerr<<"--pair_mrate:\t Mutation rate prior for paired sample analysis. [1e-9]\n";
+	cerr<<"--indel_mu_scale:\t Scaling factor for indel mutation rate. [1]\n";
+	cerr<<"--pp_cutoff:\t Posterior probability threshold. [0.0001]\n";
+	cerr<<"--rd_cutoff:\t Read depth filter, sites where either one of the sample have read depth less than this threshold are filtered out. [10]\n";
+	cerr<<endl;
 	exit(1);
 }
 
@@ -276,7 +296,7 @@ int mainDNG(int argc, char *argv[])
 		int option_index = 0;
 		static struct option long_options[] = {{"ped", 1, 0, 0}, 
 			{"bcf", 1, 0, 1}, {"snp_mrate", 1, 0, 2}, {"indel_mrate", 1, 0, 3}, 
-			{"poly_rate", 1, 0, 4}, {"pair_mrates", 1, 0, 5}, {"indel_mu_scale", 1, 0, 6}, {"output_vcf", 1, 0, 7},
+			{"poly_rate", 1, 0, 4}, {"pair_mrate", 1, 0, 5}, {"indel_mu_scale", 1, 0, 6}, {"output_vcf", 1, 0, 7},
 			{"pp_cutoff", 1, 0, 8}, {"rd_cutoff", 1, 0, 9}, {"h", 1, 0, 10}};
 		int c = getopt_long (argc-1, argv+1, "", long_options, &option_index);
 		if (c == -1)
