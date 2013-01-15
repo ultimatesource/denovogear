@@ -100,7 +100,7 @@ int callMakeINDELLookup(vector<vector<string > >& tgtIndel, lookup_indel_t& look
   return 0;
 }
 
-int callMakePairedLookup(vector<vector<string > >& tgtPair, lookup_pair_t lookupPair)
+int callMakePairedLookup(vector<vector<string > >& tgtPair, lookup_pair_t& lookupPair)
 {
 	vector<string> tmp;
 	for (int l=0; l<10; l++)
@@ -173,9 +173,9 @@ int callDenovoFromBCF(string ped_file, string bcf_file,
 
 	// Iterate each position of BCF file
 	Trio* trios;
-    Pair* pairs;
-    int trio_count = 0, pair_count = 0;
-    parse_ped (ped_file, &trios, &pairs, trio_count, pair_count);
+  Pair* pairs;
+  int trio_count = 0, pair_count = 0;
+  parse_ped (ped_file, &trios, &pairs, trio_count, pair_count);
 
 	//create output vcf -- assumes theres only one trio/pair
 	string sample;
