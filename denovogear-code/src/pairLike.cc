@@ -68,7 +68,7 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
     cout<<"DENOVO-PAIR TUMOR ID: "<<tumor.id<<" NORMAL ID: "<<normal.id;
     cout<<" ref_name: "<<ref_name<<" coor: "<<coor<<" ref_base: "<<tumor.ref_base<<" ALT: "<<tumor.alt;
     cout<<" maxlike_null: "<<maxlike_null<<" pp_null: "<<pp_null<<" tgt(normal/tumor): "<<tgtPair[i-1][j-1];
-    cout<<" snpcode: "<<lookupPair.snpcode(i,j);
+    cout<<" snpcode: "<<lookupPair.snpcode(k, l);
     cout<<" maxlike_dnm: "<<maxlike_denovo<<" pp_dnm: "<<pp_denovo;
     cout<<" tgt(normal/tumor): "<<tgtPair[k-1][l-1]<<" flag: "<<flag;
     cout<<" READ_DEPTH tumor: "<<tumor.depth<<" normal: "<<normal.depth;
@@ -86,7 +86,7 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
       fo_vcf<<"RD_NORMAL="<<normal.depth<<";";
       fo_vcf<<";MQ_NORMAL="<<normal.rms_mapQ<<";";  
       fo_vcf<<";NULL_CONFIG(normal/tumor)="<<tgtPair[i-1][j-1]<<";PP_NULL="<<pp_null;  
-      fo_vcf<<";PairSNPcode="<<lookupPair.snpcode(i,j)<<";\t";
+      fo_vcf<<";PairSNPcode="<<lookupPair.snpcode(k, l)<<";\t";
       fo_vcf<<"DNM_CONFIG(normal/tumor):PP_DNM:RD_T:MQ_T\t";
       fo_vcf<<tgtPair[k-1][l-1]<<":"<<pp_denovo<<":"<<tumor.depth<<":"<<tumor.rms_mapQ; 
       fo_vcf<<"\n";
