@@ -32,3 +32,5 @@ denovogear
 bk
 .gitignore
 .Rhistory
+
+build/*
