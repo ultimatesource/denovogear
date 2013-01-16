@@ -16,7 +16,7 @@ Updates
 
 #include "makeLookup.h"
 
-#define LOOKUP_ENABLED 1 // enable this flag if you want to generate lookup tables
+#define LOOKUP_ENABLED 0 // enable this flag if you want to generate lookup tables
 
 #ifdef LOOKUP_ENABLED
 	ofstream fout_snp("snp_lookup.txt");
