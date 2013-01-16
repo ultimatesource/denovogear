@@ -33,4 +33,4 @@ bk
 .gitignore
 .Rhistory
 
-build/*
+./denovogear-code/build/*
