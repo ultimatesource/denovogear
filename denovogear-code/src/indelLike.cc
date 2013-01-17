@@ -24,15 +24,15 @@ void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag,
                      vector<vector<string > > & tgtIndel, 
                      lookup_indel_t & lookupIndel, double mu_scale, 
                      string op_vcf_f, ofstream& fo_vcf, double pp_cutoff, 
-                     int RD_cutoff, int& n_site_fail)
+                     int RD_cutoff, int& n_site_pass)
 {  
   // Read depth filter
   if (child->depth < RD_cutoff ||
     mom->depth < RD_cutoff || dad->depth < RD_cutoff) {
-    n_site_fail += 1;
     return;
   }
 
+  n_site_pass += 1;
   Real a[3];   
   Real maxlike_null,maxlike_denovo,pp_null,pp_denovo,denom;       
   Matrix M(1,3);
