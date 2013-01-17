@@ -16,14 +16,13 @@ using namespace std;
 // Calculate Pair PP
 void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair, 
 	       lookup_pair_t & lookupPair, int flag, string op_vcf_f, ofstream& fo_vcf, 
-         double pp_cutoff, int RD_cutoff, int& n_site_fail)
+         double pp_cutoff, int RD_cutoff, int& n_site_pass)
 {
   // Filter low read depths
   if (tumor.depth < RD_cutoff || normal.depth < RD_cutoff) {
-    n_site_fail += 1;
     return;
   }
-
+  n_site_pass += 1;
   Real a[10];   
   Real maxlike_null, maxlike_denovo, pp_null, pp_denovo, denom;   
   Matrix N(1,10);
@@ -67,10 +66,10 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
   if ( pp_denovo > pp_cutoff ) {
     cout<<"DENOVO-PAIR TUMOR ID: "<<tumor.id<<" NORMAL ID: "<<normal.id;
     cout<<" ref_name: "<<ref_name<<" coor: "<<coor<<" ref_base: "<<tumor.ref_base<<" ALT: "<<tumor.alt;
-    cout<<" maxlike_null: "<<maxlike_null<<" pp_null: "<<pp_null<<" tgt(normal/tumor): "<<tgtPair[i-1][j-1];
+    cout<<" maxlike_null: "<<maxlike_null<<" pp_null: "<<pp_null<<" tgt_null(normal/tumor): "<<tgtPair[i-1][j-1];
     cout<<" snpcode: "<<lookupPair.snpcode(k, l);
     cout<<" maxlike_dnm: "<<maxlike_denovo<<" pp_dnm: "<<pp_denovo;
-    cout<<" tgt(normal/tumor): "<<tgtPair[k-1][l-1]<<" flag: "<<flag;
+    cout<<" tgt_denovo(normal/tumor): "<<tgtPair[k-1][l-1];//<<" flag: "<<flag; // flag is a variable that could be set in denovogear.cc(site specific info)
     cout<<" READ_DEPTH tumor: "<<tumor.depth<<" normal: "<<normal.depth;
     cout<<" MAPPING_QUALITY tumor: "<<tumor.rms_mapQ<<" normal: "<<normal.rms_mapQ;
     cout<<endl;
