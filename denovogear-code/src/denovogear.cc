@@ -217,9 +217,9 @@ int callDenovoFromBCF(string ped_file, string bcf_file,
 	hin = hout = vcf_hdr_read(bp);
 	bcf1_t *b;
 	b = static_cast<bcf1_t *> (calloc(1, sizeof(bcf1_t))); 
-	int snp_total_count = 0, snp_fail_count = 0;
-	int indel_total_count = 0, indel_fail_count = 0; 
-	int pair_total_count = 0, pair_fail_count = 0;
+	int snp_total_count = 0, snp_pass_count = 0;
+	int indel_total_count = 0, indel_pass_count = 0; 
+	int pair_total_count = 0, pair_pass_count = 0;
 
 	while ( vcf_read(bp, hin, b) > 0 ) {
 		int j = 0, flag =0;
@@ -233,13 +233,13 @@ int callDenovoFromBCF(string ped_file, string bcf_file,
 				snp_total_count++;			
 				trio_like_snp(child_snp, mom_snp, dad_snp, flag, 
 								tgtSNP, lookupSNP, op_vcf_f, fo_vcf, 
-								PP_cutoff, RD_cutoff, snp_fail_count);   			
+								PP_cutoff, RD_cutoff, snp_pass_count);   			
 			}   
 			else if ( is_indel == 1 ) {
 				indel_total_count++;
 				trio_like_indel(&child_indel, &mom_indel, &dad_indel, flag, 
 								tgtIndel, lookupIndel, mu_scale, op_vcf_f, fo_vcf, 
-								PP_cutoff, RD_cutoff, indel_fail_count);    
+								PP_cutoff, RD_cutoff, indel_pass_count);    
 			}
 			else if ( is_indel < 0 ) {
 				printf("\n BCF PARSING ERROR - Paired Sample!  %d\n Exiting !\n", is_indel);
@@ -254,7 +254,7 @@ int callDenovoFromBCF(string ped_file, string bcf_file,
 				if ( is_indel == 0 ) {
 					pair_total_count++;
 					pair_like (tumor, normal, tgtPair, lookupPair, flag, op_vcf_f, fo_vcf, 
-							PP_cutoff, RD_cutoff, pair_fail_count);    
+							PP_cutoff, RD_cutoff, pair_pass_count);    
 				}	
 				else if ( is_indel < 0 ) {
 					printf("\n BCF PARSING ERROR - Paired Sample!  %d\n Exiting !\n", is_indel);
@@ -266,11 +266,11 @@ int callDenovoFromBCF(string ped_file, string bcf_file,
 
 
 	cerr<<endl<<"Total number of SNP sites interrogated: "<<snp_total_count;
-	cerr<<endl<<"Total number of SNP sites failing read-depth filters: "<<snp_fail_count;
+	cerr<<endl<<"Total number of SNP sites passing read-depth filters: "<<snp_pass_count;
 	cerr<<endl<<"Total number of INDEL sites interrogated: "<<indel_total_count;
-	cerr<<endl<<"Total number of INDEL sites failing read-depth filters: "<<indel_fail_count;
+	cerr<<endl<<"Total number of INDEL sites passing read-depth filters: "<<indel_pass_count;
 	cerr<<endl<<"Total number of Paired sample sites interrogated: "<<pair_total_count;
-	cerr<<endl<<"Total number of Paired sample sites failing read-depth filters: "<<pair_fail_count;
+	cerr<<endl<<"Total number of Paired sample sites passing read-depth filters: "<<pair_pass_count;
 
 	bcf_hdr_destroy(hin);
 	bcf_destroy(b);
