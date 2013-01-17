@@ -14,14 +14,13 @@ using namespace std;
 // Calculate DNM and Null PP
 void trio_like_snp( qcall_t child, qcall_t mom, qcall_t dad, int flag, 
   vector<vector<string > > & tgt, lookup_snp_t & lookup, 
-  string op_vcf_f, ofstream& fo_vcf, double pp_cutoff, int RD_cutoff, int& n_site_fail)
+  string op_vcf_f, ofstream& fo_vcf, double pp_cutoff, int RD_cutoff, int& n_site_pass)
 {
   // Filter low read depths ( < 10 )
   if (child.depth < RD_cutoff || mom.depth < RD_cutoff || dad.depth < RD_cutoff) {
-    n_site_fail += 1;
     return;
   }
-
+  n_site_pass += 1;
   Real a[10];   
   Real maxlike_null, maxlike_denovo, pp_null, pp_denovo, denom;   
   Matrix M(1,10);
