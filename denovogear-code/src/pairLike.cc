@@ -67,11 +67,12 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
     cout<<"DENOVO-PAIR TUMOR ID: "<<tumor.id<<" NORMAL ID: "<<normal.id;
     cout<<" ref_name: "<<ref_name<<" coor: "<<coor<<" ref_base: "<<tumor.ref_base<<" ALT: "<<tumor.alt;
     cout<<" maxlike_null: "<<maxlike_null<<" pp_null: "<<pp_null<<" tgt_null(normal/tumor): "<<tgtPair[i-1][j-1];
-    cout<<" snpcode: "<<lookupPair.snpcode(k, l);
     cout<<" maxlike_dnm: "<<maxlike_denovo<<" pp_dnm: "<<pp_denovo;
     cout<<" tgt_denovo(normal/tumor): "<<tgtPair[k-1][l-1];//<<" flag: "<<flag; // flag is a variable that could be set in denovogear.cc(site specific info)
     cout<<" READ_DEPTH tumor: "<<tumor.depth<<" normal: "<<normal.depth;
     cout<<" MAPPING_QUALITY tumor: "<<tumor.rms_mapQ<<" normal: "<<normal.rms_mapQ;
+    cout<<" null_snpcode: "<<lookupPair.snpcode(i, j);
+    cout<<" dnm_snpcode: "<<lookupPair.snpcode(k, l);
     cout<<endl;
 
     if(op_vcf_f != "EMPTY") {
