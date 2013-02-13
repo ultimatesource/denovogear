@@ -64,7 +64,7 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
 
   // Check for PP cutoff 
   if ( pp_denovo > pp_cutoff ) {
-    cout<<"DENOVO-PAIR TUMOR ID: "<<tumor.id<<" NORMAL ID: "<<normal.id;
+    cout<<"DENOVO-PAIR-SNP TUMOR_ID: "<<tumor.id<<" NORMAL_ID: "<<normal.id;
     cout<<" ref_name: "<<ref_name<<" coor: "<<coor<<" ref_base: "<<tumor.ref_base<<" ALT: "<<tumor.alt;
     cout<<" maxlike_null: "<<maxlike_null<<" pp_null: "<<pp_null<<" tgt_null(normal/tumor): "<<tgtPair[i-1][j-1];
     cout<<" maxlike_dnm: "<<maxlike_denovo<<" pp_dnm: "<<pp_denovo;
