@@ -2,11 +2,16 @@
 Authors: Don Conrad, Avinash Ramu ( aramu at genetics dot wustl dot edu ) and Reed Cartwright
 
 ## RELEASE NOTES
+v0.5.2
+Added read-depth, posterior-probability filters.
+Output number of sites in the BCF and number of sites passing filters.
+Modified paired caller output.
+
 v0.5.1
 Fixed bug in triallelic configuration. Some trialleic denovo configurations were being called incorrectly.
 
 ## COMPILING 
-Compilation requires CMake.  You can download CMake installers from the CMake
+Compilation of DeNovoGear requires CMake.  You can download CMake installers from the CMake
 website <http://www.cmake.org/cmake/resources/software.html>.  Most Linux
 distributions allow you to install CMake using their package software.
 
@@ -21,11 +26,14 @@ Creating Packages:
         `make package`
         `make package_source`
 
+## BINARIES
+Binaries are available for MacOSX and for Linux.
+
 ## RUNNING THE CODE
 
-### Finding Denovo Mutations
+### Finding Denovo Mutations in trios and pairs.
 
-The program takes in a PED file and a BCF file as input.
+DeNovoGear takes in a PED file and a BCF file as input. The PED file describes the relationship between the samples and the BCF file contains the sequencing information for every locus.
 
 #### usage:
 	     `./denovogear auto dnm --ped sample.ped --bcf sample.bcf`
@@ -36,20 +44,18 @@ command. The command to generate a bcf file from sample.bam is:
 	`samtools mpileup -gDf reference.fa sample.bam > sample.bcf`
 
 The -D option of the samtools mpileup command retains the per-sample read depth 
-which is preferred by denovogear (but note that DNG will work without per-sample 
-RD information). The -g option specifies a compressed output and the -f option 
-is used to indicate the reference the alignment was built against. 
+which is preferred by denovogear as it helps to filter out sites without a minimum number of reads(but note that DNG will work without per-sample RD information, in which case the RD tag encodes the average read depth information). The -g option computes genotype likelihoods and produces a compressed bcf output and the -f option is used to indicate the reference fasta file against which the alignment was built. A sample BCF file 'sample_CEU.bcf' is included in the distribution.
 
 #####  about sample.ped: 
 The PED file contains information about the trios present in the BCF file. 
 Please make sure that all the members of the trios specified in the PED file 
 are present in the BCF file. The PED file can be used to specify a subset of 
-individuals for analysis from the BCF (that is not every sample in the BCF need 
+individuals for analysis from the BCF (in other words not every sample in the BCF needs to 
 be represented in the PED file).
 
 The PED file is a tab delimited file. The first six columns of the PED file are 
 mandatory, these are Family ID, Individual ID, Paternal ID, Maternal ID, 
-Sex (1 = male; 2 = female; other = unknown) and Phenotype. Denovogear makes use of just the first four columns. The sample ID's in the PED file need to be exactly as they appear in the BCF file header. Sample order within the PED file does not matter, as family relationships are completely specified by the value of the child/mother/father fields in each row.
+Sex (1 = male; 2 = female; other = unknown) and Phenotype. Denovogear makes use of the first four columns. The sample ID's in the PED file need to be exactly as they appear in the BCF file header. Sample order within the PED file does not matter, as family relationships are completely specified by the value of the child/mother/father fields in each row.
  
 For example, a single line in the PED file that specifies a trio looks like:
 
@@ -70,9 +76,8 @@ or --indel_mrate switches respectively.
 For example
 	     `./denovogear auto dnm --ped sample.ped --bcf sample.bcf --snp_mrate 2e-10 --indel_mrate 1e-11`
 
-The indel mutation rate varies according to the length of the insertion or deletion, 
-separate models are used for insertions and deletions. The two models were calibrated
-based on the indel observations from the 1000Genomes phase 1 data.
+The indel mutation rate prior is calculated based on the length of the insertion or deletion event, 
+separate models are used for insertions and deletions. The two models are based on the indel observations from the 1000Genomes phase 1 data.
 
 The insertion mutation rate is modeled using the function
  	log (mrate) = mu_scale * (-22.8689 - (0.2994 * insertionLength))
@@ -81,32 +86,32 @@ The deletion mutation rate is modeled using the function
 	log (mrate) = mu_scale * (-21.9313 - (0.2856 * deletionLength))
 
 Note that a constant factor is used to scale the mutation rate, it is set to 1.0 
-by default and can be set using the switch --mu_scale. 
+by default and can be set using the switch --mu_scale. This provides the users to scale the mutation rate prior according to their data-set.
 
 For example, 
 	     `./denovogear auto dnm --ped sample.ped --bcf sample.bcf --mu_scale 3`
 
 
-#### OUTPUT FORMAT
+#### OUTPUT FORMAT for TRIOS
 
 The output format is a single row for each putative de novo mutation (DNM), with the following fields
 
-        1. Event type (POINT MUTATION or INDEL)
-        2. Sample ID of offspring with the DNM
-        3. Chromosome 
-        4. Physical Position 
-        5. Base present in reference sequence at this position
-        6. ALT - Comma separated list of alternate non-reference alleles called on at-least one sample.
-        7. maxlike_null  - likelihood of the most likely mendelian-compatible config.
-        8. pp_null - posterior probability of most likely mendelian configuration        
-        9. tgt  - genotypes of the most likely mendelian configuration
-        10. Code that indicates whether the configuration shown in field 6 is monomorphic (1) or contains variation (2)
-        11. This field seems to be redundant to field 7, except the codes are (6) and (9).
-        12. maxlike_DNM  -11, 12 and 13 are analogous to 6,7,8, but for a de novo mutation
-        13. posterior_probability_DNM
-        14. tgt: DNM_configuration
-        15. Code that indicates if the most likely DNM is a transition (4) or transversion (5)
-        16. This is a flag that indicates whether the data for the site passed internal QC thresholds (for development use only).
+        1. Event type (POINT MUTATION or INDEL).
+        2. CHILD_ID - sample ID of trio-offspring with the DNM.
+        3. ref_name - chromosome. 
+        4. coor - physical Position. 
+        5. ref - base present in reference sequence at this position (from BCF).
+        6. alt - comma separated list of alternate non-reference alleles called on at-least one sample (from BCF).
+        7. maxlike_null  - likelihood of the most likely mendelian-compatible genotype configuration.
+        8. pp_null - posterior probability of the most likely mendelian-compatible genotype configuration.        
+        9. tgt_null(child/mom/dad)  - genotypes of the most likely mendelian-compatible configuration.
+        10. snpcode - code that indicates whether the configuration shown in field 6 is monomorphic (1) or contains variation (2)(internal filters, can be ignored).
+        11. code - This field seems to be redundant to field 7, except the codes are (6) and (9).(internal filters, can be ignored).
+        12. maxlike_dnm - likelihood of the most likely DENOVO genotype configuration.
+        13. pp_dnm - posterior probability of the most likely DENOVO genotype configuration.
+        14. tgt_dnm(child/mom/dad)  - genotypes of the most likely mendelian-compatible configuration.
+        15. lookup - Code that indicates if the most likely DNM is a transition (4) or transversion (5) (for development use only).
+        16. flag - Flag that indicates whether the data for the site passed internal QC thresholds (for development use only).
         17-19. Read depth of child, parent 1 and parent 2. 
         20-22. Root mean square of the mapping qualities of all reads mapping to the site for child, parent 1 and parent 2. Currently these values are the same for all samples when using BCF as the input format.
 
