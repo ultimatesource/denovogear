@@ -64,11 +64,18 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
 
   // Check for PP cutoff 
   if ( pp_denovo > pp_cutoff ) {
+    
+    //remove ",X" from alt, helps with VCF op.
+    string alt = tumor.alt;  
+    size_t start = alt.find(",X");
+    if(start != std::string::npos)
+        alt.replace(start, 2, "");
+
     cout<<"DENOVO-PAIR-SNP TUMOR_ID: "<<tumor.id<<" NORMAL_ID: "<<normal.id;
-    cout<<" ref_name: "<<ref_name<<" coor: "<<coor<<" ref_base: "<<tumor.ref_base<<" ALT: "<<tumor.alt;
+    cout<<" chr: "<<ref_name<<" pos: "<<coor<<" ref: "<<tumor.ref_base<<" alt: "<<alt;
     cout<<" maxlike_null: "<<maxlike_null<<" pp_null: "<<pp_null<<" tgt_null(normal/tumor): "<<tgtPair[i-1][j-1];
     cout<<" maxlike_dnm: "<<maxlike_denovo<<" pp_dnm: "<<pp_denovo;
-    cout<<" tgt_denovo(normal/tumor): "<<tgtPair[k-1][l-1];//<<" flag: "<<flag; // flag is a variable that could be set in denovogear.cc(site specific info)
+    cout<<" tgt_dnm(normal/tumor): "<<tgtPair[k-1][l-1];//<<" flag: "<<flag; // flag is a variable that could be set in denovogear.cc(site specific info)
     cout<<" READ_DEPTH tumor: "<<tumor.depth<<" normal: "<<normal.depth;
     cout<<" MAPPING_QUALITY tumor: "<<tumor.rms_mapQ<<" normal: "<<normal.rms_mapQ;
     cout<<" null_snpcode: "<<lookupPair.snpcode(i, j);
@@ -80,15 +87,14 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
       fo_vcf<<coor<<"\t";
       fo_vcf<<".\t";// Don't know the rsID
       fo_vcf<<tumor.ref_base<<"\t";
-      fo_vcf<<tumor.alt<<"\t";
+      fo_vcf<<alt<<"\t";
       fo_vcf<<"0\t";// Quality of the Call
       fo_vcf<<"PASS\t";// passed the read depth filter
-      fo_vcf<<"RD_NORMAL="<<normal.depth<<";";
-      fo_vcf<<";MQ_NORMAL="<<normal.rms_mapQ<<";";  
-      fo_vcf<<";NULL_CONFIG(normal/tumor)="<<tgtPair[i-1][j-1]<<";PP_NULL="<<pp_null;  
-      fo_vcf<<";PairSNPcode="<<lookupPair.snpcode(k, l)<<";\t";
-      fo_vcf<<"DNM_CONFIG(normal/tumor):PP_DNM:RD_T:MQ_T\t";
-      fo_vcf<<tgtPair[k-1][l-1]<<":"<<pp_denovo<<":"<<tumor.depth<<":"<<tumor.rms_mapQ; 
+      fo_vcf<<"RD_NORMAL="<<normal.depth;
+      fo_vcf<<";MQ_NORMAL="<<normal.rms_mapQ<<";\t";  
+      fo_vcf<<"NULL_CONFIG(normal/tumor):pair_null_code:PP_NULL:DNM_CONFIG(normal/tumor):pair_denovo_code:PP_DNM:RD_T:MQ_T\t";
+      fo_vcf<<tgtPair[i-1][j-1]<<":"<<lookupPair.snpcode(i, j)<<":"<<pp_null<<":";
+      fo_vcf<<tgtPair[k-1][l-1]<<":"<<lookupPair.snpcode(k, l)<<":"<<pp_denovo<<":"<<tumor.depth<<":"<<tumor.rms_mapQ; 
       fo_vcf<<"\n";
     }    
   }
