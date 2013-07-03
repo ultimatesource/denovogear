@@ -199,7 +199,7 @@ int processReads(char* reads_file, long dnm_pos, long hap_pos, string gt1, strin
       int count = (*it).second;
       string parent_of_origin = "N/A";
 
-      if ((hap_b == gt1[0]) || (hap_b == gt1[1])) {
+      if ((hap_b == gt1[0]) || (hap_0./b == gt1[1])) {
         if ((hap_b != gt2[0]) && (hap_b != gt2[1]))
           if (variant_base == dnm_b)
             parent_of_origin = "p1";
@@ -288,7 +288,7 @@ int mainPhaser( int argc, char* argv[])
   strcpy(DNM_f, optarg); // File with list of DNMs to be phased
   break;
       case 1:
-  strcpy(parentGT_f, optarg); // File with parental genotypes for phasing sites
+  strcpy(parentGT_f, optarg); // File with  genotypes for phasing sites
   break;  
       case 2:
   strcpy(bam_f, optarg); // BAM file 
