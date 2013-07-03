@@ -140,8 +140,15 @@ void trio_like_snp( qcall_t child, qcall_t mom, qcall_t dad, int flag,
   // Check for PP cutoff 
   if (pp_denovo > pp_cutoff) 
   {
+
+    //remove ",X" from alt, helps with VCF op.
+    string alt = mom.alt;  
+    size_t start = alt.find(",X");
+    if(start != std::string::npos)
+        alt.replace(start, 2, "");
+
     cout<<"DENOVO-SNP CHILD_ID: "<<child.id;
-    cout<<" chr: "<<ref_name<<" pos: "<<coor<<" ref: "<<mom.ref_base<<" alt: "<<mom.alt;
+    cout<<" chr: "<<ref_name<<" pos: "<<coor<<" ref: "<<mom.ref_base<<" alt: "<<alt;
     cout<<" maxlike_null: "<<maxlike_null<<" pp_null: "<<pp_null<<" tgt_null(child/mom/dad): "<<tgt[i-1][j-1];
     cout<<" snpcode: "<<lookup.snpcode(i,j)<<" code: "<<lookup.code(i,j);
     cout<<" maxlike_dnm: "<<maxlike_denovo<<" pp_dnm: "<<pp_denovo;
@@ -155,16 +162,16 @@ void trio_like_snp( qcall_t child, qcall_t mom, qcall_t dad, int flag,
       fo_vcf<<coor<<"\t";
       fo_vcf<<".\t";// Don't know the rsID
       fo_vcf<<mom.ref_base<<"\t";
-      fo_vcf<<mom.alt<<"\t";
+      fo_vcf<<alt<<"\t";
       fo_vcf<<"0\t";// Quality of the Call
       fo_vcf<<"PASS\t";// passed the read depth filter
       fo_vcf<<"RD_MOM="<<mom.depth<<";RD_DAD="<<dad.depth;
       fo_vcf<<";MQ_MOM="<<mom.rms_mapQ<<";MQ_DAD="<<dad.rms_mapQ;  
-      fo_vcf<<";NULL_CONFIG="<<tgt[i-1][j-1]<<";PP_NULL="<<pp_null;  
-      fo_vcf<<";ML_NULL="<<maxlike_null<<";ML_DNM="<<maxlike_denovo;
       fo_vcf<<";SNPcode="<<lookup.snpcode(i,j)<<";code="<<lookup.code(i,j)<<";\t";
-      fo_vcf<<"DNM_CONFIG:PP_DNM:RD:MQ\t";
-      fo_vcf<<tgt[k-1][l-1]<<":"<<pp_denovo<<":"<<child.depth<<":"<<child.rms_mapQ; 
+      fo_vcf<<"NULL_CONFIG(child/mom/dad):PP_NULL:ML_NULL:DNM_CONFIG(child/mom/dad):PP_DNM:ML_DNM:RD:MQ\t";
+      fo_vcf<<tgt[i-1][j-1]<<":"<<pp_null<<":";  
+      fo_vcf<<maxlike_null<<":";
+      fo_vcf<<tgt[k-1][l-1]<<":"<<pp_denovo<<":"<<maxlike_denovo<<":"<<child.depth<<":"<<child.rms_mapQ; 
       fo_vcf<<"\n";
     }
   }
