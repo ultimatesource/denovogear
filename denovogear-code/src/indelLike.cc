@@ -110,8 +110,16 @@ void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag,
 
   // Check for PP cutoff
   if ( pp_denovo > pp_cutoff ) {
+
+    //remove ",X" from alt, helps with VCF op.
+    string alt = mom->alt;  
+    size_t start = alt.find(",X");
+    if(start != std::string::npos)
+        alt.replace(start, 2, "");
+
+
   	cout<<"DENOVO-INDEL child id: "<<child->id;
-  	cout<<" ref_name: "<<ref_name<<" coor: "<<coor<<" ref_base: "<<mom->ref_base<<" ALT: "<<mom->alt;
+  	cout<<" ref_name: "<<ref_name<<" coor: "<<coor<<" ref_base: "<<mom->ref_base<<" ALT: "<<alt;
   	cout<<" maxlike_null: "<<maxlike_null<<" pp_null: "<<pp_null<<" tgt: "<<tgtIndel[i-1][j-1];
   	cout<<" snpcode: "<<lookupIndel.snpcode(i,j)<<" code: "<<lookupIndel.code(i,j);
   	cout<<" maxlike_dnm: "<<maxlike_denovo<<" pp_dnm: "<<pp_denovo;
@@ -125,14 +133,14 @@ void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag,
       fo_vcf<<coor<<"\t";
       fo_vcf<<".\t";// Don't know the rsID
       fo_vcf<<mom->ref_base<<"\t";
-      fo_vcf<<mom->alt<<"\t";
+      fo_vcf<<alt<<"\t";
       fo_vcf<<"0\t";// Quality of the Call
       fo_vcf<<"PASS\t";// passed the read depth filter
       fo_vcf<<"RD_MOM="<<mom->depth<<";RD_DAD="<<dad->depth;
       fo_vcf<<";MQ_MOM="<<mom->rms_mapQ<<";MQ_DAD="<<dad->rms_mapQ;  
-      fo_vcf<<";NULL_CONFIG="<<tgtIndel[i-1][j-1]<<";PP_NULL="<<pp_null;  
       fo_vcf<<";INDELcode="<<lookupIndel.snpcode(i,j)<<";\t";
-      fo_vcf<<"DNM_CONFIG:PP_DNM:RD:MQ\t";
+      fo_vcf<<"NULL_CONFIG(child/mom/dad):PP_NULL:DNM_CONFIG(child/mom/dad):PP_DNM:RD:MQ\t";
+      fo_vcf<<tgtIndel[i-1][j-1]<<":"<<pp_null<<":"; 
       fo_vcf<<tgtIndel[k-1][l-1]<<":"<<pp_denovo<<":"<<child->depth<<":"<<child->rms_mapQ; 
       fo_vcf<<"\n";
     }
