@@ -26,9 +26,11 @@
 denovogear
 *~
 *temp*
-
+.DS_*
 *.chain
 
 bk
-
 .gitignore
+.Rhistory
+
+./denovogear-code/build/*
