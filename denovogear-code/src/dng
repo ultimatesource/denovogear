@@ -1,0 +1,79 @@
+#!/usr/bin/sh
+
+# version info
+version_num=0.1
+
+# set default location (installer should edit this)
+: ${DNG_LIBEXEC_DIR:="$( cd "$( dirname "$0" )" && pwd )"/../libexec}
+
+# Internal functions
+int_funcs="help version"
+
+submatch () { case "$2" in *$1*) return 0 ;; *) return 1 ;; esac ; }
+
+function check_libexec() {
+	if [ ! -d $DNG_LIBEXEC_DIR ]; then
+		echo "ERROR: DNG_LIBEXEC_DIR ($DNG_LIBEXEC_DIR) does not exist."
+		echo "Solution: Try setting it in your environment."
+		exit 1
+	fi
+}
+
+function call_command() {
+	check_libexec
+	cmd=$1
+	shift
+	cmdpath="$DNG_LIBEXEC_DIR/dng-$cmd"
+	if [ ! -x $cmdpath  ]; then
+		echo "ERROR: command '$cmd' not recognized"
+		return 1
+	fi
+	$cmdpath $@
+	return $?
+}
+
+function dng_version() {
+	echo "DeNovoGear Version $version_num"
+	return 0
+}
+
+function dng_help() {
+	check_libexec
+	ext_cmd=`find $DNG_LIBEXEC_DIR -maxdepth 1 -type f -perm +111 -name "dng-*" -print | sed -e 's/.*dng-//'`
+	cmds="$int_funcs $ext_cmd"
+	sorted=`echo $cmds | tr ' ' '\n' | sort | tr '\n' ' '`
+	
+	echo "The following commands are supported by this installation of dng:"
+	
+	for i in $sorted; do
+		echo "    $i"
+	done
+	echo "For more information use 'dng help command'"
+	
+}
+
+function dng_usage() {
+	echo "USAGE: dng command [options]"
+	echo "       dng help"
+	echo "       dng help command"
+}
+
+
+# the command to run is the first argument
+cmd=$1
+if [ -z $cmd ]; then
+# print help message
+	dng_usage
+	exit 0
+fi
+
+# check if the command is internal
+# other wise run external command
+if submatch "$cmd" "$int_funcs"; then
+	dng_$cmd $@
+else
+	call_command $@
+fi
+
+exit $?
+
