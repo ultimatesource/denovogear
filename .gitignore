@@ -33,4 +33,16 @@ bk
 .gitignore
 .Rhistory
 
-./denovogear-code/build/*
+# cmake stuff
+CMakeCache.txt
+CMakeFiles
+Makefile
+cmake_install.cmake
+install_manifest.txt
+src/version.h
+src/config.h
+
+# Ignore the build directory
+denovogear-code/build/*
+!denovogear-code/build/.gitkeep
+
