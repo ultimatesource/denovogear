@@ -5,7 +5,7 @@
    molecule as DNM, uses Samtools to pull the required reads 
 
    Usage - ./denovogear phaser --dnm dnm_f --pgt pgt_f --bam bam_f --window [1000]
-
+   Notes - skips hard clipped reads.
 */
 
 #include <iostream>
@@ -30,35 +30,34 @@ extern "C" { // from utils/sam_view.c
 }
 
 // Format Seq string according to cigar operation
-void formatSeq(string& seq, int& pos, char op, int num)
+int formatSeq(string& seq, int& pos, char op, int num)
 {
   //cout<<"\nOriginal seq is "<<seq;
   //cout<<"\nop "<<op<<" num "<<num<<" pos "<<pos;
   switch (op) {
-  case 'S': { // soft clip, erase characters
-    seq.erase(pos, num);
-    break;
+    case 'S': { // soft clip, erase characters
+      seq.erase(pos, num);
+      break;
+    }
+    case 'M': { // match, retain as is
+      pos+=num;
+      break;
+    }
+    case 'D': { // deletion, insert a '-'
+      seq.insert(pos, num, '-');
+      pos+=num;
+      break;
+    }
+    case 'I': { // insertion, remove insert
+      seq.erase(pos, num);
+      break;
+    }
+    default: { // unknown cigar operation, skip hard clipped reads
+      //cerr<<"Unknown CIGAR, skipping read";
+      return 1;
+    } 
   }
-  case 'M': { // match, retain as is
-    pos+=num;
-    break;
-  }
-  case 'D': { // deletion, insert a '-'
-    seq.insert(pos, num, '-');
-    pos+=num;
-    break;
-  }
-  case 'I': { // insertion, remove insert
-    seq.erase(pos, num);
-    break;
-  }
-  default: { // unknown cigar operation
-    cerr<<op;
-    assert(false);
-    break;
-  } 
-  }
-
+  return 0;
   //cout<<"\nModified seq is "<<seq;
 }
 
@@ -75,7 +74,7 @@ int processReads(char* reads_file, long dnm_pos, long hap_pos, string gt1, strin
     map<string, char> read_dnm, read_hap;// the key is the query name, the char is the base. paired reads have the same query name.
     map<string, int> pair_count;
     while (fin1.good()) {
-      //cout<<"\n\nNext Read";
+      //cout<<"\n\nNext Read\n"<<l;
       istringstream iss(l);
       vector<string> fields;
       string token;
@@ -138,7 +137,8 @@ int processReads(char* reads_file, long dnm_pos, long hap_pos, string gt1, strin
         ss2<<num<<ch;
         operation = ss2.str();
         //cout<<"\nxtracted is "<<operation<<endl;
-        formatSeq(seq, cig_index, ch, num);
+        if(formatSeq(seq, cig_index, ch, num))
+	  return 1; //skip read, invalid formatSeq
         int prune = operation.length();
         //        cerr<<"\n "<<prune;
         cigar = cigar.substr(prune);
@@ -199,7 +199,7 @@ int processReads(char* reads_file, long dnm_pos, long hap_pos, string gt1, strin
       int count = (*it).second;
       string parent_of_origin = "N/A";
 
-      if ((hap_b == gt1[0]) || (hap_0./b == gt1[1])) {
+      if ((hap_b == gt1[0]) || (hap_b == gt1[1])) {
         if ((hap_b != gt2[0]) && (hap_b != gt2[1]))
           if (variant_base == dnm_b)
             parent_of_origin = "p1";
@@ -285,17 +285,17 @@ int mainPhaser( int argc, char* argv[])
     switch(c) 
       {      
       case 0:
-  strcpy(DNM_f, optarg); // File with list of DNMs to be phased
-  break;
+	strcpy(DNM_f, optarg); // File with list of DNMs to be phased
+	break;
       case 1:
-  strcpy(parentGT_f, optarg); // File with  genotypes for phasing sites
-  break;  
+	strcpy(parentGT_f, optarg); // File with parental genotypes for phasing sites
+	break;  
       case 2:
-  strcpy(bam_f, optarg); // BAM file 
-  break;
+	strcpy(bam_f, optarg); // BAM file 
+	break;
       case 3:
-  window = atoi(optarg); // size of window for phasing sites( > insert size )
-  break;    
+	window = atoi(optarg); // size of window for phasing sites( > insert size )
+	break;    
       }
   }
   
