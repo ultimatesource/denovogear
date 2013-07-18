@@ -239,7 +239,16 @@ ENDIF(WIN32 AND NOT UNIX)
 INCLUDE(CPack)
 
 INSTALL(FILES README.txt COPYING.txt DESTINATION ${CMAKE_DOC_DIR})
-#INSTALL(FILES lambda.pl outsplit.pl nexus2fasta.pl varrep.pl DESTINATION ${CMAKE_DATA_DIR})
 
 ADD_SUBDIRECTORY(src)
+
+########### Add uninstall target ###############
+CONFIGURE_FILE(
+  "${CMAKE_CURRENT_SOURCE_DIR}/Modules/cmake_uninstall.cmake.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
+  IMMEDIATE @ONLY)
+
+ADD_CUSTOM_TARGET(uninstall
+  "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake") 
+
 
