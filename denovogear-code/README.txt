@@ -1,5 +1,6 @@
 # Rough Draft Instructions for using denovogear 
-Authors: Don Conrad, Avinash Ramu ( aramu at genetics dot wustl dot edu ) and Reed Cartwright
+Authors: Don Conrad, Avinash Ramu ( aramu at genetics dot wustl dot edu ) and Reed Cartwright.
+Please check http://denovogear.weebly.com for updated documentation.
 
 ## RELEASE NOTES
 v0.5.2
@@ -98,8 +99,8 @@ The output format is a single row for each putative de novo mutation (DNM), with
 
         1. Event type (POINT MUTATION or INDEL).
         2. CHILD_ID - sample ID of trio-offspring with the DNM.
-        3. ref_name - chromosome. 
-        4. coor - physical Position. 
+        3. chr - chromosome. 
+        4. pos - physical Position. 
         5. ref - base present in reference sequence at this position (from BCF).
         6. alt - comma separated list of alternate non-reference alleles called on at-least one sample (from BCF).
         7. maxlike_null  - likelihood of the most likely mendelian-compatible genotype configuration.
@@ -119,7 +120,7 @@ Fields 17-22 are meant for filtering out low quality sites.
 
 ### Separate models for the X chromosome
 
-Denovogear has separate models for autosomes, X chromosome in male offspring and X chromosome in female offspring, 
+Denovogear has separate models for autosomes, X chromosome in male offspring and X chromosome in female offspring. To use this model, create separate BCFs for the X chromosome.
 
 #### Autosomes model usage
 
@@ -127,11 +128,11 @@ Denovogear has separate models for autosomes, X chromosome in male offspring and
 
 #### X in male offspring model usage 
 
-        `./denovogear dnm XS --ped paired.ped --bcf sample.bcf`
+        `./denovogear dnm XS --ped paired.ped --bcf sample.X.bcf`
 
 #### X in female offspring model usage 
 
-        `./denovogear dnm XD --ped paired.ped --bcf sample.bcf`
+        `./denovogear dnm XD --ped paired.ped --bcf sample.X.bcf`
 
 ### PAIRED SAMPLE ANALYSIS 
 DNG can be used to analyze paired samples, it is run the same way as for trios the only difference being the way samples are specified in the PED file,
@@ -143,24 +144,45 @@ DNG can be used to analyze paired samples, it is run the same way as for trios t
 About the arguments, 
 	
 	1. paired.ped is a ped file containing the family-name and the name of the two samples in the bcf file. The last three columns are mandated by the 	PED format but are ignored by the program. An example line looks like
-		F150    NA19240_blood_vald-sorted.bam.bam NA19240_vald-sorted.bam.bam   0       0       0
+		YRI    NA19240_blood_vald-sorted.bam.bam NA19240_vald-sorted.bam.bam   0       0       0
 	2. sample.bcf is a bcf file containing both the samples. 
 
 A sample PED file sample_paired.ped for paired sample analysis is provided with the package.
 
+#### OUTPUT FORMAT for Paired Sample Analysis
+The output format is a single row for each putative paired denovo mutation(DNM), with the following fields
+
+        1. Event type (POINT MUTATION or INDEL).
+        2. TUMOR_ID - sample ID of the 'TUMOR' sample.
+        3. NORMAL_ID - sample ID of the 'NORMAL' sample.
+        4. chr - chromosome. 
+        5. pos - physical Position. 
+        6. ref - base present in reference sequence at this position (from BCF).
+        7. alt - comma separated list of alternate non-reference alleles called on at-least one sample (from BCF).
+        8. maxlike_null  - likelihood of the most likely compatible genotype configuration.
+        9. pp_null - posterior probability of the most likely compatible genotype configuration.        
+        10. tgt_null(normal/tumor)  - genotypes of the most likely compatible configuration.
+        11. maxlike_dnm  - likelihood of the most likely denovo genotype configuration.
+        12. pp_dnm - posterior probability of the most likely denovo genotype configuration.        
+        13. tgt_dnm(normal/tumor)  - genotypes of the most likely denovo configuration.
+        14-15. Read depth of tumor, normal samples. 
+        16-17. Root mean square of the mapping qualities of all reads mapping to the site for tumor, normal samples.
+        18-19. null_snpcode, dnm_snpcode - snpcode is a field used to classify the genotype configurations for the null and alternate case. 0 stands for hom/hom, 1 stands for het/hom, 2 stands for hom/het and 3 stands for het/het.
+
+
 ### PHASER 
-DNG can be used to obtain parental phasing information for Denovo Mutations where phase informative sites are present. This is done by looking at reads which cover both the denovo base and a phase informative positions. Phase informative positions lie within a certain window from the denovo site, the default value is 1000 but it can be set by the user.
+DNG can be used to obtain parental phasing information for Denovo Mutations where phase informative sites are present. This is done by looking at reads which cover both the denovo base and a phase informative positions. Phase informative positions lie within a certain window from the denovo site, the default value is 1000 but it can be set by the user. The phaser is under development, please do let us know if you find any bugs.
 
 #### Usage:
 
-        `./denovogear phaser --dnm dnms_file --pgt gts_file --bam alignment --window NUM[1000]`
+        `./denovogear phaser --dnm dnms_file --pgt gts_file --bam alignment --window 1000`
 
 About the arguments, 
 
 	1. 	dnms_file is the list of DNMs whose parental origin is to be determined. It is a tab delimited file of the format
 	  	chr pos inherited_base mutant_base
 	2.	gts_file contains the genotypes of the parents and the child. It is a tab delimited file of the format
-		chr pos parent1_GT parent2_GT child_GT
+		chr pos child_GT parent1_GT parent2_GT
 	3. 	The third argument is the alignment file (.bam) containing the reads covering the DNM. 
 	4. 	Window size is an optional argument which is the maximum distance between the DNM and a phasing site. The default value is 1000. 
 
@@ -191,4 +213,13 @@ For example if the base at the phasing site is T and the parental genotypes are 
 A sample list of dnms file, sample_phasing_dnm_f is provided. Also a sample genotypes file sample_phasing_GTs_f is provided for reference.
 
 Please feel free to contact the authors about any concerns/comments.	
+
+###General options for TRIOs and Paired Sample Calling
+--snp_mrate:     Mutation rate prior for SNPs. [1e-8]
+--indel_mrate:   Mutation rate prior for INDELs. [1e-9]
+--pair_mrate:    Mutation rate prior for paired sample analysis. [1e-9]
+--indel_mu_scale:        Scaling factor for indel mutation rate. [1]
+--pp_cutoff:     Posterior probability threshold. [0.0001]
+--rd_cutoff:     Read depth filter, sites where either one of the sample have read depth less than this threshold are filtered out. [10
+
 
