@@ -52,7 +52,7 @@ int formatSeq(string& seq, int& pos, char op, int num)
       seq.erase(pos, num);
       break;
     }
-    default: { // unknown cigar operation, skip hard clipped reads
+    default: { // unknown cigar operation, /*skip hard clipped reads*/
       //cerr<<"Unknown CIGAR, skipping read";
       return 1;
     } 
