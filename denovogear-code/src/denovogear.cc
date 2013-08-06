@@ -141,33 +141,32 @@ int writeVCFHeader(std::ofstream& fo_vcf, string op_vcf_f, string bcf_file, stri
   		cerr<<"Unable to open vcf file for writing output. Exiting !"<<endl;
 	}
 	fo_vcf<<"##fileformat=VCFv4.1\n";
-	fo_vcf<<"##source="<<VERSION<<"\n";
-	fo_vcf<<"##BCF_file:"<<bcf_file<<";PED_file:"<<ped_file<<"\n";
-	fo_vcf<<"##READ DEPTH CUTOFF:"<<RD_cutoff<<";Posterior probability cutoff:"<<PP_cutoff<<"\n";
-	fo_vcf<<"##SNP mutation rate:"<<snp_mrate<<";INDEL mutation rate:"<<indel_mrate<<"\n";
-	fo_vcf<<"##Paired mutation rate:"<<pair_mrate<<";Polymorphism rate:"<<poly_rate<<"\n";
-	fo_vcf<<"##Indel mutation rate scaling constant:"<<mu_scale<<"\n";
+	fo_vcf<<"##source= "<<VERSION<<"\n";
+	fo_vcf<<"##INPUT - BCF file: "<<bcf_file<<"; PED file: "<<ped_file<<"\n";
+	fo_vcf<<"##READ DEPTH CUTOFF: "<<RD_cutoff<<"; Posterior probability cutoff: "<<PP_cutoff;
+	fo_vcf<<"##SNP mutation rate: "<<snp_mrate<<"; INDEL mutation rate: "<<indel_mrate<<"\n";
+	fo_vcf<<"##Paired mutation rate: "<<pair_mrate<<"; Polymorphism rate: "<<poly_rate<<"\n";
+	fo_vcf<<"##Indel mutation rate scaling constant: "<<mu_scale;
 	fo_vcf<<"##INFO=<ID=RD_MOM,Number=1,Type=Integer,Description=\"Read depth for MOM\">\n";
 	fo_vcf<<"##INFO=<ID=RD_DAD,Number=1,Type=Integer,Description=\"Read depth for DAD\">\n";
 	fo_vcf<<"##INFO=<ID=RD_NORMAL,Number=1,Type=Integer,Description=\"Read depth for Normal sample in Paired Sample Analysis\">\n";
 	fo_vcf<<"##INFO=<ID=MQ_MOM,Number=1,Type=Integer,Description=\"Mapping quality for MOM\">\n";
 	fo_vcf<<"##INFO=<ID=MQ_DAD,Number=1,Type=Integer,Description=\"Mapping quality for DAD\">\n";
 	fo_vcf<<"##INFO=<ID=MQ_NORMAL,Number=1,Type=Integer,Description=\"Mapping quality for Normal sample in Paired Sample Analysis\">\n";
-	fo_vcf<<"##INFO=<ID=SNPcode,Number=1,Type=Integer,Description=\"Code that shows whether denovo configuration shown is monomorphic or contains variation\">\n";
-	fo_vcf<<"##INFO=<ID=INDELcode,Number=1,Type=Integer,Description=\"Internal purposes\">\n"; //// Needs Detail
-	fo_vcf<<"##INFO=<ID=code,Number=1,Type=Integer,Description=\"Internal purposes\">\n"; //// Needs Detail
-	fo_vcf<<"##FORMAT=<ID=NULL_CONFIG,Number=1,Type=String,Description=\"Genotype configuration under the NULL model (child/mom/dad for trios and normal/tumor for paired sample analysis)\">\n";
-	fo_vcf<<"##FORMAT=<ID=pair_null_code,Number=1,Type=Integer,Description=\"Code for the NULL genotype configuration(1=hom/hom, 2 = hom/het, 3 = het/hom & 4 = het/het)\">\n";
-	fo_vcf<<"##FORMAT=<ID=PP_NULL,Number=1,Type=Float,Description=\"Posterior probability for the NULL genotype configuration\">\n";
-	fo_vcf<<"##FORMAT=<ID=ML_NULL,Number=1,Type=Float,Description=\"Maximum Likelihood for the NULL genotype configuration\">\n";
-	fo_vcf<<"##FORMAT=<ID=DNM_CONFIG,Number=1,Type=String,Description=\"Genotype configuration for the denovo call (child/mom/dad for trios and normal/tumor for paired sample analysis)\">\n";
-	fo_vcf<<"##FORMAT=<ID=pair_denovo_code,Number=1,Type=Integer,Description=\"Code for denovo genotype configuration(1=hom/hom, 2 = hom/het, 3 = het/hom & 4 = het/het)\">\n";
-	fo_vcf<<"##FORMAT=<ID=PP_DNM,Number=1,Type=Float,Description=\"Posterior probability for the denovo genotype configuration\">\n";
-	fo_vcf<<"##FORMAT=<ID=ML_DNM,Number=1,Type=Float,Description=\"Maximum Likelihood for the denovo genotype configuration\">\n";
-	fo_vcf<<"##FORMAT=<ID=RD,Number=1,Type=Integer,Description=\"Read Depth of the offspring sample\">\n";
-	fo_vcf<<"##FORMAT=<ID=MQ,Number=1,Type=Integer,Description=\"Mapping quality of the offspring sample\">\n";
+	fo_vcf<<"##INFO=<ID=NULL_CONFIG,Number=1,Type=String,Description=\"NULL trio configuration\">\n";
+	fo_vcf<<"##INFO=<ID=PP_NULL,Number=1,Type=Float,Description=\"Posterior probability for the NULL configuration\">\n";
+	fo_vcf<<"##INFO=<ID=ML_NULL,Number=1,Type=Float,Description=\"Maximum Likelihood for the NULL configuration\">\n";
+	fo_vcf<<"##INFO=<ID=ML_DNM,Number=1,Type=Float,Description=\"Maximum Likelihood for the DNM configuration\">\n";
+	fo_vcf<<"##INFO=<ID=SNPcode,Number=1,Type=Integer,Description=\"Code that shows whether DNM configuration shown is monomorphic or contains variation\">\n";
+	fo_vcf<<"##INFO=<ID=INDELcode,Number=1,Type=Integer,Description=\" \">\n"; //// Needs Detail
+	fo_vcf<<"##INFO=<ID=PairSNPcode,Number=1,Type=Integer,Description=\" \">\n"; //// Needs Detail
+	fo_vcf<<"##INFO=<ID=code,Number=1,Type=Integer,Description=\" \">\n"; //// Needs Detail
+	fo_vcf<<"##FORMAT=<ID=DNM_CONFIG,Number=1,Type=String,Description=\"DNM trio configuration\">\n";
+	fo_vcf<<"##FORMAT=<ID=PP_DNM,Number=1,Type=Float,Description=\"Posterior probability for the DNM configuration\">\n";
+	fo_vcf<<"##FORMAT=<ID=RD,Number=1,Type=Integer,Description=\"Read Depth of the child\">\n";
+	fo_vcf<<"##FORMAT=<ID=MQ,Number=1,Type=Integer,Description=\"Mapping quality of the child\">\n";
 	fo_vcf<<"##FORMAT=<ID=RD_T,Number=1,Type=Integer,Description=\"Read Depth of the tumor sample\">\n";
-	fo_vcf<<"##FORMAT=<ID=MQ_T,Number=1,Type=Integer,Description=\"Mapping quality of the tumor sample\">\n";
+	fo_vcf<<"##FORMAT=<ID=MQ_T,Number=1,Type=Integer,Description=\"Mapping quality of the normal sample\">\n";
 	fo_vcf<<"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t"<<sample<<"\n";
 	return 0;
 }
@@ -243,7 +242,7 @@ int callDenovoFromBCF(string ped_file, string bcf_file,
 								PP_cutoff, RD_cutoff, indel_pass_count);    
 			}
 			else if ( is_indel < 0 ) {
-				printf("\n BCF PARSING ERROR - Paired Sample!  %d\n Exiting !\n", is_indel);
+				printf("\n BCF PARSING ERROR - Trios!  %d\n Exiting !\n", is_indel);
 				exit(1);
 			}
 		}
