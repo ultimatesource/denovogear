@@ -16,6 +16,29 @@
 #define MIN_READ_DEPTH_INDEL 10
 #define MIN_MAPQ 40 
 
+
+void writeToSNPObject(pair_t* tumor, bcf1_t *b, bcf_hdr_t* h, int* g, int d, int mq, int& flag, int i, int i0)
+{
+  strcpy( tumor->chr, h->ns[b->tid] );
+  tumor->pos = b->pos+1;
+  tumor->ref_base = *b->ref;
+  strcpy(tumor->alt, b->alt);
+  tumor->depth = d;
+  tumor->rms_mapQ = mq;
+  strcpy( tumor->id, h->sns[i] );
+  for (int l1 = 0; l1 < b->n_gi; ++l1) { //CHECK IF PER SAMPLE DEPTH AVAILABLE
+    if (b->gi[l1].fmt == bcf_str2int("DP", 2)) {
+      tumor->depth = ((uint16_t*)b->gi[l1].data)[i];
+      //printf("\ndepth1 %d depth2: %d depth3: %d length: %d\n",((uint16_t*)b->gi[l1].data)[0], ((uint16_t*)b->gi[l1].data)[1], ((uint16_t*)b->gi[l1].data)[2], b->gi[l1].len);
+    }
+  }
+  for (int j = 0; j < 10; ++j)
+    tumor->lk[j] = g[j];
+  if (tumor->rms_mapQ < MIN_MAPQ || tumor->depth < MIN_READ_DEPTH) 
+    flag =1;
+}
+
+
 static int8_t nt4_table[256] = {
 	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
 	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
@@ -42,7 +65,7 @@ static int read_I16(bcf1_t *b, int anno[16])
 	if ((p = strstr(b->info, "I16=")) == 0) return -1;
 	p += 4;
 	for (i = 0; i < 16; ++i) {
-		anno[i] = strtol(p, &p, 10);
+	  anno[i] = strtol(p, &p, 10);
 		if (anno[i] == 0 && (errno == EINVAL || errno == ERANGE)) return -2;
 		++p;
 	}
@@ -111,112 +134,29 @@ int bcf2Paired (bcf_hdr_t *h, bcf1_t *b, Pair pair1, pair_t* tumor, pair_t* norm
 			}
 		}
 				
-		//found Mom
+		//found Tumor
 		if( strcmp( pair1.tumorID, h->sns[i] ) == 0 ) {
 			found_pair--;
-			
 			if( is_indel == 0 ) { // Write to Moms SNP object
-				strcpy( tumor->chr, h->ns[b->tid] );
-				tumor->pos = b->pos+1;
-				tumor->ref_base = *b->ref;
-				strcpy(tumor->alt, b->alt);
-				tumor->depth = d;
-				tumor->rms_mapQ = mq;
-				strcpy( tumor->id, h->sns[i] );
-				for (l1 = 0; l1 < b->n_gi; ++l1) { //CHECK IF PER SAMPLE DEPTH AVAILABLE
-					if (b->gi[l1].fmt == bcf_str2int("DP", 2)) {
-						tumor->depth = ((uint16_t*)b->gi[l1].data)[i];
-						//printf("\ndepth1 %d depth2: %d depth3: %d length: %d\n",((uint16_t*)b->gi[l1].data)[0], ((uint16_t*)b->gi[l1].data)[1], ((uint16_t*)b->gi[l1].data)[2], b->gi[l1].len);
-					}
-				}
-				for (j = 0; j < 10; ++j)
-					tumor->lk[j] = g[j];
-				if (tumor->rms_mapQ < MIN_MAPQ || tumor->depth < MIN_READ_DEPTH) 
-					flag =1;
-				//printf("\nSNP mom position %d depth %d", b->pos+1, tumor->depth); 
+			  writeToSNPObject(tumor, b, h, g, d, mq, flag, i, i0);
 			}
-			/*else {
-				uint8_t *likl = static_cast<uint8_t *>(static_cast<uint8_t *>(b->gi[i0].data) + i * b->gi[i0].len);
-				strcpy( mom_indel->chr, h->ns[b->tid] );
-				mom_indel->pos = b->pos+1;
-				strcpy(mom_indel->ref_base, b->ref);
-				strcpy(mom_indel->alt, b->alt);
-				mom_indel->depth = d;
-				mom_indel->rms_mapQ = mq;
-				strcpy( mom_indel->id, h->sns[i] );
-				//printf("\nsample: %s, pos %d ",h->sns[i], b->pos+1 );
-				for (l1 = 0; l1 < b->n_gi; ++l1) { //CHECK IF PER SAMPLE DEPTH AVAILABLE
-					if (b->gi[l1].fmt == bcf_str2int("DP", 2)) {
-						mom_indel->depth = ((uint16_t*)b->gi[l1].data)[i];
-						//printf("\ndepth1 %d depth2: %d depth3: %d length: %d\n",((uint16_t*)b->gi[l1].data)[0], ((uint16_t*)b->gi[l1].data)[1], ((uint16_t*)b->gi[l1].data)[2], b->gi[l1].len);
-					}
-				}
-				for (j = 0; j < 3; ++j) // R/R, R/A and A/A
-					mom_indel->lk[j] = likl[j];
-				if (mom_indel->rms_mapQ < MIN_MAPQ || mom_indel->depth < MIN_READ_DEPTH) 
-					flag =1;
-				//printf("\nINDEL mom position: %d id: %s depth: %d lik: %d, %d, %d", b->pos+1,  mom_indel->id, d,  likl[0], likl[1], likl[2]); 
-			}*/
 		} 
 		
-		//found Dad
+		//found Normal
 		if( strcmp( pair1.normalID, h->sns[i] ) == 0 ) {
 			found_pair--;
-			
-			if( is_indel == 0 ) { // Write to Dads SNP object
-				strcpy( normal->chr, h->ns[b->tid] );
-				normal->pos = b->pos+1;
-				normal->ref_base = *b->ref;
-				strcpy(normal->alt, b->alt);
-				normal->depth = d;
-				normal->rms_mapQ = mq;
-				strcpy( normal->id, h->sns[i] );
-				//printf("\nsample: %s, pos %d ",h->sns[i], b->pos+1 );
-				for (l1 = 0; l1 < b->n_gi; ++l1) { //CHECK IF PER SAMPLE DEPTH AVAILABLE
-					if (b->gi[l1].fmt == bcf_str2int("DP", 2)) {
-						normal->depth = ((uint16_t*)b->gi[l1].data)[i];
-						//printf("\ndepth1 %d depth2: %d depth3: %d length: %d\n",((uint16_t*)b->gi[l1].data)[0], ((uint16_t*)b->gi[l1].data)[1], ((uint16_t*)b->gi[l1].data)[2], b->gi[l1].len);
-					}
-				}
-				for (j = 0; j < 10; ++j)
-					normal->lk[j] = g[j];
-				if (normal->rms_mapQ < MIN_MAPQ || normal->depth < MIN_READ_DEPTH) 
-					flag =1;
-				//printf("\nSNP dad position %d depth %d", b->pos+1, normal->depth); 
+			if( is_indel == 0 ) { // Write to Moms SNP object
+			  writeToSNPObject(normal, b, h, g, d, mq, flag, i, i0);
 			}
-			/* else {
-				uint8_t *likl = static_cast<uint8_t *>(static_cast<uint8_t *>(b->gi[i0].data) + i * b->gi[i0].len);
-				strcpy( dad_indel->chr, h->ns[b->tid] );
-				dad_indel->pos = b->pos+1;
-				strcpy(dad_indel->ref_base, b->ref);
-				strcpy(dad_indel->alt, b->alt);
-				dad_indel->depth = d;
-				dad_indel->rms_mapQ = mq;
-				strcpy( dad_indel->id, h->sns[i] );
-				//printf("\nsample: %s, pos %d ",h->sns[i], b->pos+1 );
-				for (l1 = 0; l1 < b->n_gi; ++l1) { //CHECK IF PER SAMPLE DEPTH AVAILABLE
-					if (b->gi[l1].fmt == bcf_str2int("DP", 2)) {
-						dad_indel->depth = ((uint16_t*)b->gi[l1].data)[i];
-						//printf("\ndepth1 %d depth2: %d depth3: %d length: %d\n",((uint16_t*)b->gi[l1].data)[0], ((uint16_t*)b->gi[l1].data)[1], ((uint16_t*)b->gi[l1].data)[2], b->gi[l1].len);
-					}
-				}
-				for (j = 0; j < 3; ++j) // R/R, R/A and A/A
-					dad_indel->lk[j] = likl[j];
-				if (dad_indel->rms_mapQ < MIN_MAPQ || dad_indel->depth < MIN_READ_DEPTH) 
-					flag =1;
-				//printf("\nINDEL dad position: %d id: %s depth: %d lik: %d, %d, %d", b->pos+1,  dad_indel->id, d,  likl[0], likl[1], likl[2]); 
-			}*/
-			
 		}
 				
 	}
 	
 	//found entire pair, return
 	if ( found_pair == 0 ) { 
-		return is_indel;
+	  return is_indel;
 	} else {
-		printf("\n\nUnable to find pair, exiting Denovogear! ( %d, %d) ", found_pair, i);
-		return -3; // missing member	
+	  printf("\n\nUnable to find pair, exiting Denovogear! ( %d, %d) ", found_pair, i);
+	  return -3; // missing member	
 	}
-	
 }
