@@ -110,8 +110,6 @@ int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t* mom_snp, qcall_t* dad_s
 		indel = 1;
 	}
 	if (b->ref[1] != 0 || b->n_alleles > 4) { // ref is not a single base ***
-		//printf("\nposition %d ref not a single base", b->pos+1);
-		//indel = 1;
 		//return 10;
 	} 
 	for (i = 0; i < b->n_gi; ++i)
@@ -124,7 +122,6 @@ int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t* mom_snp, qcall_t* dad_s
 	else {
 	  d_rest = dp = anno[0] + anno[1] + anno[2] + anno[3];
 	}
-	//if (dp == 0) return -8; // depth is zero ***
 	mq = (int)(sqrt((double)(anno[9] + anno[11]) / dp) + .499);
 	i0 = i;
 	a[0] = nt4_table[(int)b->ref[0]];
@@ -137,8 +134,6 @@ int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t* mom_snp, qcall_t* dad_s
 	map[a[0]] = 0;
 	for (k = 0, s = b->alt, k1 = -1; k < 3 && *s; ++k, s += 2) {
 		if (s[1] != ',' && s[1] != 0)  { // ALT is not single base *** 
-			//printf("\nposition %d alt not a single base", b->pos+1); 
-			//indel =1 ;
 			//return 10; 
 		}
 		a[k+1] = nt4_table[(int)*s];
