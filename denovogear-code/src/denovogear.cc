@@ -26,7 +26,7 @@ using namespace RBD_LIBRARIES;
 #endif
 
 #ifndef VERSION
-#define VERSION "Denovogear0.5.2"
+#define VERSION "Denovogear0.5.3"
 #endif
 
 int RD_cutoff = 10; // cutoff for the read depth filter
@@ -44,22 +44,23 @@ void usage()
 {
   cerr<<"\nUsage:\n";
   cerr<<"Autosomes:\n";
-  cerr<<"\t./denovogear dnm auto --bcf bcf_f --ped ped_f\n";
+  cerr<<"\t./denovogear dnm auto --bcf bcf_f --ped ped_f [OR] ./denovogear dnm auto --vcf vcf_f --ped ped_f\n";
   cerr<<"X chromosome in male offspring:\n";
-  cerr<<"\t./denovogear dnm XS --bcf bcf_f --ped ped_f\n";
+  cerr<<"\t./denovogear dnm XS --bcf bcf_f --ped ped_f [OR] ./denovogear dnm XS --vcf vcf_f --ped ped_f\n";
   cerr<<"X chromosome in female offspring:\n";
-  cerr<<"\t./denovogear dnm XD --bcf bcf_f --ped ped_f\n";
+  cerr<<"\t./denovogear dnm XD --bcf bcf_f --ped ped_f [OR] ./denovogear dnm XD --vcf vcf_f --ped ped_f\n";
   cerr<<"Phaser:\n";
   cerr<<"\t./denovogear phaser --dnm dnm_f --pgt pgt_f --bam bam_f --window INT[1000]\n";
   cerr<<"\nInput:\n";
   cerr<<"DNM:\n";
   cerr<<"--ped:\t Ped file to describe relationship between the samples.\n";
-  cerr<<"--bcf:\t BCF file from samtools, contains per-sample read depths and genotype likelihoods.\n";
+  cerr<<"--bcf:\t BCF file, contains per-sample read depths and genotype likelihoods.\n";
+  cerr<<"--vcf:\t VCF file, contains per-sample read depths and genotype likelihoods.\n";
   cerr<<"Phaser:\n";
   cerr<<"--dnm_f: Tab delimited list of denovo mutations to be phased, format: chr pos inherited_base denovo_base.[example: 1 2000 A C]\n";
   cerr<<"--pgt_f: Tab delimited genotypes of child and parents at SNP sites near denovo sites, format: chr pos GT_child GT_parent1 GT_parent2.[example: 1 2000 AC AC AA]\n";
   cerr<<"\nOutput:\n";
-  cerr<<"--output_vcf:\t vcf file to store the output.\n";
+  cerr<<"--output_vcf:\t vcf file to write the output to.\n";
   cerr<<"\nParameters:\n";
   cerr<<"--snp_mrate:\t Mutation rate prior for SNPs. [1e-8]\n";
   cerr<<"--indel_mrate:\t Mutation rate prior for INDELs. [1e-9]\n";
@@ -172,48 +173,51 @@ int writeVCFHeader(std::ofstream& fo_vcf, string op_vcf_f, string bcf_file, stri
 }
 
 int callDenovoFromBCF(string ped_file, string bcf_file, 
-								string op_vcf_f, string model)
+		      string op_vcf_f, string model, bool is_vcf)
 {
 	
 
   // Create SNP lookup
   lookup_snp_t lookupSNP;
-	vector<vector<string > > tgtSNP;
-	callMakeSNPLookup(tgtSNP, lookupSNP, model);	
+  vector<vector<string > > tgtSNP;
+  callMakeSNPLookup(tgtSNP, lookupSNP, model);	
 
   // Create INDEL lookup
   lookup_indel_t lookupIndel;
-	vector<vector<string > > tgtIndel;
-	callMakeINDELLookup(tgtIndel, lookupIndel, model);    
+  vector<vector<string > > tgtIndel;
+  callMakeINDELLookup(tgtIndel, lookupIndel, model);    
     
   // Create paired lookup
   lookup_pair_t lookupPair;
   vector<vector<string > > tgtPair;
   callMakePairedLookup(tgtPair, lookupPair); 
 
-	// Iterate each position of BCF file
-	Trio* trios;
+  // Iterate each position of BCF file
+  Trio* trios;
   Pair* pairs;
   int trio_count = 0, pair_count = 0;
   parse_ped (ped_file, &trios, &pairs, trio_count, pair_count);
 
-	//create output vcf -- assumes theres only one trio/pair
-	string sample;
-	if(trio_count > 0)
-  	sample = trios[0].cID;
-	else
-		sample = pairs[0].tumorID;
+  //create output vcf -- assumes theres only one trio/pair
+  string sample;
+  if(trio_count > 0)
+    sample = trios[0].cID;
+  else
+    sample = pairs[0].tumorID;
   ofstream fo_vcf;
   if(op_vcf_f != "EMPTY") {
   	writeVCFHeader(fo_vcf, op_vcf_f, bcf_file, ped_file, sample);
-	}
+  }
   	
   qcall_t mom_snp, dad_snp, child_snp;
   indel_t mom_indel, dad_indel, child_indel;
   pair_t tumor, normal;	
   bcf_hdr_t *hout, *hin;
   bcf_t *bp = NULL;
-  bp = vcf_open(bcf_file.c_str(), "rb");
+  if(!is_vcf) //BCF
+    bp = vcf_open(bcf_file.c_str(), "rb");
+  else
+    bp = vcf_open(bcf_file.c_str(), "r");
   hin = hout = vcf_hdr_read(bp);
   bcf1_t *b;
   b = static_cast<bcf1_t *> (calloc(1, sizeof(bcf1_t))); 
@@ -274,7 +278,10 @@ int callDenovoFromBCF(string ped_file, string bcf_file,
 
   bcf_hdr_destroy(hin);
   bcf_destroy(b);
-  bcf_close(bp);
+  if(!is_vcf) //BCF
+    bcf_close(bp);
+  else
+    vcf_close(bp);
   fo_vcf.close();
   return 0;
 }
@@ -287,17 +294,17 @@ int mainDNG(int argc, char *argv[])
   else 
     usage();
   string ped_f = "EMPTY"; // ped file
-  string bcf_f = "EMPTY"; // bcf file
+  string bcf_f = "EMPTY"; // bcf/vcf file
   string op_vcf_f = "EMPTY"; // vcf output -- optional
-
+  bool is_vcf = false;
 
   // Read in Command Line arguments
   while (1) {
     int option_index = 0;
     static struct option long_options[] = {{"ped", 1, 0, 0}, 
-					   {"bcf", 1, 0, 1}, {"snp_mrate", 1, 0, 2}, {"indel_mrate", 1, 0, 3}, 
+					   {"bcf", 1, 0, 1},  {"snp_mrate", 1, 0, 2}, {"indel_mrate", 1, 0, 3}, 
 					   {"poly_rate", 1, 0, 4}, {"pair_mrate", 1, 0, 5}, {"indel_mu_scale", 1, 0, 6}, {"output_vcf", 1, 0, 7},
-					   {"pp_cutoff", 1, 0, 8}, {"rd_cutoff", 1, 0, 9}, {"h", 1, 0, 10}};
+					   {"pp_cutoff", 1, 0, 8}, {"rd_cutoff", 1, 0, 9}, {"h", 1, 0, 10}, {"vcf", 1, 0, 11},};
     int c = getopt_long (argc-1, argv+1, "", long_options, &option_index);
     if (c == -1)
       break;
@@ -308,6 +315,10 @@ int mainDNG(int argc, char *argv[])
 	break;
       case 1:
 	bcf_f = optarg;
+	break;
+      case 11:
+	bcf_f = optarg;
+	is_vcf = true;
 	break;
       case 2:
 	snp_mrate = atof(optarg);
@@ -354,7 +365,7 @@ int mainDNG(int argc, char *argv[])
   	
   // Create lookup table and read ped, BCF files. Separate for autosomes, X in males and X in females.
   if (model ==  "auto" || model == "XS" || model == "XD"){
-    callDenovoFromBCF(ped_f, bcf_f, op_vcf_f, model);
+    callDenovoFromBCF(ped_f, bcf_f, op_vcf_f, model, is_vcf);
   }
   else {
     usage();
@@ -368,10 +379,17 @@ int mainDNG(int argc, char *argv[])
 int main(int argc, char* argv[])
 {
   cerr<<VERSION;  
-  if(argc >= 2)
+  if(argc >= 2) {
     if (strcmp(argv[1], "dnm") == 0) return mainDNG(argc-1, argv+1);
     else if (strcmp(argv[1], "phaser") == 0) return mainPhaser(argc-1, argv+1);
+    else {
+      cerr<<"Unknown option "<<argv[1]<<endl;
+      usage();
+      exit(1);
+    }
+  }
   usage();
+  return 0;  
 }
 
 
