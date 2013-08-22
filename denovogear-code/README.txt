@@ -1,8 +1,12 @@
-# Rough Draft Instructions for using denovogear 
 Authors: Don Conrad, Avinash Ramu ( aramu at genetics dot wustl dot edu ) and Reed Cartwright.
 Please check http://denovogear.weebly.com for updated documentation.
 
 ## RELEASE NOTES
+v0.5.3
+removed X allele in VCF op
+
+
+
 v0.5.2
 Added read-depth, posterior-probability filters.
 Output number of sites in the BCF and number of sites passing filters.
@@ -75,7 +79,9 @@ If you wish to change the default point or indel mutation rates use the --snp_mr
 or --indel_mrate switches respectively. 
 
 For example
-	     `./denovogear auto dnm --ped sample.ped --bcf sample.bcf --snp_mrate 2e-10 --indel_mrate 1e-11`
+	     `./denovogear dnm auto --ped sample.ped --bcf sample.bcf --snp_mrate 2e-10 --indel_mrate 1e-11`
+	            [OR]
+	     `./denovogear dnm auto --ped sample.ped --vcf sample.vcf --snp_mrate 2e-10 --indel_mrate 1e-11`		    
 
 The indel mutation rate prior is calculated based on the length of the insertion or deletion event, 
 separate models are used for insertions and deletions. The two models are based on the indel observations from the 1000Genomes phase 1 data.
@@ -90,7 +96,9 @@ Note that a constant factor is used to scale the mutation rate, it is set to 1.0
 by default and can be set using the switch --mu_scale. This provides the users to scale the mutation rate prior according to their data-set.
 
 For example, 
-	     `./denovogear auto dnm --ped sample.ped --bcf sample.bcf --mu_scale 3`
+	     `./denovogear dnm auto --ped sample.ped --bcf sample.bcf --mu_scale 3`
+	     		   [OR]
+   	     `./denovogear dnm auto --ped sample.ped --vcf sample.vcf --mu_scale 3`	
 
 
 #### OUTPUT FORMAT for TRIOS
@@ -109,7 +117,7 @@ The output format is a single row for each putative de novo mutation (DNM), with
         10. snpcode - code that indicates whether the configuration shown in field 6 is monomorphic (1) or contains variation (2)(internal filters, can be ignored).
         11. code - This field seems to be redundant to field 7, except the codes are (6) and (9).(internal filters, can be ignored).
         12. maxlike_dnm - likelihood of the most likely DENOVO genotype configuration.
-        13. pp_dnm - posterior probability of the most likely DENOVO genotype configuration.
+        13. pp_dnm - posterior probability of the most likely DENOVO genotype configuration. Range = [0-1], a value closer to 1 indicates higher probability of observing a denovo event at this position. This is the field that is used to rank the calls.
         14. tgt_dnm(child/mom/dad)  - genotypes of the most likely mendelian-compatible configuration.
         15. lookup - Code that indicates if the most likely DNM is a transition (4) or transversion (5) (for development use only).
         16. flag - Flag that indicates whether the data for the site passed internal QC thresholds (for development use only).
@@ -124,15 +132,20 @@ Denovogear has separate models for autosomes, X chromosome in male offspring and
 
 #### Autosomes model usage
 
-        `./denovogear dnm auto --ped paired.ped --bcf sample.bcf`
+        `./denovogear dnm auto --ped sample.ped --bcf sample.bcf`
+		      [OR]
+        `./denovogear dnm auto --ped sample.ped --vcf sample.vcf`
 
 #### X in male offspring model usage 
 
-        `./denovogear dnm XS --ped paired.ped --bcf sample.X.bcf`
-
+        `./denovogear dnm XS --ped sample.ped --bcf sample.bcf --region X`
+		      [OR]
+        `./denovogear dnm XS --ped sample.ped --vcf sample.X.vcf` (only BCF allows for random access)
 #### X in female offspring model usage 
 
-        `./denovogear dnm XD --ped paired.ped --bcf sample.X.bcf`
+        `./denovogear dnm XD --ped sample.ped --bcf sample.bcf --region X`
+		      [OR]
+        `./denovogear dnm XD --ped sample.ped --vcf sample.X.vcf`		   
 
 ### PAIRED SAMPLE ANALYSIS 
 DNG can be used to analyze paired samples, it is run the same way as for trios the only difference being the way samples are specified in the PED file,
@@ -140,12 +153,14 @@ DNG can be used to analyze paired samples, it is run the same way as for trios t
 #### Usage:
  
         `./denovogear dnm auto --ped paired.ped --bcf sample.bcf`
+		      [OR]
+        `./denovogear dnm auto --ped paired.ped --vcf sample.vcf`
 
 About the arguments, 
 	
 	1. paired.ped is a ped file containing the family-name and the name of the two samples in the bcf file. The last three columns are mandated by the 	PED format but are ignored by the program. An example line looks like
 		YRI    NA19240_blood_vald-sorted.bam.bam NA19240_vald-sorted.bam.bam   0       0       0
-	2. sample.bcf is a bcf file containing both the samples. 
+	2. sample.bcf[vcf] is a BCF[VCF] file containing both the samples. 
 
 A sample PED file sample_paired.ped for paired sample analysis is provided with the package.
 
@@ -163,7 +178,7 @@ The output format is a single row for each putative paired denovo mutation(DNM),
         9. pp_null - posterior probability of the most likely compatible genotype configuration.        
         10. tgt_null(normal/tumor)  - genotypes of the most likely compatible configuration.
         11. maxlike_dnm  - likelihood of the most likely denovo genotype configuration.
-        12. pp_dnm - posterior probability of the most likely denovo genotype configuration.        
+        12. pp_dnm - posterior probability of the most likely denovo genotype configuration, a value closer to 1 indicates strong evidence of a denovo event. This is the field that is used to rank the calls.        
         13. tgt_dnm(normal/tumor)  - genotypes of the most likely denovo configuration.
         14-15. Read depth of tumor, normal samples. 
         16-17. Root mean square of the mapping qualities of all reads mapping to the site for tumor, normal samples.
@@ -175,16 +190,16 @@ DNG can be used to obtain parental phasing information for Denovo Mutations wher
 
 #### Usage:
 
-        `./denovogear phaser --dnm dnms_file --pgt gts_file --bam alignment --window 1000`
+        `./denovogear phaser --dnm dnm_f --pgt gts_file --bam alignment --window 1000`
 
 About the arguments, 
 
-	1. 	dnms_file is the list of DNMs whose parental origin is to be determined. It is a tab delimited file of the format
+	1. 	"dnm" is the list of DNMs whose parental origin is to be determined. It is a tab delimited file of the format
 	  	chr pos inherited_base mutant_base
-	2.	gts_file contains the genotypes of the parents and the child. It is a tab delimited file of the format
+	2.	"pgt" contains the genotypes of the child and the parents at SNP sites. It is a tab delimited file of the format
 		chr pos child_GT parent1_GT parent2_GT
-	3. 	The third argument is the alignment file (.bam) containing the reads covering the DNM. 
-	4. 	Window size is an optional argument which is the maximum distance between the DNM and a phasing site. The default value is 1000. 
+	3. 	"bam" is the alignment file (.bam) of the child. 
+	4. 	"window" is an optional argument which is the maximum distance between the DNM and a phasing site. The default value is 1000. 
 
 #### Output
 	DNM_pos 1:182974758     INHERITED G     VARIANT A
@@ -221,5 +236,5 @@ Please feel free to contact the authors about any concerns/comments.
 --indel_mu_scale:        Scaling factor for indel mutation rate. [1]
 --pp_cutoff:     Posterior probability threshold. [0.0001]
 --rd_cutoff:     Read depth filter, sites where either one of the sample have read depth less than this threshold are filtered out. [10
-
+--region: region of the BCF file over which to perform denovo calling. [string of the form "chr:start-end"]
 

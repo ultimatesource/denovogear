@@ -57,8 +57,10 @@ void usage()
   cerr<<"--bcf:\t BCF file, contains per-sample read depths and genotype likelihoods.\n";
   cerr<<"--vcf:\t VCF file, contains per-sample read depths and genotype likelihoods.\n";
   cerr<<"Phaser:\n";
-  cerr<<"--dnm_f: Tab delimited list of denovo mutations to be phased, format: chr pos inherited_base denovo_base.[example: 1 2000 A C]\n";
-  cerr<<"--pgt_f: Tab delimited genotypes of child and parents at SNP sites near denovo sites, format: chr pos GT_child GT_parent1 GT_parent2.[example: 1 2000 AC AC AA]\n";
+  cerr<<"--dnm: Tab delimited list of denovo mutations to be phased, format: chr pos inherited_base denovo_base.[example: 1 2000 A C]\n";
+  cerr<<"--pgt: Tab delimited genotypes of child and parents at SNP sites near denovo sites, format: chr pos GT_child GT_parent1 GT_parent2.[example: 1 2000 AC AC AA]\n";
+  cerr<<"--bam: alignment file (.bam) of the child.\n";
+  cerr<<"--window: optional argument which is the maximum distance between the DNM and a phasing site. The default value is 1000.\n";
   cerr<<"\nOutput:\n";
   cerr<<"--output_vcf:\t vcf file to write the output to.\n";
   cerr<<"\nParameters:\n";
@@ -68,6 +70,7 @@ void usage()
   cerr<<"--indel_mu_scale:\t Scaling factor for indel mutation rate. [1]\n";
   cerr<<"--pp_cutoff:\t Posterior probability threshold. [0.0001]\n";
   cerr<<"--rd_cutoff:\t Read depth filter, sites where either one of the sample have read depth less than this threshold are filtered out. [10]\n";
+  cerr<<"--region:\t Region of the BCF file to perform denovo calling. [string of the form \"chr:start-end\"]\n";
   cerr<<endl;
   exit(1);
 }
@@ -173,7 +176,8 @@ int writeVCFHeader(std::ofstream& fo_vcf, string op_vcf_f, string bcf_file, stri
 }
 
 int callDenovoFromBCF(string ped_file, string bcf_file, 
-		      string op_vcf_f, string model, bool is_vcf)
+		      string op_vcf_f, string model, 
+		      bool is_vcf, string region)
 {
 	
 
@@ -214,13 +218,32 @@ int callDenovoFromBCF(string ped_file, string bcf_file,
   pair_t tumor, normal;	
   bcf_hdr_t *hout, *hin;
   bcf_t *bp = NULL;
+  bcf1_t *b;
+  int tid, begin, end;
   if(!is_vcf) //BCF
     bp = vcf_open(bcf_file.c_str(), "rb");
   else
     bp = vcf_open(bcf_file.c_str(), "r");
   hin = hout = vcf_hdr_read(bp);
-  bcf1_t *b;
   b = static_cast<bcf1_t *> (calloc(1, sizeof(bcf1_t))); 
+  void *str2id = bcf_build_refhash(hout);  
+  if(region != "NULL") {
+    tid = begin = end = -1;
+    if (bcf_parse_region(str2id, region.c_str(), &tid, &begin, &end) >= 0) {
+      bcf_idx_t *idx;
+      idx = bcf_idx_load(bcf_file.c_str());
+      if (idx) {
+	uint64_t off;
+	off = bcf_idx_query(idx, tid, begin);
+	if (off == 0) {
+	  fprintf(stderr, "[%s] no records in the query region.\n", __func__);
+	  return 1; // FIXME: a lot of memory leaks...
+	}
+	bgzf_seek(bp->fp, off, SEEK_SET);
+	bcf_idx_destroy(idx);
+      }
+    }
+  }
   int snp_total_count = 0, snp_pass_count = 0;
   int indel_total_count = 0, indel_pass_count = 0; 
   int pair_total_count = 0, pair_pass_count = 0;
@@ -297,14 +320,14 @@ int mainDNG(int argc, char *argv[])
   string bcf_f = "EMPTY"; // bcf/vcf file
   string op_vcf_f = "EMPTY"; // vcf output -- optional
   bool is_vcf = false;
-
+  string region = "NULL";
   // Read in Command Line arguments
   while (1) {
     int option_index = 0;
     static struct option long_options[] = {{"ped", 1, 0, 0}, 
 					   {"bcf", 1, 0, 1},  {"snp_mrate", 1, 0, 2}, {"indel_mrate", 1, 0, 3}, 
 					   {"poly_rate", 1, 0, 4}, {"pair_mrate", 1, 0, 5}, {"indel_mu_scale", 1, 0, 6}, {"output_vcf", 1, 0, 7},
-					   {"pp_cutoff", 1, 0, 8}, {"rd_cutoff", 1, 0, 9}, {"h", 1, 0, 10}, {"vcf", 1, 0, 11},};
+					   {"pp_cutoff", 1, 0, 8}, {"rd_cutoff", 1, 0, 9}, {"h", 1, 0, 10}, {"vcf", 1, 0, 11}, {"region", 1, 0, 12}};
     int c = getopt_long (argc-1, argv+1, "", long_options, &option_index);
     if (c == -1)
       break;
@@ -315,10 +338,6 @@ int mainDNG(int argc, char *argv[])
 	break;
       case 1:
 	bcf_f = optarg;
-	break;
-      case 11:
-	bcf_f = optarg;
-	is_vcf = true;
 	break;
       case 2:
 	snp_mrate = atof(optarg);
@@ -352,6 +371,16 @@ int mainDNG(int argc, char *argv[])
 	RD_cutoff = atoi(optarg);
 	cerr<<"\nread depth filter: "<<RD_cutoff;
 	break;
+      case 10:
+	usage();
+	break;
+      case 11:
+	bcf_f = optarg;
+	is_vcf = true;
+	break;
+      case 12:
+	region = optarg;
+	break;
       default:
 	usage();
       }
@@ -365,7 +394,7 @@ int mainDNG(int argc, char *argv[])
   	
   // Create lookup table and read ped, BCF files. Separate for autosomes, X in males and X in females.
   if (model ==  "auto" || model == "XS" || model == "XD"){
-    callDenovoFromBCF(ped_f, bcf_f, op_vcf_f, model, is_vcf);
+    callDenovoFromBCF(ped_f, bcf_f, op_vcf_f, model, is_vcf, region);
   }
   else {
     usage();
