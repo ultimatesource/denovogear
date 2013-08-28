@@ -1,3 +1,17 @@
+v0.5.3
+- removed 'X' allele in VCF op. VCF can be indexed by Tabix, IGVTools and used in Annovar.	
+- added region based denovo calling on BCF files, invoked with	--region flag
+- added vcf parser for denovo calling, invoked with --vcf flag
+
+
+v0.5.2
+- Added read-depth, posterior-probability filters.
+- Output number of sites in the BCF and number of sites passing filters.
+- Modified paired caller output.
+
+v0.5.1
+- Fixed bug in triallelic configuration. Some trialleic denovo configurations were being called incorrectly.
+
 ver 0.5.1
 - fixed bug in triallelic denovo configurations.
 

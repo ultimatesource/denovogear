@@ -1,10 +1,10 @@
 Authors: Don Conrad, Avinash Ramu ( aramu at genetics dot wustl dot edu ) and Reed Cartwright.
-Please check http://denovogear.weebly.com for updated documentation.
 
 ## RELEASE NOTES
 v0.5.3
-removed X allele in VCF op
-
+removed 'X' allele in VCF op. VCF can be indexed by Tabix, IGVTools and used in Annovar.
+added region based denovo calling on BCF files, invoked with --region flag
+added vcf parser for denovo calling, invoked with --vcf flag
 
 
 v0.5.2

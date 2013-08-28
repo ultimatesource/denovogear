@@ -12,13 +12,8 @@
 *.a
 
 # Data files
-*.bcf
-*.vcf
 *.glf
 *.sam
-*.bam
-*.bai
-*.bci
 *.fa
 *.fai
 
