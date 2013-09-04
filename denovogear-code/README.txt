@@ -182,7 +182,7 @@ The output format is a single row for each putative paired denovo mutation(DNM),
         13. tgt_dnm(normal/tumor)  - genotypes of the most likely denovo configuration.
         14-15. Read depth of tumor, normal samples. 
         16-17. Root mean square of the mapping qualities of all reads mapping to the site for tumor, normal samples.
-        18-19. null_snpcode, dnm_snpcode - snpcode is a field used to classify the genotype configurations for the null and alternate case. 0 stands for hom/hom, 1 stands for het/hom, 2 stands for hom/het and 3 stands for het/het.
+        18-19. null_snpcode, dnm_snpcode - snpcode is a field used to classify the genotype configurations for the null and alternate case. 1 stands for hom/hom, 2 stands for het/hom, 3 stands for hom/het and 4 stands for het/het.
 
 
 ### PHASER 
