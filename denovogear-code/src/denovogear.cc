@@ -1,4 +1,9 @@
-
+/*
+ * Copyright (c) 2010, 2011 Genome Research Ltd.
+ * Copyright (c) 2012, 2013 Donald Conrad and Washington University in St. Louis
+ * Authors: Donald Conrad <dconrad@genetics.wustl.edu>, 
+ * Avinash Ramu <aramu@genetics.wustl.edu>
+ */
 #include <vector>
 #include <iostream>
 #include <fstream>
