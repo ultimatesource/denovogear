@@ -1,3 +1,23 @@
+/*
+ * Copyright (c) 2010, 2011 Genome Research Ltd.
+ * Copyright (c) 2012, 2013 Donald Conrad and Washington University in St. Louis
+ * Authors: Donald Conrad <dconrad@genetics.wustl.edu>, 
+ * Avinash Ramu <aramu@genetics.wustl.edu>
+ * This file is part of DeNovoGear.
+ *
+ * DeNovoGear is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation; either version 3 of the License, or (at your option) any later
+ * version. 
+ * 
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with 
+ * this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include <vector>
 #include <iostream>
 #include <fstream>
@@ -119,7 +139,7 @@ void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag,
 
 
   	cout<<"DENOVO-INDEL child id: "<<child->id;
-  	cout<<" ref_name: "<<ref_name<<" coor: "<<coor<<" ref_base: "<<mom->ref_base<<" ALT: "<<alt;
+  	cout<<" chr: "<<ref_name<<" pos: "<<coor<<" ref: "<<mom->ref_base<<" alt: "<<alt;
   	cout<<" maxlike_null: "<<maxlike_null<<" pp_null: "<<pp_null<<" tgt: "<<tgtIndel[i-1][j-1];
   	cout<<" snpcode: "<<lookupIndel.snpcode(i,j)<<" code: "<<lookupIndel.code(i,j);
   	cout<<" maxlike_dnm: "<<maxlike_denovo<<" pp_dnm: "<<pp_denovo;
