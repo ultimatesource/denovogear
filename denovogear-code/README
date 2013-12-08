@@ -1,6 +1,10 @@
 Authors: Don Conrad, Avinash Ramu ( aramu at genetics dot wustl dot edu ) and Reed A. Cartwright.
 
 ## RELEASE NOTES
+v0.5.4
+added GPL v3
+updated output fields for indels, snps to be the same 
+
 v0.5.3
 removed 'X' allele in VCF op. VCF can be indexed by Tabix, IGVTools and used in Annovar.
 added region based denovo calling on BCF files, invoked with --region flag
