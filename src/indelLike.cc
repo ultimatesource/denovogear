@@ -1,20 +1,20 @@
 /*
  * Copyright (c) 2010, 2011 Genome Research Ltd.
  * Copyright (c) 2012, 2013 Donald Conrad and Washington University in St. Louis
- * Authors: Donald Conrad <dconrad@genetics.wustl.edu>, 
+ * Authors: Donald Conrad <dconrad@genetics.wustl.edu>,
  * Avinash Ramu <aramu@genetics.wustl.edu>
  * This file is part of DeNovoGear.
  *
  * DeNovoGear is free software: you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation; either version 3 of the License, or (at your option) any later
- * version. 
- * 
+ * version.
+ *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along with 
+ * You should have received a copy of the GNU General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
@@ -40,12 +40,12 @@ const float DELETION_INTERCEPT = -21.9313;
 using namespace std;
 
 // Calculate DNM and Null PP
-void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag, 
-                     vector<vector<string > > & tgtIndel, 
-                     lookup_indel_t & lookupIndel, double mu_scale, 
-                     string op_vcf_f, ofstream& fo_vcf, double pp_cutoff, 
+void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag,
+                     vector<vector<string > > & tgtIndel,
+                     lookup_indel_t & lookupIndel, double mu_scale,
+                     string op_vcf_f, ofstream& fo_vcf, double pp_cutoff,
                      int RD_cutoff, int& n_site_pass)
-{  
+{
   // Read depth filter
   if (child->depth < RD_cutoff ||
     mom->depth < RD_cutoff || dad->depth < RD_cutoff) {
@@ -53,8 +53,8 @@ void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag,
   }
 
   n_site_pass += 1;
-  Real a[3];   
-  Real maxlike_null,maxlike_denovo,pp_null,pp_denovo,denom;       
+  Real a[3];
+  Real maxlike_null,maxlike_denovo,pp_null,pp_denovo,denom;
   Matrix M(1,3);
   Matrix C(3,1);
   Matrix D(3,1);
@@ -85,20 +85,20 @@ void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag,
 
   // mu_scale is the variable used to scale the mutation rate prior
   double log_indel_mrate, indel_mrate, new_indel_mrate;
-  if(is_insertion) 
-    log_indel_mrate = mu_scale * (INSERTION_SLOPE*len_diff + INSERTION_INTERCEPT); 
+  if(is_insertion)
+    log_indel_mrate = mu_scale * (INSERTION_SLOPE*len_diff + INSERTION_INTERCEPT);
   else
-    log_indel_mrate = mu_scale * (DELETION_SLOPE*len_diff + DELETION_INTERCEPT); 
+    log_indel_mrate = mu_scale * (DELETION_SLOPE*len_diff + DELETION_INTERCEPT);
 	indel_mrate = exp(log_indel_mrate); // antilog of log ratio
-	
+
 	for (int j = 1; j <= 9; j++) {
 		for (int l = 1; l <= 3; l++) {
 			new_indel_mrate = pow(indel_mrate, lookupIndel.hit(j,l)); // hit is 0,1 or 2 (number of indels in the trio config)
-			lookupIndel.mrate(j,l) = new_indel_mrate; 
+			lookupIndel.mrate(j,l) = new_indel_mrate;
 		}
-  } 
+  }
 
-  //Load likelihood vectors    
+  //Load likelihood vectors
   for (j = 0; j != 3; ++j) a[j]=pow(10,-mom->lk[j]/10.);
     M<<a;
   for (j = 0; j != 3; ++j) a[j]=pow(10,-dad->lk[j]/10.);
@@ -106,22 +106,22 @@ void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag,
   for (j = 0; j != 3; ++j) a[j]=pow(10,-child->lk[j]/10.);
     C<<a;
 
-  P = KP(M,D);    
-  F = KP(P,C);    
-  // combine with transmission probs 
-  T = SP(F,lookupIndel.tp); 
+  P = KP(M,D);
+  F = KP(P,C);
+  // combine with transmission probs
+  T = SP(F,lookupIndel.tp);
   // combine with priors
   L = SP(T, lookupIndel.priors);
   // combine with mutation rate
-  DN = SP(L,lookupIndel.mrate);    
-  
+  DN = SP(L,lookupIndel.mrate);
+
   // Find max likelihood of null configuration
   PP = SP(DN,lookupIndel.norm);   //zeroes out configurations with mendelian error
-  maxlike_null = PP.maximum2(i,j);       
+  maxlike_null = PP.maximum2(i,j);
 
   //Find max likelihood of de novo trio configuration
   PP = SP(DN,lookupIndel.denovo);   //zeroes out configurations with mendelian inheritance
-  maxlike_denovo = PP.maximum2(k,l); 
+  maxlike_denovo = PP.maximum2(k,l);
 
   //make proper posterior probs
   denom = DN.sum();
@@ -132,7 +132,7 @@ void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag,
   if ( pp_denovo > pp_cutoff ) {
 
     //remove ",X" from alt, helps with VCF op.
-    string alt = mom->alt;  
+    string alt = mom->alt;
     size_t start = alt.find(",X");
     if(start != std::string::npos)
         alt.replace(start, 2, "");
@@ -157,12 +157,12 @@ void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag,
       fo_vcf<<"0\t";// Quality of the Call
       fo_vcf<<"PASS\t";// passed the read depth filter
       fo_vcf<<"RD_MOM="<<mom->depth<<";RD_DAD="<<dad->depth;
-      fo_vcf<<";MQ_MOM="<<mom->rms_mapQ<<";MQ_DAD="<<dad->rms_mapQ;  
+      fo_vcf<<";MQ_MOM="<<mom->rms_mapQ<<";MQ_DAD="<<dad->rms_mapQ;
       fo_vcf<<";INDELcode="<<lookupIndel.snpcode(i,j)<<";\t";
       fo_vcf<<"NULL_CONFIG(child/mom/dad):PP_NULL:DNM_CONFIG(child/mom/dad):PP_DNM:RD:MQ\t";
-      fo_vcf<<tgtIndel[i-1][j-1]<<":"<<pp_null<<":"; 
-      fo_vcf<<tgtIndel[k-1][l-1]<<":"<<pp_denovo<<":"<<child->depth<<":"<<child->rms_mapQ; 
+      fo_vcf<<tgtIndel[i-1][j-1]<<":"<<pp_null<<":";
+      fo_vcf<<tgtIndel[k-1][l-1]<<":"<<pp_denovo<<":"<<child->depth<<":"<<child->rms_mapQ;
       fo_vcf<<"\n";
     }
-  }    
+  }
 }

@@ -104,8 +104,8 @@ int callMakeSNPLookup(vector<vector<string > >& tgtSNP, lookup_snp_t& lookupSNP,
     tmp.push_back("NA");
   for (int l=0; l<100; l++)
     tgtSNP.push_back(tmp);
-  
-  
+
+
   if (model == "auto") makeSNPLookup(snp_mrate, poly_rate, tgtSNP, lookupSNP);
   else if (model == "XS") makeXSSNPLookup(snp_mrate, poly_rate, tgtSNP, lookupSNP);
   else if (model == "XD") makeXDSNPLookup(snp_mrate, poly_rate, tgtSNP, lookupSNP);
@@ -113,7 +113,7 @@ int callMakeSNPLookup(vector<vector<string > >& tgtSNP, lookup_snp_t& lookupSNP,
     cerr<<endl<<"Invalid model for SNP lookup, exiting.";
     exit(1);
   }
-  
+
   cerr<<"\nCreated SNP lookup table\n";
   cerr <<" First mrate: "<< lookupSNP.mrate(1,1) <<" last: "<< lookupSNP.mrate(100,10)<<endl;
   cerr <<" First code: "<< lookupSNP.code(1,1) <<" last: "<< lookupSNP.code(100,10)<<endl;
@@ -129,7 +129,7 @@ int callMakeINDELLookup(vector<vector<string > >& tgtIndel, lookup_indel_t& look
     tmp.push_back("NA");
   for (int l=0; l<9; l++)
     tgtIndel.push_back(tmp);
-  
+
 
   if (model == "auto") makeIndelLookup(indel_mrate, poly_rate, tgtIndel, lookupIndel);
   else if (model == "XS")	makeXSIndelLookup(indel_mrate, poly_rate, tgtIndel, lookupIndel);
@@ -138,11 +138,11 @@ int callMakeINDELLookup(vector<vector<string > >& tgtIndel, lookup_indel_t& look
     cerr<<endl<<"Invalid model for INDEL lookup, exiting.";
     exit(1);
   }
-  
+
   cerr<<"\nCreated indel lookup table";
   cerr <<" First code: "<< lookupIndel.code(1,1) <<" last: "<< lookupIndel.code(9,3)<<endl;
   cerr <<" First target string: "<< tgtIndel[0][0] <<" last: "<< tgtIndel[8][2] <<endl;
-  cerr <<" First prior: "<< lookupIndel.priors(1,1) <<" last: "<< lookupIndel.priors(9,3) <<endl;	
+  cerr <<" First prior: "<< lookupIndel.priors(1,1) <<" last: "<< lookupIndel.priors(9,3) <<endl;
   return 0;
 }
 
@@ -163,7 +163,7 @@ int callMakePairedLookup(vector<vector<string > >& tgtPair, lookup_pair_t& looku
 int writeVCFHeader(std::ofstream& fo_vcf, string op_vcf_f, string bcf_file, string ped_file, string sample)
 {
   fo_vcf.open(op_vcf_f.c_str());
-  if(fo_vcf == NULL) { 
+  if(fo_vcf == NULL) {
     cerr<<"Unable to open vcf file for writing output. Exiting !"<<endl;
   }
   fo_vcf<<"##fileformat=VCFv4.1\n";
@@ -197,26 +197,26 @@ int writeVCFHeader(std::ofstream& fo_vcf, string op_vcf_f, string bcf_file, stri
   return 0;
 }
 
-int callDenovoFromBCF(string ped_file, string bcf_file, 
-		      string op_vcf_f, string model, 
+int callDenovoFromBCF(string ped_file, string bcf_file,
+		      string op_vcf_f, string model,
 		      bool is_vcf, string region)
 {
-	
+
 
   // Create SNP lookup
   lookup_snp_t lookupSNP;
   vector<vector<string > > tgtSNP;
-  callMakeSNPLookup(tgtSNP, lookupSNP, model);	
+  callMakeSNPLookup(tgtSNP, lookupSNP, model);
 
   // Create INDEL lookup
   lookup_indel_t lookupIndel;
   vector<vector<string > > tgtIndel;
-  callMakeINDELLookup(tgtIndel, lookupIndel, model);    
-    
+  callMakeINDELLookup(tgtIndel, lookupIndel, model);
+
   // Create paired lookup
   lookup_pair_t lookupPair;
   vector<vector<string > > tgtPair;
-  callMakePairedLookup(tgtPair, lookupPair); 
+  callMakePairedLookup(tgtPair, lookupPair);
 
   // Iterate each position of BCF file
   Trio* trios;
@@ -234,10 +234,10 @@ int callDenovoFromBCF(string ped_file, string bcf_file,
   if(op_vcf_f != "EMPTY") {
   	writeVCFHeader(fo_vcf, op_vcf_f, bcf_file, ped_file, sample);
   }
-  	
+
   qcall_t mom_snp, dad_snp, child_snp;
   indel_t mom_indel, dad_indel, child_indel;
-  pair_t tumor, normal;	
+  pair_t tumor, normal;
   bcf_hdr_t *hout, *hin;
   bcf_t *bp = NULL;
   bcf1_t *b;
@@ -247,8 +247,8 @@ int callDenovoFromBCF(string ped_file, string bcf_file,
   else
     bp = vcf_open(bcf_file.c_str(), "r");
   hin = hout = vcf_hdr_read(bp);
-  b = static_cast<bcf1_t *> (calloc(1, sizeof(bcf1_t))); 
-  void *str2id = bcf_build_refhash(hout);  
+  b = static_cast<bcf1_t *> (calloc(1, sizeof(bcf1_t)));
+  void *str2id = bcf_build_refhash(hout);
   if(region != "NULL") {
     tid = begin = end = -1;
     if (bcf_parse_region(str2id, region.c_str(), &tid, &begin, &end) >= 0) {
@@ -267,7 +267,7 @@ int callDenovoFromBCF(string ped_file, string bcf_file,
     }
   }
   int snp_total_count = 0, snp_pass_count = 0;
-  int indel_total_count = 0, indel_pass_count = 0; 
+  int indel_total_count = 0, indel_pass_count = 0;
   int pair_total_count = 0, pair_pass_count = 0;
 
   while ( vcf_read(bp, hin, b) > 0 ) {
@@ -275,42 +275,42 @@ int callDenovoFromBCF(string ped_file, string bcf_file,
     //printf("Position Number %d", pos++);
     // PROCESS TRIOS
     for ( j=0; j<trio_count; j++) {
-      int is_indel = bcf_2qcall(hout, b, trios[j],  &mom_snp, &dad_snp, 
-				&child_snp, &mom_indel, &dad_indel, 
+      int is_indel = bcf_2qcall(hout, b, trios[j],  &mom_snp, &dad_snp,
+				&child_snp, &mom_indel, &dad_indel,
 				&child_indel, flag);
       if (is_indel == 0) {
-	snp_total_count++;			
-	trio_like_snp(child_snp, mom_snp, dad_snp, flag, 
-		      tgtSNP, lookupSNP, op_vcf_f, fo_vcf, 
-		      PP_cutoff, RD_cutoff, snp_pass_count);   			
-      }   
+	snp_total_count++;
+	trio_like_snp(child_snp, mom_snp, dad_snp, flag,
+		      tgtSNP, lookupSNP, op_vcf_f, fo_vcf,
+		      PP_cutoff, RD_cutoff, snp_pass_count);
+      }
       else if ( is_indel == 1 ) {
 	indel_total_count++;
-	trio_like_indel(&child_indel, &mom_indel, &dad_indel, flag, 
-			tgtIndel, lookupIndel, mu_scale, op_vcf_f, fo_vcf, 
-			PP_cutoff, RD_cutoff, indel_pass_count);    
+	trio_like_indel(&child_indel, &mom_indel, &dad_indel, flag,
+			tgtIndel, lookupIndel, mu_scale, op_vcf_f, fo_vcf,
+			PP_cutoff, RD_cutoff, indel_pass_count);
       }
       else if ( is_indel < 0 ) {
 	printf("\n BCF PARSING ERROR - Trios!  %d\n Exiting !\n", is_indel);
 	exit(1);
       }
     }
-		  
+
     // PROCESS  PAIRS
     if(model == "auto") { // paired sample model not developed for XS, XD yet
       for ( j=0; j<pair_count; j++) {
 	int is_indel = bcf2Paired (hout, b, pairs[j], &tumor, &normal, flag);
 	if ( is_indel == 0 ) {
 	  pair_total_count++;
-	  pair_like (tumor, normal, tgtPair, lookupPair, flag, op_vcf_f, fo_vcf, 
-		     PP_cutoff, RD_cutoff, pair_pass_count);    
-	}	
+	  pair_like (tumor, normal, tgtPair, lookupPair, flag, op_vcf_f, fo_vcf,
+		     PP_cutoff, RD_cutoff, pair_pass_count);
+	}
 	else if ( is_indel < 0 ) {
 	  printf("\n BCF PARSING ERROR - Paired Sample!  %d\n Exiting !\n", is_indel);
 	  exit(1);
-	}	
-      } 
-    } 				  
+	}
+      }
+    }
   }
 
 
@@ -336,7 +336,7 @@ int mainDNG(int argc, char *argv[])
   string model;
   if(argc > 1)
     model = argv[1];
-  else 
+  else
     usage();
   string ped_f = "EMPTY"; // ped file
   string bcf_f = "EMPTY"; // bcf/vcf file
@@ -346,15 +346,15 @@ int mainDNG(int argc, char *argv[])
   // Read in Command Line arguments
   while (1) {
     int option_index = 0;
-    static struct option long_options[] = {{"ped", 1, 0, 0}, 
-					   {"bcf", 1, 0, 1},  {"snp_mrate", 1, 0, 2}, {"indel_mrate", 1, 0, 3}, 
+    static struct option long_options[] = {{"ped", 1, 0, 0},
+					   {"bcf", 1, 0, 1},  {"snp_mrate", 1, 0, 2}, {"indel_mrate", 1, 0, 3},
 					   {"poly_rate", 1, 0, 4}, {"pair_mrate", 1, 0, 5}, {"indel_mu_scale", 1, 0, 6}, {"output_vcf", 1, 0, 7},
 					   {"pp_cutoff", 1, 0, 8}, {"rd_cutoff", 1, 0, 9}, {"h", 1, 0, 10}, {"vcf", 1, 0, 11}, {"region", 1, 0, 12}};
     int c = getopt_long (argc-1, argv+1, "", long_options, &option_index);
     if (c == -1)
       break;
-    switch(c) 
-      {      
+    switch(c)
+      {
       case 0:
 	ped_f = optarg;
 	break;
@@ -407,13 +407,13 @@ int mainDNG(int argc, char *argv[])
 	usage();
       }
   }
-  
+
   if ((bcf_f == "EMPTY") || (ped_f == "EMPTY")) {
     cerr<<"ERROR ! Please specify both the PED file and BCF file !"
       "Exiting!\n";
     usage();
-  }  
-  	
+  }
+
   // Create lookup table and read ped, BCF files. Separate for autosomes, X in males and X in females.
   if (model ==  "auto" || model == "XS" || model == "XD"){
     callDenovoFromBCF(ped_f, bcf_f, op_vcf_f, model, is_vcf, region);
@@ -435,4 +435,5 @@ int main(int argc, char* argv[])
 	usage();
 	return 0;
 }
+
 

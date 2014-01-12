@@ -1,20 +1,20 @@
 /*
  * Copyright (c) 2010, 2011 Genome Research Ltd.
  * Copyright (c) 2012, 2013 Donald Conrad and Washington University in St. Louis
- * Authors: Donald Conrad <dconrad@genetics.wustl.edu>, 
+ * Authors: Donald Conrad <dconrad@genetics.wustl.edu>,
  * Avinash Ramu <aramu@genetics.wustl.edu>
  * This file is part of DeNovoGear.
  *
  * DeNovoGear is free software: you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation; either version 3 of the License, or (at your option) any later
- * version. 
- * 
+ * version.
+ *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along with 
+ * You should have received a copy of the GNU General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
@@ -34,8 +34,8 @@
 using namespace std;
 
 // Calculate Pair PP
-void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair, 
-	       lookup_pair_t & lookupPair, int flag, string op_vcf_f, ofstream& fo_vcf, 
+void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
+	       lookup_pair_t & lookupPair, int flag, string op_vcf_f, ofstream& fo_vcf,
          double pp_cutoff, int RD_cutoff, int& n_site_pass)
 {
   // Filter low read depths
@@ -43,24 +43,24 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
     return;
   }
   n_site_pass += 1;
-  Real a[10];   
-  Real maxlike_null, maxlike_denovo, pp_null, pp_denovo, denom;   
+  Real a[10];
+  Real maxlike_null, maxlike_denovo, pp_null, pp_denovo, denom;
   Matrix N(1,10);
   Matrix T(10,1);
   Matrix P(10,10);
   Matrix DN(10,10);
   Matrix PP(100,10);
-  int i,j,k,l;  
+  int i,j,k,l;
   int coor = tumor.pos;
   char ref_name[50];
   strcpy( ref_name, tumor.chr); // Name of the reference sequence
-    
-  //Load Likelihood matrices L(D|Gt) and L(D|Gn) 
-  for (j = 0; j != 10; ++j)	
-  	a[j]=pow(10, -normal.lk[j]/10.); 
+
+  //Load Likelihood matrices L(D|Gt) and L(D|Gn)
+  for (j = 0; j != 10; ++j)
+  	a[j]=pow(10, -normal.lk[j]/10.);
   N<<a;
-  
-  for (j = 0; j != 10; ++j) 
+
+  for (j = 0; j != 10; ++j)
   	a[j] = pow(10, -tumor.lk[j]/10.);
   T<<a;
 
@@ -71,22 +71,22 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
 
   // Find max likelihood of null configuration
   PP = SP(DN, lookupPair.norm);   //zeroes out configurations with mendelian error
-  maxlike_null = PP.maximum2(i,j);   
-  
+  maxlike_null = PP.maximum2(i,j);
+
   // Find max likelihood of de novo trio configuration
   PP = SP(DN, lookupPair.denovo);   //zeroes out configurations with mendelian inheritance
-  maxlike_denovo = PP.maximum2(k,l); 
+  maxlike_denovo = PP.maximum2(k,l);
 
   denom = DN.sum();
 
   pp_denovo = maxlike_denovo / denom; // denovo posterior probability
   pp_null = 1 - pp_denovo; // null posterior probability
 
-  // Check for PP cutoff 
+  // Check for PP cutoff
   if ( pp_denovo > pp_cutoff ) {
-    
+
     //remove ",X" from alt, helps with VCF op.
-    string alt = tumor.alt;  
+    string alt = tumor.alt;
     size_t start = alt.find(",X");
     if(start != std::string::npos)
         alt.replace(start, 2, "");
@@ -111,11 +111,11 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
       fo_vcf<<"0\t";// Quality of the Call
       fo_vcf<<"PASS\t";// passed the read depth filter
       fo_vcf<<"RD_NORMAL="<<normal.depth;
-      fo_vcf<<";MQ_NORMAL="<<normal.rms_mapQ<<";\t";  
+      fo_vcf<<";MQ_NORMAL="<<normal.rms_mapQ<<";\t";
       fo_vcf<<"NULL_CONFIG(normal/tumor):pair_null_code:PP_NULL:DNM_CONFIG(normal/tumor):pair_denovo_code:PP_DNM:RD_T:MQ_T\t";
       fo_vcf<<tgtPair[i-1][j-1]<<":"<<lookupPair.snpcode(i, j)<<":"<<pp_null<<":";
-      fo_vcf<<tgtPair[k-1][l-1]<<":"<<lookupPair.snpcode(k, l)<<":"<<pp_denovo<<":"<<tumor.depth<<":"<<tumor.rms_mapQ; 
+      fo_vcf<<tgtPair[k-1][l-1]<<":"<<lookupPair.snpcode(k, l)<<":"<<pp_denovo<<":"<<tumor.depth<<":"<<tumor.rms_mapQ;
       fo_vcf<<"\n";
-    }    
+    }
   }
 }

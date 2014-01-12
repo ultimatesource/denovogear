@@ -1,20 +1,20 @@
 /*
  * Copyright (c) 2010, 2011 Genome Research Ltd.
  * Copyright (c) 2012, 2013 Donald Conrad and Washington University in St. Louis
- * Authors: Donald Conrad <dconrad@genetics.wustl.edu>, 
+ * Authors: Donald Conrad <dconrad@genetics.wustl.edu>,
  * Avinash Ramu <aramu@genetics.wustl.edu>
  * This file is part of DeNovoGear.
  *
  * DeNovoGear is free software: you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
  * Foundation; either version 3 of the License, or (at your option) any later
- * version. 
- * 
+ * version.
+ *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along with 
+ * You should have received a copy of the GNU General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
@@ -34,10 +34,10 @@
 
 #define MIN_READ_DEPTH 10
 #define MIN_READ_DEPTH_INDEL 10
-#define MIN_MAPQ 40 
+#define MIN_MAPQ 40
 
 
-void writeToSNPObject(qcall_t* mom_snp, bcf1_t *b, bcf_hdr_t* h, int* g, int d, int mq, int& flag, int i, int i0) 
+void writeToSNPObject(qcall_t* mom_snp, bcf1_t *b, bcf_hdr_t* h, int* g, int d, int mq, int& flag, int i, int i0)
 {
     strcpy( mom_snp->chr, h->ns[b->tid] );
     mom_snp->pos = b->pos+1;
@@ -54,13 +54,13 @@ void writeToSNPObject(qcall_t* mom_snp, bcf1_t *b, bcf_hdr_t* h, int* g, int d, 
     }
     for (int j = 0; j < 10; ++j)
       mom_snp->lk[j] = g[j];
-    if (mom_snp->rms_mapQ < MIN_MAPQ || mom_snp->depth < MIN_READ_DEPTH) 
+    if (mom_snp->rms_mapQ < MIN_MAPQ || mom_snp->depth < MIN_READ_DEPTH)
       flag =1;
-    //printf("\nSNP mom position %d depth %d", b->pos+1, mom_snp->depth); 
+    //printf("\nSNP mom position %d depth %d", b->pos+1, mom_snp->depth);
 }
 
 
-void writeToIndelObject(indel_t* mom_indel, bcf1_t *b, bcf_hdr_t* h, int* g, int d, int mq, int& flag, int i, int i0) 
+void writeToIndelObject(indel_t* mom_indel, bcf1_t *b, bcf_hdr_t* h, int* g, int d, int mq, int& flag, int i, int i0)
 {
   uint8_t *likl = static_cast<uint8_t *>(static_cast<uint8_t *>(b->gi[i0].data) + i * b->gi[i0].len);
   strcpy( mom_indel->chr, h->ns[b->tid] );
@@ -79,29 +79,29 @@ void writeToIndelObject(indel_t* mom_indel, bcf1_t *b, bcf_hdr_t* h, int* g, int
   }
   for (int j = 0; j < 3; ++j) // R/R, R/A and A/A
     mom_indel->lk[j] = likl[j];
-  if (mom_indel->rms_mapQ < MIN_MAPQ || mom_indel->depth < MIN_READ_DEPTH) 
+  if (mom_indel->rms_mapQ < MIN_MAPQ || mom_indel->depth < MIN_READ_DEPTH)
     flag =1;
-  //printf("\nINDEL mom position: %d id: %s depth: %d lik: %d, %d, %d", b->pos+1,  mom_indel->id, d,  likl[0], likl[1], likl[2]); 
+  //printf("\nINDEL mom position: %d id: %s depth: %d lik: %d, %d, %d", b->pos+1,  mom_indel->id, d,  likl[0], likl[1], likl[2]);
 }
 
 
 
 static int8_t nt4_table[256] = {
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
 	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4 /*'-'*/, 4, 4,
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  3, 4, 4, 4, -1, 4, 4, 4,  4, 4, 4, 4, 
-	4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  3, 4, 4, 4, -1, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
-	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4, 
+	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+	4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, 4, 4,
+	4, 4, 4, 4,  3, 4, 4, 4, -1, 4, 4, 4,  4, 4, 4, 4,
+	4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, 4, 4,
+	4, 4, 4, 4,  3, 4, 4, 4, -1, 4, 4, 4,  4, 4, 4, 4,
+	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
 	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4
 };
 
@@ -125,17 +125,17 @@ int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t* mom_snp, qcall_t* dad_s
 {
 	int a[4], k, g[10], l, map[4], k1, l1, j, i, i0, anno[16], dp, mq, d_rest, indel = 0, found_trio = 3;
 	char *s;
-	if (bcf_is_indel(b)) { 
+	if (bcf_is_indel(b)) {
 		//printf("\nINDEL position %d", b->pos+1);
 		indel = 1;
 	}
 	if (b->ref[1] != 0 || b->n_alleles > 4) { // ref is not a single base ***
 		//return 10;
-	} 
+	}
 	for (i = 0; i < b->n_gi; ++i)
 		if (b->gi[i].fmt == bcf_str2int("PL", 2)) break;
 	if (i == b->n_gi) return -6; // no PL ***
-	if (read_I16(b, anno) != 0) { 
+	if (read_I16(b, anno) != 0) {
 	  //return -7; // no I16; FIXME: can be improved ***
 	  d_rest = 0;
 	}
@@ -145,16 +145,16 @@ int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t* mom_snp, qcall_t* dad_s
 	mq = (int)(sqrt((double)(anno[9] + anno[11]) / dp) + .499);
 	i0 = i;
 	a[0] = nt4_table[(int)b->ref[0]];
-	if (a[0] > 3) { // ref is not A/C/G/T *** 
-		return 10; 
+	if (a[0] > 3) { // ref is not A/C/G/T ***
+		return 10;
 	}
 	a[1] = a[2] = a[3] = -2; // -1 has a special meaning
 	if (b->alt[0] == 0) return -11; // no alternate allele ***
 	map[0] = map[1] = map[2] = map[3] = -2;
 	map[a[0]] = 0;
 	for (k = 0, s = b->alt, k1 = -1; k < 3 && *s; ++k, s += 2) {
-		if (s[1] != ',' && s[1] != 0)  { // ALT is not single base *** 
-			//return 10; 
+		if (s[1] != ',' && s[1] != 0)  { // ALT is not single base ***
+			//return 10;
 		}
 		a[k+1] = nt4_table[(int)*s];
 		if (a[k+1] >= 0) map[a[k+1]] = k+1;
@@ -163,8 +163,8 @@ int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t* mom_snp, qcall_t* dad_s
 	}
 	for (k = 0; k < 4; ++k)
 		if (map[k] < 0) map[k] = k1;
-		
-		
+
+
 	for (i = 0; i < h->n_smpl; ++i) {	//Iterate through all samples
 		int d;
 		uint8_t *p = static_cast<uint8_t *>(static_cast<uint8_t *>(b->gi[i0].data) + i * b->gi[i0].len);
@@ -181,47 +181,47 @@ int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t* mom_snp, qcall_t* dad_s
 				g[j++] = p[y * (y+1) / 2 + x];
 			}
 		}
-				
+
 		//found Mom
 		if(strcmp(t.mID, h->sns[i]) == 0) {
 			found_trio--;
-			if(indel == 0) { 
-			  writeToSNPObject(mom_snp, b, h, g, d, mq, flag, i, i0); 
+			if(indel == 0) {
+			  writeToSNPObject(mom_snp, b, h, g, d, mq, flag, i, i0);
 			}
 			else {
-			  writeToIndelObject(mom_indel, b, h, g, d, mq, flag, i, i0); 
+			  writeToIndelObject(mom_indel, b, h, g, d, mq, flag, i, i0);
 			}
-		} 
+		}
 
 		//found Dad
 		if(strcmp(t.dID, h->sns[i]) == 0) {
 			found_trio--;
-			if(indel == 0) { 
-			  writeToSNPObject(dad_snp, b, h, g, d, mq, flag, i, i0); 
+			if(indel == 0) {
+			  writeToSNPObject(dad_snp, b, h, g, d, mq, flag, i, i0);
 			}
 			else {
-			  writeToIndelObject(dad_indel, b, h, g, d, mq, flag, i, i0); 
+			  writeToIndelObject(dad_indel, b, h, g, d, mq, flag, i, i0);
 			}
-		} 
+		}
 
 		//found Child
 		if( strcmp(t.cID, h->sns[i]) == 0) {
 			found_trio--;
-			if( indel == 0 ) { 
-			  writeToSNPObject(child_snp, b, h, g, d, mq, flag, i, i0); 
+			if( indel == 0 ) {
+			  writeToSNPObject(child_snp, b, h, g, d, mq, flag, i, i0);
 			}
 			else {
-			  writeToIndelObject(child_indel, b, h, g, d, mq, flag, i, i0); 
+			  writeToIndelObject(child_indel, b, h, g, d, mq, flag, i, i0);
 			}
-		} 
+		}
 	}
-	
+
 	//found entire trio, return
-	if ( found_trio == 0 ) { 
+	if ( found_trio == 0 ) {
 		return indel;
 	} else {
 		printf("\n\nUnable to find trio. Code %d:%d ", found_trio, i);
-		return -3; //missing member	
+		return -3; //missing member
 	}
-	
+
 }
