@@ -55,7 +55,7 @@ int RD_cutoff = 10; // cutoff for the read depth filter
 double PP_cutoff = 0.0001; // posterior probability cutoff
 
 
-double indel_mrate = 1e-9; // indel mutation prior
+double indel_mrate = 0; // indel mutation prior is based on a log linear model unless specified by the user.
 double snp_mrate = 1e-8; // snp mutation prior
 double poly_rate = 1e-3; // polymorphism rate - used in prior calculations
 double pair_mrate = 1e-9; // mutation prior for paired samples
@@ -131,9 +131,9 @@ int callMakeINDELLookup(vector<vector<string > >& tgtIndel, lookup_indel_t& look
     tgtIndel.push_back(tmp);
 
 
-  if (model == "auto") makeIndelLookup(indel_mrate, poly_rate, tgtIndel, lookupIndel);
-  else if (model == "XS")	makeXSIndelLookup(indel_mrate, poly_rate, tgtIndel, lookupIndel);
-  else if (model == "XD") makeXDIndelLookup(indel_mrate, poly_rate, tgtIndel, lookupIndel);
+  if (model == "auto") makeIndelLookup(poly_rate, tgtIndel, lookupIndel);
+  else if (model == "XS")	makeXSIndelLookup(poly_rate, tgtIndel, lookupIndel);
+  else if (model == "XD") makeXDIndelLookup(poly_rate, tgtIndel, lookupIndel);
   else {
     cerr<<endl<<"Invalid model for INDEL lookup, exiting.";
     exit(1);

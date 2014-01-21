@@ -44,7 +44,7 @@ void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag,
                      vector<vector<string > > & tgtIndel,
                      lookup_indel_t & lookupIndel, double mu_scale,
                      string op_vcf_f, ofstream& fo_vcf, double pp_cutoff,
-                     int RD_cutoff, int& n_site_pass)
+                     int RD_cutoff, int& n_site_pass, double user_indel_mrate)
 {
   // Read depth filter
   if (child->depth < RD_cutoff ||
@@ -86,12 +86,19 @@ void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag,
   // mu_scale is the variable used to scale the mutation rate prior
   double log_indel_mrate, indel_mrate, new_indel_mrate;
   if(is_insertion)
-    log_indel_mrate = mu_scale * (INSERTION_SLOPE*len_diff + INSERTION_INTERCEPT);
+    log_indel_mrate = (INSERTION_SLOPE*len_diff + INSERTION_INTERCEPT);
   else
-    log_indel_mrate = mu_scale * (DELETION_SLOPE*len_diff + DELETION_INTERCEPT);
-	indel_mrate = exp(log_indel_mrate); // antilog of log ratio
+    log_indel_mrate = (DELETION_SLOPE*len_diff + DELETION_INTERCEPT);
+	indel_mrate = exp(log_indel_mrate);// antilog of log ratio
 
-	for (int j = 1; j <= 9; j++) {
+	//use user supplied indel mrate if this is not the default value.
+  if(user_indel_mrate != 0) {
+    indel_mrate = user_indel_mrate;
+  }
+
+  indel_mrate = mu_scale * indel_mrate;
+
+  for (int j = 1; j <= 9; j++) {
 		for (int l = 1; l <= 3; l++) {
 			new_indel_mrate = pow(indel_mrate, lookupIndel.hit(j,l)); // hit is 0,1 or 2 (number of indels in the trio config)
 			lookupIndel.mrate(j,l) = new_indel_mrate;

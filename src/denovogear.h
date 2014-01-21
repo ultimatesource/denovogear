@@ -54,7 +54,7 @@ void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag,
                      vector<vector<string > > & tgtIndel,
                      lookup_indel_t & lookupIndel, double mu_scale,
                      string op_vcf_f, ofstream& fo_vcf, double pp_cutoff,
-                     int RD_cutoff, int& n_site_pass);
+                     int RD_cutoff, int& n_site_pass, double user_indel_mrate);
 
 // Calculate Pair PP
 void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,

@@ -54,7 +54,6 @@ using namespace std;
 
 const double g_kMinLike = 1e-26; // Minimum Likelihood value
 double g_Mrate = 0; // SNP mutation rate
-double g_IndelMrate = 0; // Indel mutation rate
 const double g_kIndelFDR = 0.05;
 double g_PolyRate = 0;
 double g_t_prob, g_priors[4], g_kDenovorate;
@@ -238,9 +237,9 @@ void getIndelPriors(string g_gts, int n_uniqa, int is_X)
 	}
 
 	// For the X, the priors are 3/4th of the autosomes
-    if(is_X)
-    	for (int i=0; i<4; i++)
-    		g_priors[i] = 0.75 * g_priors[i];
+  if(is_X)
+    for (int i=0; i<4; i++)
+      g_priors[i] = 0.75 * g_priors[i];
 
 }
 
@@ -338,7 +337,7 @@ void getSNPPriors(string g_gts, int n_uniqa, int is_X)
 }
 
 // Make Indel lookup table
-void makeIndelLookup(double IndelMrate, double PolyRate,
+void makeIndelLookup(double PolyRate,
 	vector<vector<string > > & tgt, lookup_indel_t & lookupIndel)
 {
 	#ifdef LOOKUP_ENABLED
@@ -346,7 +345,6 @@ void makeIndelLookup(double IndelMrate, double PolyRate,
 	#endif
 
 	int X = 0;
-	g_IndelMrate = IndelMrate;
 	g_PolyRate = PolyRate;
 
 	float lines[7][27];
@@ -1081,7 +1079,7 @@ void makeXSSNPLookup(double SNPMrate, double PolyRate,
 	lookup.tref << lines[9];
 }
 
-void makeXSIndelLookup(double IndelMrate, double PolyRate,
+void makeXSIndelLookup(double PolyRate,
 	vector<vector<string > > & tgt, lookup_indel_t & lookupIndel)
 {
 	#ifdef LOOKUP_ENABLED
@@ -1089,7 +1087,6 @@ void makeXSIndelLookup(double IndelMrate, double PolyRate,
 	#endif
 
 	int X = 1;
-	g_IndelMrate = IndelMrate;
 	g_PolyRate = PolyRate;
 
 	float lines[7][27];
@@ -1583,7 +1580,7 @@ void makeXDSNPLookup(double SNPMrate, double PolyRate,
 }
 
 
-void makeXDIndelLookup(double IndelMrate, double PolyRate,
+void makeXDIndelLookup(double PolyRate,
 	vector<vector<string > > & tgt, lookup_indel_t & lookupIndel)
 {
 	#ifdef LOOKUP_ENABLED
@@ -1591,7 +1588,6 @@ void makeXDIndelLookup(double IndelMrate, double PolyRate,
 	#endif
 
 	int X = 2;
-	g_IndelMrate = IndelMrate;
 	g_PolyRate = PolyRate;
 
 	float lines[7][27];

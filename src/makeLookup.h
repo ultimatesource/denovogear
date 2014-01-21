@@ -44,7 +44,7 @@ void makeSNPLookup(double SNPMrate, double PolyRate,
 	vector<vector<string > > & tgt, lookup_snp_t & lookup);
 
 // Indel Lookup for the autosome model
-void makeIndelLookup(double IndelMrate, double PolyRate,
+void makeIndelLookup(double PolyRate,
 	vector<vector<string > > & tgt, lookup_indel_t & lookupIndel);
 
 // SNP Lookup for the XS model
@@ -52,7 +52,7 @@ void makeXSSNPLookup(double SNPMrate, double PolyRate,
 	vector<vector<string > > & tgt, lookup_snp_t & lookup);
 
 // Indel Lookup for the XS model
-void makeXSIndelLookup(double IndelMrate, double PolyRate,
+void makeXSIndelLookup(double PolyRate,
 	vector<vector<string > > & tgt, lookup_indel_t & lookupIndel);
 
 // SNP Lookup for the XD model
@@ -60,5 +60,5 @@ void makeXDSNPLookup(double SNPMrate, double PolyRate,
 	vector<vector<string > > & tgt, lookup_snp_t & lookup);
 
 // Indel Lookup for the XD model
-void makeXDIndelLookup(double IndelMrate, double PolyRate,
+void makeXDIndelLookup(double PolyRate,
 	vector<vector<string > > & tgt, lookup_indel_t & lookupIndel);
