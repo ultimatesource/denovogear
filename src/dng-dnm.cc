@@ -19,7 +19,7 @@
  *
  * You should have received a copy of the GNU General Public License along with 
  * this program. If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <vector>
 #include <iostream>
@@ -198,8 +198,8 @@ int writeVCFHeader(std::ofstream& fo_vcf, string op_vcf_f, string bcf_file, stri
 }
 
 int callDenovoFromBCF(string ped_file, string bcf_file,
-		      string op_vcf_f, string model,
-		      bool is_vcf, string region)
+    string op_vcf_f, string model,
+    bool is_vcf, string region)
 {
 
 
@@ -232,7 +232,7 @@ int callDenovoFromBCF(string ped_file, string bcf_file,
     sample = pairs[0].tumorID;
   ofstream fo_vcf;
   if(op_vcf_f != "EMPTY") {
-  	writeVCFHeader(fo_vcf, op_vcf_f, bcf_file, ped_file, sample);
+    writeVCFHeader(fo_vcf, op_vcf_f, bcf_file, ped_file, sample);
   }
 
   qcall_t mom_snp, dad_snp, child_snp;
@@ -255,14 +255,14 @@ int callDenovoFromBCF(string ped_file, string bcf_file,
       bcf_idx_t *idx;
       idx = bcf_idx_load(bcf_file.c_str());
       if (idx) {
-	uint64_t off;
-	off = bcf_idx_query(idx, tid, begin);
-	if (off == 0) {
-	  fprintf(stderr, "[%s] no records in the query region.\n", __func__);
-	  return 1; // FIXME: a lot of memory leaks...
-	}
-	bgzf_seek(bp->fp, off, SEEK_SET);
-	bcf_idx_destroy(idx);
+        uint64_t off;
+        off = bcf_idx_query(idx, tid, begin);
+        if (off == 0) {
+          fprintf(stderr, "[%s] no records in the query region.\n", __func__);
+          return 1; // FIXME: a lot of memory leaks...
+        }
+        bgzf_seek(bp->fp, off, SEEK_SET);
+        bcf_idx_destroy(idx);
       }
     }
   }
@@ -276,39 +276,39 @@ int callDenovoFromBCF(string ped_file, string bcf_file,
     // PROCESS TRIOS
     for ( j=0; j<trio_count; j++) {
       int is_indel = bcf_2qcall(hout, b, trios[j],  &mom_snp, &dad_snp,
-				&child_snp, &mom_indel, &dad_indel,
-				&child_indel, flag);
+          &child_snp, &mom_indel, &dad_indel,
+          &child_indel, flag);
       if (is_indel == 0) {
-	snp_total_count++;
-	trio_like_snp(child_snp, mom_snp, dad_snp, flag,
-		      tgtSNP, lookupSNP, op_vcf_f, fo_vcf,
-		      PP_cutoff, RD_cutoff, snp_pass_count);
+        snp_total_count++;
+        trio_like_snp(child_snp, mom_snp, dad_snp, flag,
+            tgtSNP, lookupSNP, op_vcf_f, fo_vcf,
+            PP_cutoff, RD_cutoff, snp_pass_count);
       }
       else if ( is_indel == 1 ) {
-	indel_total_count++;
-	trio_like_indel(&child_indel, &mom_indel, &dad_indel, flag,
-			tgtIndel, lookupIndel, mu_scale, op_vcf_f, fo_vcf,
-			PP_cutoff, RD_cutoff, indel_pass_count);
+        indel_total_count++;
+        trio_like_indel(&child_indel, &mom_indel, &dad_indel, flag,
+            tgtIndel, lookupIndel, mu_scale, op_vcf_f, fo_vcf,
+            PP_cutoff, RD_cutoff, indel_pass_count, indel_mrate);
       }
       else if ( is_indel < 0 ) {
-	printf("\n BCF PARSING ERROR - Trios!  %d\n Exiting !\n", is_indel);
-	exit(1);
+        printf("\n BCF PARSING ERROR - Trios!  %d\n Exiting !\n", is_indel);
+        exit(1);
       }
     }
 
     // PROCESS  PAIRS
     if(model == "auto") { // paired sample model not developed for XS, XD yet
       for ( j=0; j<pair_count; j++) {
-	int is_indel = bcf2Paired (hout, b, pairs[j], &tumor, &normal, flag);
-	if ( is_indel == 0 ) {
-	  pair_total_count++;
-	  pair_like (tumor, normal, tgtPair, lookupPair, flag, op_vcf_f, fo_vcf,
-		     PP_cutoff, RD_cutoff, pair_pass_count);
-	}
-	else if ( is_indel < 0 ) {
-	  printf("\n BCF PARSING ERROR - Paired Sample!  %d\n Exiting !\n", is_indel);
-	  exit(1);
-	}
+        int is_indel = bcf2Paired (hout, b, pairs[j], &tumor, &normal, flag);
+        if ( is_indel == 0 ) {
+          pair_total_count++;
+          pair_like (tumor, normal, tgtPair, lookupPair, flag, op_vcf_f, fo_vcf,
+              PP_cutoff, RD_cutoff, pair_pass_count);
+        }
+        else if ( is_indel < 0 ) {
+          printf("\n BCF PARSING ERROR - Paired Sample!  %d\n Exiting !\n", is_indel);
+          exit(1);
+        }
       }
     }
   }
@@ -347,65 +347,65 @@ int mainDNG(int argc, char *argv[])
   while (1) {
     int option_index = 0;
     static struct option long_options[] = {{"ped", 1, 0, 0},
-					   {"bcf", 1, 0, 1},  {"snp_mrate", 1, 0, 2}, {"indel_mrate", 1, 0, 3},
-					   {"poly_rate", 1, 0, 4}, {"pair_mrate", 1, 0, 5}, {"indel_mu_scale", 1, 0, 6}, {"output_vcf", 1, 0, 7},
-					   {"pp_cutoff", 1, 0, 8}, {"rd_cutoff", 1, 0, 9}, {"h", 1, 0, 10}, {"vcf", 1, 0, 11}, {"region", 1, 0, 12}};
+      {"bcf", 1, 0, 1},  {"snp_mrate", 1, 0, 2}, {"indel_mrate", 1, 0, 3},
+      {"poly_rate", 1, 0, 4}, {"pair_mrate", 1, 0, 5}, {"indel_mu_scale", 1, 0, 6}, {"output_vcf", 1, 0, 7},
+      {"pp_cutoff", 1, 0, 8}, {"rd_cutoff", 1, 0, 9}, {"h", 1, 0, 10}, {"vcf", 1, 0, 11}, {"region", 1, 0, 12}};
     int c = getopt_long (argc-1, argv+1, "", long_options, &option_index);
     if (c == -1)
       break;
     switch(c)
-      {
+    {
       case 0:
-	ped_f = optarg;
-	break;
+        ped_f = optarg;
+        break;
       case 1:
-	bcf_f = optarg;
-	break;
+        bcf_f = optarg;
+        break;
       case 2:
-	snp_mrate = atof(optarg);
-	cerr<<"\nSNP mutation rate: "<<snp_mrate;
-	break;
+        snp_mrate = atof(optarg);
+        cerr<<"\nSNP mutation rate: "<<snp_mrate;
+        break;
       case 3:
-	indel_mrate = atof(optarg);
-	cerr<<"\nindel mutation rate: "<<indel_mrate;
-	break;
+        indel_mrate = atof(optarg);
+        cerr<<"\nindel mutation rate: "<<indel_mrate;
+        break;
       case 4:
-	poly_rate = atof(optarg);
-	cerr<<"\npolymorphism rate: "<<poly_rate;
-	break;
+        poly_rate = atof(optarg);
+        cerr<<"\npolymorphism rate: "<<poly_rate;
+        break;
       case 5:
-	pair_mrate = atof(optarg);
-	cerr<<"\npaired-sample mutation rate: "<<pair_mrate;
-	break;
+        pair_mrate = atof(optarg);
+        cerr<<"\npaired-sample mutation rate: "<<pair_mrate;
+        break;
       case 6:
-	mu_scale = atof(optarg);
-	cerr<<"\nindel mutation rate scaling factor: "<<mu_scale;
-	break;
+        mu_scale = atof(optarg);
+        cerr<<"\nindel mutation rate scaling factor: "<<mu_scale;
+        break;
       case 7:
-	op_vcf_f = optarg;
-	cerr<<"\noutput vcf file: "<<op_vcf_f;
-	break;
+        op_vcf_f = optarg;
+        cerr<<"\noutput vcf file: "<<op_vcf_f;
+        break;
       case 8:
-	PP_cutoff = atof(optarg);
-	cerr<<"\nposterior probability cutoff: "<<PP_cutoff;
-	break;
+        PP_cutoff = atof(optarg);
+        cerr<<"\nposterior probability cutoff: "<<PP_cutoff;
+        break;
       case 9:
-	RD_cutoff = atoi(optarg);
-	cerr<<"\nread depth filter: "<<RD_cutoff;
-	break;
+        RD_cutoff = atoi(optarg);
+        cerr<<"\nread depth filter: "<<RD_cutoff;
+        break;
       case 10:
-	usage();
-	break;
+        usage();
+        break;
       case 11:
-	bcf_f = optarg;
-	is_vcf = true;
-	break;
+        bcf_f = optarg;
+        is_vcf = true;
+        break;
       case 12:
-	region = optarg;
-	break;
+        region = optarg;
+        break;
       default:
-	usage();
-      }
+        usage();
+    }
   }
 
   if ((bcf_f == "EMPTY") || (ped_f == "EMPTY")) {
@@ -435,5 +435,4 @@ int main(int argc, char* argv[])
 	usage();
 	return 0;
 }
-
 
