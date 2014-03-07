@@ -8,4 +8,5 @@ script:
     - cd ./denovogear-code/build
     - cmake ..
     - make
-    - perl ../test/src/dnm.t
+    - cd ..
+    - perl ./test/src/dnm.t
