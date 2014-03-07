@@ -7,4 +7,5 @@ compiler:
 script:
     - cd ./denovogear-code/build
     - cmake ..
-    - make 
+    - make
+    - perl ../test/src/dnm.t
