@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/gatoravi/DNG_dev.png?branch=master)](https://travis-ci.org/gatoravi/DNG_dev)
+
 Authors: Don Conrad, Avinash Ramu ( aramu at genetics dot wustl dot edu ) and Reed A. Cartwright.
 
 ## RELEASE NOTES
