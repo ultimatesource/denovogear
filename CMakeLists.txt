@@ -3,6 +3,10 @@
 #
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8 FATAL_ERROR)
 
+## Project DeNovoGear
+
+PROJECT(DeNovoGear)
+
 ## Compiling Options
 
 SET(USE_STATIC_LIBS OFF CACHE BOOL "Link against static libraries.")
@@ -17,15 +21,11 @@ SET_PROPERTY(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS ON)
 IF(USE_STATIC_LIBS)
 ENDIF(USE_STATIC_LIBS)
 
-## Project DeNovoGear
-
-PROJECT(DeNovoGear)
-
 ## Specify Project Information
 
 SET(PROJ_NAME "denovogear")
 SET(PROJ_NAME_PRO "DeNovoGear")
-SET(PROJ_EMAIL "dng@scit.us")
+SET(PROJ_URL "https://github.com/denovogear/denovogear")
 
 
 ################################################################################
