@@ -1,8 +1,11 @@
 /*
  * Copyright (c) 2010, 2011 Genome Research Ltd.
  * Copyright (c) 2012, 2013 Donald Conrad and Washington University in St. Louis
+ * Copyright (c) 2014 Reed A. Cartwright
  * Authors: Donald Conrad <dconrad@genetics.wustl.edu>, 
- * Avinash Ramu <aramu@genetics.wustl.edu>
+ *          Avinash Ramu <aramu@genetics.wustl.edu>
+ *          Reed A. Cartwright <reed@cartwrig.ht>
+ *
  * This file is part of DeNovoGear.
  *
  * DeNovoGear is free software: you can redistribute it and/or modify it under
@@ -288,7 +291,7 @@ void getReadsFromBAM(char* bam_f, string chr1, long dnm_pos, long hap_pos, char*
 }
 
 // Main
-int mainPhaser( int argc, char* argv[])
+int main( int argc, char* argv[])
 {
   cout<<endl<<"DeNovoGear - SNV Phaser";
   char DNM_f[g_kFileNameLength] = "EMPTY", parentGT_f[g_kFileNameLength] = "EMPTY", bam_f[g_kFileNameLength] = "EMPTY";
@@ -321,7 +324,7 @@ int mainPhaser( int argc, char* argv[])
   
   if(!strcmp(DNM_f, "EMPTY") || !strcmp(parentGT_f, "EMPTY") || !strcmp(bam_f, "EMPTY")) {
     cout<<"INPUT ERROR! Please specify the list of DNMs, list of Parental GTs and the BAM file!"
-      "\nFor example:\n\t./denovogear phaser --dnm dnm1.txt --pgt pgt1.txt --bam bam1.bam"
+      "\nFor example:\n\tdng phaser --dnm dnm1.txt --pgt pgt1.txt --bam bam1.bam"
       "\nExiting!\n";
     exit(1);
   } 

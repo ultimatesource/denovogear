@@ -22,7 +22,8 @@ version_num=0.1
 # set default libexec location
 # under certail conditions this may fail to work, so an installer should set
 # this to the proper installation directory, e.g. $prefix/libexec
-: ${DNG_LIBEXEC_DIR:="$( cd "$( dirname "$0" )" && pwd )"/../libexec}
+
+: ${DNG_LIBEXEC_DIR:="$( cd "$( dirname "$0" )" && pwd )"/../libexec/dng}
 
 # Internal commands
 int_cmds="help version citation"
