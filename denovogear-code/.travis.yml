@@ -1,0 +1,10 @@
+language: cpp
+
+compiler:
+    - clang
+    - gcc
+
+script:
+    - cd ./denovogear-code/build
+    - cmake ..
+    - make 
