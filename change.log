@@ -1,3 +1,8 @@
+v1.0
+- made changes to indel_mrate parameter
+- better indenting
+- mu_scale scales indel mutation rate linearly
+
 v0.5.4
 - added GPL v3
 - updated output fields for indels, snps to be the same 

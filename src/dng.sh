@@ -72,7 +72,7 @@ function dng_version() {
 
 function dng_help() {
     check_libexec
-    
+
     if [ -n "$2" ]; then
 	if [ "$2" = "help" ]; then
 	    echo "USAGE: dng help"
@@ -86,13 +86,13 @@ function dng_help() {
 	fi
 	return $?
     fi
-    
+
     ext_cmds=`find $DNG_LIBEXEC_DIR -maxdepth 1 -type f -perm +111 -name "dng-*" -print | sed -e 's/.*dng-//'`
     cmds="$int_cmds $ext_cmds"
     sorted=`echo $cmds | tr ' ' '\n' | sort | tr '\n' ' '`
-    
+
     echo "The following commands are supported by this installation of dng:"
-    
+
     for i in $sorted; do
 	echo "    $i"
     done
