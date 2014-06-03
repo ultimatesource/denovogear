@@ -3,6 +3,11 @@
 Authors: Don Conrad, Avinash Ramu ( aramu at genetics dot wustl dot edu ) and Reed A. Cartwright.
 
 ## RELEASE NOTES
+v1.0
+made changes to indel_mrate parameter
+better indenting
+mu_scale scales indel mutation rate linearly
+
 v0.5.4
 added GPL v3
 updated output fields for indels, snps to be the same 
@@ -11,7 +16,6 @@ v0.5.3
 removed 'X' allele in VCF op. VCF can be indexed by Tabix, IGVTools and used in Annovar.
 added region based denovo calling on BCF files, invoked with --region flag
 added vcf parser for denovo calling, invoked with --vcf flag
-
 
 v0.5.2
 Added read-depth, posterior-probability filters.
@@ -27,7 +31,7 @@ website <http://www.cmake.org/cmake/resources/software.html>.  Most Linux
 distributions allow you to install CMake using their package software.
 
 Compiling and Installing on Linux:
-        `tar xvzf denovogear*.tar.gz`
+        `tar -xvzf denovogear*.tar.gz`
         `cd denovogear*/build`
         `cmake ..`
         `make`
@@ -38,7 +42,7 @@ Creating Packages:
         `make package_source`
 
 ## BINARIES
-Binaries are available for MacOSX and for Linux.
+Binaries are available for MacOSX and for Linux. Please see http://sourceforge.net/projects/denovogear/files/Executables/
 
 ## RUNNING THE CODE
 
@@ -47,13 +51,15 @@ Binaries are available for MacOSX and for Linux.
 DeNovoGear takes in a PED file and a BCF file as input. The PED file describes the relationship between the samples and the BCF file contains the sequencing information for every locus.
 
 #### usage:
-	     `./denovogear auto dnm --ped sample.ped --bcf sample.bcf`
+	     `./denovogear dnm auto --ped sample.ped --bcf sample.bcf`
+
+        If you would rather start with the BAM files and have samtools installed, this would work, 
+        `samtools mpileup -gDf hg19.fa s1.bam s2.bam s3.bam | ./denovogear dnm auto --ped sample.ped --bcf -`
 
 #####  about sample.bcf:
 BCF files can be generated from the alignment using the samtools mpileup 
 command. The command to generate a bcf file from sample.bam is:
 	`samtools mpileup -gDf reference.fa sample.bam > sample.bcf`
-
 The -D option of the samtools mpileup command retains the per-sample read depth 
 which is preferred by denovogear as it helps to filter out sites without a minimum number of reads(but note that DNG will work without per-sample RD information, in which case the RD tag encodes the average read depth information). The -g option computes genotype likelihoods and produces a compressed bcf output and the -f option is used to indicate the reference fasta file against which the alignment was built. A sample BCF file 'sample_CEU.bcf' is included in the distribution.
 
@@ -66,7 +72,7 @@ be represented in the PED file).
 
 The PED file is a tab delimited file. The first six columns of the PED file are 
 mandatory, these are Family ID, Individual ID, Paternal ID, Maternal ID, 
-Sex (1 = male; 2 = female; other = unknown) and Phenotype. Denovogear makes use of the first four columns. The sample ID's in the PED file need to be exactly as they appear in the BCF file header. Sample order within the PED file does not matter, as family relationships are completely specified by the value of the child/mother/father fields in each row.
+Sex (1 = male; 2 = female; other = unknown) and Phenotype. Denovogear makes use of the first four columns. The sample IDs in the PED file need to be exactly as they appear in the BCF file header. Sample order within the PED file does not matter, as family relationships are completely specified by the value of the child/mother/father fields in each row.
  
 For example, a single line in the PED file that specifies a trio looks like:
 
@@ -102,9 +108,9 @@ Note that a constant factor is used to scale the mutation rate, it is set to 1.0
 by default and can be set using the switch --mu_scale. This provides the users to scale the mutation rate prior according to their data-set.
 
 For example, 
-	     `./denovogear dnm auto --ped sample.ped --bcf sample.bcf --mu_scale 3`
+        `./denovogear dnm auto --ped sample.ped --bcf sample.bcf --mu_scale 3`
 	     		   [OR]
-   	     `./denovogear dnm auto --ped sample.ped --vcf sample.vcf --mu_scale 3`	
+        `./denovogear dnm auto --ped sample.ped --vcf sample.vcf --mu_scale 3`	
 
 
 #### OUTPUT FORMAT for TRIOS
@@ -139,27 +145,27 @@ Denovogear has separate models for autosomes, X chromosome in male offspring and
 #### Autosomes model usage
 
         `./denovogear dnm auto --ped sample.ped --bcf sample.bcf`
-		      [OR]
+            [OR]
         `./denovogear dnm auto --ped sample.ped --vcf sample.vcf`
 
 #### X in male offspring model usage 
 
         `./denovogear dnm XS --ped sample.ped --bcf sample.bcf --region X`
-		      [OR]
+            [OR]
         `./denovogear dnm XS --ped sample.ped --vcf sample.X.vcf` (only BCF allows for random access)
 #### X in female offspring model usage 
 
         `./denovogear dnm XD --ped sample.ped --bcf sample.bcf --region X`
-		      [OR]
+            [OR]
         `./denovogear dnm XD --ped sample.ped --vcf sample.X.vcf`		   
 
 ### PAIRED SAMPLE ANALYSIS 
-DNG can be used to analyze paired samples, it is run the same way as for trios the only difference being the way samples are specified in the PED file,
+DNG can be used to analyze paired samples for example to call somatic mutations between tumor/matched-normal pairs, the main difference in how to run the program is the way samples are specified in the PED file(see below),
 
 #### Usage:
  
         `./denovogear dnm auto --ped paired.ped --bcf sample.bcf`
-		      [OR]
+            [OR]
         `./denovogear dnm auto --ped paired.ped --vcf sample.vcf`
 
 About the arguments, 
@@ -192,11 +198,15 @@ The output format is a single row for each putative paired denovo mutation(DNM),
 
 
 ### PHASER 
-DNG can be used to obtain parental phasing information for Denovo Mutations where phase informative sites are present. This is done by looking at reads which cover both the denovo base and a phase informative positions. Phase informative positions lie within a certain window from the denovo site, the default value is 1000 but it can be set by the user. The phaser is under development, please do let us know if you find any bugs.
+DNG can be used to obtain parental phasing information for Denovo Mutations where phase informative sites are present. This is done by looking at reads which cover both the denovo base and a phase informative positions. Phase informative positions are SNP positions that lie within a certain window from the denovo site, the default window size is 1000 bp but the window-size can be set by the user.
+	For each DNM, a list of phase informative sites from the genotypes file is obtained, these are the loci which lie within the phasing window. Also, these sites do not have a het/het GT configuration for the parents and where the child is het. The number of DNM and phasing  allele combinations seen in the read level data is output by the program. For the phasing sites, the inferred parental origin is displayed.
+For example if the base at the phasing site is T and the parental genotypes are P1:CC and p2:TC at this site, then the parent of origin of this base is p2. By looking at the base in the denovo position on this read it is possible to infer the parent of origin of the denovo mutation. 
+
+A sample list of dnms file, sample_phasing_dnm_f is provided. Also a sample genotypes file sample_phasing_GTs_f is provided for reference.
 
 #### Usage:
 
-        `./denovogear phaser --dnm dnm_f --pgt gts_file --bam alignment --window 1000`
+        `./denovogear phaser --dnm dnm_f --pgt gts_file --bam alignment.bam --window 1000`
 
 About the arguments, 
 
@@ -225,13 +235,6 @@ About the arguments,
         HAP POS 182974750 p1: AA p2: TA Number of denovo-phasing pairs found: 2
                 Base at DNM position: A Base at phasing position: A      INFERRED PARENT OF ORIGIN for DNM: p1 SUPPORTING READ COUNT: 45
                 Base at DNM position: G Base at phasing position: T      INFERRED PARENT OF ORIGIN for DNM: p1 SUPPORTING READ COUNT: 47
-
-
-	For each DNM, a list of of eligible phasing sites from the genotypes file is obtained, these are the loci which lie within the phasing window and which do not have a het/het GT configuration for the parents and where the child is het. The number of DNM and phasing  allele combinations seen in the read level data is output by the program. For the phasing sites, the inferred parental origin is displayed.
-
-For example if the base at the phasing site is T and the parental genotypes are P1:CC and p2:TC at this site, then the parent of origin of this base is p2. By looking at the base in the denovo position on this read it is possible to infer the parent of origin of the denovo mutation. 
-
-A sample list of dnms file, sample_phasing_dnm_f is provided. Also a sample genotypes file sample_phasing_GTs_f is provided for reference.
 
 Please feel free to contact the authors about any concerns/comments.	
 
