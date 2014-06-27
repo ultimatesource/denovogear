@@ -40,7 +40,6 @@ SET(PROJ_URL "https://github.com/denovogear/denovogear")
 #SET(PROJ_VERSION_REV 0)
 
 ## Detect Project Version Information
-
 FIND_PACKAGE(Git)
 IF(GIT_FOUND)
   EXECUTE_PROCESS(COMMAND ${GIT_EXECUTABLE} describe --tags
