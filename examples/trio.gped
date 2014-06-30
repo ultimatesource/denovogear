@@ -1,0 +1,32 @@
+# Example of a trio
+
+# Nodes
+pop p [name=blak,akldjald=akdjal,];
+diploid m;
+diploid d;
+diploid c;
+diploid ms;
+diploid ds;
+diploid cs;
+library mz;
+library dz;
+library cz;
+
+# Finite Sites Edges
+p >> m;
+p >> d;
+
+# Meiotic Edges
+m -> c;
+d -> c;
+
+# Mitotic Edges
+m => ms;
+d => ds;
+c => cs;
+
+# Seqeucning Edges
+ms ~> mz;
+ds ~> dz;
+cs ~> dz;
+
