@@ -25,6 +25,10 @@
 #include <boost/range/algorithm/copy.hpp>
 #include <boost/range/algorithm/reverse.hpp>
 #include <boost/graph/biconnected_components.hpp>
+#include <boost/function_output_iterator.hpp>
+#include <boost/range/algorithm/for_each.hpp>
+#include <boost/range/algorithm/count_if.hpp>
+#include <boost/range/algorithm/find.hpp>
 
 #include <vector>
 #include <boost/range.hpp>
@@ -82,7 +86,9 @@ Family ped[] {
 	{ 8, 5, 6 },
 	{ 9, 0, 0 },
 	{ 10, 1, 9 },
-	{ 11, 0, 10 }
+	{ 11, 0, 10 },
+	{ 12, 0, 11 },
+	{ 13, 0, 11 }
 };
 
 struct node {
@@ -97,59 +103,14 @@ struct family {
 std::vector<node> node_store;
 std::vector<family> family_store;
 
-int build_graph(Family *p, size_t sz) {
-	std::map<std::pair<int,int>, int> fam_map;
-	// reset node_store
-	node_store.resize(sz);
-	for(size_t k=0;k<sz;++k) {
-		int u = p[k].child;
-		node_store[u].id = u;
-		node_store[u].families.clear();
-	}
-	// build graph of families
-	family_store.clear();
-	for(size_t k=0;k<sz;++k) {
-		if(p[k].dad == 0 || p[k].mom == 0)
-			continue;
-		// check to see if parent pair already exists
-		auto key = std::make_pair(p[k].dad, p[k].mom);
-		auto ret = fam_map.find(key);
-		if(ret != fam_map.end()) {
-			// family exists, so we just add the child and add it to the family
-			family_store[ret->second].members.push_back(p[k].child);
-			node_store[p[k].child].families.push_back(family_store.size()-1);
-		} else {
-			// family doesn't exist, so we construct it
-			family_store.push_back(family());
-			family_store.back().members.assign({p[k].mom,p[k].dad,p[k].child});
-			int fam_id = family_store.size()-1;
-			fam_map.emplace(key, fam_id);
-			// add the family ids to the nodes
-			node_store[p[k].mom].families.push_back(fam_id);
-			node_store[p[k].dad].families.push_back(fam_id);
-			node_store[p[k].child].families.push_back(fam_id);
-		}
-	}
-	return 0;
-}
-
-int construct_peeling_order() {
-	size_t sz = family_store.size();
-	std::vector<int> peel_order;
-	std::vector<int> peeled(sz,0);
-	// find all families that are peelable
-	for(int i=0;i<sz;++i) {
-		auto &fam = family_store[i];
-	}
-	return 0;
-}
-
 namespace boost {
   enum edge_family_t { edge_family };
   enum edge_type_t { edge_type };
+  enum vertex_art_t { vertex_art };
   
   BOOST_INSTALL_PROPERTY(edge, family);
   BOOST_INSTALL_PROPERTY(edge, type);
+  BOOST_INSTALL_PROPERTY(vertex, art);
 }
 
 
@@ -157,11 +118,10 @@ int main(int argc, char* argv[]) {
 	using namespace boost;
 	using namespace std;
 
-	typedef adjacency_list<vecS, vecS, undirectedS,no_property,
+	typedef adjacency_list<vecS, vecS, undirectedS, property<vertex_art_t, bool>,
 		property<edge_family_t, std::size_t,property<edge_type_t, std::size_t>>> graph_t;
 	typedef graph_traits < graph_t >::vertex_descriptor vertex_t;
-	std::vector<vertex_t> art_points;
-
+	
 	// construct graph from pedigree information
 	graph_t g(N);
 	for(auto a : ped) {
@@ -182,41 +142,88 @@ int main(int argc, char* argv[]) {
 		
 	auto component = get(edge_family, g);
 	auto edtype = get(edge_type, g);
-	auto ret = biconnected_components(g, component,std::back_inserter(art_points));
 	
-	typedef std::vector<std::vector<graph_traits<graph_t>::edge_iterator>> 
+	// Calculate the biconnected components and articulation points.
+	// Store articulation point status in the graph.
+	std::vector<vertex_t> art_points;
+	auto ret = biconnected_components(g, component, back_inserter(art_points));
+	for(auto a : art_points)
+		put(vertex_art, g, a, true);
+	
+	typedef std::vector<std::vector<graph_traits<graph_t>::edge_descriptor>> 
 		component_groups_t;
 	component_groups_t groups(ret.first);
   	graph_traits<graph_t>::edge_iterator ei, ei_end;
   	for(boost::tie(ei, ei_end) = edges(g); ei != ei_end; ++ei) {
-  		groups[component[*ei]].push_back(ei);
+  		groups[component[*ei]].push_back(*ei);
   	}
-  	auto art = art_points.begin();
-  	for(auto &a : groups) {
+  	graph_traits<graph_t>::vertex_iterator vi, vi_end;
+  	for(boost::tie(vi, vi_end) = vertices(g); vi != vi_end; ++vi) {
+  		cout << (char)(*vi + 'A') << " " << get(vertex_art, g, *vi) << "\n";
+  	}
+  	
+  	// Identitify the pivot for each group.
+  	// The pivot will be the last art. point that has an edge in
+  	// the group.  The pivot of the last group doesn't matter.
+  	std::vector<vertex_t> pivot(groups.size());
+  	for(auto a : art_points) {
+  		graph_traits<graph_t>::out_edge_iterator ei, ei_end;
+		for(boost::tie(ei, ei_end) = out_edges(a, g); ei != ei_end; ++ei) {
+			// Just overwrite existing value so that the last one wins.
+			pivot[component(*ei)] = a;
+		}
+  	}
+  	
+  	// Detect Family Structure and pivot positions
+  	for(int k = 0; k < groups.size(); ++k) {
+  		auto &a = groups[k];
+  		// Sort edges based on type and target
+  		boost::sort(a, [&](auto x, auto y) -> bool { return
+  			(edtype(x) < edtype(y)) &&
+  			(target(x, g) < target(y, g)); });
+  		// Find the range of the parent types
+  		auto pos = boost::find_if(a, [&](auto x) -> bool { return edtype(x) != 0; });
+  		size_t num_par = distance(a.begin(),pos);
+  		
+  		// Check to see what type of graph we have
+  		if(num_par == 0) {
+  			// We have a parent-child single branch
+  			if(a.size() != 1)
+  				return 1;
+  			int parent = source(*pos, g);
+  			int child = target(*pos, g);
+  		} else if(num_par == 1) {
+  			std::vector<graph_traits<graph_t>::vertex_descriptor> vfam;
+  			vfam.push_back(source(a.front(), g)); // Dad
+  			vfam.push_back(target(a.front(), g)); // Mom
+  			while(pos != a.end()) {
+  				vfam.push_back(target(*pos, g)); // Child
+  				++pos; ++pos; // child edges come in pairs
+  			}
+  			auto pos2 = boost::find(vfam, pivot[k]);
+  			size_t p = distance(vfam.begin(),pos2);
+  			cout << p;
+  			for(auto n : vfam) {
+  				cout << " " << (char)(n + 'A');
+  			}
+  			cout << "\n";
+  		} else {
+  			return 1;
+  		}
+  		
+   	}
+  	
+  	// Print groups and pivots
+   	for(int k = 0; k < groups.size(); ++k) {
+   		auto &a = groups[k];
   		cout << "[";
   		for(auto &b : a) {
-  			const char *line = (edtype(*b) == 1) ? " -> " : " -- ";
-  			cout << " " << (char)(source(*b, g) + 'A') << line
-  				 << (char)(target(*b, g) + 'A');
+  			const char *line = (edtype(b) == 1) ? " -> " : " -- ";
+  			cout << " " << (char)(source(b, g) + 'A') << line
+  				 << (char)(target(b, g) + 'A');
   		}
   		cout << " ]";
-  		// check to see if there is only one spousal pair
-  		ei = ei_end;
-  		for(auto &b : a) {
-  			if(edtype(*b) != 0)
-  				continue;
-  			if(ei != ei_end)
-  				return 0;
-  			ei = b;
-  		}
-  		
-  		
-  		if(art != art_points.end()) {
-  			cout << " " << (char)((*art)+'A');
-  			++art;
-  		}
-  		
-  		
+  		cout << " " << (char)(pivot[k] + 'A');	  		
   		cout << "\n";
   	}
 	
