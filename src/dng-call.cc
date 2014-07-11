@@ -30,43 +30,86 @@
 #include <boost/range/algorithm/count_if.hpp>
 #include <boost/range/algorithm/find.hpp>
 
+#include <boost/multi_index_container.hpp>
+#include <boost/multi_index/identity.hpp>
+#include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/random_access_index.hpp>
+
 #include <vector>
 #include <boost/range.hpp>
 #include <boost/range/algorithm/generate.hpp>
 #include <boost/range/irange.hpp>
 
+#include <boost/tokenizer.hpp>
 
-enum nodes_e {
-	a1, a2, a3, a4,
-	b1, b2,
-	c1, c2,
-	a5, c3,
-	d1,
-	N
-};
-const char* name[] = {
-	"a1", "a2", "a3", "a4",
-	"b1", "b2", "c1"
-};
+// http://www.boost.org/development/requirements.html
+// http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml
+
+namespace dng {
+
+using boost::multi_index_container;
+using boost::multi_index::indexed_by;
+using boost::multi_index::random_access;
+using boost::multi_index::ordered_unique;
+using boost::multi_index::identity;
+
+class Pedigree {
+public:
+	typedef boost::multi_index_container<std::string,
+		indexed_by<
+			random_access<>,
+			ordered_unique<identity<std::string>>
+		>> NameContainer;
 	
+	Pedigree() {
+		// Add a dummy 0-th pedigree member to handle
+		// unknown individuals.
+		names_.push_back("");
+	}
+	
+	// Fetch the name of a member of the pedigree
+	const std::string& name(std::size_t id) {
+		return names_[id];
+	}
+	// Given the name of an individual return its id.
+	// If the name is not valid, return the id of the 0-th
+	// individual.
+	std::size_t id(const std::string &name) {
+		auto it = names_.get<1>().find(name);
+		if(it == names_.get<1>().end())
+			return std::size_t(0);
+		return names_.project<0>(it) - names_.begin();
+	}
+	
+	template<typename Obj, typename Char=char>
+	bool Parse(Obj &o) {
+		typedef boost::tokenizer<boost::char_separator<Char>,
+			std::istreambuf_iterator<Char>> 
+		    tokenizer;
+		std::istreambuf_iterator<Char> end_of_stream;
+		std::istreambuf_iterator<Char> stream(o);
+		boost::char_separator<Char> sep("\t", "\n", boost::keep_empty_tokens);
 
-typedef std::pair<int, int> Edge;
-Edge used_by[] = {
-	{a1, a2},
-	{a1, b1},
-	{a2, b1},
-	{a3, a4},
-	{a3, b2},
-	{a4, b2},
-	{b1, b2},
-	{b1, c1},
-	{b2, c1},
-	{b1, c2},
-	{b2, c2},
-	{a1, a5},
-	{a1, c3},
-	{a5, c3}
+		tokenizer tokens(stream, end_of_stream, sep);
+		
+		
+		
+		for (typename tokenizer::iterator tok_iter = tokens.begin();
+		     tok_iter != tokens.end(); ++tok_iter)
+		  std::cout << "<" << *tok_iter << "> ";
+		std::cout << "\n";
+		return true;
+	}
+	
+protected:
+	NameContainer names_;
 };
+
+class PedigreePeeler {
+public:
+};
+
+}; // namespace dng
 
 struct Family {
 	int child;
@@ -88,7 +131,9 @@ Family ped[] {
 	{ 10, 1, 9 },
 	{ 11, 0, 10 },
 	{ 12, 0, 11 },
-	{ 13, 0, 11 }
+	{ 13, 0, 11 },
+	{ 14, 3, 4 },
+	{ 15, 3, 4 }
 };
 
 struct node {
@@ -113,17 +158,20 @@ namespace boost {
   BOOST_INSTALL_PROPERTY(vertex, art);
 }
 
-
 int main(int argc, char* argv[]) {
 	using namespace boost;
 	using namespace std;
+	
+	std::string str = "name\tparent\tfamily\n\ttest\ntest\nu";
+	dng::Pedigree pedi;
+	pedi.Parse(cin);
 
 	typedef adjacency_list<vecS, vecS, undirectedS, property<vertex_art_t, bool>,
 		property<edge_family_t, std::size_t,property<edge_type_t, std::size_t>>> graph_t;
 	typedef graph_traits < graph_t >::vertex_descriptor vertex_t;
 	
 	// construct graph from pedigree information
-	graph_t g(N);
+	graph_t g(64);
 	for(auto a : ped) {
 		// check to see if mom and dad have been seen before
 		// TODO: check for parent-child inbreeding
@@ -202,6 +250,11 @@ int main(int argc, char* argv[]) {
   			}
   			auto pos2 = boost::find(vfam, pivot[k]);
   			size_t p = distance(vfam.begin(),pos2);
+  			// If a child is the pivot, make it the first child.
+  			if(p > 2) {
+  				swap(vfam[p], vfam[2]);
+  				p = 2;
+  			}
   			cout << p;
   			for(auto n : vfam) {
   				cout << " " << (char)(n + 'A');
