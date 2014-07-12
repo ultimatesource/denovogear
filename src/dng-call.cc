@@ -45,6 +45,16 @@
 // http://www.boost.org/development/requirements.html
 // http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml
 
+namespace boost {
+  enum edge_family_t { edge_family };
+  enum edge_type_t { edge_type };
+  enum vertex_art_t { vertex_art };
+  
+  BOOST_INSTALL_PROPERTY(edge, family);
+  BOOST_INSTALL_PROPERTY(edge, type);
+  BOOST_INSTALL_PROPERTY(vertex, art);
+}
+
 namespace dng {
 
 using boost::multi_index_container;
@@ -60,318 +70,242 @@ public:
 			random_access<>,
 			ordered_unique<identity<std::string>>
 		>> NameContainer;
+	typedef std::vector<std::vector<std::string>> DataTable;
 	
 	Pedigree() {
-		// Add a dummy 0-th pedigree member to handle
-		// unknown individuals.
-		names_.push_back("");
 	}
 	
 	// Fetch the name of a member of the pedigree
-	const std::string& name(std::size_t id) {
+	const std::string& name(std::size_t id) const {
 		return names_[id];
 	}
+	// How many members, including the dummy, are in the pedigree.
+	std::size_t member_count() const {
+		return names_.size();
+	}
+	
 	// Given the name of an individual return its id.
 	// If the name is not valid, return the id of the 0-th
 	// individual.
-	std::size_t id(const std::string &name) {
+	std::size_t id(const std::string &name) const {
 		auto it = names_.get<1>().find(name);
 		if(it == names_.get<1>().end())
 			return std::size_t(0);
 		return names_.project<0>(it) - names_.begin();
 	}
 	
-	template<typename Obj, typename Char=char>
-	bool Parse(Obj &o) {
-		typedef boost::tokenizer<boost::char_separator<Char>,
-			std::istreambuf_iterator<Char>> 
-		    tokenizer;
-		std::istreambuf_iterator<Char> end_of_stream;
-		std::istreambuf_iterator<Char> stream(o);
-		boost::char_separator<Char> sep("\t", "\n", boost::keep_empty_tokens);
-
-		tokenizer tokens(stream, end_of_stream, sep);
-		
-		
-		
-		for (typename tokenizer::iterator tok_iter = tokens.begin();
-		     tok_iter != tokens.end(); ++tok_iter)
-		  std::cout << "<" << *tok_iter << "> ";
-		std::cout << "\n";
-		return true;
+	// A reference to the data table
+	const DataTable & table() const {
+		return table_;
 	}
 	
+	//std::istreambuf_iterator<Char> end_of_stream;
+	//std::istreambuf_iterator<Char> stream(o);
+
+	// Parse a string-like object into a pedigree
+	// TODO: maybe we can just keep pointers to the deliminators in memory
+	// TODO: add comment support
+	// TODO: warnings for rows that don't have enough elements?
+	// TODO: gender checking
+	template<typename Obj>
+	bool Parse(Obj &o) {
+		using namespace boost;
+		using namespace std;
+		// Construct the tokenizer
+		typedef tokenizer<char_separator<char>,
+			typename Obj::const_iterator> tokenizer;
+		char_separator<char> sep("\t", "\n", keep_empty_tokens);
+		tokenizer tokens(o, sep);
+		
+		// reset the pedigree string table
+		table_.reserve(128);
+		table_.resize(1);
+		table_.back().clear();
+		table_.back().reserve(6);
+		
+		// Work through tokens and build vectors for each row
+		for (auto tok_iter = tokens.begin(); tok_iter != tokens.end();
+			++tok_iter) {
+			if(*tok_iter == "\n") {
+				// Resize so that we have six elements
+				table_.back().resize(6,"");
+				// Push new row onto table
+				table_.emplace_back();
+				table_.back().reserve(6);
+			} else {
+				// Add token to the current row
+				table_.back().push_back(*tok_iter);
+			}
+		}
+		table_.back().resize(6,"");
+		
+		// Go through col 1 and pull out child names
+		// Add a dummy 0-th pedigree member to handle
+		// unknown individuals.
+		names_.clear();
+		names_.push_back("");
+		for( auto &row : table_)
+			names_.push_back(row[1]);
+		
+		return true;
+	}
+		
 protected:
 	NameContainer names_;
+	DataTable table_;
 };
 
 class PedigreePeeler {
 public:
+	bool Construct(const Pedigree& pedigree) {
+		using namespace boost;
+		using namespace std;
+		// Graph to hold pedigree information
+		typedef adjacency_list<vecS, vecS, undirectedS,
+			property<vertex_art_t, bool>,
+			property<edge_family_t, std::size_t,property<edge_type_t, std::size_t>>>
+			graph_t;
+		typedef graph_traits<graph_t>::vertex_descriptor vertex_t;
+		typedef graph_traits<graph_t>::edge_descriptor edge_t;
+
+		graph_t pedigree_graph(pedigree.member_count());
+		
+		// Go through rows and construct the graph
+		for(auto &row : pedigree.table()) {
+			// check to see if mom and dad have been seen before
+			// TODO: check for parent-child inbreeding
+			vertex_t child = pedigree.id(row[1]);
+			vertex_t dad = pedigree.id(row[2]);
+			vertex_t mom = pedigree.id(row[3]);
+			auto id = edge(dad, mom, pedigree_graph);
+			if(!id.second) {
+				id = add_edge(dad, mom, pedigree_graph);
+				put(edge_type, pedigree_graph, id.first, 0);
+			}
+			// add the meiotic edges
+			id = add_edge(mom, child, pedigree_graph);
+			put(edge_type, pedigree_graph, id.first, 1);
+			id = add_edge(dad, child, pedigree_graph);
+			put(edge_type, pedigree_graph, id.first, 1);
+		}
+		// Remove the dummy individual from the graph
+		clear_vertex(pedigree.id(""), pedigree_graph);
+		
+		auto components = get(edge_family, pedigree_graph);
+		auto edge_types = get(edge_type, pedigree_graph);
+	
+		// Calculate the biconnected components and articulation points.
+		vector<vertex_t> articulation_vertices;
+		auto result = biconnected_components(pedigree_graph, components,
+			back_inserter(articulation_vertices));
+		// Store articulation point status in the graph.
+		for(auto a : articulation_vertices)
+			put(vertex_art, pedigree_graph, a, true);
+		
+		// Determine which edges belong to which components
+		typedef vector<vector<graph_traits<graph_t>::edge_descriptor>> 
+			component_groups_t;
+		component_groups_t groups(result.first);
+	  	graph_traits<graph_t>::edge_iterator ei, ei_end;
+	  	for(tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei) {
+	  		groups[components[*ei]].push_back(*ei);
+	  	}
+	  	graph_traits<graph_t>::vertex_iterator vi, vi_end;
+	  	for(boost::tie(vi, vi_end) = vertices(pedigree_graph); vi != vi_end; ++vi) {
+	  		cout << (char)(*vi + 'A') << " " << get(vertex_art, pedigree_graph, *vi) << "\n";
+	  	}
+	  	
+	  	// Identitify the pivot for each group.
+	  	// The pivot will be the last art. point that has an edge in
+	  	// the group.  The pivot of the last group doesn't matter.
+	  	vector<vertex_t> pivots(groups.size());
+	  	for(auto a : articulation_vertices) {
+	  		graph_traits<graph_t>::out_edge_iterator ei, ei_end;
+			for(tie(ei, ei_end) = out_edges(a, pedigree_graph); ei != ei_end; ++ei) {
+				// Just overwrite existing value so that the last one wins.
+				pivots[components[*ei]] = a;
+			}
+	  	}
+	  	// The last pivot is special.
+	  	pivots.back() = 0;
+	  	
+	  	// Detect Family Structure and pivot positions
+	  	for(std::size_t k = 0; k < groups.size(); ++k) {
+	  		auto &family_edges = groups[k];
+	  		// Sort edges based on type and target
+	  		boost::sort(family_edges, [&](edge_t x, edge_t y) -> bool { return
+	  			(edge_types(x) < edge_types(y)) &&
+	  			(target(x, pedigree_graph) < target(y, pedigree_graph)); });
+	  		
+	  		// Find the range of the parent types
+	  		auto pos = boost::find_if(family_edges, [&](edge_t x) -> bool { 
+	  			return edge_types(x) != 0; });
+	  		size_t num_parent_edges = distance(family_edges.begin(),pos);
+	  		
+	  		
+	  		// Check to see what type of graph we have
+	  		if(num_parent_edges == 0) {
+	  			// If we do not have a parent-child single branch,
+	  			// we can't construct the pedigree.
+	  			// TODO: Write Error message
+	  			if(family_edges.size() != 1)
+	  				return false;
+	  			vertex_t parent = source(*pos, pedigree_graph);
+	  			vertex_t child = target(*pos, pedigree_graph);
+	  			// TODO: What do we do here?
+	  		} else if(num_parent_edges == 1) {
+	  			// We have a nuclear family with 1 or more children
+	  			vector<vertex_t> family_vertices;
+	  			family_vertices.push_back(source(family_edges.front(), pedigree_graph)); // Dad
+	  			family_vertices.push_back(target(family_edges.front(), pedigree_graph)); // Mom
+	  			while(pos != family_edges.end()) {
+	  				family_vertices.push_back(target(*pos, pedigree_graph)); // Child
+	  				++pos; ++pos; // child edges come in pairs
+	  			}
+	  			auto pivot_pos = boost::find(family_vertices, pivots[k]);
+	  			size_t p = distance(family_vertices.begin(),pivot_pos);
+	  			if(pivots[k] == 0 ) {
+	  				p = 0;
+	  			} else if(p > 2) {
+	  				swap(family_vertices[p], family_vertices[2]);
+	  				p = 2;
+	  			}
+	  			// TODO: Assert that p makes sense
+
+	  			cout << p;
+	  			for(auto n : family_vertices) {
+	  				cout << " " << (char)(n + 'A');
+	  			}
+	  			cout << "\n";
+	  		} else {
+	  			// Not a zero-loop pedigree
+	  			// TODO: write error message
+	  			return false;
+	  		}	  		
+	   	}
+		return true;
+	}
 };
 
 }; // namespace dng
-
-struct Family {
-	int child;
-	int dad;
-	int mom;
-};
-
-Family ped[] {
-	{ 0, 0, 0 },
-	{ 1, 0, 0 },
-	{ 2, 0, 0 },
-	{ 3, 0, 0 },
-	{ 4, 0, 0 },
-	{ 5, 1, 2 },
-	{ 6, 3, 4 },
-	{ 7, 5, 6 },
-	{ 8, 5, 6 },
-	{ 9, 0, 0 },
-	{ 10, 1, 9 },
-	{ 11, 0, 10 },
-	{ 12, 0, 11 },
-	{ 13, 0, 11 },
-	{ 14, 3, 4 },
-	{ 15, 3, 4 }
-};
-
-struct node {
-	int id;
-	std::vector<int> families;
-};
-
-struct family {
-	std::vector<int> members;	
-};
-
-std::vector<node> node_store;
-std::vector<family> family_store;
-
-namespace boost {
-  enum edge_family_t { edge_family };
-  enum edge_type_t { edge_type };
-  enum vertex_art_t { vertex_art };
-  
-  BOOST_INSTALL_PROPERTY(edge, family);
-  BOOST_INSTALL_PROPERTY(edge, type);
-  BOOST_INSTALL_PROPERTY(vertex, art);
-}
 
 int main(int argc, char* argv[]) {
 	using namespace boost;
 	using namespace std;
 	
-	std::string str = "name\tparent\tfamily\n\ttest\ntest\nu";
+	std::string str =
+		"1\t1\t0\t0\n"
+		"1\t2\t0\t0\n"
+		"1\t3\t1\t2\n"
+		"1\t4\t1\t2\n"
+		"1\t5\t0\t0\n"
+		"1\t6\t5\t2\n"
+	;
 	dng::Pedigree pedi;
-	pedi.Parse(cin);
-
-	typedef adjacency_list<vecS, vecS, undirectedS, property<vertex_art_t, bool>,
-		property<edge_family_t, std::size_t,property<edge_type_t, std::size_t>>> graph_t;
-	typedef graph_traits < graph_t >::vertex_descriptor vertex_t;
-	
-	// construct graph from pedigree information
-	graph_t g(64);
-	for(auto a : ped) {
-		// check to see if mom and dad have been seen before
-		// TODO: check for parent-child inbreeding
-		auto id = edge(a.dad, a.mom, g);
-		if(!id.second) {
-			id = add_edge(a.dad, a.mom, g);
-			put(edge_type, g, id.first, 0);
-		}
-		// add the meiotic edges
-		id = add_edge(a.mom, a.child, g);
-		put(edge_type, g, id.first, 1);
-		id = add_edge(a.dad, a.child, g);
-		put(edge_type, g, id.first, 1);
-	}
-	clear_vertex(0, g);
+	pedi.Parse(str);
+	dng::PedigreePeeler peel;
+	peel.Construct(pedi);
 		
-	auto component = get(edge_family, g);
-	auto edtype = get(edge_type, g);
-	
-	// Calculate the biconnected components and articulation points.
-	// Store articulation point status in the graph.
-	std::vector<vertex_t> art_points;
-	auto ret = biconnected_components(g, component, back_inserter(art_points));
-	for(auto a : art_points)
-		put(vertex_art, g, a, true);
-	
-	typedef std::vector<std::vector<graph_traits<graph_t>::edge_descriptor>> 
-		component_groups_t;
-	component_groups_t groups(ret.first);
-  	graph_traits<graph_t>::edge_iterator ei, ei_end;
-  	for(boost::tie(ei, ei_end) = edges(g); ei != ei_end; ++ei) {
-  		groups[component[*ei]].push_back(*ei);
-  	}
-  	graph_traits<graph_t>::vertex_iterator vi, vi_end;
-  	for(boost::tie(vi, vi_end) = vertices(g); vi != vi_end; ++vi) {
-  		cout << (char)(*vi + 'A') << " " << get(vertex_art, g, *vi) << "\n";
-  	}
-  	
-  	// Identitify the pivot for each group.
-  	// The pivot will be the last art. point that has an edge in
-  	// the group.  The pivot of the last group doesn't matter.
-  	std::vector<vertex_t> pivot(groups.size());
-  	for(auto a : art_points) {
-  		graph_traits<graph_t>::out_edge_iterator ei, ei_end;
-		for(boost::tie(ei, ei_end) = out_edges(a, g); ei != ei_end; ++ei) {
-			// Just overwrite existing value so that the last one wins.
-			pivot[component(*ei)] = a;
-		}
-  	}
-  	
-  	// Detect Family Structure and pivot positions
-  	for(int k = 0; k < groups.size(); ++k) {
-  		auto &a = groups[k];
-  		// Sort edges based on type and target
-  		boost::sort(a, [&](auto x, auto y) -> bool { return
-  			(edtype(x) < edtype(y)) &&
-  			(target(x, g) < target(y, g)); });
-  		// Find the range of the parent types
-  		auto pos = boost::find_if(a, [&](auto x) -> bool { return edtype(x) != 0; });
-  		size_t num_par = distance(a.begin(),pos);
-  		
-  		// Check to see what type of graph we have
-  		if(num_par == 0) {
-  			// We have a parent-child single branch
-  			if(a.size() != 1)
-  				return 1;
-  			int parent = source(*pos, g);
-  			int child = target(*pos, g);
-  		} else if(num_par == 1) {
-  			std::vector<graph_traits<graph_t>::vertex_descriptor> vfam;
-  			vfam.push_back(source(a.front(), g)); // Dad
-  			vfam.push_back(target(a.front(), g)); // Mom
-  			while(pos != a.end()) {
-  				vfam.push_back(target(*pos, g)); // Child
-  				++pos; ++pos; // child edges come in pairs
-  			}
-  			auto pos2 = boost::find(vfam, pivot[k]);
-  			size_t p = distance(vfam.begin(),pos2);
-  			// If a child is the pivot, make it the first child.
-  			if(p > 2) {
-  				swap(vfam[p], vfam[2]);
-  				p = 2;
-  			}
-  			cout << p;
-  			for(auto n : vfam) {
-  				cout << " " << (char)(n + 'A');
-  			}
-  			cout << "\n";
-  		} else {
-  			return 1;
-  		}
-  		
-   	}
-  	
-  	// Print groups and pivots
-   	for(int k = 0; k < groups.size(); ++k) {
-   		auto &a = groups[k];
-  		cout << "[";
-  		for(auto &b : a) {
-  			const char *line = (edtype(b) == 1) ? " -> " : " -- ";
-  			cout << " " << (char)(source(b, g) + 'A') << line
-  				 << (char)(target(b, g) + 'A');
-  		}
-  		cout << " ]";
-  		cout << " " << (char)(pivot[k] + 'A');	  		
-  		cout << "\n";
-  	}
-	
-	return 0;
-	
-/*	typedef std::list<Vertex> MakeOrder;
-	MakeOrder make_order;
-	boost::topological_sort(g, std::front_inserter(make_order));
-
-	std::cout << "make ordering: \n";
-	for (MakeOrder::iterator i = make_order.begin();
-		i != make_order.end(); ++i) {
-		std::cout << name[*i] << "\n";
-		Graph::in_edge_iterator in_begin, in_end;
-		for (boost::tie(in_begin, in_end) = in_edges(*i,g); in_begin != in_end; ++in_begin)
-		{   
-			std::cout << "    " << name[source(*in_begin,g)] << "\n";
-		}
-	}
-		
-	std::cout << std::endl;
-*/
-	
-	size_t sz = boost::size(ped);
-	std::vector<int> mat(sz*sz);
-	std::vector<int> vsort;
-	for(int i=1;i<sz;++i) {
-		int m = ped[i].mom;
-		int d = ped[i].dad;
-		int c = ped[i].child;
-		mat[m*sz+m] = 1;
-		mat[m*sz+d] = 1;
-		mat[m*sz+c] = 1;
-		mat[d*sz+m] = 1;
-		mat[d*sz+d] = 1;
-		mat[d*sz+c] = 1;
-		mat[c*sz+m] = 1;
-		mat[c*sz+d] = 1;
-		mat[c*sz+c] = 1;
-		vsort.push_back(c);
-	}
-	//boost::reverse(vsort);
-	for(int i=0;i < mat.size(); ++i) {
-		std::cout << mat[i];
-		if(i % sz == sz-1)
-			std::cout << "\n";
-	}
-	std::cout << "\n";
-	
-	for(int g=0;g<vsort.size();++g) {
-		// Find first element to sum out
-		int j;
-		for(j=g;j<vsort.size();++j) {
-			// Find all neighbors of v[j];
-			int v = vsort[j];
-			std::vector<int> vn;
-			for(int k=1;k<sz;++k) {
-				if(mat[v*sz+k] == 1) {
-					vn.push_back(k);
-				}
-			}
-			// Check to see if all neighbors are connected to each other
-			for(int x=0;x<vn.size();++x) {
-				for(int y=0;y<vn.size();++y) {
-					if(mat[vn[x]*sz+vn[y]] != 1)
-						goto next_loop;
-				}
-			}
-			std::swap(vsort[j],vsort[g]);
-			
-			for(int x=0;x<vn.size();++x) {
-				mat[vn[x]*sz+v] = 0;
-			}
-			
-			for(int i=0;i < mat.size(); ++i) {
-				std::cout << mat[i];
-				if(i % sz == sz-1)
-					std::cout << "\n";
-			}
-			std::cout << "\n";
-			
-			break;
-		next_loop:
-			continue;
-		}
-		if(j == vsort.size()) {
-			std::cout << "not a zero-loop pedigree" << std::endl;
-			break;
-		}
-		
-		
-	}
-	for(auto v : vsort) {
-		std::cout << v << std::endl;
-	}
 	
 	return 0;
 }
