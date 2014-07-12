@@ -157,6 +157,8 @@ protected:
 
 class PedigreePeeler {
 public:
+	typedef std::vector<std::vector<std::size_t>> family_members_t;
+
 	bool Construct(const Pedigree& pedigree) {
 		using namespace boost;
 		using namespace std;
@@ -229,6 +231,10 @@ public:
 	  	// The last pivot is special.
 	  	pivots.back() = 0;
 	  	
+	  	// Reset Family Information
+	  	families_.clear();
+	  	families_.reserve(128);
+	  	
 	  	// Detect Family Structure and pivot positions
 	  	for(std::size_t k = 0; k < groups.size(); ++k) {
 	  		auto &family_edges = groups[k];
@@ -255,25 +261,25 @@ public:
 	  			// TODO: What do we do here?
 	  		} else if(num_parent_edges == 1) {
 	  			// We have a nuclear family with 1 or more children
-	  			vector<vertex_t> family_vertices;
-	  			family_vertices.push_back(source(family_edges.front(), pedigree_graph)); // Dad
-	  			family_vertices.push_back(target(family_edges.front(), pedigree_graph)); // Mom
+	  			families_.emplace_back();
+	  			families_.back().push_back(source(family_edges.front(), pedigree_graph)); // Dad
+	  			families_.back().push_back(target(family_edges.front(), pedigree_graph)); // Mom
 	  			while(pos != family_edges.end()) {
-	  				family_vertices.push_back(target(*pos, pedigree_graph)); // Child
+	  				families_.back().push_back(target(*pos, pedigree_graph)); // Child
 	  				++pos; ++pos; // child edges come in pairs
 	  			}
-	  			auto pivot_pos = boost::find(family_vertices, pivots[k]);
-	  			size_t p = distance(family_vertices.begin(),pivot_pos);
+	  			auto pivot_pos = boost::find(families_.back(), pivots[k]);
+	  			size_t p = distance(families_.back().begin(),pivot_pos);
 	  			if(pivots[k] == 0 ) {
 	  				p = 0;
 	  			} else if(p > 2) {
-	  				swap(family_vertices[p], family_vertices[2]);
+	  				swap(families_.back()[p], families_.back()[2]);
 	  				p = 2;
 	  			}
 	  			// TODO: Assert that p makes sense
 
 	  			cout << p;
-	  			for(auto n : family_vertices) {
+	  			for(auto n : families_.back()) {
 	  				cout << " " << (char)(n + 'A');
 	  			}
 	  			cout << "\n";
@@ -281,10 +287,13 @@ public:
 	  			// Not a zero-loop pedigree
 	  			// TODO: write error message
 	  			return false;
-	  		}	  		
+	  		}
 	   	}
 		return true;
 	}
+	
+protected:
+	family_members_t families_;
 };
 
 }; // namespace dng
