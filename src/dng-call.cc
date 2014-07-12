@@ -42,6 +42,8 @@
 
 #include <boost/tokenizer.hpp>
 
+#include <Eigen/Dense>
+
 // http://www.boost.org/development/requirements.html
 // http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml
 
@@ -159,6 +161,13 @@ class PedigreePeeler {
 public:
 	typedef std::vector<std::vector<std::size_t>> family_members_t;
 
+	typedef Eigen::Matrix<double, 10, 1> Vector10d;
+	typedef Eigen::Matrix<double, 10, 10> Matrix10d;
+	typedef Eigen::Matrix<double, 100, 1> Vector100d;
+	typedef Eigen::Matrix<double, 100, 100> Matrix100d;
+
+	
+
 	bool Construct(const Pedigree& pedigree) {
 		using namespace boost;
 		using namespace std;
@@ -169,8 +178,10 @@ public:
 			graph_t;
 		typedef graph_traits<graph_t>::vertex_descriptor vertex_t;
 		typedef graph_traits<graph_t>::edge_descriptor edge_t;
-
-		graph_t pedigree_graph(pedigree.member_count());
+		
+		num_members_ = pedigree.member_count();
+		
+		graph_t pedigree_graph(num_members_);
 		
 		// Go through rows and construct the graph
 		for(auto &row : pedigree.table()) {
@@ -294,6 +305,7 @@ public:
 	
 protected:
 	family_members_t families_;
+	std::size_t num_members_;
 };
 
 }; // namespace dng
