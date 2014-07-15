@@ -19,12 +19,16 @@
 
 #include <iostream>
 #include <utility>
+#include <cmath>
+#include <vector>
+
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/topological_sort.hpp>
 #include <boost/range/algorithm/copy.hpp>
 #include <boost/range/algorithm/reverse.hpp>
 #include <boost/graph/biconnected_components.hpp>
+#include <boost/graph/connected_components.hpp>
 #include <boost/function_output_iterator.hpp>
 #include <boost/range/algorithm/for_each.hpp>
 #include <boost/range/algorithm/count_if.hpp>
@@ -51,14 +55,12 @@
 
 namespace boost {
   enum edge_family_t { edge_family };
-  enum edge_group_t { edge_group };
+  enum vertex_group_t { vertex_group };
   enum edge_type_t { edge_type };
-  enum vertex_art_t { vertex_art };
   
   BOOST_INSTALL_PROPERTY(edge, family);
-  BOOST_INSTALL_PROPERTY(edge, group);
+  BOOST_INSTALL_PROPERTY(vertex, group);
   BOOST_INSTALL_PROPERTY(edge, type);
-  BOOST_INSTALL_PROPERTY(vertex, art);
 }
 
 namespace dng {
@@ -229,11 +231,10 @@ public:
 		using namespace std;
 		// Graph to hold pedigree information
 		typedef adjacency_list<vecS, vecS, undirectedS,
-			property<vertex_art_t, bool>,
+			property<vertex_group_t, std::size_t>,
 			property<edge_family_t, std::size_t,
-			property<edge_group_t, std::size_t, 
 			property<edge_type_t, std::size_t
-			>>>
+			>>
 			> graph_t;
 		typedef graph_traits<graph_t>::vertex_descriptor vertex_t;
 		typedef graph_traits<graph_t>::edge_descriptor edge_t;
@@ -264,11 +265,11 @@ public:
 		// Remove the dummy individual from the graph
 		clear_vertex(pedigree.id(""), pedigree_graph);
 		
-		//auto groups = get(edge_groups, pedigree_graph);
+		auto groups = get(vertex_group, pedigree_graph);
 		auto families = get(edge_family, pedigree_graph);
 		auto edge_types = get(edge_type, pedigree_graph);
 		
-		// Calculate the connected componetns
+		// Calculate the connected components
 		std::size_t num_groups = connected_components(pedigree_graph, groups);
 		
 		// Calculate the biconnected components and articulation points.
@@ -276,24 +277,27 @@ public:
 		std::size_t num_families = biconnected_components(pedigree_graph, families,
 			back_inserter(articulation_vertices)).first;
 
-		// Store articulation point status in the graph.
-		for(auto a : articulation_vertices)
-			put(vertex_art, pedigree_graph, a, true);
-
-		// Determine the last family in each group
-		typedef vector<std::size_t> last_family_in_group_t;
-		last_family_in_group_t last_family_in_group(num_groups,0);  	
-	  	for(tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei) {
-	  		last_family_in_group[groups[*ei]] = std::max(families[*ei],
-	  			last_family_in_group[groups[*ei]]);
-	  	}
-
 		// Determine which edges belong to which nuclear families
 		typedef vector<vector<graph_traits<graph_t>::edge_descriptor>> 
 			family_labels_t;
 		family_labels_t family_labels(num_families);
 	  	for(tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei) {
 	  		family_labels[families[*ei]].push_back(*ei);
+	  	}
+
+		for(int a=0; a < num_vertices(pedigree_graph); ++a) {
+			cout << (char)(a + 'A') << " " << groups[a] << "\n";
+		}
+
+		// Determine the last family in each group
+		// the first group will be ignored since it contains the dummy individual
+		typedef deque<std::size_t> root_families_t;
+		root_families_t root_families(num_groups-1,0);  	
+	  	for(std::size_t f = 0; f < num_families; ++f) {
+	  		// last one wins
+	  		auto first_edge = family_labels[f][0];
+	  		auto src_vertex = source(first_edge, pedigree_graph);
+			root_families[groups(src_vertex)-1] = f;
 	  	}
 	  	
 	  	// Identitify the pivot for each family.
@@ -307,10 +311,12 @@ public:
 				pivots[families[*ei]] = a;
 			}
 	  	}
-	  	// The last pivot is special.
-	  	pivots.back() = 0;
-	  	
+	  	// Root Pivots are special
+	  	for(auto f : root_families)
+	  		pivots[f] = 0;
+
 	  	// Reset Family Information
+	  	roots_.clear();
 	  	family_members_.clear();
 	  	family_members_.reserve(128);
 	  	peeling_op_.clear();
@@ -350,10 +356,10 @@ public:
 	  			}
 	  			auto pivot_pos = boost::find(family_members_.back(), pivots[k]);
 	  			size_t p = distance(family_members_.back().begin(),pivot_pos);
-	  			// A family without a pivot is the final family
+	  			// A family without a pivot is a root family
 	  			if(pivots[k] == 0 ) {
 	  				p = 0;
-	  				root_ = family_members_.back()[0];
+	  				roots_.push_back(family_members_.back()[0]);
 	  			} else if(p > 2) {
 	  				swap(family_members_.back()[p], family_members_.back()[2]);
 	  				p = 2;
@@ -399,14 +405,20 @@ public:
 		for(std::size_t i = 0; i < peeling_op_.size(); ++i)
 			(this->*(peeling_op_[i]))(i);
 			
-		// Sum over root
-		return (lower_[root_] * upper_[root_]).sum();
+		// Sum over roots
+		double ret = 0.0;
+		boost::copy(roots_, std::ostream_iterator<int>(std::cout, " "));
+		std::cout << "\n";
+		
+		for(auto r : roots_)
+			ret += log((lower_[r]*upper_[r]).sum());
+		return ret;
 	}
 	
 protected:
 	family_members_t family_members_;
 	std::size_t num_members_;
-	std::size_t root_;
+	std::vector<std::size_t> roots_;
 	
 	IndividualBuffer upper_; // Holds P(Data & G=g)
 	IndividualBuffer lower_; // Holds P(Data | G=g)
@@ -476,7 +488,7 @@ int main(int argc, char* argv[]) {
 		"1\t1\t0\t0\n"
 		"1\t2\t0\t0\n"
 		"1\t3\t1\t2\n"
-		"1\t4\t1\t2\n"
+		"1\t4\t0\t0\n"
 		"1\t5\t0\t0\n"
 		"1\t6\t4\t5\n"
 	;
@@ -496,7 +508,7 @@ int main(int argc, char* argv[]) {
 	buf[6][0] = 1.0;
 	
 	double d = peel.CalculateLogLikelihood(buf);
-	cout << d << endl;
+	cout << d/log(4) << endl;
 	
 	return 0;
 }
