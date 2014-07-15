@@ -43,16 +43,20 @@
 #include <boost/tokenizer.hpp>
 
 #include <Eigen/Dense>
+#include <Eigen/StdVector>
+#include <Eigen/KroneckerProduct>
 
 // http://www.boost.org/development/requirements.html
 // http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml
 
 namespace boost {
   enum edge_family_t { edge_family };
+  enum edge_group_t { edge_group };
   enum edge_type_t { edge_type };
   enum vertex_art_t { vertex_art };
   
   BOOST_INSTALL_PROPERTY(edge, family);
+  BOOST_INSTALL_PROPERTY(edge, group);
   BOOST_INSTALL_PROPERTY(edge, type);
   BOOST_INSTALL_PROPERTY(vertex, art);
 }
@@ -161,27 +165,83 @@ class PedigreePeeler {
 public:
 	typedef std::vector<std::vector<std::size_t>> family_members_t;
 
-	typedef Eigen::Matrix<double, 10, 1> Vector10d;
-	typedef Eigen::Matrix<double, 10, 10> Matrix10d;
-	typedef Eigen::Matrix<double, 100, 1> Vector100d;
-	typedef Eigen::Matrix<double, 100, 100> Matrix100d;
+	typedef void (PedigreePeeler::*PeelOp)(std::size_t);
 
+	typedef Eigen::Array<double, 10, 1> Vector10d;
+	typedef Eigen::Matrix<double, 10, 10> Matrix10d;
+	typedef Eigen::Matrix<double, 10, 10, Eigen::RowMajor> RowMatrix10d;
+	typedef Eigen::Array<double, 100, 1> Vector100d;
+	typedef Eigen::Matrix<double, 100, 100> Matrix100d;
 	
+	typedef Eigen::Matrix<double, 100, 10> MeiosisMatrix;
+
+	typedef std::vector<Vector10d, Eigen::aligned_allocator<Vector10d>> IndividualBuffer;
+
+	bool Initialize(double mu, double theta) {
+		using namespace Eigen;
+		using namespace std;
+		// Construct Genotype Prior
+		double p_hom = 1.0/(1.0+theta)/4.0;
+		double p_het = theta/(1.0+theta)/6.0;
+		genotype_prior_ <<
+			p_hom, p_het, p_het, p_het,
+			       p_hom, p_het, p_het,
+			              p_hom, p_het,
+			                     p_hom
+		;
+		double nuc_freq[4] = { 0.25, 0.25, 0.25, 0.25 };
+		double beta = 1.0;
+		for(auto d : nuc_freq)
+			beta -= d*d;
+		beta = 1.0/beta;
+		beta = exp(-beta*mu);
+		Eigen::Matrix4d m;
+		for(int i : {0,1,2,3}) {
+			for(int j : {0,1,2,3}) {
+				m(i,j) = nuc_freq[i]*(1.0-beta);
+			}
+			m(i,i) += beta;
+		}
+		int nuc1[10] = {0,0,0,0,1,1,1,2,2,3};
+		int nuc2[10] = {0,1,2,3,1,2,3,2,3,3};
+		for(int i = 0; i < 10; ++i) {
+			for(int j = 0; j < 10; ++j) {
+				int p = 10*i+j;
+				for(int k = 0; k < 10; ++k) {
+					meiosis_(p,k) =
+						  ( m(nuc1[i],nuc1[k]) + m(nuc2[i],nuc1[k]) )
+					    * ( m(nuc1[j],nuc2[k]) + m(nuc2[j],nuc2[k]) )/4.0 ;
+					if(nuc1[k] == nuc2[k])
+						continue;
+					meiosis_(p,k) +=
+					      ( m(nuc1[i],nuc2[k]) + m(nuc2[i],nuc2[k]) )
+					    * ( m(nuc1[j],nuc1[k]) + m(nuc2[j],nuc1[k]) )/4.0 ;
+				}
+			}
+		}
+				
+		return true;
+	}
 
 	bool Construct(const Pedigree& pedigree) {
+		// TODO: Check for independent families
 		using namespace boost;
 		using namespace std;
 		// Graph to hold pedigree information
 		typedef adjacency_list<vecS, vecS, undirectedS,
 			property<vertex_art_t, bool>,
-			property<edge_family_t, std::size_t,property<edge_type_t, std::size_t>>>
-			graph_t;
+			property<edge_family_t, std::size_t,
+			property<edge_group_t, std::size_t, 
+			property<edge_type_t, std::size_t
+			>>>
+			> graph_t;
 		typedef graph_traits<graph_t>::vertex_descriptor vertex_t;
 		typedef graph_traits<graph_t>::edge_descriptor edge_t;
 		
 		num_members_ = pedigree.member_count();
 		
 		graph_t pedigree_graph(num_members_);
+		graph_traits<graph_t>::edge_iterator ei, ei_end;
 		
 		// Go through rows and construct the graph
 		for(auto &row : pedigree.table()) {
@@ -204,51 +264,61 @@ public:
 		// Remove the dummy individual from the graph
 		clear_vertex(pedigree.id(""), pedigree_graph);
 		
-		auto components = get(edge_family, pedigree_graph);
+		//auto groups = get(edge_groups, pedigree_graph);
+		auto families = get(edge_family, pedigree_graph);
 		auto edge_types = get(edge_type, pedigree_graph);
-	
+		
+		// Calculate the connected componetns
+		std::size_t num_groups = connected_components(pedigree_graph, groups);
+		
 		// Calculate the biconnected components and articulation points.
 		vector<vertex_t> articulation_vertices;
-		auto result = biconnected_components(pedigree_graph, components,
-			back_inserter(articulation_vertices));
+		std::size_t num_families = biconnected_components(pedigree_graph, families,
+			back_inserter(articulation_vertices)).first;
+
 		// Store articulation point status in the graph.
 		for(auto a : articulation_vertices)
 			put(vertex_art, pedigree_graph, a, true);
-		
-		// Determine which edges belong to which components
-		typedef vector<vector<graph_traits<graph_t>::edge_descriptor>> 
-			component_groups_t;
-		component_groups_t groups(result.first);
-	  	graph_traits<graph_t>::edge_iterator ei, ei_end;
+
+		// Determine the last family in each group
+		typedef vector<std::size_t> last_family_in_group_t;
+		last_family_in_group_t last_family_in_group(num_groups,0);  	
 	  	for(tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei) {
-	  		groups[components[*ei]].push_back(*ei);
+	  		last_family_in_group[groups[*ei]] = std::max(families[*ei],
+	  			last_family_in_group[groups[*ei]]);
 	  	}
-	  	graph_traits<graph_t>::vertex_iterator vi, vi_end;
-	  	for(boost::tie(vi, vi_end) = vertices(pedigree_graph); vi != vi_end; ++vi) {
-	  		cout << (char)(*vi + 'A') << " " << get(vertex_art, pedigree_graph, *vi) << "\n";
+
+		// Determine which edges belong to which nuclear families
+		typedef vector<vector<graph_traits<graph_t>::edge_descriptor>> 
+			family_labels_t;
+		family_labels_t family_labels(num_families);
+	  	for(tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei) {
+	  		family_labels[families[*ei]].push_back(*ei);
 	  	}
 	  	
-	  	// Identitify the pivot for each group.
+	  	// Identitify the pivot for each family.
 	  	// The pivot will be the last art. point that has an edge in
 	  	// the group.  The pivot of the last group doesn't matter.
-	  	vector<vertex_t> pivots(groups.size());
+	  	vector<vertex_t> pivots(num_families);
 	  	for(auto a : articulation_vertices) {
 	  		graph_traits<graph_t>::out_edge_iterator ei, ei_end;
 			for(tie(ei, ei_end) = out_edges(a, pedigree_graph); ei != ei_end; ++ei) {
 				// Just overwrite existing value so that the last one wins.
-				pivots[components[*ei]] = a;
+				pivots[families[*ei]] = a;
 			}
 	  	}
 	  	// The last pivot is special.
 	  	pivots.back() = 0;
 	  	
 	  	// Reset Family Information
-	  	families_.clear();
-	  	families_.reserve(128);
+	  	family_members_.clear();
+	  	family_members_.reserve(128);
+	  	peeling_op_.clear();
+	  	peeling_op_.reserve(128);
 	  	
 	  	// Detect Family Structure and pivot positions
-	  	for(std::size_t k = 0; k < groups.size(); ++k) {
-	  		auto &family_edges = groups[k];
+	  	for(std::size_t k = 0; k < family_labels.size(); ++k) {
+	  		auto &family_edges = family_labels[k];
 	  		// Sort edges based on type and target
 	  		boost::sort(family_edges, [&](edge_t x, edge_t y) -> bool { return
 	  			(edge_types(x) < edge_types(y)) &&
@@ -258,7 +328,6 @@ public:
 	  		auto pos = boost::find_if(family_edges, [&](edge_t x) -> bool { 
 	  			return edge_types(x) != 0; });
 	  		size_t num_parent_edges = distance(family_edges.begin(),pos);
-	  		
 	  		
 	  		// Check to see what type of graph we have
 	  		if(num_parent_edges == 0) {
@@ -272,25 +341,40 @@ public:
 	  			// TODO: What do we do here?
 	  		} else if(num_parent_edges == 1) {
 	  			// We have a nuclear family with 1 or more children
-	  			families_.emplace_back();
-	  			families_.back().push_back(source(family_edges.front(), pedigree_graph)); // Dad
-	  			families_.back().push_back(target(family_edges.front(), pedigree_graph)); // Mom
+	  			family_members_.emplace_back();
+	  			family_members_.back().push_back(source(family_edges.front(), pedigree_graph)); // Dad
+	  			family_members_.back().push_back(target(family_edges.front(), pedigree_graph)); // Mom
 	  			while(pos != family_edges.end()) {
-	  				families_.back().push_back(target(*pos, pedigree_graph)); // Child
+	  				family_members_.back().push_back(target(*pos, pedigree_graph)); // Child
 	  				++pos; ++pos; // child edges come in pairs
 	  			}
-	  			auto pivot_pos = boost::find(families_.back(), pivots[k]);
-	  			size_t p = distance(families_.back().begin(),pivot_pos);
+	  			auto pivot_pos = boost::find(family_members_.back(), pivots[k]);
+	  			size_t p = distance(family_members_.back().begin(),pivot_pos);
+	  			// A family without a pivot is the final family
 	  			if(pivots[k] == 0 ) {
 	  				p = 0;
+	  				root_ = family_members_.back()[0];
 	  			} else if(p > 2) {
-	  				swap(families_.back()[p], families_.back()[2]);
+	  				swap(family_members_.back()[p], family_members_.back()[2]);
 	  				p = 2;
 	  			}
 	  			// TODO: Assert that p makes sense
-
+				
+				switch(p) {
+				case 0:
+					peeling_op_.push_back(&PedigreePeeler::PeelToFather);
+					break;
+				case 1:
+					peeling_op_.push_back(&PedigreePeeler::PeelToMother);
+					break;
+				case 2:
+				default:
+					peeling_op_.push_back(&PedigreePeeler::PeelToChild);
+					break;
+				};
+				
 	  			cout << p;
-	  			for(auto n : families_.back()) {
+	  			for(auto n : family_members_.back()) {
 	  				cout << " " << (char)(n + 'A');
 	  			}
 	  			cout << "\n";
@@ -303,9 +387,83 @@ public:
 		return true;
 	}
 	
+	double CalculateLogLikelihood(const IndividualBuffer &penetrances) {
+		// TODO: Assert that length of penetrances is equal to num_members_;
+		// Copy Penetrance values into the lower buffer
+		// TODO: Eliminate this copy????
+		lower_ = penetrances;
+		// Copy genotype Priors
+		upper_.assign(num_members_, genotype_prior_);
+		
+		// Peel Pedigree on family at a time
+		for(std::size_t i = 0; i < peeling_op_.size(); ++i)
+			(this->*(peeling_op_[i]))(i);
+			
+		// Sum over root
+		return (lower_[root_] * upper_[root_]).sum();
+	}
+	
 protected:
-	family_members_t families_;
+	family_members_t family_members_;
 	std::size_t num_members_;
+	std::size_t root_;
+	
+	IndividualBuffer upper_; // Holds P(Data & G=g)
+	IndividualBuffer lower_; // Holds P(Data | G=g)
+	
+	Vector10d genotype_prior_; // Holds P(G | theta)
+
+	MeiosisMatrix meiosis_;
+
+	std::vector<PeelOp> peeling_op_;
+
+	void PeelToFather(std::size_t id) {
+		using namespace Eigen;
+		auto family_members = family_members_[id];
+		Vector100d buffer;
+		buffer.setOnes();
+		// Sum over children
+		for(std::size_t i = 2; i < family_members.size(); i++) {
+			buffer *= (meiosis_ * lower_[family_members[i]].matrix()).array();
+		}
+		// Include Mom
+		Map<Matrix10d, Aligned> mat(buffer.data());
+		lower_[family_members[0]] *= (mat *
+			(upper_[family_members[1]]*lower_[family_members[1]]).matrix()).array();
+	}
+
+	void PeelToMother(std::size_t id) {
+		using namespace Eigen;
+		auto family_members = family_members_[id];
+		Vector100d buffer;
+		buffer.setOnes();
+		// Sum over children
+		for(std::size_t i = 2; i < family_members.size(); i++) {
+			buffer *= (meiosis_ * lower_[family_members[i]].matrix()).array();
+		}
+		// Include Dad
+		Map<RowMatrix10d, Aligned> mat(buffer.data());
+		lower_[family_members[1]] *= (mat *
+			(upper_[family_members[0]]*lower_[family_members[0]]).matrix()).array();
+	}
+
+	void PeelToChild(std::size_t id) {
+		using namespace Eigen;
+		auto family_members = family_members_[id];
+		Vector100d buffer;
+		buffer.setOnes();
+		// Sum over children
+		for(std::size_t i = 3; i < family_members.size(); i++) {
+			buffer *= (meiosis_ * lower_[family_members[i]].matrix()).array();
+		}
+		// Parents
+		buffer *= kroneckerProduct(
+			(lower_[family_members[0]] * upper_[family_members[0]]).matrix(),
+			(lower_[family_members[1]] * upper_[family_members[1]]).matrix()
+		).array();
+		
+		upper_[family_members[2]].matrix() = meiosis_.transpose() * buffer.matrix();
+	}
 };
 
 }; // namespace dng
@@ -320,13 +478,25 @@ int main(int argc, char* argv[]) {
 		"1\t3\t1\t2\n"
 		"1\t4\t1\t2\n"
 		"1\t5\t0\t0\n"
-		"1\t6\t5\t2\n"
+		"1\t6\t4\t5\n"
 	;
 	dng::Pedigree pedi;
 	pedi.Parse(str);
 	dng::PedigreePeeler peel;
+	peel.Initialize(1e-12,1e-12);
 	peel.Construct(pedi);
-		
+	
+	dng::PedigreePeeler::IndividualBuffer buf;
+	buf.resize(7, dng::PedigreePeeler::Vector10d::Zero());
+	buf[1][0] = 1.0;
+	buf[2][0] = 1.0;
+	buf[3][0] = 1.0;
+	buf[4][0] = 1.0;
+	buf[5][0] = 1.0;
+	buf[6][0] = 1.0;
+	
+	double d = peel.CalculateLogLikelihood(buf);
+	cout << d << endl;
 	
 	return 0;
 }
