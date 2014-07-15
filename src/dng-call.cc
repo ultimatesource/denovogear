@@ -399,9 +399,11 @@ public:
 		// TODO: Eliminate this copy????
 		lower_ = penetrances;
 		// Copy genotype Priors
+		// TODO: Only update founders
+		// TODO: use a different prior based on reference
 		upper_.assign(num_members_, genotype_prior_);
 		
-		// Peel Pedigree on family at a time
+		// Peel pedigree one family at a time
 		for(std::size_t i = 0; i < peeling_op_.size(); ++i)
 			(this->*(peeling_op_[i]))(i);
 			
