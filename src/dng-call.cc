@@ -179,19 +179,30 @@ public:
 
 	typedef std::vector<Vector10d, Eigen::aligned_allocator<Vector10d>> IndividualBuffer;
 
-	bool Initialize(double mu, double theta) {
+	bool Initialize(double theta, double mu) {
 		using namespace Eigen;
 		using namespace std;
 		// Construct Genotype Prior
-		double p_hom = 1.0/(1.0+theta)/4.0;
-		double p_het = theta/(1.0+theta)/6.0;
-		genotype_prior_ <<
-			p_hom, p_het, p_het, p_het,
-			       p_hom, p_het, p_het,
-			              p_hom, p_het,
-			                     p_hom
-		;
 		double nuc_freq[4] = { 0.25, 0.25, 0.25, 0.25 };
+		double alpha[4] = {
+			theta*nuc_freq[0], theta*nuc_freq[1],
+			theta*nuc_freq[2], theta*nuc_freq[3]
+		};
+		// Use a parent-independent mutation model, which produces a
+		// beta-binomial
+		genotype_prior_ <<
+		        alpha[0]*(1.0+alpha[0])/theta/(1.0+theta), // AA
+		    2.0*alpha[0]*(    alpha[1])/theta/(1.0+theta), // AC
+		    2.0*alpha[0]*(    alpha[2])/theta/(1.0+theta), // AG
+		    2.0*alpha[0]*(    alpha[3])/theta/(1.0+theta), // AT
+		        alpha[1]*(1.0+alpha[1])/theta/(1.0+theta), // CC
+		    2.0*alpha[1]*(    alpha[2])/theta/(1.0+theta), // CG
+		    2.0*alpha[1]*(    alpha[3])/theta/(1.0+theta), // CT
+		        alpha[2]*(1.0+alpha[2])/theta/(1.0+theta), // GG
+		    2.0*alpha[2]*(    alpha[3])/theta/(1.0+theta), // GT
+		        alpha[3]*(1.0+alpha[3])/theta/(1.0+theta); // GG
+				
+		// Construct Mutation Process
 		double beta = 1.0;
 		for(auto d : nuc_freq)
 			beta -= d*d;
@@ -281,13 +292,8 @@ public:
 		typedef vector<vector<graph_traits<graph_t>::edge_descriptor>> 
 			family_labels_t;
 		family_labels_t family_labels(num_families);
-	  	for(tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei) {
+	  	for(tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei)
 	  		family_labels[families[*ei]].push_back(*ei);
-	  	}
-
-		for(int a=0; a < num_vertices(pedigree_graph); ++a) {
-			cout << (char)(a + 'A') << " " << groups[a] << "\n";
-		}
 
 		// Determine the last family in each group
 		// the first group will be ignored since it contains the dummy individual
@@ -378,12 +384,6 @@ public:
 					peeling_op_.push_back(&PedigreePeeler::PeelToChild);
 					break;
 				};
-				
-	  			cout << p;
-	  			for(auto n : family_members_.back()) {
-	  				cout << " " << (char)(n + 'A');
-	  			}
-	  			cout << "\n";
 	  		} else {
 	  			// Not a zero-loop pedigree
 	  			// TODO: write error message
@@ -407,9 +407,6 @@ public:
 			
 		// Sum over roots
 		double ret = 0.0;
-		boost::copy(roots_, std::ostream_iterator<int>(std::cout, " "));
-		std::cout << "\n";
-		
 		for(auto r : roots_)
 			ret += log((lower_[r]*upper_[r]).sum());
 		return ret;
@@ -488,27 +485,27 @@ int main(int argc, char* argv[]) {
 		"1\t1\t0\t0\n"
 		"1\t2\t0\t0\n"
 		"1\t3\t1\t2\n"
-		"1\t4\t0\t0\n"
-		"1\t5\t0\t0\n"
-		"1\t6\t4\t5\n"
+		//"1\t4\t0\t0\n"
+		//"1\t5\t0\t0\n"
+		//"1\t6\t4\t5\n"
 	;
 	dng::Pedigree pedi;
 	pedi.Parse(str);
 	dng::PedigreePeeler peel;
-	peel.Initialize(1e-12,1e-12);
+	peel.Initialize(0.001,1e-12);
 	peel.Construct(pedi);
 	
 	dng::PedigreePeeler::IndividualBuffer buf;
 	buf.resize(7, dng::PedigreePeeler::Vector10d::Zero());
-	buf[1][0] = 1.0;
-	buf[2][0] = 1.0;
-	buf[3][0] = 1.0;
+	buf[1][1] = 1.0;
+	buf[2][1] = 1.0;
+	buf[3][1] = 1.0;
 	buf[4][0] = 1.0;
 	buf[5][0] = 1.0;
 	buf[6][0] = 1.0;
 	
 	double d = peel.CalculateLogLikelihood(buf);
-	cout << d/log(4) << endl;
+	cout << exp(d) << endl;
 	
 	return 0;
 }
