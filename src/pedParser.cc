@@ -19,26 +19,25 @@
 */
 
 #include <string.h>
+#include <iostream>
 #include "pedParser.h"
 using namespace std;
 
-//#define DEBUG_ENABLED
 // Parse PED file and get trio information
 void parse_ped(string ped_file, Trio** t, Pair** p, int& trio_count,
                int& pair_count)
 {
 	Trio* trios;
-	Pair* pairs;
 
-	int trios_allocated = 10;
-	trios = (Trio*) calloc (trios_allocated, sizeof(Trio));
+	int trios_allocated = 10000;
+	trios = new (nothrow) Trio[10000];
 	if(trios == NULL) {
 		printf("\nError allocating memory(1). Exiting!");
 		exit(1);
 	}
 
-	int pairs_allocated = 10;
-	pairs = (Pair*) calloc (pairs_allocated, sizeof(Pair));
+	int pairs_allocated = 10000;
+	Pair* pairs = new (nothrow) Pair[10000];
 	if(pairs == NULL) {
 		printf("\nError allocating memory(1). Exiting!");
 		exit(1);
