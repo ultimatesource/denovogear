@@ -50,6 +50,8 @@
 #include <Eigen/StdVector>
 #include <Eigen/KroneckerProduct>
 
+#include <dng/app/call.h>
+
 // http://www.boost.org/development/requirements.html
 // http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml
 
@@ -480,6 +482,16 @@ protected:
 }; // namespace dng
 
 int main(int argc, char* argv[]) {
+	int ret = EXIT_FAILURE;
+	try {
+		return dng::app::Call(argc, argv)();
+	} catch(std::exception &e) {
+		std::cerr << e.what() << std::endl;
+	}
+	return EXIT_FAILURE;
+}
+
+int main2(int argc, char* argv[]) {
 	using namespace boost;
 	using namespace std;
 	
