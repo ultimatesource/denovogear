@@ -484,7 +484,7 @@ protected:
 int main(int argc, char* argv[]) {
 	int ret = EXIT_FAILURE;
 	try {
-		return dng::app::Call(argc, argv)();
+		return dng::CallApp(argc, argv)();
 	} catch(std::exception &e) {
 		std::cerr << e.what() << std::endl;
 	}

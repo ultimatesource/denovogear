@@ -85,48 +85,57 @@ typed_value<boost::tribool>* value(boost::tribool* v) {
 }
 }}
 
-namespace dng { namespace app {
+namespace dng {
 
-namespace base { struct arg_t {
-	std::string arg_file;
-	bool version;
-	bool help;
-	std::vector< std::string > input;
-		
-	void add_to(po::options_description &desc) {
-		desc.add_options()
-			("help", po::value<bool>(&help)->default_value(false, "off"),
-				"display usage information")
-			("version", po::value<bool>(&version)->default_value(false, "off"),
-				"display version information")
-			("arg-file", po::value<std::string>(&arg_file)->default_value(""),
-				"read command-line arguments from a file")
-		;		
+template<typename A>
+class Task {
+public:
+	typedef A arg_type;
+	
+	int Run(const arg_type &) { 
+		return EXIT_SUCCESS;
 	}
-};}
+};
 
 /******************************************************************************
  * class dng::app::Base<Arg>                                                  *
  ******************************************************************************/
-template<typename Arg>
-class Base {
+ 
+template<typename T>
+class App {
 public:
-	typedef Arg arg_t;
+	typedef T task_type;
 	
-	arg_t arg;
+	struct arg_t : public task_type::arg_type {
+		bool help;
+		bool version;
+		std::string arg_file;
+		std::vector< std::string > input;
+	} arg;
 	
-	Base(int argc, char* argv[]) : desc("Allowed Options")  {
+	App(int argc, char* argv[]) : desc("Allowed Options")  {
 		using namespace std;
 		runname = argv[0];
 		
-		arg.add_to(desc);
+		add_args(desc,static_cast<typename task_type::arg_type&>(arg));
+		desc.add_options()
+			("version", po::value<bool>(&arg.version)->default_value(false,"off"),
+				"display version information")
+			("help", po::value<bool>(&arg.help)->default_value(false,"off"),
+				"display usage informaiton")
+			("arg-file", po::value<std::string>(&arg.arg_file)->default_value(""),
+				"read command-line arguments from a file")
+			;
+		
 		indesc.add_options()
 			("input", po::value< vector<string> >(&arg.input), "input files")
 		;
 		indesc.add(desc);
 		pdesc.add("input", -1);
+		
 		po::store(po::command_line_parser(argc, argv).options(indesc).positional(pdesc).run(), vm);
 		po::notify(vm);
+		
 		if(!arg.arg_file.empty()) {
 			if(arg.arg_file == "-") {
 				po::store(po::parse_config_file(cin, desc), vm);	
@@ -161,21 +170,20 @@ public:
 			// TODO this
 		}
 		
-
-		return this->Run();
+		return task_.Run(arg);
 	}
 	
-	virtual int Run() = 0;
-
 protected:	
 	// TODO: change naming
 	std::string runname;
 	po::options_description desc, indesc;
 	po::positional_options_description pdesc;
 	po::variables_map vm;
+	
+	task_type task_;
 };
 
-}} // namespace dng::app
+} // namespace dng
 
 
 #endif // DNG_APP_H

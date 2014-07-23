@@ -23,44 +23,41 @@
 
 #include <dng/app.h>
 
-namespace dng { namespace app {
+namespace dng {
 
 namespace call {
 
-struct arg_t : public base::arg_t {
-	// use X-Macros to specify argument variables
-#	define XM(lname, sname, desc, type, def) type XV(lname) ;
+// use X-Macros to specify argument variables
+struct arg_t {
+#define XM(lname, sname, desc, type, def) type XV(lname) ;
 #	include "call.xmh"
-#	undef XM
-
-	// This function connects variables in this structure to command line
-	// arguments.
-	void add_to(po::options_description &desc) {
-		desc.add_options()
-#		define XM(lname, sname, desc, type, def) ( \
-			XS(lname) IFD(sname, "," BOOST_PP_STRINGIZE sname), \
-			po::value< type >(&arg.XV(lname))->default_value(def), \
-			desc )	
-#		include "call.xmh"
-#		undef XM
-		;
-		base::arg_t::add_to(desc);		
-	}
+#undef XM
 };
 
-};
+void add_args(po::options_description &desc, arg_t & arg) {
+	desc.add_options()
+#define XM(lname, sname, desc, type, def) ( \
+	XS(lname) IFD(sname, "," BOOST_PP_STRINGIZE sname), \
+	po::value< type >(&arg.XV(lname))->default_value(def), \
+	desc )	
+#	include "call.xmh"
+#undef XM
+	;
+}
 
-class Call : public Base<call::arg_t> {
+}
+
+class Call : public Task<call::arg_t> {
 public:
-	typedef Base<call::arg_t> base_t;
-	Call(int argc, char* argv[]) : base_t(argc,argv) {
-	}
-
-	virtual int Run() {
+	typedef call::arg_t arg_type;
+		
+	int Run(const arg_type &arg) {
 		return EXIT_SUCCESS;
 	}
 };
 
-}}
+typedef App<Call> CallApp;
+
+}
 
 #endif

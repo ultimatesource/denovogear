@@ -67,12 +67,15 @@
 #undef XMACROS_HELPERS
 #undef JS_OP
 #undef JS
+#undef JS_1
+#undef JS_2
+#undef SS_OP
 #undef SS
 #undef IFD
 #undef XV
 #undef XS
 #undef XP
-#undef XL
+#undef DL
 
 #endif
 
