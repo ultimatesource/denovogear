@@ -247,14 +247,14 @@ bool PedigreePeeler::Construct(const Pedigree& pedigree) {
 			
 			switch(p) {
 			case 0:
-				peeling_op_.push_back(&PedigreePeeler::PeelToFather);
+				peeling_op_.emplace_back(&PedigreePeeler::PeelToFather);
 				break;
 			case 1:
-				peeling_op_.push_back(&PedigreePeeler::PeelToMother);
+				peeling_op_.emplace_back(&PedigreePeeler::PeelToMother);
 				break;
 			case 2:
 			default:
-				peeling_op_.push_back(&PedigreePeeler::PeelToChild);
+				peeling_op_.emplace_back(&PedigreePeeler::PeelToChild);
 				break;
 			};
   		} else {

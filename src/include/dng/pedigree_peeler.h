@@ -23,6 +23,8 @@
 
 #include <dng/pedigree.h>
 
+#include <functional>
+
 #include <Eigen/Dense>
 #include <Eigen/StdVector>
 #include <Eigen/KroneckerProduct>
@@ -33,7 +35,7 @@ class PedigreePeeler {
 public:
 	typedef std::vector<std::vector<std::size_t>> family_members_t;
 
-	typedef void (PedigreePeeler::*PeelOp)(std::size_t);
+	//typedef void (PedigreePeeler::*PeelOp)(std::size_t);
 
 	typedef Eigen::Array<double, 10, 1> Vector10d;
 	typedef Eigen::Matrix<double, 10, 10> Matrix10d;
@@ -61,7 +63,7 @@ public:
 		
 		// Peel pedigree one family at a time
 		for(std::size_t i = 0; i < peeling_op_.size(); ++i)
-			(this->*(peeling_op_[i]))(i);
+			(peeling_op_[i])(*this, i);
 			
 		// Sum over roots
 		double ret = 0.0;
@@ -81,8 +83,6 @@ protected:
 	Vector10d genotype_prior_; // Holds P(G | theta)
 
 	MeiosisMatrix meiosis_;
-
-	std::vector<PeelOp> peeling_op_;
 
 	void PeelToFather(std::size_t id) {
 		using namespace Eigen;
@@ -131,6 +131,10 @@ protected:
 		
 		upper_[family_members[2]].matrix() = meiosis_.transpose() * buffer.matrix();
 	}
+
+	typedef std::function<void(PedigreePeeler&, std::size_t)> PeelOp;
+
+	std::vector<PeelOp> peeling_op_;	
 };
 
 }; // namespace dng
