@@ -29,6 +29,26 @@
 #include <Eigen/StdVector>
 #include <Eigen/KroneckerProduct>
 
+/*
+RULES FOR LINKING READ GROUPS TO PEOPLE.
+
+0) Read all read groups in bam files. Map RG to Library to Sample.
+
+1) If no tissue information is present in pedigree, check to see if there is a
+   sample with the same label as the individual.  If so, connect that sample to
+   the individual with a somatic branch of length 0.  [TODO: Length 0 or 1???]
+
+2) If tissue information is present, build a tissue tree connecting samples
+   to zygotic genotypes.  Build mutation matrices for every unique branch
+   length.
+
+3) If a sample has multiple libraries, connect the libraries to sample with a 
+   pcr-error branch.  Otherwise, connect a sigle library directly.
+
+4) If a library has multiple read-groups, concat the read-groups.
+
+*/
+
 namespace dng {
 
 class PedigreePeeler {
