@@ -50,8 +50,7 @@ inline void add_app_args(po::options_description &desc, arg_t & arg) {
 
 class Call : public Task<call::arg_t> {
 public:
-	//typedef call::arg_t arg_type;
-		
+
 	int operator()(const argument_type &arg);
 };
 

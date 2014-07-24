@@ -35,8 +35,6 @@ class PedigreePeeler {
 public:
 	typedef std::vector<std::vector<std::size_t>> family_members_t;
 
-	//typedef void (PedigreePeeler::*PeelOp)(std::size_t);
-
 	typedef Eigen::Array<double, 10, 1> Vector10d;
 	typedef Eigen::Matrix<double, 10, 10> Matrix10d;
 	typedef Eigen::Matrix<double, 10, 10, Eigen::RowMajor> RowMatrix10d;
