@@ -25,7 +25,9 @@
  * XM((long)(name), (shortname), "description", typename, defaultvalue)    *
  ***************************************************************************/
 
-XM((test), (t), "test", int, 1)
+XM((mu), , "the mutation rate", double, DL(1e-9,"1e-9"))
+XM((ped), (p), "the pedigree file", std::string, "")
+XM((theta), , "the population diversity", double, DL(0.001, "0.001"))
 
 /***************************************************************************
  *    cleanup                                                              *

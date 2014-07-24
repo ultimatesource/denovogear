@@ -102,7 +102,7 @@ class CommandLineApp {
 public:
 	typedef T task_type;
 	
-	struct arg_t : public task_type::arg_type {
+	struct arg_t : public task_type::argument_type {
 		bool help;
 		bool version;
 		std::string arg_file;
@@ -120,7 +120,7 @@ public:
 		arg.run_name = bin_path.filename().generic_string();
 		arg.run_path = bin_path.parent_path().generic_string();
 		
-		add_app_args(ext_desc_, static_cast<typename task_type::arg_type&>(arg));
+		add_app_args(ext_desc_, static_cast<typename task_type::argument_type&>(arg));
 		
 		ext_desc_.add_options()
 			("version", po::value<bool>(&arg.version)->default_value(false,"off"),
