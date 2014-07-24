@@ -50,7 +50,8 @@
 #include <Eigen/StdVector>
 #include <Eigen/KroneckerProduct>
 
-#include <dng/app/call.h>
+#include <dng/app.h>
+#include <dng/task/call.h>
 
 // http://www.boost.org/development/requirements.html
 // http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml
@@ -481,10 +482,12 @@ protected:
 
 }; // namespace dng
 
+typedef dng::CommandLineApp<dng::task::Call> CallApp;
+
 int main(int argc, char* argv[]) {
 	int ret = EXIT_FAILURE;
 	try {
-		return dng::CallApp(argc, argv)();
+		return CallApp(argc, argv)();
 	} catch(std::exception &e) {
 		std::cerr << e.what() << std::endl;
 	}

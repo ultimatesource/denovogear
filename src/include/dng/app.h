@@ -27,6 +27,8 @@
 #include <fstream>
 #include <string>
 
+#include <boost/filesystem.hpp>
+
 #include <boost/logic/tribool.hpp>
 #include <boost/logic/tribool_io.hpp>
 #include <boost/program_options.hpp>
@@ -87,22 +89,16 @@ typed_value<boost::tribool>* value(boost::tribool* v) {
 
 namespace dng {
 
-template<typename A>
-class Task {
-public:
-	typedef A arg_type;
-	
-	int Run(const arg_type &) { 
-		return EXIT_SUCCESS;
-	}
-};
+namespace detail {
+template<class T>
+void add_app_args(po::options_description &desc, T & arg) {
+	return;
+}
 
-/******************************************************************************
- * class dng::app::Base<Arg>                                                  *
- ******************************************************************************/
- 
+}
+
 template<typename T>
-class App {
+class CommandLineApp {
 public:
 	typedef T task_type;
 	
@@ -110,15 +106,23 @@ public:
 		bool help;
 		bool version;
 		std::string arg_file;
+		
 		std::vector< std::string > input;
+		std::string run_name;
+		std::string run_path;
 	} arg;
 	
-	App(int argc, char* argv[]) : desc("Allowed Options")  {
+	CommandLineApp(int argc, char* argv[]) : ext_desc_("Allowed Options")  {
 		using namespace std;
-		runname = argv[0];
+		using detail::add_app_args;
 		
-		add_args(desc,static_cast<typename task_type::arg_type&>(arg));
-		desc.add_options()
+		boost::filesystem::path bin_path(argv[0]);
+		arg.run_name = bin_path.filename().generic_string();
+		arg.run_path = bin_path.parent_path().generic_string();
+		
+		add_app_args(ext_desc_, static_cast<typename task_type::arg_type&>(arg));
+		
+		ext_desc_.add_options()
 			("version", po::value<bool>(&arg.version)->default_value(false,"off"),
 				"display version information")
 			("help", po::value<bool>(&arg.help)->default_value(false,"off"),
@@ -127,18 +131,19 @@ public:
 				"read command-line arguments from a file")
 			;
 		
-		indesc.add_options()
+		int_desc_.add_options()
 			("input", po::value< vector<string> >(&arg.input), "input files")
 		;
-		indesc.add(desc);
-		pdesc.add("input", -1);
+		int_desc_.add(ext_desc_);
+		pos_desc_.add("input", -1);
 		
-		po::store(po::command_line_parser(argc, argv).options(indesc).positional(pdesc).run(), vm);
-		po::notify(vm);
+		po::store(po::command_line_parser(argc, argv)
+			.options(int_desc_).positional(pos_desc_).run(), vm_);
+		po::notify(vm_);
 		
 		if(!arg.arg_file.empty()) {
 			if(arg.arg_file == "-") {
-				po::store(po::parse_config_file(cin, desc), vm);	
+				po::store(po::parse_config_file(cin, ext_desc_), vm_);
 			} else {
 				std::ifstream ifs(arg.arg_file.c_str());
 				if(!ifs.is_open()) {
@@ -146,9 +151,9 @@ public:
 						"unable to open argument file '" + arg.arg_file + "'."
 					);
 				}
-				po::store(po::parse_config_file(ifs, desc), vm);
+				po::store(po::parse_config_file(ifs, ext_desc_), vm_);
 			}
-			po::notify(vm);
+			po::notify(vm_);
 		}
 	}
 	
@@ -157,28 +162,26 @@ public:
 		// TODO: Split this up and allow customization
 		if(arg.help || arg.input.empty()) {
 			//cerr << endl << VERSION_MSG << endl << endl;
-			string usage_name(runname);
-			if(runname.substr(0,4) == "dng-")
+			string usage_name(arg.run_name);
+			if(usage_name.substr(0,4) == "dng-")
 				usage_name[3] = ' ';
 			cerr << "Usage:\n  "
 				 << usage_name << " [options] input1 input2 input3 ..."
 				 << endl << endl;
-			cerr << desc << endl;
+			cerr << ext_desc_ << endl;
 			return EXIT_SUCCESS;
 		}
 		if(arg.version) {
 			// TODO this
 		}
 		
-		return task_.Run(arg);
+		return task_(arg);
 	}
 	
 protected:	
-	// TODO: change naming
-	std::string runname;
-	po::options_description desc, indesc;
-	po::positional_options_description pdesc;
-	po::variables_map vm;
+	po::options_description ext_desc_, int_desc_;
+	po::positional_options_description pos_desc_;
+	po::variables_map vm_;
 	
 	task_type task_;
 };

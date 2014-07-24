@@ -21,11 +21,12 @@
 #ifndef DNG_APP_CALL_H
 #define DNG_APP_CALL_H
 
-#include <dng/app.h>
+#include <dng/task.h>
 
-namespace dng {
+#include <boost/program_options.hpp>
+namespace po = boost::program_options;
 
-namespace call {
+namespace dng { namespace task { namespace call {
 
 // use X-Macros to specify argument variables
 struct arg_t {
@@ -34,7 +35,7 @@ struct arg_t {
 #undef XM
 };
 
-void add_args(po::options_description &desc, arg_t & arg) {
+void add_app_args(po::options_description &desc, arg_t & arg) {
 	desc.add_options()
 #define XM(lname, sname, desc, type, def) ( \
 	XS(lname) IFD(sname, "," BOOST_PP_STRINGIZE sname), \
@@ -45,19 +46,17 @@ void add_args(po::options_description &desc, arg_t & arg) {
 	;
 }
 
-}
+} // namespace call
 
 class Call : public Task<call::arg_t> {
 public:
 	typedef call::arg_t arg_type;
 		
-	int Run(const arg_type &arg) {
+	int operator()(const arg_type &arg) {
 		return EXIT_SUCCESS;
 	}
 };
 
-typedef App<Call> CallApp;
-
-}
+}} // namespace dng::task
 
 #endif

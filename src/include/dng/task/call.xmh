@@ -22,11 +22,10 @@
 /***************************************************************************
  *    X-Macro List                                                         *
  *                                                                         *
- *    XM(lname, sname, desc, type, def)                                    *
+ * XM((long)(name), (shortname), "description", typename, defaultvalue)    *
  ***************************************************************************/
 
-//XM((version), (v), "display version information", bool, DL(false, "off"))
-//XM((help),    (h), "display usage information", bool, DL(false, "off"))
+XM((test), (t), "test", int, 1)
 
 /***************************************************************************
  *    cleanup                                                              *
