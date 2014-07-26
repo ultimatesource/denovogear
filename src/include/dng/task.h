@@ -23,13 +23,19 @@
 
 namespace dng {
 
+namespace task {
+struct arg_t {
+	std::vector< std::string > input;
+};
+}
+
 template<typename A>
 class Task {
 public:
 	typedef A   argument_type;
 	typedef int result_type;
 	
-	int operator()(const argument_type &) { 
+	int operator()(argument_type &) { 
 		return EXIT_SUCCESS;
 	}
 };

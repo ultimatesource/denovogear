@@ -29,8 +29,11 @@
 #include <dng/task/call.h>
 #include <dng/pedigree.h>
 #include <dng/pedigree_peeler.h>
+#include <dng/fileio.h>
+#include <dng/pileup.h>
 
 using namespace dng::task;
+using namespace dng;
 
 // Helper function that mimics boost::istream_range
 template<class Elem, class Traits> inline
@@ -42,7 +45,7 @@ istreambuf_range(std::basic_istream<Elem, Traits>& in)
         std::istreambuf_iterator<Elem, Traits>());
 }
 
-int Call::operator()(const Call::argument_type &arg) {
+int Call::operator()(Call::argument_type &arg) {
 	using namespace std;
 	
 	dng::Pedigree pedigree;
@@ -60,6 +63,40 @@ int Call::operator()(const Call::argument_type &arg) {
 		throw std::runtime_error("pedigree file was not specified.");
 	}
 	
+	// If arg.files is specified, read input files from list
+	if(!arg.files.empty()) {
+		ParsedList list(arg.files.c_str(), ParsedList::kFile);
+		arg.input.clear(); // TODO: Throw error/warning if both are specified?
+		for(std::size_t i=0; i < list.Size(); ++i)
+			arg.input.emplace_back(list[i]);
+	}
+	
+	// Open up the input sam files
+	vector<fileio::SamFile> data;
+		
+	for(auto str : arg.input) {
+		data.emplace_back(str.c_str(), arg.region.c_str(), arg.min_mapqual, arg.min_qlen);
+	}
+	const bam_hdr_t *h = data[0].header();
+
+	
+	dng::mpileup(data, fileio::read_sam_callback, [h](int target_id, int pos,
+			const std::vector<int>& counts, const std::vector<const bam_pileup1_t *>& reads)
+	{
+		cerr << h->target_name[target_id] << "\t" << pos+1;
+		for(int i=0;i<counts.size();++i) {
+			for(int j=0;j<counts[i];++j) {
+				const bam_pileup1_t *p = reads[i] + j;
+				uint8_t *q = bam_aux_get(p->b, "RG");
+				cout << "\t" << (char*)(q+1);
+				
+			}
+		}
+		cout << "\n";
+		return;
+	});
+	
+	/*
 	dng::PedigreePeeler peeler;
 	peeler.Initialize(arg.theta, arg.mu);
 	peeler.Construct(pedigree);
@@ -75,6 +112,6 @@ int Call::operator()(const Call::argument_type &arg) {
 	
 	double d = peeler.CalculateLogLikelihood(buf);
 	cout << exp(d) << endl;
-	
+	*/
 	return EXIT_SUCCESS;
 }

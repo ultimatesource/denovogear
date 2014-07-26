@@ -29,7 +29,7 @@ namespace po = boost::program_options;
 namespace dng { namespace task { namespace call {
 
 // use X-Macros to specify argument variables
-struct arg_t {
+struct arg_t : public task::arg_t {
 #define XM(lname, sname, desc, type, def) type XV(lname) ;
 #	include "call.xmh"
 #undef XM
@@ -51,7 +51,7 @@ inline void add_app_args(po::options_description &desc, arg_t & arg) {
 class Call : public Task<call::arg_t> {
 public:
 
-	int operator()(const argument_type &arg);
+	int operator()(argument_type &arg);
 };
 
 }} // namespace dng::task

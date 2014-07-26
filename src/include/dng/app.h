@@ -107,7 +107,6 @@ public:
 		bool version;
 		std::string arg_file;
 		
-		std::vector< std::string > input;
 		std::string run_name;
 		std::string run_path;
 	} arg;
