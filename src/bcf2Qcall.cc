@@ -153,8 +153,8 @@ int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t* mom_snp, qcall_t* dad_s
 	map[0] = map[1] = map[2] = map[3] = -2;
 	map[a[0]] = 0;
 	for (k = 0, s = b->alt, k1 = -1; k < 3 && *s; ++k, s += 2) {
-		if (s[1] != ',' && s[1] != 0)  { // ALT is not single base ***
-			//return 10;
+		if (s[1] != ',' && s[1] != 0)  { // skip sites with multiple indel allele***
+			return 10;
 		}
 		a[k+1] = nt4_table[(int)*s];
 		if (a[k+1] >= 0) map[a[k+1]] = k+1;
@@ -163,7 +163,6 @@ int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t* mom_snp, qcall_t* dad_s
 	}
 	for (k = 0; k < 4; ++k)
 		if (map[k] < 0) map[k] = k1;
-
 
 	for (i = 0; i < h->n_smpl; ++i) {	//Iterate through all samples
 		int d;
