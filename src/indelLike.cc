@@ -144,8 +144,7 @@ void trio_like_indel(indel_t *child,indel_t *mom, indel_t *dad, int flag,
     if(start != std::string::npos)
         alt.replace(start, 2, "");
 
-
-  	cout<<"DENOVO-INDEL child id: "<<child->id;
+    cout<<"DENOVO-INDEL CHILD_ID: "<<child->id;
   	cout<<" chr: "<<ref_name<<" pos: "<<coor<<" ref: "<<mom->ref_base<<" alt: "<<alt;
   	cout<<" maxlike_null: "<<maxlike_null<<" pp_null: "<<pp_null<<" tgt: "<<tgtIndel[i-1][j-1];
   	cout<<" snpcode: "<<lookupIndel.snpcode(i,j)<<" code: "<<lookupIndel.code(i,j);
