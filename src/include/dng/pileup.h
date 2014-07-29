@@ -30,9 +30,125 @@
 #include <boost/range/size.hpp>
 #include <boost/range/metafunctions.hpp> 
 
+#include <boost/intrusive/list.hpp>
+
 #include <dng/fileio.h>
 
 namespace dng {
+
+namespace detail {
+
+using namespace boost::intrusive;
+
+class SeqPool {
+public:
+	struct node_t : public list_base_hook<> {
+		bam1_t seq;  // sequence record;
+		int32_t beg; // beginning of alignment
+		int32_t end; // end of alignment
+		int32_t pos; // current position of the pileup in this query/read
+		
+		~node_t() {
+			free(seq.data);
+		}
+	};
+	typedef boost::intrusive::list<node_t> list_type;
+	
+	SeqPool() {
+		store_.reserve(1024);
+	}
+	
+	node_t & Malloc() {
+		// check to see if there is an available node on the inactive list
+		if(!inactive_.empty()) {
+			node_t &n = inactive_.front();
+			inactive_.pop_front();
+			return n;
+		}
+		// expand store as needed and return
+		store_.emplace_back();
+		return store_.back();
+	}
+	
+	void Free(node_t & n) {
+		// Put the node on the list of free elements
+		inactive_.push_front(n);
+	}
+	
+protected:
+	list_type inactive_;
+	std::vector<node_t> store_;
+	
+private:
+	SeqPool(const SeqPool&) = delete;
+	SeqPool& operator=(const SeqPool&) = delete;
+};
+
+
+} // namespace detail
+
+class MPileup {
+public:
+	typedef std::vector<detail::SeqPool::list_type> data_type;
+	typedef void (callback_type)(const data_type&,int,int);
+
+	template<typename Input, typename Func>
+	void operator()(Input &range, Func func);
+	
+protected:
+	template<typename Input>
+	int Advance(Input &range, data_type &data, int &target_id, int &ref_pos);
+
+private:
+	details::SeqPool pool;
+
+};
+
+
+template<typename Input, typename Func>
+void MPileup::operator()(Input &range, Func func) {
+	using namespace std;
+	using namespace fileio;
+	
+	// type erase our callback function
+	function<callback_type> call_back(func);
+	
+	// data will hold our pileup information
+	data_type data;
+	int target_id = 0;
+	int ref_pos = 0;
+		
+	// If there is a parsed region, use it.
+	// TODO: check to see if the regions are all the same???
+	int beg = 0, end = std::numeric_limits<int>::max();
+	if(boost::begin(range)->iter() != nullptr) {
+		beg = boost::begin(range)->iter()->beg;
+		end = boost::begin(range)->iter()->end;
+	}
+
+	while(Advance(range,data,target_id, ref_pos) > 0) {
+		if (pos < beg || pos >= end)
+			continue; // out of range; skip
+		//if (bed && bed_overlap(bed, h->target_name[tid], pos, pos + 1) == 0) continue; // not in BED; skip
+		// Execute callback function
+		call_back(data, target_id, pos);		
+	}
+}
+
+template<typename Input>
+int MPileup::Advance(Input &range, data_type &data, int &target_id, int &ref_pos) {
+	/* Iterate through each element in range.
+	     If the current position of range[i] equals the pileup minimum
+	       read pileup queries from range[i] and advance position i
+	       push reads onto a file-based buffer
+	     After all streams have been advanced, update the minimum
+	   Iterate through the buffer of each file
+	     push reads onto the approrpraite read-group in data
+	     update positions
+	*/
+}
+
+
 
 typedef void (mpileup_func_t)(int,int,const std::vector<int>&,
 	const std::vector<const bam_pileup1_t *>&);

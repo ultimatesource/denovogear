@@ -92,25 +92,24 @@ public:
 	    }
 	}
 	
-	int NextRead(bam1_t *b) {
-		assert(b != nullptr); // uninitialized pointer
+	int operator()(bam1_t &b) {
 		int ret;
 		for(;;) {
-		    ret = (iter_) ? sam_itr_next(fp_, iter_, b)
-		                  : sam_read1(fp_, hdr_, b);
+		    ret = (iter_) ? sam_itr_next(fp_, iter_, &b)
+		                  : sam_read1(fp_, hdr_, &b);
 		    if (ret < 0)
 		    	break;
-		    if (b->core.flag & (BAM_FUNMAP | BAM_FSECONDARY | BAM_FQCFAIL | BAM_FDUP))
+		    if (b.core.flag & (BAM_FUNMAP | BAM_FSECONDARY | BAM_FQCFAIL | BAM_FDUP))
 		    	continue;
-		    if ((int)b->core.qual < min_mapQ_)
+		    if (b.core.qual < min_mapQ_)
 		    	continue;
-		    if (min_len_ && bam_cigar2qlen(b->core.n_cigar, bam_get_cigar(b)) < min_len_)
+		    if (min_len_ && bam_cigar2qlen(b.core.n_cigar, bam_get_cigar(&b)) < min_len_)
 		    	continue;
 		    break;
 		}
 		return ret;
 	}
-	
+
 	// cleanup as needed
 	virtual ~SamFile() {
 		if(hdr_ != nullptr)
@@ -130,11 +129,6 @@ protected:
 	hts_itr_t *iter_; // NULL if a region not specified
 	int min_mapQ_, min_len_; // mapQ filter; length filter
 };
-
-inline int read_sam_callback(void *data, bam1_t *b) {
-	auto sam =  static_cast<SamFile*>(data);
-	return sam->NextRead(b);
-}
 
 } // namespace fileio
 
