@@ -31,6 +31,7 @@
 #include <boost/range/metafunctions.hpp> 
 
 #include <boost/intrusive/list.hpp>
+#include <boost/noncopyable.hpp>
 
 #include <dng/fileio.h>
 
@@ -40,34 +41,45 @@ namespace detail {
 
 using namespace boost::intrusive;
 
-class SeqPool {
+class SeqPool : boost::noncopyable {
 public:
 	struct node_t : public list_base_hook<> {
 		bam1_t seq;  // sequence record;
 		int32_t beg; // beginning of alignment
 		int32_t end; // end of alignment
 		int32_t pos; // current position of the pileup in this query/read
-		
+		int32_t rg;  // the read_group of the sequence	
+			
 		~node_t() {
 			free(seq.data);
 		}
 	};
 	typedef boost::intrusive::list<node_t> list_type;
 	
-	SeqPool() {
-		store_.reserve(1024);
+	SeqPool(std::size_t sz=1024, std::size_t maxsz=std::numeric_limits<std::size_t>::max()) : 
+		block_size_(sz/2), half_max_block_size_(maxsz/2)
+	{
+		if(block_size_ == 0)
+			block_size_ = 1;
+		
+		store_.reserve(64);
+		Expand();
 	}
 	
 	node_t & Malloc() {
-		// check to see if there is an available node on the inactive list
+		// Check the inactive list first
 		if(!inactive_.empty()) {
 			node_t &n = inactive_.front();
 			inactive_.pop_front();
 			return n;
 		}
-		// expand store as needed and return
-		store_.emplace_back();
-		return store_.back();
+		// Expand allocated space as needed
+		if(next_ == end_)
+			Expand();
+		// Inplace allocation
+		node_t *p = next_++;
+		new (p) node_t();
+		return *p;
 	}
 	
 	void Free(node_t & n) {
@@ -75,13 +87,45 @@ public:
 		inactive_.push_front(n);
 	}
 	
+	virtual ~SeqPool() {
+		if(store_.empty())
+			return;
+		// enumerate over allocated blocks
+		for(std::size_t i=0;i<store_.size()-1;++i) {
+			for(std::size_t j=0;j<store_[i].second;++j) {
+				// call destructor
+				(store_[i].first+j)->~node_t();
+			}
+			// free memory
+			std::return_temporary_buffer(store_[i].first);
+		}
+		// the last block is special
+		for(node_t *p = store_.back().first;p!=next_;++p)
+			p->~node_t();
+		std::return_temporary_buffer(store_.back().first);
+	}
+	
 protected:
+	std::size_t block_size_;
+	std::size_t half_max_block_size_;
+	
 	list_type inactive_;
-	std::vector<node_t> store_;
 	
 private:
-	SeqPool(const SeqPool&) = delete;
-	SeqPool& operator=(const SeqPool&) = delete;
+	void Expand() {
+		// double block size until a limit is reached
+		block_size_ = 2*std::min(block_size_, half_max_block_size_);
+		// allocate space for more nodes
+		auto a = std::get_temporary_buffer<node_t>(block_size_);
+		if(a.first == nullptr)
+			throw std::bad_alloc();
+		next_ = a.first;
+		end_  = next_ + a.second;
+		store_.push_back(a);
+	}
+	
+	std::vector<std::pair<node_t *,ptrdiff_t>> store_;
+	node_t *next_, *end_;
 };
 
 
@@ -100,7 +144,7 @@ protected:
 	int Advance(Input &range, data_type &data, int &target_id, int &ref_pos);
 
 private:
-	details::SeqPool pool;
+	detail::SeqPool pool;
 
 };
 
