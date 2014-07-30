@@ -55,6 +55,7 @@ public:
 		}
 	};
 	typedef boost::intrusive::list<node_t> list_type;
+	typedef list_type::value_type node_type;
 	
 	SeqPool(std::size_t sz=1024, std::size_t maxsz=std::numeric_limits<std::size_t>::max()) : 
 		block_size_(sz/2), half_max_block_size_(maxsz/2)
@@ -119,6 +120,9 @@ private:
 		auto a = std::get_temporary_buffer<node_t>(block_size_);
 		if(a.first == nullptr)
 			throw std::bad_alloc();
+		// set block size to actual size allocated
+		block_size_ = a.second;
+		// storage information
 		next_ = a.first;
 		end_  = next_ + a.second;
 		store_.push_back(a);
@@ -128,6 +132,37 @@ private:
 	node_t *next_, *end_;
 };
 
+inline uint64_t make_position(int t, int p) {
+	return (static_cast<uint64_t>(t) << 32) | p;
+}
+
+typedef<typename Input>
+class BamScan {
+public:
+	typedef SeqPool::list_type list_type;
+	typedef SeqPool::node_type node_type;
+	
+	BamScan(const Input& in) : in_(in), pos_(0) {}
+	
+	std::size_t operator()(uint64_t pos, SeqPool &pool) {
+		while(pos_ < pos) {
+			node_type &n = pool.Malloc();
+			if(in_(n.seq) < 0)
+				return buffer_.size();
+			n.beg = n.seq.core.pos;  // double dipping on memory?
+			n.end = n.seq.core.pos + bam_cigar2rlen(n.seq.core.n_cigar,
+				bam_get_cigar(&n.seq));
+			pos_ = make_position(n.seq.core.tid, n.seq.core.pos);
+			buffer_.push_back(n);	
+		}
+		
+		return buffer_.size()-1;
+	}
+private:
+	uint64_t pos_;	
+	const Input & in_;
+	list_type buffer_;
+};
 
 } // namespace detail
 
@@ -190,6 +225,8 @@ int MPileup::Advance(Input &range, data_type &data, int &target_id, int &ref_pos
 	     push reads onto the approrpraite read-group in data
 	     update positions
 	*/
+	
+	
 }
 
 

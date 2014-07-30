@@ -133,6 +133,7 @@ protected:
 } // namespace fileio
 
 using fileio::ParsedList;
+using fileio::SamFile;
 
 } // namespace dng
 
