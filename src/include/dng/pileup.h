@@ -39,6 +39,16 @@
 
 namespace dng {
 
+inline uint64_t make_location(int t, int p) {
+	return (static_cast<uint64_t>(t) << 32) | p;
+}
+inline int location_to_target(uint64_t u) {
+	return static_cast<int>(u >> 32);
+}
+inline int location_to_position(uint64_t u) {
+	return static_cast<int>(u & 0x7FFFFFFF);
+}
+
 namespace detail {
 
 /*
@@ -94,13 +104,17 @@ using namespace boost::intrusive;
 class SeqPool : boost::noncopyable {
 public:
 	struct node_t : public list_base_hook<> {
-		bam1_t seq;  // sequence record;
-		uint64_t beg;  // 0-based left-most coordinate
+		bam1_t seq;   // sequence record : [beg,end)
+		uint64_t beg; // 0-based left-most edge 
 		uint64_t end; // 0-based right-most edge
 		uint64_t pos; // current position of the pileup in this query/read
+		bool is_missing; // is there no base call at the pileup position?
 				
 		int32_t target() const {
-			return n.seq.core.tid;
+			return seq.core.tid;
+		}
+		cigar_t cigar() const {
+			return std::make_pair(seq.core.n_cigar,bam_get_cigar(&seq));
 		}
 		
 		~node_t() {
@@ -144,6 +158,7 @@ public:
 	virtual ~SeqPool() {
 		if(store_.empty())
 			return;
+		inactive_.clear(); // TODO: determine best way to avoid this?
 		// enumerate over allocated blocks
 		for(std::size_t i=0;i<store_.size()-1;++i) {
 			for(std::size_t j=0;j<store_[i].second;++j) {
@@ -185,77 +200,71 @@ private:
 	node_t *next_, *end_;
 };
 
-inline uint64_t make_position(int t, int p) {
-	return (static_cast<uint64_t>(t) << 32) | p;
-}
-
 template<typename InFile>
 class BamScan {
 public:
 	typedef SeqPool::list_type list_type;
 	typedef SeqPool::node_type node_type;
 	
-	explicit BamScan(InFile& in) : in_(in), pos_(0) {
+	explicit BamScan(InFile& in) : in_(in), next_loc_(0) {
 		
 	}
 	
-	list_type&& operator()(uint64_t target_pos, SeqPool &pool) {
+	list_type operator()(uint64_t target_loc, SeqPool &pool) {
 		// Reads from in_ until it encounters the first read
 		// that is right of pos.
 		// TODO: check for proper read ordering???
-		while(next_pos_ <= target_pos) {
+		while(next_loc_ <= target_loc) {
 			node_type &n = pool.Malloc();
-			for(;;) {
+			do {
 				// Try to grab a read, if not return current buffer
 				if(in_(n.seq) < 0) {
 					pool.Free(n);
-					next_pos_ = std::numeric_limits<uint64_t>::max();
+					next_loc_ = std::numeric_limits<uint64_t>::max();
 					return std::move(buffer_);
 				}
-				n.beg = make_position(n.seq.core.tid, n.seq.core.pos)
+				n.beg = make_location(n.seq.core.tid, n.seq.core.pos);
 				// update right-most position in the read
-				n.right_pos = n.beg + cigar::target_length(n.seq.core.n_cigar,
-					bam_get_cigar(&n.seq));
-				if(n.right_pos > target_pos)
-					break;
-			}
+				n.end = n.beg + cigar::target_length(n.cigar());
+			} while( n.end <= target_loc);
+			
 			// update the left-most position of the most recently read read.
-			next_pos_ = n.beg;
+			next_loc_ = n.beg;
 			// save read
 			buffer_.push_back(n);	
 		}
 		// Return all but the last read.
 		if(buffer_.size() <= 1)
-			return std::move(list_type());
+			return list_type();
 		list_type ret;
 		ret.splice(ret.end(),buffer_,buffer_.begin(),--buffer_.end());
-		return std::move(ret);
+		return ret;
 	}
 	
-	uint64_t next_pos() const { return next_pos_; }
+	uint64_t next_loc() const { return next_loc_; }
 	
 private:
-	uint64_t next_pos_;	
+	uint64_t next_loc_;	
 	InFile & in_;
 	list_type buffer_;
 };
-
-void process_cigar(SeqPool::node_type &n);
 
 } // namespace detail
 
 class MPileup {
 public:
-	typedef std::vector<detail::SeqPool::list_type> data_type;
-	typedef void (callback_type)(const data_type&,int,int);
+	typedef detail::SeqPool::list_type list_type;
+	typedef detail::SeqPool::node_type node_type;
+	typedef std::vector<list_type> data_type;
+	typedef void (callback_type)(const data_type&, uint64_t);
 
 	template<typename InFiles, typename Func>
 	void operator()(InFiles &range, Func func);
 	
 protected:
 	template<typename Scanners>
-	int Advance(Scanners &range, data_type &data, uint64_t &target_pos),
-		uint64_t &fast_forward_pos);
+	bool Advance(Scanners &range, data_type &data, uint64_t &target_loc,
+		uint64_t &fast_forward_loc);
 
 private:
 	detail::SeqPool pool_;
@@ -269,29 +278,33 @@ void MPileup::operator()(InFiles &range, Func func) {
 	using namespace fileio;
 	
 	// encapsulate input files into scanners
-	vector<BamScan> scanners(boost::begin(range),boost::end(range));
+	vector<detail::BamScan<typename boost::range_value<InFiles>::type>> 
+		scanners(boost::begin(range),boost::end(range));
 	
 	// type erase our callback function
 	function<callback_type> call_back(func);
 	
 	// data will hold our pileup information
 	data_type data;
-	uint32_t current_pos = 0;
+	uint64_t current_loc = 0;
+	uint64_t fast_forward_loc = 0;
 		
 	// If there is a parsed region, use it.
 	// TODO: check to see if the regions are all the same???
-	int beg = 0, end = std::numeric_limits<int>::max();
+	uint64_t beg_loc = 0, end_loc = std::numeric_limits<uint64_t>::max();
 	if(boost::begin(range)->iter() != nullptr) {
-		beg = boost::begin(range)->iter()->beg;
-		end = boost::begin(range)->iter()->end;
+		beg_loc = make_location(boost::begin(range)->iter()->tid,
+			boost::begin(range)->iter()->beg);
+		end_loc = make_location(boost::begin(range)->iter()->tid,
+			boost::begin(range)->iter()->end);
 	}
 	
-	while(Advance(scanners,data,current_pos) > 0) {
-		if (pos < beg || pos >= end)
+	while(Advance(scanners,data,current_loc,fast_forward_loc)) {
+		if (current_loc < beg_loc || current_loc >= end_loc)
 			continue; // out of range; skip
 		//if (bed && bed_overlap(bed, h->target_name[tid], pos, pos + 1) == 0) continue; // not in BED; skip
 		// Execute callback function
-		call_back(data, target_id, pos);		
+		call_back(data, current_loc);
 	}
 }
 
@@ -300,65 +313,63 @@ void MPileup::operator()(InFiles &range, Func func) {
 // current_pos
 
 template<typename Scanners>
-int MPileup::Advance(Scanners &range, data_type &data, uint64_t &target_pos
-	uint64_t &fast_forward_pos) {
-	/* Iterate through each element in range.
-	     If the current position of range[i] equals the pileup minimum
-	       read pileup queries from range[i] and advance position i
-	       push reads onto a file-based buffer
-	     After all streams have been advanced, update the minimum
-	   Iterate through the buffer of each file
-	     push reads onto the approrpraite read-group in data
-	     update positions
-	*/
+bool MPileup::Advance(Scanners &range, data_type &data, uint64_t &target_loc,
+	uint64_t &fast_forward_loc) {
 	using namespace std;
-	// enumerate through existing data set, updating position of reads
+	// enumerate through existing data set, updating location of reads and
 	// purge reads that have expired
 	bool fast_forward = true;
-	for(auto d : data) {
-		auto it = d.begin()
+	for(auto &d : data) {
+		auto it = d.begin();
 		while(it != d.end()) {
-			if(it->end <= target_pos) {
+			if(it->end <= target_loc) {
 				d.erase(it++);
 				continue;
 			}
+			uint64_t q = cigar::target_to_query(target_loc,it->beg,it->cigar());
+			it->pos = cigar::query_pos(q);
+			it->is_missing = cigar::query_del(q);
 			++it;
 		}
 		// we want to fast_forward if there is nothing to output
-		fast_forward = fast_forward && d.empty();
+		fast_forward = (fast_forward && d.empty());
 	}
 	if(fast_forward)
-		target_pos = fast_forward_pos;
+		target_loc = fast_forward_loc;
 		
-	if(target_pos >= fast_forward_pos) {
-		uint64_t next_pos = numeric_limits<uint64_t>::max();
-		for(auto scanner : range) {
-			// Scan reads from file until target_pos
-			list_type new_reads = scanner(target_pos,pool_);
-			next_pos = std::min(next_pos,scanner.next_pos());
+	if(target_loc >= fast_forward_loc) {
+		uint64_t next_loc = numeric_limits<uint64_t>::max();
+		for(auto &scanner : range) {
+			// Scan reads from file until target_loc
+			list_type new_reads = scanner(target_loc,pool_);
+			// Update the minimum position of the next read
+			next_loc = std::min(next_loc,scanner.next_loc());
 			// process read_groups
 			while(!new_reads.empty()) {
 				node_type &n = new_reads.front();
 				new_reads.pop_front();
 				uint8_t *rg = bam_aux_get(&n.seq, "RG");
 				auto it = read_groups_.find(reinterpret_cast<const char*>(rg+1));
-				if(it == read_groups_.end())
+				if(it == read_groups_.end()) {
 					pool_.Free(n); // drop unknown RG's
-				else
-					data[it.second].push_back(n); // push read onto correct RG
+					continue;
+				}
 				// process cigar string
-				
-				
+				uint64_t q = cigar::target_to_query(target_loc,n.beg,n.cigar());
+				n.pos = cigar::query_pos(q);
+				n.is_missing = cigar::query_del(q);
+
+				// push read onto correct RG
+				data[it->second].push_back(n);
+				fast_forward = false;
 			}
 		}
-		fast_forward_pos = next_pos;
+		fast_forward_loc = next_loc;
 	}
-	
-	
+	return (!fast_forward);
 }
 
-
-
+/*
 typedef void (mpileup_func_t)(int,int,const std::vector<int>&,
 	const std::vector<const bam_pileup1_t *>&);
 
@@ -403,6 +414,7 @@ void mpileup(Input &range, bam_plp_auto_f auto_func, Func func) {
 	}
 	bam_mplp_destroy(mpileup_iter);
 }
+*/
 
 } //namespace dng
 

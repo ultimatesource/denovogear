@@ -72,26 +72,22 @@ int Call::operator()(Call::argument_type &arg) {
 	}
 	
 	// Open up the input sam files
-	vector<fileio::SamFile> data;
+	vector<fileio::SamFile> indata;
 		
 	for(auto str : arg.input) {
-		data.emplace_back(str.c_str(), arg.region.c_str(), arg.min_mapqual, arg.min_qlen);
+		indata.emplace_back(str.c_str(), arg.region.c_str(), arg.min_mapqual, arg.min_qlen);
 	}
-	const bam_hdr_t *h = data[0].header();
+	const bam_hdr_t *h = indata[0].header();
 
+	dng::MPileup mpileup;
 	
-	dng::mpileup(data, fileio::read_sam_callback, [h](int target_id, int pos,
-			const std::vector<int>& counts, const std::vector<const bam_pileup1_t *>& reads)
+	
+	mpileup(indata, [h](const dng::MPileup::data_type &data, uint64_t loc)
 	{
-		cerr << h->target_name[target_id] << "\t" << pos+1;
-		for(int i=0;i<counts.size();++i) {
-			for(int j=0;j<counts[i];++j) {
-				const bam_pileup1_t *p = reads[i] + j;
-				uint8_t *q = bam_aux_get(p->b, "RG");
-				cout << "\t" << (char*)(q+1);
-				
-			}
-		}
+		int target_id = location_to_target(loc);
+		int position = location_to_position(loc);
+		cerr << h->target_name[target_id] << "\t" << position+1;
+		
 		cout << "\n";
 		return;
 	});

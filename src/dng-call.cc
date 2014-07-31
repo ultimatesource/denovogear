@@ -18,13 +18,6 @@
  */
 
 #include <iostream>
-#include <utility>
-#include <cmath>
-#include <vector>
-
-//#include <boost/range.hpp>
-//#include <boost/range/algorithm/generate.hpp>
-//#include <boost/range/irange.hpp>
 
 #include <dng/app.h>
 #include <dng/task/call.h>
@@ -35,7 +28,6 @@
 typedef dng::CommandLineApp<dng::task::Call> CallApp;
 
 int main(int argc, char* argv[]) {
-	int ret = EXIT_FAILURE;
 	try {
 		return CallApp(argc, argv)();
 	} catch(std::exception &e) {
