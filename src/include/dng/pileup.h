@@ -23,6 +23,7 @@
 
 #include <vector>
 #include <limits>
+#include <unordered_map>
 #include <htslib/sam.h>
 
 #include <boost/range/begin.hpp>
@@ -34,10 +35,59 @@
 #include <boost/noncopyable.hpp>
 
 #include <dng/fileio.h>
+#include <dng/cigar.h>
 
 namespace dng {
 
 namespace detail {
+
+/*
+ @abstract Structure for core alignment information.
+ @field  tid     chromosome ID, defined by bam_hdr_t
+ @field  pos     0-based leftmost coordinate
+ @field  bin     bin calculated by bam_reg2bin()
+ @field  qual    mapping quality
+ @field  l_qname length of the query name
+ @field  flag    bitwise flag
+ @field  n_cigar number of CIGAR operations
+ @field  l_qseq  length of the query sequence (read)
+ @field  mtid    chromosome ID of next read in template, defined by bam_hdr_t
+ @field  mpos    0-based leftmost coordinate of next read in template
+
+typedef struct {
+	int32_t tid;
+	int32_t pos;
+	uint32_t bin:16, qual:8, l_qname:8;
+	uint32_t flag:16, n_cigar:16;
+	int32_t l_qseq;
+	int32_t mtid;
+	int32_t mpos;
+	int32_t isize;
+} bam1_core_t;
+
+ @abstract Structure for one alignment.
+ @field  core       core information about the alignment
+ @field  l_data     current length of bam1_t::data
+ @field  m_data     maximum length of bam1_t::data
+ @field  data       all variable-length data, concatenated; structure: qname-cigar-seq-qual-aux
+ 
+ @discussion Notes:
+ 
+ 1. qname is zero tailing and core.l_qname includes the tailing '\0'.
+ 2. l_qseq is calculated from the total length of an alignment block
+ on reading or from CIGAR.
+ 3. cigar data is encoded 4 bytes per CIGAR operation.
+ 4. seq is nybble-encoded according to bam_nt16_table.
+
+typedef struct {
+	bam1_core_t core;
+	int l_data, m_data;
+	uint8_t *data;
+#ifndef BAM_NO_ID
+	uint64_t id;
+#endif
+} bam1_t;
+*/
 
 using namespace boost::intrusive;
 
@@ -45,11 +95,14 @@ class SeqPool : boost::noncopyable {
 public:
 	struct node_t : public list_base_hook<> {
 		bam1_t seq;  // sequence record;
-		int32_t beg; // beginning of alignment
-		int32_t end; // end of alignment
-		int32_t pos; // current position of the pileup in this query/read
-		int32_t rg;  // the read_group of the sequence	
-			
+		uint64_t beg;  // 0-based left-most coordinate
+		uint64_t end; // 0-based right-most edge
+		uint64_t pos; // current position of the pileup in this query/read
+				
+		int32_t target() const {
+			return n.seq.core.tid;
+		}
+		
 		~node_t() {
 			free(seq.data);
 		}
@@ -136,33 +189,58 @@ inline uint64_t make_position(int t, int p) {
 	return (static_cast<uint64_t>(t) << 32) | p;
 }
 
-typedef<typename Input>
+template<typename InFile>
 class BamScan {
 public:
 	typedef SeqPool::list_type list_type;
 	typedef SeqPool::node_type node_type;
 	
-	BamScan(const Input& in) : in_(in), pos_(0) {}
+	explicit BamScan(InFile& in) : in_(in), pos_(0) {
+		
+	}
 	
-	std::size_t operator()(uint64_t pos, SeqPool &pool) {
-		while(pos_ < pos) {
+	list_type&& operator()(uint64_t target_pos, SeqPool &pool) {
+		// Reads from in_ until it encounters the first read
+		// that is right of pos.
+		// TODO: check for proper read ordering???
+		while(next_pos_ <= target_pos) {
 			node_type &n = pool.Malloc();
-			if(in_(n.seq) < 0)
-				return buffer_.size();
-			n.beg = n.seq.core.pos;  // double dipping on memory?
-			n.end = n.seq.core.pos + bam_cigar2rlen(n.seq.core.n_cigar,
-				bam_get_cigar(&n.seq));
-			pos_ = make_position(n.seq.core.tid, n.seq.core.pos);
+			for(;;) {
+				// Try to grab a read, if not return current buffer
+				if(in_(n.seq) < 0) {
+					pool.Free(n);
+					next_pos_ = std::numeric_limits<uint64_t>::max();
+					return std::move(buffer_);
+				}
+				n.beg = make_position(n.seq.core.tid, n.seq.core.pos)
+				// update right-most position in the read
+				n.right_pos = n.beg + cigar::target_length(n.seq.core.n_cigar,
+					bam_get_cigar(&n.seq));
+				if(n.right_pos > target_pos)
+					break;
+			}
+			// update the left-most position of the most recently read read.
+			next_pos_ = n.beg;
+			// save read
 			buffer_.push_back(n);	
 		}
-		
-		return buffer_.size()-1;
+		// Return all but the last read.
+		if(buffer_.size() <= 1)
+			return std::move(list_type());
+		list_type ret;
+		ret.splice(ret.end(),buffer_,buffer_.begin(),--buffer_.end());
+		return std::move(ret);
 	}
+	
+	uint64_t next_pos() const { return next_pos_; }
+	
 private:
-	uint64_t pos_;	
-	const Input & in_;
+	uint64_t next_pos_;	
+	InFile & in_;
 	list_type buffer_;
 };
+
+void process_cigar(SeqPool::node_type &n);
 
 } // namespace detail
 
@@ -171,31 +249,34 @@ public:
 	typedef std::vector<detail::SeqPool::list_type> data_type;
 	typedef void (callback_type)(const data_type&,int,int);
 
-	template<typename Input, typename Func>
-	void operator()(Input &range, Func func);
+	template<typename InFiles, typename Func>
+	void operator()(InFiles &range, Func func);
 	
 protected:
-	template<typename Input>
-	int Advance(Input &range, data_type &data, int &target_id, int &ref_pos);
+	template<typename Scanners>
+	int Advance(Scanners &range, data_type &data, uint64_t &target_pos),
+		uint64_t &fast_forward_pos);
 
 private:
-	detail::SeqPool pool;
-
+	detail::SeqPool pool_;
+	
+	std::unordered_map<std::string,int> read_groups_;
 };
 
-
-template<typename Input, typename Func>
-void MPileup::operator()(Input &range, Func func) {
+template<typename InFiles, typename Func>
+void MPileup::operator()(InFiles &range, Func func) {
 	using namespace std;
 	using namespace fileio;
+	
+	// encapsulate input files into scanners
+	vector<BamScan> scanners(boost::begin(range),boost::end(range));
 	
 	// type erase our callback function
 	function<callback_type> call_back(func);
 	
 	// data will hold our pileup information
 	data_type data;
-	int target_id = 0;
-	int ref_pos = 0;
+	uint32_t current_pos = 0;
 		
 	// If there is a parsed region, use it.
 	// TODO: check to see if the regions are all the same???
@@ -204,8 +285,8 @@ void MPileup::operator()(Input &range, Func func) {
 		beg = boost::begin(range)->iter()->beg;
 		end = boost::begin(range)->iter()->end;
 	}
-
-	while(Advance(range,data,target_id, ref_pos) > 0) {
+	
+	while(Advance(scanners,data,current_pos) > 0) {
 		if (pos < beg || pos >= end)
 			continue; // out of range; skip
 		//if (bed && bed_overlap(bed, h->target_name[tid], pos, pos + 1) == 0) continue; // not in BED; skip
@@ -214,8 +295,13 @@ void MPileup::operator()(Input &range, Func func) {
 	}
 }
 
-template<typename Input>
-int MPileup::Advance(Input &range, data_type &data, int &target_id, int &ref_pos) {
+// Advance starts a pileup procedure at pos.
+// If there are no reads at pos, it forwards to the next pos and updates
+// current_pos
+
+template<typename Scanners>
+int MPileup::Advance(Scanners &range, data_type &data, uint64_t &target_pos
+	uint64_t &fast_forward_pos) {
 	/* Iterate through each element in range.
 	     If the current position of range[i] equals the pileup minimum
 	       read pileup queries from range[i] and advance position i
@@ -225,6 +311,48 @@ int MPileup::Advance(Input &range, data_type &data, int &target_id, int &ref_pos
 	     push reads onto the approrpraite read-group in data
 	     update positions
 	*/
+	using namespace std;
+	// enumerate through existing data set, updating position of reads
+	// purge reads that have expired
+	bool fast_forward = true;
+	for(auto d : data) {
+		auto it = d.begin()
+		while(it != d.end()) {
+			if(it->end <= target_pos) {
+				d.erase(it++);
+				continue;
+			}
+			++it;
+		}
+		// we want to fast_forward if there is nothing to output
+		fast_forward = fast_forward && d.empty();
+	}
+	if(fast_forward)
+		target_pos = fast_forward_pos;
+		
+	if(target_pos >= fast_forward_pos) {
+		uint64_t next_pos = numeric_limits<uint64_t>::max();
+		for(auto scanner : range) {
+			// Scan reads from file until target_pos
+			list_type new_reads = scanner(target_pos,pool_);
+			next_pos = std::min(next_pos,scanner.next_pos());
+			// process read_groups
+			while(!new_reads.empty()) {
+				node_type &n = new_reads.front();
+				new_reads.pop_front();
+				uint8_t *rg = bam_aux_get(&n.seq, "RG");
+				auto it = read_groups_.find(reinterpret_cast<const char*>(rg+1));
+				if(it == read_groups_.end())
+					pool_.Free(n); // drop unknown RG's
+				else
+					data[it.second].push_back(n); // push read onto correct RG
+				// process cigar string
+				
+				
+			}
+		}
+		fast_forward_pos = next_pos;
+	}
 	
 	
 }
