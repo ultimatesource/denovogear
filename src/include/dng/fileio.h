@@ -27,6 +27,8 @@
 #include <htslib/hts.h>
 #include <htslib/sam.h>
 
+#include <boost/noncopyable.hpp>
+
 namespace dng {
 namespace fileio {
 // NOTE: Most of fileio is wraps samtools and htslib.  Some code has been copied
@@ -71,7 +73,7 @@ private:
 
 };
 
-class SamFile {
+class SamFile : boost::noncopyable {
 public:
 	SamFile(const char *file, const char *region, int min_mapQ = 0, int min_len = 0) :
 			fp_(nullptr), hdr_(nullptr), iter_(nullptr),
@@ -90,6 +92,21 @@ public:
 	    		throw std::runtime_error("unable to parse region '" + std::string(region) + "'.");
 	    	}
 	    }
+	}
+	SamFile(SamFile &&other) : fp_(other.fp_), hdr_(other.hdr_),
+		iter_(other.iter_)
+	{
+		other.fp_ = nullptr;
+		other.hdr_ = nullptr;
+		other.iter_ = nullptr;		
+	}
+	
+	// move-and-swap
+	SamFile& operator=(SamFile &other) {
+		std::swap(fp_,other.fp_);
+		std::swap(hdr_,other.hdr_);
+		std::swap(iter_,other.iter_);
+		return *this;
 	}
 	
 	int operator()(bam1_t &b) {
@@ -112,16 +129,16 @@ public:
 
 	// cleanup as needed
 	virtual ~SamFile() {
+		if(iter_ != nullptr)
+			hts_itr_destroy(iter_);
 		if(hdr_ != nullptr)
 			bam_hdr_destroy(hdr_);
 		if(fp_ != nullptr)
 			sam_close(fp_);
-		if(iter_ != nullptr)
-			hts_itr_destroy(iter_);
 	}
 	
-	const bam_hdr_t * header() { return hdr_; }
-	const hts_itr_t * iter() { return iter_; }
+	const bam_hdr_t * header() const { return hdr_; }
+	const hts_itr_t * iter() const { return iter_; }
 	
 protected:
 	samFile *fp_;     // the file handle

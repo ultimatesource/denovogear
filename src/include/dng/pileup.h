@@ -29,7 +29,9 @@
 #include <boost/range/begin.hpp>
 #include <boost/range/end.hpp>
 #include <boost/range/size.hpp>
-#include <boost/range/metafunctions.hpp> 
+#include <boost/range/metafunctions.hpp>
+#include <boost/range/algorithm/lower_bound.hpp>
+#include <boost/range/algorithm/sort.hpp>
 
 #include <boost/intrusive/list.hpp>
 #include <boost/noncopyable.hpp>
@@ -158,7 +160,9 @@ public:
 	virtual ~SeqPool() {
 		if(store_.empty())
 			return;
-		inactive_.clear(); // TODO: determine best way to avoid this?
+		// clear inactive as needed
+		if(list_type::safemode_or_autounlink)
+			inactive_.clear();
 		// enumerate over allocated blocks
 		for(std::size_t i=0;i<store_.size()-1;++i) {
 			for(std::size_t j=0;j<store_[i].second;++j) {
@@ -261,15 +265,32 @@ public:
 	template<typename InFiles, typename Func>
 	void operator()(InFiles &range, Func func);
 	
+	template<typename InFiles>
+	void SetupReadGroups(InFiles &range);
+	
+	template<typename RG>
+	MPileup(const RG& rg) : read_groups_(boost::begin(rg),boost::end(rg)) {
+		boost::sort(read_groups_);
+	}
+	
+	MPileup() { }
+	
 protected:
 	template<typename Scanners>
-	bool Advance(Scanners &range, data_type &data, uint64_t &target_loc,
+	int Advance(Scanners &range, data_type &data, uint64_t &target_loc,
 		uint64_t &fast_forward_loc);
-
+	
+	template<typename STR>
+	std::size_t ReadGroupIndex(const STR& s) {
+		auto it = boost::lower_bound(read_groups_,s);
+		return (it == read_groups_.end()) ? -1
+			: static_cast<std::size_t>(it-boost::begin(read_groups_));
+	}
+	
 private:
 	detail::SeqPool pool_;
 	
-	std::unordered_map<std::string,int> read_groups_;
+	std::vector<std::string> read_groups_;
 };
 
 template<typename InFiles, typename Func>
@@ -285,9 +306,14 @@ void MPileup::operator()(InFiles &range, Func func) {
 	function<callback_type> call_back(func);
 	
 	// data will hold our pileup information
-	data_type data;
+	data_type data(read_groups_.size());
 	uint64_t current_loc = 0;
 	uint64_t fast_forward_loc = 0;
+	
+	// if we have no read_groups specified, use each file as a single group
+	if(data.empty()) {
+		data.resize(scanners.size());
+	}
 		
 	// If there is a parsed region, use it.
 	// TODO: check to see if the regions are all the same???
@@ -298,14 +324,18 @@ void MPileup::operator()(InFiles &range, Func func) {
 		end_loc = make_location(boost::begin(range)->iter()->tid,
 			boost::begin(range)->iter()->end);
 	}
-	
-	while(Advance(scanners,data,current_loc,fast_forward_loc)) {
-		if (current_loc < beg_loc || current_loc >= end_loc)
-			continue; // out of range; skip
+	for(;;current_loc += 1) {
+		int res = Advance(scanners,data,current_loc,fast_forward_loc);
+		if(res < 0)
+			break;
+		if(res == 0)
+			continue;
+		if(beg_loc > current_loc || current_loc >= end_loc) 
+			continue;
 		//if (bed && bed_overlap(bed, h->target_name[tid], pos, pos + 1) == 0) continue; // not in BED; skip
 		// Execute callback function
 		call_back(data, current_loc);
-	}
+	}	
 }
 
 // Advance starts a pileup procedure at pos.
@@ -313,7 +343,7 @@ void MPileup::operator()(InFiles &range, Func func) {
 // current_pos
 
 template<typename Scanners>
-bool MPileup::Advance(Scanners &range, data_type &data, uint64_t &target_loc,
+int MPileup::Advance(Scanners &range, data_type &data, uint64_t &target_loc,
 	uint64_t &fast_forward_loc) {
 	using namespace std;
 	// enumerate through existing data set, updating location of reads and
@@ -339,7 +369,9 @@ bool MPileup::Advance(Scanners &range, data_type &data, uint64_t &target_loc,
 		
 	if(target_loc >= fast_forward_loc) {
 		uint64_t next_loc = numeric_limits<uint64_t>::max();
-		for(auto &scanner : range) {
+		std::size_t k = 0;
+		for(auto it = boost::begin(range); it != boost::end(range); ++it,++k) {
+			auto &scanner = *it;
 			// Scan reads from file until target_loc
 			list_type new_reads = scanner(target_loc,pool_);
 			// Update the minimum position of the next read
@@ -349,10 +381,13 @@ bool MPileup::Advance(Scanners &range, data_type &data, uint64_t &target_loc,
 				node_type &n = new_reads.front();
 				new_reads.pop_front();
 				uint8_t *rg = bam_aux_get(&n.seq, "RG");
-				auto it = read_groups_.find(reinterpret_cast<const char*>(rg+1));
-				if(it == read_groups_.end()) {
-					pool_.Free(n); // drop unknown RG's
-					continue;
+				std::size_t index = k;
+				if(!read_groups_.empty()) {
+					index = ReadGroupIndex(reinterpret_cast<const char*>(rg+1));
+					if(index == -1) {
+						pool_.Free(n); // drop unknown RG's
+						continue;
+					}
 				}
 				// process cigar string
 				uint64_t q = cigar::target_to_query(target_loc,n.beg,n.cigar());
@@ -360,61 +395,16 @@ bool MPileup::Advance(Scanners &range, data_type &data, uint64_t &target_loc,
 				n.is_missing = cigar::query_del(q);
 
 				// push read onto correct RG
-				data[it->second].push_back(n);
+				data[index].push_back(n);
 				fast_forward = false;
 			}
 		}
 		fast_forward_loc = next_loc;
 	}
-	return (!fast_forward);
+	if(fast_forward && fast_forward_loc == numeric_limits<uint64_t>::max())
+		return -1;
+	return (fast_forward ? 0 : 1);
 }
-
-/*
-typedef void (mpileup_func_t)(int,int,const std::vector<int>&,
-	const std::vector<const bam_pileup1_t *>&);
-
-template<typename Input, typename Func>
-void mpileup(Input &range, bam_plp_auto_f auto_func, Func func) {
-	using namespace std;
-	using namespace fileio;
-		
-	// type erase our callback function
-	function<mpileup_func_t> call_back(func);
-	
-	// bam_mplp_init requires an array of pointers
-	std::size_t num_files = boost::size(range);
-	vector<typename boost::range_pointer<Input>::type>
-		pointers(num_files, nullptr);
-	{ std::size_t i=0;
-	for(auto a=boost::begin(range); a != boost::end(range); ++a) {
-		pointers[i] = &(*a) + i;
-		i++;
-	}}
-	
-	// If there is a parsed region, use it.
-	// TODO: check to see if the regions are all the same???
-	int beg = 0, end = std::numeric_limits<int>::max();
-	if(boost::begin(range)->iter() != nullptr) {
-		beg = boost::begin(range)->iter()->beg;
-		end = boost::begin(range)->iter()->end;
-	}
-	
-	// initialize the pileup iterator
-	bam_mplp_t mpileup_iter = bam_mplp_init(num_files, auto_func,
-		reinterpret_cast<void**>(pointers.data()));
-	
-	vector<int> counts(num_files, 0);
-	vector<const bam_pileup1_t *> records(num_files, nullptr);
-	int target_id, pos;
-	
-	while(bam_mplp_auto(mpileup_iter, &target_id, &pos, counts.data(),records.data()) > 0) {
-		if (pos < beg || pos >= end) continue; // out of range; skip
-		//if (bed && bed_overlap(bed, h->target_name[tid], pos, pos + 1) == 0) continue; // not in BED; skip
-		call_back(target_id, pos, counts, records);
-	}
-	bam_mplp_destroy(mpileup_iter);
-}
-*/
 
 } //namespace dng
 

@@ -31,6 +31,7 @@
 #include <dng/pedigree_peeler.h>
 #include <dng/fileio.h>
 #include <dng/pileup.h>
+#include <dng/read_group.h>
 
 using namespace dng::task;
 using namespace dng;
@@ -78,16 +79,26 @@ int Call::operator()(Call::argument_type &arg) {
 		indata.emplace_back(str.c_str(), arg.region.c_str(), arg.min_mapqual, arg.min_qlen);
 	}
 	const bam_hdr_t *h = indata[0].header();
-
-	dng::MPileup mpileup;
 	
+	dng::ReadGroups rgs;
+	rgs.Parse(indata);
+
+	dng::MPileup mpileup(rgs.all());
+
+	cerr << "Contig\tPos";
+	for(auto a : rgs.all()) {
+		cerr << '\t' << a;
+	}
+	cerr << endl;
 	
 	mpileup(indata, [h](const dng::MPileup::data_type &data, uint64_t loc)
 	{
 		int target_id = location_to_target(loc);
 		int position = location_to_position(loc);
 		cerr << h->target_name[target_id] << "\t" << position+1;
-		
+		for(auto &d : data) {
+			cerr << "\t" << d.size();
+		}
 		cout << "\n";
 		return;
 	});
