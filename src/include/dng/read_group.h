@@ -35,17 +35,24 @@ namespace dng {
 
 class ReadGroups {
 public:
+	ReadGroups() { }
+	
+	template<typename InFiles>
+	ReadGroups(InFiles &range) {
+		Parse(range);
+	}
+
 	template<typename InFiles>
 	void Parse(InFiles &range);
 
-	template<typename str>
-	std::size_t Index(const str& id) {
+	template<typename Str>
+	std::size_t Index(const Str& id) {
 		auto it = boost::lower_bound(ids_,id);
 		return (it == ids_.end()) ? -1
 			: static_cast<std::size_t>(it-boost::begin(ids_));
 	}
 	
-	const std::vector<std::string>& all() const { return ids_; }
+	const std::vector<std::string>& groups() const { return ids_; }
 
 protected:
 	std::vector<std::string> ids_;

@@ -75,13 +75,17 @@ private:
 
 class SamFile : boost::noncopyable {
 public:
-	SamFile(const char *file, const char *region, int min_mapQ = 0, int min_len = 0) :
+	SamFile(const char *file, const char *region=nullptr, const char *fasta=nullptr,
+		int min_mapQ = 0, int min_len = 0) :
 			fp_(nullptr), hdr_(nullptr), iter_(nullptr),
 	    	min_mapQ_(min_mapQ), min_len_(min_len) {
 	    fp_ = sam_open(file, "r");
 	    if(fp_ == nullptr)
 	    	throw std::runtime_error("unable to open file '" + std::string(file) + "'.");
+	    hts_set_fai_filename(fp_, fasta);
 	    hdr_ = sam_hdr_read(fp_);
+	    if(hdr_ == nullptr)
+	    	throw std::runtime_error("unable to read header in file '" + std::string(file) + "'.");
 	    if(region != nullptr && region[0] != '\0') {
 	    	hts_idx_t *idx = sam_index_load(fp_, file);
 	    	if(idx == nullptr)
@@ -101,11 +105,25 @@ public:
 		other.iter_ = nullptr;		
 	}
 	
-	// move-and-swap
-	SamFile& operator=(SamFile &other) {
-		std::swap(fp_,other.fp_);
-		std::swap(hdr_,other.hdr_);
-		std::swap(iter_,other.iter_);
+	SamFile& operator=(SamFile &&other) {
+		if(this == &other) 
+			return *this;
+
+		if(iter_ != nullptr)
+			hts_itr_destroy(iter_);
+		iter_ = other.iter_;
+		other.iter_ = nullptr;
+
+		if(hdr_ != nullptr)
+			bam_hdr_destroy(hdr_);
+		hdr_ = other.hdr_;
+		other.hdr_ = nullptr;
+
+		if(fp_ != nullptr)
+			sam_close(fp_);
+		fp_ = other.fp_;
+		other.fp_ = nullptr;
+
 		return *this;
 	}
 	

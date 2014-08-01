@@ -25,14 +25,15 @@
  * XM((long)(name), (shortname), "description", typename, defaultvalue)    *
  ***************************************************************************/
 
-XM((bed), (b), "file containing a list of positions or regions", std::string, "")
-XM((files), (f), "file containing a list of input filenames, one per line", std::string, "")
+//XM((bed), (b), "file containing a list of positions or regions", std::string, "")
+XM((fasta), (f), "faidx indexed reference sequence file", std::string, "") 
 XM((min)(qlen), (l), "minimum query length", int, 0)
 XM((mu), , "the mutation rate", double, DL(1e-9,"1e-9"))
 XM((ped), (p), "the pedigree file", std::string, "")
 XM((min)(basequal), (q), "minimum base quality", int, 0)
 XM((min)(mapqual), (Q), "minimum mapping quality", int, 0)
 XM((region), (r), "chromosomal region", std::string, "")
+XM((sam)(files), (s), "file containing a list of input filenames, one per line", std::string, "")
 XM((theta), , "the population diversity", double, DL(0.001, "0.001"))
 
 /***************************************************************************

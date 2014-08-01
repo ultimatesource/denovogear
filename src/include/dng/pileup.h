@@ -24,7 +24,9 @@
 #include <vector>
 #include <limits>
 #include <unordered_map>
+
 #include <htslib/sam.h>
+#include <htslib/faidx.h>
 
 #include <boost/range/begin.hpp>
 #include <boost/range/end.hpp>
@@ -264,10 +266,7 @@ public:
 
 	template<typename InFiles, typename Func>
 	void operator()(InFiles &range, Func func);
-	
-	template<typename InFiles>
-	void SetupReadGroups(InFiles &range);
-	
+		
 	template<typename RG>
 	MPileup(const RG& rg) : read_groups_(boost::begin(rg),boost::end(rg)) {
 		boost::sort(read_groups_);
