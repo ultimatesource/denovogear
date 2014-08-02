@@ -21,13 +21,10 @@
 #ifndef DNG_PEDIGREE_PEELER_H
 #define DNG_PEDIGREE_PEELER_H
 
-#include <dng/pedigree.h>
-
 #include <functional>
 
-#include <Eigen/Dense>
-#include <Eigen/StdVector>
-#include <Eigen/KroneckerProduct>
+#include <dng/pedigree.h>
+#include <dng/matrix.h>
 
 /*
 RULES FOR LINKING READ GROUPS TO PEOPLE.
@@ -54,16 +51,6 @@ namespace dng {
 class PedigreePeeler {
 public:
 	typedef std::vector<std::vector<std::size_t>> family_members_t;
-
-	typedef Eigen::Array<double, 10, 1> Vector10d;
-	typedef Eigen::Matrix<double, 10, 10> Matrix10d;
-	typedef Eigen::Matrix<double, 10, 10, Eigen::RowMajor> RowMatrix10d;
-	typedef Eigen::Array<double, 100, 1> Vector100d;
-	typedef Eigen::Matrix<double, 100, 100> Matrix100d;
-	
-	typedef Eigen::Matrix<double, 100, 10> MeiosisMatrix;
-
-	typedef std::vector<Vector10d, Eigen::aligned_allocator<Vector10d>> IndividualBuffer;
 
 	bool Initialize(double theta, double mu);
 

@@ -73,9 +73,9 @@ private:
 
 };
 
-class SamFile : boost::noncopyable {
+class BamFile : boost::noncopyable {
 public:
-	SamFile(const char *file, const char *region=nullptr, const char *fasta=nullptr,
+	BamFile(const char *file, const char *region=nullptr, const char *fasta=nullptr,
 		int min_mapQ = 0, int min_len = 0) :
 			fp_(nullptr), hdr_(nullptr), iter_(nullptr),
 	    	min_mapQ_(min_mapQ), min_len_(min_len) {
@@ -97,7 +97,7 @@ public:
 	    	}
 	    }
 	}
-	SamFile(SamFile &&other) : fp_(other.fp_), hdr_(other.hdr_),
+	BamFile(BamFile &&other) : fp_(other.fp_), hdr_(other.hdr_),
 		iter_(other.iter_)
 	{
 		other.fp_ = nullptr;
@@ -105,7 +105,7 @@ public:
 		other.iter_ = nullptr;		
 	}
 	
-	SamFile& operator=(SamFile &&other) {
+	BamFile& operator=(BamFile &&other) {
 		if(this == &other) 
 			return *this;
 
@@ -146,7 +146,7 @@ public:
 	}
 
 	// cleanup as needed
-	virtual ~SamFile() {
+	virtual ~BamFile() {
 		if(iter_ != nullptr)
 			hts_itr_destroy(iter_);
 		if(hdr_ != nullptr)
@@ -168,7 +168,7 @@ protected:
 } // namespace fileio
 
 using fileio::ParsedList;
-using fileio::SamFile;
+using fileio::BamFile;
 
 } // namespace dng
 

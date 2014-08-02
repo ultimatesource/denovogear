@@ -48,6 +48,9 @@ istreambuf_range(std::basic_istream<Elem, Traits>& in)
         std::istreambuf_iterator<Elem, Traits>());
 }
 
+// Table for converting a 4-bit nucleotide to an [0-4] index.
+const char bam_nt16_nt4_table[] = { 4, 0, 1, 4, 2, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4 };
+
 int Call::operator()(Call::argument_type &arg) {
 	using namespace std;
 	
@@ -84,7 +87,7 @@ int Call::operator()(Call::argument_type &arg) {
 	}
 
 	// Open up the input sam files
-	vector<fileio::SamFile> indata;
+	vector<fileio::BamFile> indata;
 		
 	for(auto str : arg.input) {
 		indata.emplace_back(str.c_str(), arg.region.c_str(), arg.fasta.c_str(),
@@ -107,7 +110,10 @@ int Call::operator()(Call::argument_type &arg) {
 	int ref_sz = 0;
 	int ref_target_id = -1;
 	
-	mpileup(indata, [h,fai,&ref,&ref_sz,&ref_target_id](const dng::MPileup::data_type &data, uint64_t loc)
+	// quality
+	int min_qual = arg.min_basequal;
+	
+	mpileup(indata, [&](const dng::MPileup::data_type &data, uint64_t loc)
 	{
 		int target_id = location_to_target(loc);
 		int position = location_to_position(loc);
@@ -124,8 +130,13 @@ int Call::operator()(Call::argument_type &arg) {
 		cerr << h->target_name[target_id]
 		     << "\t" << position+1
 		     << "\t" << ref_base;
-		for(auto &d : data) {
-			cerr << "\t" << d.size();
+		for(auto &rg : data) {
+			cerr << "\t";
+			for(auto &r : rg) {
+				if(r.qual[r.pos] < arg.min_basequal)
+					continue;
+				cerr << seq_nt16_str[bam_seqi(r.seq, r.pos)];
+			}
 		}
 		cout << "\n";
 		return;

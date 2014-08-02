@@ -1,0 +1,49 @@
+/*
+ * Copyright (c) 2014 Reed A. Cartwright
+ * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
+ *
+ * This file is part of DeNovoGear.
+ *
+ * DeNovoGear is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation; either version 3 of the License, or (at your option) any later
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+#pragma once
+#ifndef DNG_MATRIX_H
+#define DNG_MATRIX_H
+
+#include <cstdint>
+
+#include <Eigen/Dense>
+#include <Eigen/StdVector>
+#include <Eigen/KroneckerProduct>
+
+namespace dng {
+
+	union depth_t {
+		uint16_t d[4];
+		uint64_t u;
+	};
+
+	typedef Eigen::Array<double, 10, 1> Vector10d;
+	typedef Eigen::Matrix<double, 10, 10> Matrix10d;
+	typedef Eigen::Matrix<double, 10, 10, Eigen::RowMajor> RowMatrix10d;
+	typedef Eigen::Array<double, 100, 1> Vector100d;
+	typedef Eigen::Matrix<double, 100, 100> Matrix100d;
+	
+	typedef Eigen::Matrix<double, 100, 10> MeiosisMatrix;
+
+	typedef std::vector<Vector10d, Eigen::aligned_allocator<Vector10d>> IndividualBuffer;
+
+};
+
+#endif // DNG_MATRIX_H
+

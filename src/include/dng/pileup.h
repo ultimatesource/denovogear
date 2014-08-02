@@ -108,21 +108,26 @@ using namespace boost::intrusive;
 class SeqPool : boost::noncopyable {
 public:
 	struct node_t : public list_base_hook<> {
-		bam1_t seq;   // sequence record : [beg,end)
-		uint64_t beg; // 0-based left-most edge 
-		uint64_t end; // 0-based right-most edge
+		bam1_t bam;   // sequence record
+		uint64_t beg; // 0-based left-most edge, [beg,end)
+		uint64_t end; // 0-based right-most edge, [beg,end)
 		uint64_t pos; // current position of the pileup in this query/read
 		bool is_missing; // is there no base call at the pileup position?
+
+		uint32_t *cigar; // cigar
+		uint8_t *seq;    // encoded sequence
+		uint8_t *qual;   // quality scores
+		uint8_t *aux;    // aux fields
 				
 		int32_t target() const {
-			return seq.core.tid;
+			return bam.core.tid;
 		}
-		cigar_t cigar() const {
-			return std::make_pair(seq.core.n_cigar,bam_get_cigar(&seq));
+		cigar_t cigar_pair() const {
+			return std::make_pair(bam.core.n_cigar,cigar);
 		}
 		
 		~node_t() {
-			free(seq.data);
+			free(bam.data);
 		}
 	};
 	typedef boost::intrusive::list<node_t> list_type;
@@ -224,15 +229,22 @@ public:
 			node_type &n = pool.Malloc();
 			do {
 				// Try to grab a read, if not return current buffer
-				if(in_(n.seq) < 0) {
+				if(in_(n.bam) < 0) {
 					pool.Free(n);
 					next_loc_ = std::numeric_limits<uint64_t>::max();
 					return std::move(buffer_);
 				}
-				n.beg = make_location(n.seq.core.tid, n.seq.core.pos);
+				n.cigar = bam_get_cigar(&n.bam);
+				n.beg = make_location(n.bam.core.tid, n.bam.core.pos);
 				// update right-most position in the read
-				n.end = n.beg + cigar::target_length(n.cigar());
+				n.end = n.beg + cigar::target_length(n.cigar_pair());
 			} while( n.end <= target_loc);
+			
+			// cache pointers to data elements
+			n.seq = bam_get_seq(&n.bam);
+			n.qual = bam_get_qual(&n.bam);
+			n.aux = bam_get_aux(&n.bam);
+			// TODO: Adjust for Illumina 1.3 quality
 			
 			// update the left-most position of the most recently read read.
 			next_loc_ = n.beg;
@@ -355,7 +367,7 @@ int MPileup::Advance(Scanners &range, data_type &data, uint64_t &target_loc,
 				d.erase(it++);
 				continue;
 			}
-			uint64_t q = cigar::target_to_query(target_loc,it->beg,it->cigar());
+			uint64_t q = cigar::target_to_query(target_loc,it->beg,it->cigar_pair());
 			it->pos = cigar::query_pos(q);
 			it->is_missing = cigar::query_del(q);
 			++it;
@@ -379,7 +391,7 @@ int MPileup::Advance(Scanners &range, data_type &data, uint64_t &target_loc,
 			while(!new_reads.empty()) {
 				node_type &n = new_reads.front();
 				new_reads.pop_front();
-				uint8_t *rg = bam_aux_get(&n.seq, "RG");
+				uint8_t *rg = bam_aux_get(&n.bam, "RG");
 				std::size_t index = k;
 				if(!read_groups_.empty()) {
 					index = ReadGroupIndex(reinterpret_cast<const char*>(rg+1));
@@ -389,7 +401,7 @@ int MPileup::Advance(Scanners &range, data_type &data, uint64_t &target_loc,
 					}
 				}
 				// process cigar string
-				uint64_t q = cigar::target_to_query(target_loc,n.beg,n.cigar());
+				uint64_t q = cigar::target_to_query(target_loc,n.beg,n.cigar_pair());
 				n.pos = cigar::query_pos(q);
 				n.is_missing = cigar::query_del(q);
 
