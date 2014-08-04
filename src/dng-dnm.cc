@@ -167,10 +167,16 @@ int writeVCFHeader(std::ofstream& fo_vcf, string op_vcf_f, string bcf_file, stri
     cerr<<"Unable to open vcf file for writing output. Exiting !"<<endl;
   }
   fo_vcf<<"##fileformat=VCFv4.1\n";
-  fo_vcf<<"##source= "<<VERSION<<"\n";
-  fo_vcf<<"##INPUT=<bcf="<<bcf_file<<",ped="<<ped_file<<">\n";
-  fo_vcf<<"##CUTOFFS=<read_depth="<<RD_cutoff<<",posterior_probability="<<PP_cutoff<<">\n";
-  fo_vcf<<"##MUTATION_RATES=<snp="<<snp_mrate<<",indel="<<indel_mrate<<",paired="<<pair_mrate<<",polymorphism="<<poly_rate<<",indel_scaling_constant="<<mu_scale<<">\n";
+  fo_vcf<<"##source="<<VERSION<<"\n";
+  fo_vcf<<"##input_bcf="<<bcf_file<<"\n";
+  fo_vcf<<"##input_ped="<<ped_file<<"\n";
+  fo_vcf<<"##cutoff_read_depth="<<RD_cutoff<<"\n";
+  fo_vcf<<"##cutoff_posterior_probability="<<PP_cutoff<<"\n";
+  fo_vcf<<"##mutation_rate_snp="<<snp_mrate<<"\n";
+  fo_vcf<<"##mutation_rate_indel="<<indel_mrate<<"\n";
+  fo_vcf<<"##mutation_rate_paired="<<pair_mrate<<"\n";
+  fo_vcf<<"##mutation_rate_polymorphism="<<poly_rate<<"\n";
+  fo_vcf<<"##mutation_rate_indel_scaling_constant="<<mu_scale<<"\n";
   fo_vcf<<"##INFO=<ID=RD_MOM,Number=1,Type=Integer,Description=\"Read depth for MOM\">\n";
   fo_vcf<<"##INFO=<ID=RD_DAD,Number=1,Type=Integer,Description=\"Read depth for DAD\">\n";
   fo_vcf<<"##INFO=<ID=RD_NORMAL,Number=1,Type=Integer,Description=\"Read depth for Normal sample in Paired Sample Analysis\">\n";
