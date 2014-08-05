@@ -29,8 +29,8 @@
 namespace dng {
 
 	union depth_t {
-		uint16_t d[4];
-		uint64_t u;
+		uint16_t counts[4];
+		uint64_t key;
 	};
 
 	typedef Eigen::Array<double, 10, 1> Vector10d;

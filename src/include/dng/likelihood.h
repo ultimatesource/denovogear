@@ -20,17 +20,67 @@
 #ifndef DNG_LIKELIHOOD_H
 #define DNG_LIKELIHOOD_H
 
+#include <array>
+
 #include <dng/matrix.h>
 
 namespace dng {
 namespace genotype {
 class DirichletMultinomialMixture {
 public:
-	DirichletMultinomialMixture( 
-
-	Vector10d operator()(depth_t d);
-protected:
+	// TODO: Make this configurable with a define
+	static const int kCacheSize = 512; 
 	
+	Vector10d operator()(depth_t d, int ref_allele) {
+		Vector10d log_ret;
+		int read_count = d.counts[0] + d.counts[1] +
+		                      d.counts[2] + d.counts[3];
+		for(int i=0;i<10;++i) {
+			auto &cache = cache_[ref_allele][i];
+			double lh1 = f1_, lh2 = f2_;
+			for(int j : {0,1,2,3} ) {
+				if(d.counts[j] < kCacheSize) {
+					// access coefs that is in the cache
+					lh1 += cache[j][2*d.counts[j]];   // component 1
+					lh2 += cache[j][2*d.counts[j]+1]; // component 2
+				} else {
+					// if the value is not in the cache, calculate it
+					// TODO: speed this up with gammas???
+					lh1 += cache[j][2*(kCacheSize-1)];
+					lh2 += cache[j+5][2*(kCacheSize-1)+1];
+					double a1 = alphas_[ref_allele][i][j];
+					double a2 = alphas_[ref_allele][i][j+5];
+					for(double x = kCacheSize-1; x < (double)d.counts[j]; x+=1.0) {
+						lh1 += log(a1+x);
+						lh2 += log(a2+x);
+					}
+				}
+			}
+			if(read_count < kCacheSize) {
+				lh1 -= cache[4][2*read_count];
+				lh2 -= cache[4+5][2*read_count+1];
+			} else {
+				lh1 += cache[4][2*(kCacheSize-1)];
+				lh2 += cache[4+5][2*(kCacheSize-1)+1];
+				double a1 = alphas_[ref_allele][i][4];
+				double a2 = alphas_[ref_allele][i][4+5];
+				for(double x = kCacheSize-1; x < (double)d.counts[j]; x+=1.0) {
+					lh1 += log(a1+x);
+					lh2 += log(a2+x);
+				}
+			}
+			log_ret[i] = (lh2 < lh1) ? lh1+log1p(exp(lh2-lh1)) :
+			                           lh2+log1p(exp(lh1-lh2)) ;
+		}
+		return (log_ret - result.maxCoeff()).exp();
+	}
+protected:
+	// NOTE: cache_[a][b][c][d] = sum alpha[a][b][c]+x for x in [0,d)
+	// NOTE: alpha[a][b][c] = alpha[ref][genotype][category]
+	typedef std::array<double,kCacheSize> cache_type;
+	std::array<std::array< std::array<cache_type,5>,10>,5> cache_;
+	std::array<std::array< std::array<double,5>,10>,5> alphas_;
+	double f1_, f2_; // log(f) and log(1-f)
 };
 
 /*
