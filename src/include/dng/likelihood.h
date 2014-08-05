@@ -21,15 +21,24 @@
 #define DNG_LIKELIHOOD_H
 
 #include <array>
+#include <cmath>
 
 #include <dng/matrix.h>
 
 namespace dng {
 namespace genotype {
+
 class DirichletMultinomialMixture {
 public:
 	// TODO: Make this configurable with a define
 	static const int kCacheSize = 512; 
+	
+	struct params_t {
+		double pi; // probability of this component
+		double phi; // overdispersion parameter
+		double epsilon; // prob of error when homozygote is sequenced
+		double omega; // bias towards reference when heterozygote is sequenced
+	};
 	
 	Vector10d operator()(depth_t d, int ref_allele) {
 		Vector10d log_ret;
@@ -45,58 +54,39 @@ public:
 					lh2 += cache[j][2*d.counts[j]+1]; // component 2
 				} else {
 					// if the value is not in the cache, calculate it
-					// TODO: speed this up with gammas???
-					lh1 += cache[j][2*(kCacheSize-1)];
-					lh2 += cache[j+5][2*(kCacheSize-1)+1];
-					double a1 = alphas_[ref_allele][i][j];
-					double a2 = alphas_[ref_allele][i][j+5];
-					for(double x = kCacheSize-1; x < (double)d.counts[j]; x+=1.0) {
-						lh1 += log(a1+x);
-						lh2 += log(a2+x);
-					}
+					lh1 += lgamma(alphas_[ref_allele][i][j][0]+d.counts[j])
+							- alphas_[ref_allele][i][j][1];
+					lh2 += lgamma(alphas_[ref_allele][i][j][2]+d.counts[j])
+							- alphas_[ref_allele][i][j][3];
 				}
 			}
 			if(read_count < kCacheSize) {
 				lh1 -= cache[4][2*read_count];
-				lh2 -= cache[4+5][2*read_count+1];
+				lh2 -= cache[4][2*read_count+1];
 			} else {
-				lh1 += cache[4][2*(kCacheSize-1)];
-				lh2 += cache[4+5][2*(kCacheSize-1)+1];
-				double a1 = alphas_[ref_allele][i][4];
-				double a2 = alphas_[ref_allele][i][4+5];
-				for(double x = kCacheSize-1; x < (double)d.counts[j]; x+=1.0) {
-					lh1 += log(a1+x);
-					lh2 += log(a2+x);
-				}
+				lh1 += lgamma(alphas_[ref_allele][i][4][0]+read_count)
+						- alphas_[ref_allele][i][4][1];
+				lh2 += lgamma(alphas_[ref_allele][i][4][2]+read_count)
+						- alphas_[ref_allele][i][4][3];
 			}
 			log_ret[i] = (lh2 < lh1) ? lh1+log1p(exp(lh2-lh1)) :
 			                           lh2+log1p(exp(lh1-lh2)) ;
 		}
-		return (log_ret - result.maxCoeff()).exp();
+		return (log_ret - log_ret.maxCoeff()).exp();
 	}
+	
+	DirichletMultinomialMixture(params_t model_a, params_t model_b);
+	
 protected:
-	// NOTE: cache_[a][b][c][d] = sum alpha[a][b][c]+x for x in [0,d)
-	// NOTE: alpha[a][b][c] = alpha[ref][genotype][category]
-	typedef std::array<double,kCacheSize> cache_type;
-	std::array<std::array< std::array<cache_type,5>,10>,5> cache_;
-	std::array<std::array< std::array<double,5>,10>,5> alphas_;
+	// NOTE: cache_[a][b][c][d] = sum alpha[a][b][c]+x for x in [0,d/2)
+	// NOTE: alpha_[a][b][c] = {alpha1, lgamma(alpha1), alpha2, lgamma(alpha2)}
+	typedef std::array<double,2*kCacheSize> cache_type;
+	std::array<std::array<std::array<cache_type,5>,10>,5> cache_;
+	std::array<std::array<std::array<std::array<double,4>,5>,10>,5> alphas_;
 	double f1_, f2_; // log(f) and log(1-f)
 };
 
 /*
-Genotype Parameters:
-
-phi = overdispersion
-e = error rate
-r = reference bias
-
-Homozygote AA:
-	A,C,G,T = 1-e, e/3, e/3, e/3
-	
-Heterozygote AC
-
-*/
-
 double DirichletMultinomialLogProbability(double alphas[4], ReadData data) {
 	// TODO: Cache most of the math here
 	// TODO: Does not include the multinomail coefficient
@@ -140,8 +130,7 @@ DiploidProbs DiploidSequencing(const TetMAParams &params, int ref_allele, ReadDa
 	double scale = result.maxCoeff();
 	return (result - scale).exp();
 }
-
-
+*/
 
 } // namespace genotype
 } // namespace dng

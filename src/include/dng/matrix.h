@@ -29,7 +29,12 @@
 namespace dng {
 
 	union depth_t {
+		uint64_t key;
 		uint16_t counts[4];
+	};
+
+	union depth5_t {
+		uint16_t counts[5];
 		uint64_t key;
 	};
 
@@ -43,6 +48,8 @@ namespace dng {
 
 	typedef std::vector<Vector10d, Eigen::aligned_allocator<Vector10d>> IndividualBuffer;
 
+	const int nucleotides[10][2] = {{0,0},{0,1},{0,2},{0,3},
+		{1,1},{1,2},{1,3},{2,2},{2,3},{3,3}};
 };
 
 #endif // DNG_MATRIX_H

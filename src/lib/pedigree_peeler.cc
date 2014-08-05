@@ -63,20 +63,22 @@ bool PedigreePeeler::Initialize(double theta, double mu) {
 		}
 		m(i,i) += beta;
 	}
-	int nuc1[10] = {0,0,0,0,1,1,1,2,2,3};
-	int nuc2[10] = {0,1,2,3,1,2,3,2,3,3};
 	for(int i = 0; i < 10; ++i) {
 		for(int j = 0; j < 10; ++j) {
 			int p = 10*i+j;
 			for(int k = 0; k < 10; ++k) {
 				meiosis_(p,k) =
-					  ( m(nuc1[i],nuc1[k]) + m(nuc2[i],nuc1[k]) )
-				    * ( m(nuc1[j],nuc2[k]) + m(nuc2[j],nuc2[k]) )/4.0 ;
-				if(nuc1[k] == nuc2[k])
+					  ( m(nucleotides[i][0],nucleotides[k][0])
+					  + m(nucleotides[i][1],nucleotides[k][0]))
+				    * ( m(nucleotides[j][0],nucleotides[k][1])
+				      + m(nucleotides[j][1],nucleotides[k][1]))/4.0 ;
+				if(nucleotides[k][0] == nucleotides[k][1])
 					continue;
 				meiosis_(p,k) +=
-				      ( m(nuc1[i],nuc2[k]) + m(nuc2[i],nuc2[k]) )
-				    * ( m(nuc1[j],nuc1[k]) + m(nuc2[j],nuc1[k]) )/4.0 ;
+					  ( m(nucleotides[i][0],nucleotides[k][1])
+					  + m(nucleotides[i][1],nucleotides[k][1]))
+				    * ( m(nucleotides[j][0],nucleotides[k][0])
+				      + m(nucleotides[j][1],nucleotides[k][0]))/4.0 ;
 			}
 		}
 	}

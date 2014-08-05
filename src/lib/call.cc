@@ -32,6 +32,7 @@
 #include <dng/fileio.h>
 #include <dng/pileup.h>
 #include <dng/read_group.h>
+#include <dng/likelihood.h>
 
 #include <htslib/faidx.h>
 
@@ -113,6 +114,9 @@ int Call::operator()(Call::argument_type &arg) {
 	// quality
 	int min_qual = arg.min_basequal;
 	
+	genotype::DirichletMultinomialMixture genotype_likelihood(
+			{0.9,0.001,0.001,1.05}, {0.1,0.01,0.01,1.1});
+	
 	mpileup(indata, [&](const dng::MPileup::data_type &data, uint64_t loc)
 	{
 		int target_id = location_to_target(loc);
@@ -126,17 +130,23 @@ int Call::operator()(Call::argument_type &arg) {
 		}
 		char ref_base = (ref && 0 <= position && position < ref_sz) ?
 			ref[position] : 'N';
+		int ref_index = bam_nt16_nt4_table[seq_nt16_table[ref_base]];
 		
 		cerr << h->target_name[target_id]
 		     << "\t" << position+1
 		     << "\t" << ref_base;
 		for(auto &rg : data) {
 			cerr << "\t";
+			depth5_t d{0,0,0,0,0};
 			for(auto &r : rg) {
-				if(r.qual[r.pos] < arg.min_basequal)
+				if(r.is_missing || r.qual[r.pos] < arg.min_basequal)
 					continue;
-				cerr << seq_nt16_str[bam_seqi(r.seq, r.pos)];
+				d.counts[bam_nt16_nt4_table[bam_seqi(r.seq, r.pos)]]+=1;
 			}
+			cerr << d.counts[0] << "," << d.counts[1] << ","
+			     << d.counts[2] << "," << d.counts[3];
+			Eigen::IOFormat OctaveFmt(Eigen::StreamPrecision, Eigen::DontAlignCols, ",", ",", "", "", "[", "]");
+			cerr << "/" << genotype_likelihood({d.key},ref_index).format(OctaveFmt);
 		}
 		cout << "\n";
 		return;
