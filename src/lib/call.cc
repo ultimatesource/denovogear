@@ -33,6 +33,7 @@
 #include <dng/pileup.h>
 #include <dng/read_group.h>
 #include <dng/likelihood.h>
+#include <dng/seq.h>
 
 #include <htslib/faidx.h>
 
@@ -48,9 +49,6 @@ istreambuf_range(std::basic_istream<Elem, Traits>& in)
         std::istreambuf_iterator<Elem, Traits>(in),
         std::istreambuf_iterator<Elem, Traits>());
 }
-
-// Table for converting a 4-bit nucleotide to an [0-4] index.
-const char bam_nt16_nt4_table[] = { 4, 0, 1, 4, 2, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4 };
 
 int Call::operator()(Call::argument_type &arg) {
 	using namespace std;
@@ -130,7 +128,7 @@ int Call::operator()(Call::argument_type &arg) {
 		}
 		char ref_base = (ref && 0 <= position && position < ref_sz) ?
 			ref[position] : 'N';
-		int ref_index = bam_nt16_nt4_table[seq_nt16_table[ref_base]];
+		int ref_index = seq::char_index(ref_base);
 		
 		cerr << h->target_name[target_id]
 		     << "\t" << position+1
@@ -141,7 +139,7 @@ int Call::operator()(Call::argument_type &arg) {
 			for(auto &r : rg) {
 				if(r.is_missing || r.qual[r.pos] < arg.min_basequal)
 					continue;
-				d.counts[bam_nt16_nt4_table[bam_seqi(r.seq, r.pos)]]+=1;
+				d.counts[seq::base_index(bam_seqi(r.seq, r.pos))] += 1;
 			}
 			cerr << d.counts[0] << "," << d.counts[1] << ","
 			     << d.counts[2] << "," << d.counts[3];
