@@ -46,53 +46,136 @@ public:
 	void Parse(InFiles &range);
 
 	template<typename Str>
-	std::size_t Index(const Str& id) {
-		auto it = boost::lower_bound(ids_,id);
-		return (it == ids_.end()) ? -1
-			: static_cast<std::size_t>(it-boost::begin(ids_));
+	std::size_t group_index(const Str& id) const {
+		auto it = boost::lower_bound(groups_,id);
+		return (it == groups_.end()) ? -1
+			: static_cast<std::size_t>(it-boost::begin(groups_));
 	}
 	
-	const std::vector<std::string>& groups() const { return ids_; }
+	inline const std::vector<std::string>& groups() const { return groups_; }
+	
+	inline std::size_t library_index(std::size_t x) const {
+		return library_ids_[x];
+	}
+	inline std::size_t sample_index(std::size_t x) const {
+		return sample_ids_[x];
+	}
+	
+	inline std::size_t num_groups() const { return groups_.size(); }
+	inline std::size_t num_libraries() const { return libraries_.size(); }
+	inline std::size_t num_samples() const { return samples_.size(); }
 
 protected:
-	std::vector<std::string> ids_;
+	std::vector<std::string> groups_;
+	std::vector<std::string> libraries_;
+	std::vector<std::string> samples_;
+	
+	std::vector<std::size_t> library_ids_;
+	std::vector<std::size_t> sample_ids_;
 };
 
 template<typename InFiles>
 void ReadGroups::Parse(InFiles &range) {
-	ids_.clear();
+	// structure to hold information on each read-group
+	struct rg_t {
+		std::string id;
+		std::string library;
+		std::string sample;
+		bool operator<(const rg_t &other) {
+			return id < other.id;
+		}
+		bool operator==(const rg_t &other) {
+			return id == other.id;
+		}
+	};
+	std::vector<rg_t> group_data;
+	
+	// iterate through each file in the range
 	for(auto &f : range) {
+		// get header text and continue on failre
 		const char *text = f.header()->text;
 		if(text == nullptr)
 			continue;
-		text = strstr(text, "@RG\t");
-		while(text != nullptr) {
-			text += 4;
+		
+		// enumerate over read groups
+		for(text = strstr(text, "@RG\t"); text != nullptr;
+		    text = strstr(text, "@RG\t"))
+		{
+			text += 4; // skip @RG\t
+			// parse the @RG line as tab-separated key:value pairs
+			// use a map to separate the parsing logic from the rg_t struct
 			const char *k = text, *v=k,*p=k;
-			std::map<std::string,std::string> tags;			
+			std::map<std::string,std::string> tags;
 			for(;*p != '\n' && *p != '\0';++p) {
 				if(*p == ':')
-					v = p+1;
+					v = p+1; // make v point the the beginning of the value
+					         // v-1 will point to the end of the key
 				else if(*p == '\t') {
 					if( k < v ) {
+						// if we found a key:value pair, add it to the map
 						// first one wins
 						tags.emplace(std::string(k,v-1), std::string(v,p));
 					}
+					// move k and v to the next character
 					k = v = p+1;
 				}
 			}
+			// make sure the insert the last item if needed
 			if( k < v )
 				tags.emplace(std::string(k,v-1), std::string(v,p));
-			auto it_id = tags.find("ID");
-			if(it_id != tags.end()) {
-				ids_.push_back(it_id->second);
-			}
 			
-			// find next readgroup
-			text = strstr(text, "@RG\t");
+			// continue if this line does not have and ID
+			auto it = tags.find("ID");
+			if(it == tags.end())
+				continue;
+			// constuct the rg_t
+			group_data.emplace_back();
+			rg_t & val = group_data.back();
+			val.id = std::move(it->second);
+			// library tag
+			if((it = tags.find("LB")) != tags.end())
+				val.library = std::move(it->second);
+			else
+				val.library = val.id;
+			// sample tag
+			if((it = tags.find("SM")) != tags.end())
+				val.sample = std::move(it->second);
+			else
+				val.sample = val.id;
 		}
 	}
-	boost::erase(ids_, boost::unique<boost::return_found_end>(boost::sort(ids_)));
+	
+	// sort and remove duplicated read-group ids
+	boost::erase(group_data,
+		boost::unique<boost::return_found_end>(boost::sort(group_data)));
+	
+	// construct data vectors
+	groups_.reserve(group_data.size());
+	libraries_.reserve(group_data.size());
+	samples_.reserve(group_data.size());	
+	for(auto &a : group_data) {
+		groups_.push_back(a.id);
+		libraries_.push_back(a.library);
+		samples_.push_back(a.sample);
+	}
+	
+	// sort and remove duplicates in libraries and samples
+	boost::erase(libraries_,
+		boost::unique<boost::return_found_end>(boost::sort(libraries_)));
+	boost::erase(samples_,
+		boost::unique<boost::return_found_end>(boost::sort(samples_)));
+
+	// connect groups to libraries and samples	
+	library_ids_.resize(groups_.size(),-1);
+	sample_ids_.resize(libraries_.size(),-1);
+	for(size_t u=0;u<group_data.size();++u) {
+		auto it = boost::lower_bound(libraries_,group_data[u].library);
+		assert(it != libraries_.end());
+		library_ids_[u] = (it-boost::begin(libraries_));
+		it = boost::lower_bound(samples_,group_data[u].sample);
+		assert(it != samples_.end());
+		sample_ids_[library_ids_[u]] = (it-boost::begin(samples_));
+	}
 }
 
 };

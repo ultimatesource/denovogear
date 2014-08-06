@@ -34,8 +34,11 @@ namespace dng {
 	};
 
 	union depth5_t {
-		uint16_t counts[5];
-		uint64_t key;
+		struct {
+			uint64_t key;
+			uint64_t pad;
+		};
+		uint16_t counts[8];
 	};
 
 	typedef Eigen::Array<double, 10, 1> Vector10d;

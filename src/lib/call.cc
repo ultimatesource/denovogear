@@ -23,6 +23,7 @@
 #include <iosfwd>
 
 #include <iostream>
+#include <iomanip>
 
 #include <boost/range/iterator_range.hpp>
 
@@ -115,6 +116,11 @@ int Call::operator()(Call::argument_type &arg) {
 	genotype::DirichletMultinomialMixture genotype_likelihood(
 			{0.9,0.001,0.001,1.05}, {0.1,0.01,0.01,1.1});
 	
+	std::vector<depth5_t> read_depths(rgs.num_libraries(),{0,0});
+	IndividualBuffer lib_lhs(rgs.num_libraries());
+	
+	const char gts[10][3] = {"AA","AC","AG","AT","CC","CG","CT","GG","GT","TT"};
+	
 	mpileup(indata, [&](const dng::MPileup::data_type &data, uint64_t loc)
 	{
 		int target_id = location_to_target(loc);
@@ -133,20 +139,26 @@ int Call::operator()(Call::argument_type &arg) {
 		cerr << h->target_name[target_id]
 		     << "\t" << position+1
 		     << "\t" << ref_base;
-		for(auto &rg : data) {
-			cerr << "\t";
-			depth5_t d{0,0,0,0,0};
-			for(auto &r : rg) {
+		
+		// reset all depth counters
+		read_depths.assign(read_depths.size(),{0,0});
+		// pileup on read counts
+		// TODO: handle overflow?
+		for(std::size_t u=0;u<data.size();++u) {
+			for(auto &r : data[u]) {
 				if(r.is_missing || r.qual[r.pos] < arg.min_basequal)
 					continue;
-				d.counts[seq::base_index(bam_seqi(r.seq, r.pos))] += 1;
+				read_depths[rgs.library_index(u)].counts[
+					seq::base_index(bam_seqi(r.seq, r.pos))] += 1;
 			}
-			cerr << d.counts[0] << "," << d.counts[1] << ","
-			     << d.counts[2] << "," << d.counts[3];
-			Eigen::IOFormat OctaveFmt(Eigen::StreamPrecision, Eigen::DontAlignCols, ",", ",", "", "", "[", "]");
-			cerr << "/" << genotype_likelihood({d.key},ref_index).format(OctaveFmt);
 		}
-		cout << "\n";
+		for(std::size_t u=0;u<read_depths.size();++u) {
+			lib_lhs[u] = genotype_likelihood({read_depths[u].key},ref_index);
+			Vector10d::Index n;
+			lib_lhs[u].maxCoeff(&n);
+			cerr << "\t" << gts[n];
+		}
+		cerr << "\n";
 		return;
 	});
 	
