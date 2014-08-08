@@ -49,7 +49,7 @@ public:
 	}
 	File& operator=(const File&) = delete;
 
-	int SetFileName(const char* fn) {
+	int SetFaiFileName(const char* fn) {
 		return hts_set_fai_filename(fp_,fn);
 	}
 	int SetThreads(int n) {

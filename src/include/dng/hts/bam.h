@@ -55,8 +55,7 @@ public:
 	Alignment& operator=(Alignmant&& other) {
 		if(this == &other)
 			return *this;
-		if(data != nullptr)
-			free(data);
+		free(data);
 		*base() = *other.base();
 		other.data = nullptr;
 		other.l_data = other.m_data = 0;
@@ -109,30 +108,21 @@ protected:
 	const BareAlignment* base() const {return static_cast<BareAlignment*>(this);}
 };
 
-class File {
+class File : public hts::File {
 public:
-	File(const char *file) {
-
-	}
-private:
-
-};
-
-class File {
-public:
-	File(const char *file, const char *region=nullptr, const char *fasta=nullptr,
-		int min_mapQ = 0, int min_len = 0) :
-			fp_(nullptr), hdr_(nullptr), iter_(nullptr),
-	    	min_mapQ_(min_mapQ), min_len_(min_len) {
-	    fp_ = sam_open(file, "r");
-	    if(fp_ == nullptr)
+	File(const char *file, const char *mode, const char *region=nullptr, const char *fasta=nullptr,
+		int min_mapQ = 0, int min_len = 0) : hts::File(file,mode),
+			hdr_(nullptr), iter_(nullptr), min_mapQ_(min_mapQ), min_len_(min_len) {
+		// TODO: handle differnt modes here???
+		// TODO: remove throws or move some of them to base class???
+	    if(!is_open())
 	    	throw std::runtime_error("unable to open file '" + std::string(file) + "'.");
-	    hts_set_fai_filename(fp_, fasta);
-	    hdr_ = sam_hdr_read(fp_);
+	    SetFaiFileName(fasta);
+	    hdr_ = sam_hdr_read(handle());
 	    if(hdr_ == nullptr)
 	    	throw std::runtime_error("unable to read header in file '" + std::string(file) + "'.");
 	    if(region != nullptr && region[0] != '\0') {
-	    	hts_idx_t *idx = sam_index_load(fp_, file);
+	    	hts_idx_t *idx = sam_index_load(handle(), file);
 	    	if(idx == nullptr)
 	    		throw std::runtime_error("unable to load index for '" + std::string(file) + "'.");
 	    	iter_ = sam_itr_querys(idx, hdr_, region);
@@ -142,17 +132,19 @@ public:
 	    	}
 	    }
 	}
-	BamFile(BamFile &&other) : fp_(other.fp_), hdr_(other.hdr_),
+	File(File&& other) : hts::File(std::move(other)), hdr_(other.hdr_),
 		iter_(other.iter_)
 	{
-		other.fp_ = nullptr;
 		other.hdr_ = nullptr;
 		other.iter_ = nullptr;		
 	}
+	File(const File&) = delete;
 	
-	BamFile& operator=(BamFile &&other) {
+	File& operator=(File&& other) {
 		if(this == &other) 
 			return *this;
+
+		hts::File::operator=(std::move(other));
 
 		if(iter_ != nullptr)
 			hts_itr_destroy(iter_);
@@ -164,47 +156,46 @@ public:
 		hdr_ = other.hdr_;
 		other.hdr_ = nullptr;
 
-		if(fp_ != nullptr)
-			sam_close(fp_);
-		fp_ = other.fp_;
-		other.fp_ = nullptr;
-
 		return *this;
 	}
+	File& operator=(const File&) = delete;
 	
-	int operator()(bam1_t &b) {
+	int read(Alignment& a) {
 		int ret;
 		for(;;) {
-		    ret = (iter_) ? sam_itr_next(fp_, iter_, &b)
-		                  : sam_read1(fp_, hdr_, &b);
+		    ret = (iter_) ? sam_itr_next(handle(), iter_, &a)
+		                  : sam_read1(handle(), hdr_, &a);
 		    if (ret < 0)
 		    	break;
 		    if (b.core.flag & (BAM_FUNMAP | BAM_FSECONDARY | BAM_FQCFAIL | BAM_FDUP))
 		    	continue;
 		    if (b.core.qual < min_mapQ_)
 		    	continue;
+		    // TODO: Move this to the outer loop?
 		    if (min_len_ && bam_cigar2qlen(b.core.n_cigar, bam_get_cigar(&b)) < min_len_)
 		    	continue;
 		    break;
 		}
 		return ret;
 	}
+	int operator()(Alignment& a) { return read(a); }
+
+	int write(const bam1_t& b) {
+		return sam_write1(handle(), hdr_, &b);
+	}
 
 	// cleanup as needed
-	virtual ~BamFile() {
+	virtual ~File() {
 		if(iter_ != nullptr)
 			hts_itr_destroy(iter_);
 		if(hdr_ != nullptr)
 			bam_hdr_destroy(hdr_);
-		if(fp_ != nullptr)
-			sam_close(fp_);
 	}
 	
 	const bam_hdr_t * header() const { return hdr_; }
 	const hts_itr_t * iter() const { return iter_; }
 	
 protected:
-	samFile *fp_;     // the file handle
 	bam_hdr_t *hdr_;  // the file header
 	hts_itr_t *iter_; // NULL if a region not specified
 	int min_mapQ_, min_len_; // mapQ filter; length filter
