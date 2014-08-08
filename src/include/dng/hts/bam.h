@@ -28,11 +28,22 @@ namespace hts { namespace bam {
 
 typedef bam1_t BareAlignment;
 
+class File;
+
+typedef std::pair<const uint32_t*,const uint32_t*> cigar_t;
+typedef std::pair<const uint8_t*,const uint8_t*> data_t;
+
 class Alignment : protected BareAlignment {
 public:
-	Alignment() : data(nullptr),l_data(0),m_data(0) {}
+	Alignment() {
+		data = nullptr;
+		m_data = 0;
+		l_data = 0;		
+	}
 
-	Alignment(const Alignment& other) : data(nullptr),m_data(0) {
+	Alignment(const Alignment& other) {
+		data = nullptr;
+		m_data = 0;
 		bam_copy1(base(),other.base());
 	}
 
@@ -52,7 +63,7 @@ public:
 		return *this;
 	}
 
-	Alignment& operator=(Alignmant&& other) {
+	Alignment& operator=(Alignment&& other) {
 		if(this == &other)
 			return *this;
 		free(data);
@@ -64,35 +75,35 @@ public:
 
 	inline uint32_t target_id() const { return core.tid; }
 	inline uint32_t position() const { return core.pos; }
+	inline uint32_t map_qual() const { return core.qual; }
 	inline uint32_t mate_target_id() const { return core.mtid; }
 	inline uint32_t mate_position() const { return core.mpos; }
 	inline uint16_t flags() const { return core.flag; }
 
-	inline bool is_any(uint16_t f) const { return (flags() & f != 0); }
+	inline bool is_any(uint16_t f) const { return ((flags() & f) != 0); }
 	inline bool are_only(uint16_t f) const { return (flags() == f); }
-	inline bool are_all(uint16_t f) const { return (flags() & f == f); }
+	inline bool are_all(uint16_t f) const { return ((flags() & f) == f); }
 
 	inline bool is_reversed() const { return is_any(BAM_FREVERSE); }
 	inline bool mate_is_reversed() const { return is_any(BAM_FMREVERSE); }
 
-	inline std::pair<const char*,const char*> qname() const {
-		const char* b = bam_get_qname(this);
-		return std::make_pair(b,b+core.l_qname);
+	inline const char* qname() const {
+		return bam_get_qname(this);
 	}
-	inline std::pair<const uint32_t*,const uint32_t*> cigar() const {
+	inline cigar_t cigar() const {
 		const uint32_t* b = bam_get_cigar(this);
 		return std::make_pair(b,b+core.n_cigar);
 	}
 	//TODO: Make seq-specific iterator
-	inline std::pair<const uint8_t*,const uint8_t*> seq() const {
+	inline data_t seq() const {
 		const uint8_t* b = bam_get_seq(this);
 		return std::make_pair(b,b+(core.l_qseq+1)/2);
 	}
-	inline std::pair<const uint8_t*,const uint8_t*> qual() const {
+	inline data_t seq_qual() const {
 		const uint8_t* b = bam_get_qual(this);
 		return std::make_pair(b,b+core.l_qseq);
 	}
-	inline std::pair<const uint8_t*,const uint8_t*> aux() const {
+	inline data_t aux() const {
 		const uint8_t* b = bam_get_aux(this);
 		return std::make_pair(b,b+bam_get_l_aux(this));
 	}
@@ -102,10 +113,15 @@ public:
 		return bam_seqi(bam_get_seq(this),x);
 	}
 
+	inline uint8_t* aux_get(const char tag[3]) {
+		return bam_aux_get(base(), tag);
+	}
 
 protected:
 	BareAlignment* base() {return static_cast<BareAlignment*>(this);}
-	const BareAlignment* base() const {return static_cast<BareAlignment*>(this);}
+	const BareAlignment* base() const {return static_cast<const BareAlignment*>(this);}
+
+	friend class File;
 };
 
 class File : public hts::File {
@@ -163,17 +179,20 @@ public:
 	int read(Alignment& a) {
 		int ret;
 		for(;;) {
-		    ret = (iter_) ? sam_itr_next(handle(), iter_, &a)
-		                  : sam_read1(handle(), hdr_, &a);
+		    ret = (iter_) ? sam_itr_next(handle(), iter_, a.base())
+		                  : sam_read1(handle(), hdr_, a.base());
 		    if (ret < 0)
 		    	break;
-		    if (b.core.flag & (BAM_FUNMAP | BAM_FSECONDARY | BAM_FQCFAIL | BAM_FDUP))
+		    if (a.is_any(BAM_FUNMAP | BAM_FSECONDARY | BAM_FQCFAIL | BAM_FDUP))
 		    	continue;
-		    if (b.core.qual < min_mapQ_)
+		    if (a.map_qual() < min_mapQ_)
 		    	continue;
 		    // TODO: Move this to the outer loop?
-		    if (min_len_ && bam_cigar2qlen(b.core.n_cigar, bam_get_cigar(&b)) < min_len_)
-		    	continue;
+		    if (min_len_) {
+		    	auto p = a.cigar();
+		    	if(bam_cigar2qlen(p.second-p.first, p.first) < min_len_)
+		    		continue;
+		    }
 		    break;
 		}
 		return ret;

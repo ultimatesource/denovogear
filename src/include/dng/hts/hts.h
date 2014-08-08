@@ -57,7 +57,7 @@ public:
 	}
 
 	bool is_open() const {return fp_ == nullptr; }
-	const char* name() const { return fp_.fn; }
+	const char* name() const { return fp_->fn; }
 
 protected:
 	htsFile* handle() {return fp_;}

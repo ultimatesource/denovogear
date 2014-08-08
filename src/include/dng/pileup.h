@@ -25,7 +25,7 @@
 #include <limits>
 #include <unordered_map>
 
-#include <htslib/sam.h>
+#include <dng/hts/bam.h>
 #include <htslib/faidx.h>
 
 #include <boost/range/begin.hpp>
@@ -55,82 +55,27 @@ inline int location_to_position(uint64_t u) {
 
 namespace detail {
 
-/*
- @abstract Structure for core alignment information.
- @field  tid     chromosome ID, defined by bam_hdr_t
- @field  pos     0-based leftmost coordinate
- @field  bin     bin calculated by bam_reg2bin()
- @field  qual    mapping quality
- @field  l_qname length of the query name
- @field  flag    bitwise flag
- @field  n_cigar number of CIGAR operations
- @field  l_qseq  length of the query sequence (read)
- @field  mtid    chromosome ID of next read in template, defined by bam_hdr_t
- @field  mpos    0-based leftmost coordinate of next read in template
-
-typedef struct {
-	int32_t tid;
-	int32_t pos;
-	uint32_t bin:16, qual:8, l_qname:8;
-	uint32_t flag:16, n_cigar:16;
-	int32_t l_qseq;
-	int32_t mtid;
-	int32_t mpos;
-	int32_t isize;
-} bam1_core_t;
-
- @abstract Structure for one alignment.
- @field  core       core information about the alignment
- @field  l_data     current length of bam1_t::data
- @field  m_data     maximum length of bam1_t::data
- @field  data       all variable-length data, concatenated; structure: qname-cigar-seq-qual-aux
- 
- @discussion Notes:
- 
- 1. qname is zero tailing and core.l_qname includes the tailing '\0'.
- 2. l_qseq is calculated from the total length of an alignment block
- on reading or from CIGAR.
- 3. cigar data is encoded 4 bytes per CIGAR operation.
- 4. seq is nybble-encoded according to bam_nt16_table.
-
-typedef struct {
-	bam1_core_t core;
-	int l_data, m_data;
-	uint8_t *data;
-#ifndef BAM_NO_ID
-	uint64_t id;
-#endif
-} bam1_t;
-*/
-
 using namespace boost::intrusive;
 
+// TODO: Turn this into a template and move the node outside
 class SeqPool : boost::noncopyable {
 public:
 	struct node_t : public list_base_hook<> {
-		bam1_t bam;   // sequence record
+		hts::bam::Alignment aln;   // sequence record
 		uint64_t beg; // 0-based left-most edge, [beg,end)
 		uint64_t end; // 0-based right-most edge, [beg,end)
 		uint64_t pos; // current position of the pileup in this query/read
 		bool is_missing; // is there no base call at the pileup position?
 
-		uint32_t *cigar; // cigar
-		uint8_t *seq;    // encoded sequence
-		uint8_t *qual;   // quality scores
-		uint8_t *aux;    // aux fields
-				
-		int32_t target() const {
-			return bam.core.tid;
-		}
-		cigar_t cigar_pair() const {
-			return std::make_pair(bam.core.n_cigar,cigar);
-		}
-		
-		~node_t() {
-			free(bam.data);
-		}
+		hts::bam::cigar_t cigar; // cigar
+		hts::bam::data_t seq;    // encoded sequence
+		hts::bam::data_t qual;   // quality scores
 	};
-	typedef boost::intrusive::list<node_t> list_type;
+#ifdef NDEBUG
+	typedef boost::intrusive::list<node_t, link_mode<normal_link>> list_type;
+#else
+	typedef boost::intrusive::list<node_t, link_mode<safe_link>> list_type;
+#endif
 	typedef list_type::value_type node_type;
 	
 	SeqPool(std::size_t sz=1024, std::size_t maxsz=std::numeric_limits<std::size_t>::max()) : 
@@ -229,21 +174,20 @@ public:
 			node_type &n = pool.Malloc();
 			do {
 				// Try to grab a read, if not return current buffer
-				if(in_(n.bam) < 0) {
+				if(in_(n.aln) < 0) {
 					pool.Free(n);
 					next_loc_ = std::numeric_limits<uint64_t>::max();
 					return std::move(buffer_);
 				}
-				n.cigar = bam_get_cigar(&n.bam);
-				n.beg = make_location(n.bam.core.tid, n.bam.core.pos);
+				n.cigar = n.aln.cigar();
+				n.beg = make_location(n.aln.target_id(), n.aln.position());
 				// update right-most position in the read
-				n.end = n.beg + cigar::target_length(n.cigar_pair());
+				n.end = n.beg + cigar::target_length(n.cigar);
 			} while( n.end <= target_loc);
 			
 			// cache pointers to data elements
-			n.seq = bam_get_seq(&n.bam);
-			n.qual = bam_get_qual(&n.bam);
-			n.aux = bam_get_aux(&n.bam);
+			n.seq = n.aln.seq();
+			n.qual = n.aln.seq_qual();
 			// TODO: Adjust for Illumina 1.3 quality
 			
 			// update the left-most position of the most recently read read.
@@ -367,7 +311,7 @@ int MPileup::Advance(Scanners &range, data_type &data, uint64_t &target_loc,
 				d.erase(it++);
 				continue;
 			}
-			uint64_t q = cigar::target_to_query(target_loc,it->beg,it->cigar_pair());
+			uint64_t q = cigar::target_to_query(target_loc,it->beg,it->cigar);
 			it->pos = cigar::query_pos(q);
 			it->is_missing = cigar::query_del(q);
 			++it;
@@ -391,7 +335,7 @@ int MPileup::Advance(Scanners &range, data_type &data, uint64_t &target_loc,
 			while(!new_reads.empty()) {
 				node_type &n = new_reads.front();
 				new_reads.pop_front();
-				uint8_t *rg = bam_aux_get(&n.bam, "RG");
+				uint8_t *rg = n.aln.aux_get("RG");
 				std::size_t index = k;
 				if(!read_groups_.empty()) {
 					index = ReadGroupIndex(reinterpret_cast<const char*>(rg+1));
@@ -401,7 +345,7 @@ int MPileup::Advance(Scanners &range, data_type &data, uint64_t &target_loc,
 					}
 				}
 				// process cigar string
-				uint64_t q = cigar::target_to_query(target_loc,n.beg,n.cigar_pair());
+				uint64_t q = cigar::target_to_query(target_loc,n.beg,n.cigar);
 				n.pos = cigar::query_pos(q);
 				n.is_missing = cigar::query_del(q);
 

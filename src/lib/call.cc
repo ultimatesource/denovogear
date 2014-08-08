@@ -87,10 +87,10 @@ int Call::operator()(Call::argument_type &arg) {
 	}
 
 	// Open up the input sam files
-	vector<fileio::BamFile> indata;
+	vector<hts::bam::File> indata;
 		
 	for(auto str : arg.input) {
-		indata.emplace_back(str.c_str(), arg.region.c_str(), arg.fasta.c_str(),
+		indata.emplace_back(str.c_str(), "r", arg.region.c_str(), arg.fasta.c_str(),
 			arg.min_mapqual, arg.min_qlen);
 	}
 	const bam_hdr_t *h = indata[0].header();
@@ -146,10 +146,10 @@ int Call::operator()(Call::argument_type &arg) {
 		// TODO: handle overflow?
 		for(std::size_t u=0;u<data.size();++u) {
 			for(auto &r : data[u]) {
-				if(r.is_missing || r.qual[r.pos] < arg.min_basequal)
+				if(r.is_missing || r.qual.first[r.pos] < arg.min_basequal)
 					continue;
 				read_depths[rgs.library_index(u)].counts[
-					seq::base_index(bam_seqi(r.seq, r.pos))] += 1;
+					seq::base_index(r.aln.seq_at(r.pos))] += 1;
 			}
 		}
 		for(std::size_t u=0;u<read_depths.size();++u) {

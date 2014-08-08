@@ -75,7 +75,6 @@ private:
 } // namespace fileio
 
 using fileio::ParsedList;
-using fileio::BamFile;
 
 } // namespace dng
 

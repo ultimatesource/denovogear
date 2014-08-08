@@ -25,26 +25,28 @@
 #include <cassert>
 #include <utility>
 
-#include <htslib/sam.h>
+#include <dng/hts/bam.h>
 
-namespace dng { namespace cigar {
+namespace dng {
 
-typedef std::pair<std::size_t, const uint32_t *> cigar_t;
+using hts::bam::cigar_t;
+
+namespace cigar {
 
 inline std::size_t query_length(cigar_t cigar) {
 	std::size_t r = 0;
-	for(std::size_t k = 0; k < cigar.first; ++k) {
-		r += bam_cigar_oplen(cigar.second[k])*
-			(bam_cigar_type(bam_cigar_op(cigar.second[k]))&1);
+	for(; cigar.first != cigar.second; ++cigar.first) {
+		r += bam_cigar_oplen(*cigar.first)*
+			(bam_cigar_type(bam_cigar_op(*cigar.first))&1);
 	}
 	return r;
 }
 
 inline std::size_t target_length(cigar_t cigar) {
 	std::size_t r = 0;
-	for(std::size_t k = 0; k < cigar.first; ++k) {
-		r += bam_cigar_oplen(cigar.second[k])*
-			((bam_cigar_type(bam_cigar_op(cigar.second[k]))&2)/2);
+	for(; cigar.first != cigar.second; ++cigar.first) {
+		r += bam_cigar_oplen(*cigar.first)*
+			((bam_cigar_type(bam_cigar_op(*cigar.first))&2)/2);
 	}
 	return r;
 }
@@ -64,16 +66,16 @@ inline uint64_t target_to_query(uint64_t target, uint64_t beg,
 	uint64_t off = (target-beg)*2;
 	uint64_t pos = -1;
 	// scan through cigar string
-	for(std::size_t k = 0; k < cigar.first; ++k) {
+	for(; cigar.first != cigar.second; ++cigar.first) {
 		// how much of the target does the next cigar op consume?
-		uint64_t t = bam_cigar_oplen(cigar.second[k])*
-			((bam_cigar_type(bam_cigar_op(cigar.second[k]))&2));
+		uint64_t t = bam_cigar_oplen(*cigar.first)*
+			((bam_cigar_type(bam_cigar_op(*cigar.first))&2));
 		// if we will go past the target, adjust the length to match the off
 		if(t > off)
-			return pos+(bam_cigar_type(bam_cigar_op(cigar.second[k]))&1)*(off+1);
+			return pos+(bam_cigar_type(bam_cigar_op(*cigar.first))&1)*(off+1);
 		// update the query position
-		pos += (bam_cigar_oplen(cigar.second[k]))*
-			(bam_cigar_type(bam_cigar_op(cigar.second[k]))&1)*2;
+		pos += (bam_cigar_oplen(*cigar.first))*
+			(bam_cigar_type(bam_cigar_op(*cigar.first))&1)*2;
 		// consume characters in the offset
 		off -= t;
 	}
@@ -81,7 +83,6 @@ inline uint64_t target_to_query(uint64_t target, uint64_t beg,
 }
 
 } // namespace cigar
-using cigar::cigar_t;
 } //namespace dng
 
 #endif // DNG_CIGAR_H
