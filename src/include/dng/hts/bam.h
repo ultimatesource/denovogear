@@ -176,7 +176,7 @@ public:
 	}
 	File& operator=(const File&) = delete;
 	
-	int read(Alignment& a) {
+	int Read(Alignment& a) {
 		int ret;
 		for(;;) {
 		    ret = (iter_) ? sam_itr_next(handle(), iter_, a.base())
@@ -197,9 +197,9 @@ public:
 		}
 		return ret;
 	}
-	int operator()(Alignment& a) { return read(a); }
+	int operator()(Alignment& a) { return Read(a); }
 
-	int write(const bam1_t& b) {
+	int Write(const bam1_t& b) {
 		return sam_write1(handle(), hdr_, &b);
 	}
 
