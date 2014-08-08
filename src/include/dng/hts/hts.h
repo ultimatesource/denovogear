@@ -56,7 +56,7 @@ public:
 		return hts_set_threads(fp_,n);
 	}
 
-	bool is_open() const {return fp_ == nullptr; }
+	bool is_open() const {return fp_ != nullptr; }
 	const char* name() const { return fp_->fn; }
 
 protected:
