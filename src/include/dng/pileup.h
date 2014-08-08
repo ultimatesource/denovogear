@@ -35,9 +35,7 @@
 #include <boost/range/algorithm/lower_bound.hpp>
 #include <boost/range/algorithm/sort.hpp>
 
-#include <boost/intrusive/list.hpp>
-#include <boost/noncopyable.hpp>
-
+#include <dng/pool.h>
 #include <dng/fileio.h>
 #include <dng/cigar.h>
 
@@ -53,120 +51,40 @@ inline int location_to_position(uint64_t u) {
 	return static_cast<int>(u & 0x7FFFFFFF);
 }
 
-namespace detail {
+namespace pileup {
 
-using namespace boost::intrusive;
+struct Node : public PoolNode {
+	hts::bam::Alignment aln;   // sequence record
+	uint64_t beg; // 0-based left-most edge, [beg,end)
+	uint64_t end; // 0-based right-most edge, [beg,end)
+	uint64_t pos; // current position of the pileup in this query/read
+	bool is_missing; // is there no base call at the pileup position?
 
-// TODO: Turn this into a template and move the node outside
-class SeqPool : boost::noncopyable {
-public:
-	struct node_t : public list_base_hook<> {
-		hts::bam::Alignment aln;   // sequence record
-		uint64_t beg; // 0-based left-most edge, [beg,end)
-		uint64_t end; // 0-based right-most edge, [beg,end)
-		uint64_t pos; // current position of the pileup in this query/read
-		bool is_missing; // is there no base call at the pileup position?
-
-		hts::bam::cigar_t cigar; // cigar
-		hts::bam::data_t seq;    // encoded sequence
-		hts::bam::data_t qual;   // quality scores
-	};
-#ifdef NDEBUG
-	typedef boost::intrusive::list<node_t, link_mode<normal_link>> list_type;
-#else
-	typedef boost::intrusive::list<node_t, link_mode<safe_link>> list_type;
-#endif
-	typedef list_type::value_type node_type;
-	
-	SeqPool(std::size_t sz=1024, std::size_t maxsz=std::numeric_limits<std::size_t>::max()) : 
-		block_size_(sz/2), half_max_block_size_(maxsz/2)
-	{
-		if(block_size_ == 0)
-			block_size_ = 1;
-		
-		store_.reserve(64);
-		Expand();
-	}
-	
-	node_t & Malloc() {
-		// Check the inactive list first
-		if(!inactive_.empty()) {
-			node_t &n = inactive_.front();
-			inactive_.pop_front();
-			return n;
-		}
-		// Expand allocated space as needed
-		if(next_ == end_)
-			Expand();
-		// Inplace allocation
-		node_t *p = next_++;
-		new (p) node_t();
-		return *p;
-	}
-	
-	void Free(node_t & n) {
-		// Put the node on the list of free elements
-		inactive_.push_front(n);
-	}
-	
-	virtual ~SeqPool() {
-		if(store_.empty())
-			return;
-		// clear inactive as needed
-		if(list_type::safemode_or_autounlink)
-			inactive_.clear();
-		// enumerate over allocated blocks
-		for(std::size_t i=0;i<store_.size()-1;++i) {
-			for(std::size_t j=0;j<store_[i].second;++j) {
-				// call destructor
-				(store_[i].first+j)->~node_t();
-			}
-			// free memory
-			std::return_temporary_buffer(store_[i].first);
-		}
-		// the last block is special
-		for(node_t *p = store_.back().first;p!=next_;++p)
-			p->~node_t();
-		std::return_temporary_buffer(store_.back().first);
-	}
-	
-protected:
-	std::size_t block_size_;
-	std::size_t half_max_block_size_;
-	
-	list_type inactive_;
-	
-private:
-	void Expand() {
-		// double block size until a limit is reached
-		block_size_ = 2*std::min(block_size_, half_max_block_size_);
-		// allocate space for more nodes
-		auto a = std::get_temporary_buffer<node_t>(block_size_);
-		if(a.first == nullptr)
-			throw std::bad_alloc();
-		// set block size to actual size allocated
-		block_size_ = a.second;
-		// storage information
-		next_ = a.first;
-		end_  = next_ + a.second;
-		store_.push_back(a);
-	}
-	
-	std::vector<std::pair<node_t *,ptrdiff_t>> store_;
-	node_t *next_, *end_;
+	hts::bam::cigar_t cigar; // cigar
+	hts::bam::data_t seq;    // encoded sequence
+	hts::bam::data_t qual;   // quality scores
 };
+
+namespace detail {
+typedef IntrusivePool<Node> NodePool;
+}
+
+typedef detail::NodePool::list_type NodeList;
+
+namespace detail {
 
 template<typename InFile>
 class BamScan {
 public:
-	typedef SeqPool::list_type list_type;
-	typedef SeqPool::node_type node_type;
-	
+	typedef NodeList list_type;
+	typedef Node node_type;
+	typedef detail::NodePool pool_type;
+
 	explicit BamScan(InFile& in) : in_(in), next_loc_(0) {
 		
 	}
 	
-	list_type operator()(uint64_t target_loc, SeqPool &pool) {
+	list_type operator()(uint64_t target_loc, pool_type& pool) {
 		// Reads from in_ until it encounters the first read
 		// that is right of pos.
 		// TODO: check for proper read ordering???
@@ -215,8 +133,10 @@ private:
 
 class MPileup {
 public:
-	typedef detail::SeqPool::list_type list_type;
-	typedef detail::SeqPool::node_type node_type;
+	typedef NodeList list_type;
+	typedef Node node_type;
+	typedef detail::NodePool pool_type;
+
 	typedef std::vector<list_type> data_type;
 	typedef void (callback_type)(const data_type&, uint64_t);
 
@@ -243,7 +163,7 @@ protected:
 	}
 	
 private:
-	detail::SeqPool pool_;
+	pool_type pool_;
 	
 	std::vector<std::string> read_groups_;
 };
@@ -360,7 +280,9 @@ int MPileup::Advance(Scanners &range, data_type &data, uint64_t &target_loc,
 		return -1;
 	return (fast_forward ? 0 : 1);
 }
+} //namespace pileup
 
+using pileup::MPileup;
 } //namespace dng
 
 #endif //DNG_PILEUP_H
