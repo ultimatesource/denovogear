@@ -38,6 +38,7 @@
 #include <dng/pool.h>
 #include <dng/fileio.h>
 #include <dng/cigar.h>
+#include <dng/read_group.h>
 
 namespace dng {
 
@@ -144,7 +145,7 @@ public:
 	void operator()(InFiles &range, Func func);
 		
 	template<typename RG>
-	MPileup(const RG& rg) : read_groups_(boost::begin(rg),boost::end(rg)) {
+	MPileup(const RG& rg) : read_groups_(rg) {
 		boost::sort(read_groups_);
 	}
 	
@@ -157,15 +158,15 @@ protected:
 	
 	template<typename STR>
 	std::size_t ReadGroupIndex(const STR& s) {
-		auto it = boost::lower_bound(read_groups_,s);
-		return (it == read_groups_.end()) ? -1
-			: static_cast<std::size_t>(it-boost::begin(read_groups_));
+		auto it = read_groups_.find(s);
+			return (it == read_groups_.end()) ? -1
+				: static_cast<std::size_t>(it-read_groups_.begin());
 	}
 	
 private:
 	pool_type pool_;
 	
-	std::vector<std::string> read_groups_;
+	ReadGroups::StrSet read_groups_;
 };
 
 template<typename InFiles, typename Func>
