@@ -53,8 +53,7 @@ public:
 	}
 
 	~Alignment() {
-		if(data != nullptr)
-			free(data);
+		free(data);
 	}
 
 	Alignment& operator=(const Alignment& other) {
