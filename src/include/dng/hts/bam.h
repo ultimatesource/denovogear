@@ -16,65 +16,111 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-
 #pragma once
-#ifndef DNG_FILEIO_H
-#define DNG_FILEIO_H
+#ifndef CXX_HTS_BAM_H
+#define CXX_HTS_BAM_H
 
-#include <cstdlib>
-#include <stdexcept>
+#include "hts.h"
 
-#include <dng/hts/bam.h>
+#include <htslib/sam.h>
 
-#include <boost/noncopyable.hpp>
+namespace hts { namespace bam {
 
-namespace dng {
-namespace fileio {
-// NOTE: Most of fileio is wraps samtools and htslib.  Some code has been copied
-//       from those libraries to support the linkage.
+typedef bam1_t BareAlignment;
 
-class ParsedList {
+class Alignment : protected BareAlignment {
 public:
-	static const bool kFile = true;
-	static const bool kString = false;
-	
-	ParsedList(const char *str, bool is_file=false) {
-		list_ = hts_readlist(str, is_file ? 1 : 0, &length_);
-	}
-	
-	bool Empty() const {
-		return list_ == nullptr;
+	Alignment() : data(nullptr),l_data(0),m_data(0) {}
+
+	Alignment(const Alignment& other) : data(nullptr),m_data(0) {
+		bam_copy1(base(),other.base());
 	}
 
-	char * operator[](std::size_t k) {
-		assert(k < length_); // check to see if k is valid
-		return list_[k];
-	}
-	
-	std::size_t Size() const {
-		return length_;
-	}	
-	
-	const char * operator[](std::size_t k) const {
-		assert(k < length_); // check to see if k is valid
-		return list_[k];
+	Alignment(Alignment&& other) : BareAlignment(*other.base()) {
+		other.data = nullptr;
+		other.l_data = other.m_data = 0;
 	}
 
-	virtual ~ParsedList() {
-		for(int i=0;i<length_;++i)
-			free(list_[i]);
-		if(length_ > 0)
-			free(list_);
+	~Alignment() {
+		if(data != nullptr)
+			free(data);
+	}
+
+	Alignment& operator=(const Alignment& other) {
+		if(this != &other)
+			bam_copy1(base(),other.base());
+		return *this;
+	}
+
+	Alignment& operator=(Alignmant&& other) {
+		if(this == &other)
+			return *this;
+		if(data != nullptr)
+			free(data);
+		*base() = *other.base();
+		other.data = nullptr;
+		other.l_data = other.m_data = 0;
+		return *this;
+	}
+
+	inline uint32_t target_id() const { return core.tid; }
+	inline uint32_t position() const { return core.pos; }
+	inline uint32_t mate_target_id() const { return core.mtid; }
+	inline uint32_t mate_position() const { return core.mpos; }
+	inline uint16_t flags() const { return core.flag; }
+
+	inline bool is_any(uint16_t f) const { return (flags() & f != 0); }
+	inline bool are_only(uint16_t f) const { return (flags() == f); }
+	inline bool are_all(uint16_t f) const { return (flags() & f == f); }
+
+	inline bool is_reversed() const { return is_any(BAM_FREVERSE); }
+	inline bool mate_is_reversed() const { return is_any(BAM_FMREVERSE); }
+
+	inline std::pair<const char*,const char*> qname() const {
+		const char* b = bam_get_qname(this);
+		return std::make_pair(b,b+core.l_qname);
+	}
+	inline std::pair<const uint32_t*,const uint32_t*> cigar() const {
+		const uint32_t* b = bam_get_cigar(this);
+		return std::make_pair(b,b+core.n_cigar);
+	}
+	//TODO: Make seq-specific iterator
+	inline std::pair<const uint8_t*,const uint8_t*> seq() const {
+		const uint8_t* b = bam_get_seq(this);
+		return std::make_pair(b,b+(core.l_qseq+1)/2);
+	}
+	inline std::pair<const uint8_t*,const uint8_t*> qual() const {
+		const uint8_t* b = bam_get_qual(this);
+		return std::make_pair(b,b+core.l_qseq);
+	}
+	inline std::pair<const uint8_t*,const uint8_t*> aux() const {
+		const uint8_t* b = bam_get_aux(this);
+		return std::make_pair(b,b+bam_get_l_aux(this));
+	}
+
+	inline uint8_t seq_at(int32_t x) const {
+		assert(0 <= x && x < core.l_qseq);
+		return bam_seqi(bam_get_seq(this),x);
+	}
+
+
+protected:
+	BareAlignment* base() {return static_cast<BareAlignment*>(this);}
+	const BareAlignment* base() const {return static_cast<BareAlignment*>(this);}
+};
+
+class File {
+public:
+	File(const char *file) {
+
 	}
 private:
-	char **list_;
-	int length_;
 
 };
 
-class BamFile : boost::noncopyable {
+class File {
 public:
-	BamFile(const char *file, const char *region=nullptr, const char *fasta=nullptr,
+	File(const char *file, const char *region=nullptr, const char *fasta=nullptr,
 		int min_mapQ = 0, int min_len = 0) :
 			fp_(nullptr), hdr_(nullptr), iter_(nullptr),
 	    	min_mapQ_(min_mapQ), min_len_(min_len) {
@@ -164,12 +210,8 @@ protected:
 	int min_mapQ_, min_len_; // mapQ filter; length filter
 };
 
-} // namespace fileio
+} // namespace bam
 
-using fileio::ParsedList;
-using fileio::BamFile;
+} // namespace hts
 
-} // namespace dng
-
-#endif // DNG_FILEIO_H
-
+#endif
