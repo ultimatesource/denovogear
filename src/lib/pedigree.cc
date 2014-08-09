@@ -17,7 +17,7 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <dng/pedigree_peeler.h>
+#include <dng/pedigree.h>
 
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/biconnected_components.hpp>
@@ -25,9 +25,7 @@
 
 #include <boost/range/algorithm/find.hpp>
 
-using namespace dng;
-
-bool PedigreePeeler::Initialize(double theta, double mu) {
+bool dng::Pedigree::Initialize(double theta, double mu) {
 	using namespace Eigen;
 	using namespace std;
 	// Construct Genotype Prior
@@ -86,20 +84,13 @@ bool PedigreePeeler::Initialize(double theta, double mu) {
 	return true;
 }
 
-// Install graph properties for pedigree analysis.
-namespace boost {
-  enum edge_family_t { edge_family };
-  enum vertex_group_t { vertex_group };
-  enum edge_type_t { edge_type };
-  
-  BOOST_INSTALL_PROPERTY(edge, family);
-  BOOST_INSTALL_PROPERTY(vertex, group);
-  BOOST_INSTALL_PROPERTY(edge, type);
-}
-
-bool PedigreePeeler::Construct(const Pedigree& pedigree) {
+bool dng::Pedigree::Construct(const io::Pedigree& pedigree) {
 	using namespace boost;
 	using namespace std;
+	using dng::newick::vertex_t;
+	using dng::newick::edge_t;
+	using dng::newick::Graph;
+	typedef Graph graph_t;
 	
   	// Reset Family Information
   	roots_.clear();
@@ -107,22 +98,12 @@ bool PedigreePeeler::Construct(const Pedigree& pedigree) {
   	family_members_.reserve(128);
   	peeling_op_.clear();
   	peeling_op_.reserve(128);
-		
-	// Graph to hold pedigree information
-	typedef adjacency_list<vecS, vecS, undirectedS,
-		property<vertex_group_t, std::size_t>,
-		property<edge_family_t, std::size_t,
-		property<edge_type_t, std::size_t
-		>>
-		> graph_t;
-	typedef graph_traits<graph_t>::vertex_descriptor vertex_t;
-	typedef graph_traits<graph_t>::edge_descriptor edge_t;
-	
+			
 	num_members_ = pedigree.member_count();
 	
-	graph_t pedigree_graph(num_members_);
-	graph_traits<graph_t>::edge_iterator ei, ei_end;
-	graph_traits<graph_t>::vertex_iterator vi, vi_end;
+	Graph pedigree_graph(num_members_);
+	graph_traits<Graph>::edge_iterator ei, ei_end;
+	graph_traits<Graph>::vertex_iterator vi, vi_end;
 	
 	// Go through rows and construct the graph
 	for(auto &row : pedigree.table()) {
@@ -249,14 +230,14 @@ bool PedigreePeeler::Construct(const Pedigree& pedigree) {
 			
 			switch(p) {
 			case 0:
-				peeling_op_.emplace_back(&PedigreePeeler::PeelToFather);
+				peeling_op_.emplace_back(&Op::PeelToFather);
 				break;
 			case 1:
-				peeling_op_.emplace_back(&PedigreePeeler::PeelToMother);
+				peeling_op_.emplace_back(&Op::PeelToMother);
 				break;
 			case 2:
 			default:
-				peeling_op_.emplace_back(&PedigreePeeler::PeelToChild);
+				peeling_op_.emplace_back(&Op::PeelToChild);
 				break;
 			};
   		} else {

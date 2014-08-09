@@ -29,7 +29,6 @@
 
 #include <dng/task/call.h>
 #include <dng/pedigree.h>
-#include <dng/pedigree_peeler.h>
 #include <dng/fileio.h>
 #include <dng/pileup.h>
 #include <dng/read_group.h>
@@ -54,7 +53,7 @@ istreambuf_range(std::basic_istream<Elem, Traits>& in)
 int Call::operator()(Call::argument_type &arg) {
 	using namespace std;
 	
-	dng::Pedigree pedigree;
+	dng::io::Pedigree ped;
 
 	// Parse pedigree from file	
 	if(!arg.ped.empty()) {
@@ -64,7 +63,7 @@ int Call::operator()(Call::argument_type &arg) {
 				"unable to open pedigree file '" + arg.ped + "'."
 			);
 		}
-		pedigree.Parse(istreambuf_range(ped_file));
+		ped.Parse(istreambuf_range(ped_file));
 	} else {
 		throw std::runtime_error("pedigree file was not specified.");
 	}

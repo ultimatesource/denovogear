@@ -23,16 +23,37 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <string>
 
+// Install graph properties for pedigree analysis.
+namespace boost {
+  enum edge_family_t { edge_family };
+  enum vertex_group_t { vertex_group };
+  enum edge_type_t { edge_type };
+  
+  BOOST_INSTALL_PROPERTY(edge, family);
+  BOOST_INSTALL_PROPERTY(vertex, group);
+  BOOST_INSTALL_PROPERTY(edge, type);
+}
+
 namespace dng { namespace newick {
 
-typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::bidirectionalS,
-	boost::property<boost::vertex_name_t, std::string,
-	boost::property<boost::vertex_distance_t, float>>,
-	boost::no_property
-	> tree_t;
+namespace detail {
+	using namespace boost;
+	typedef adjacency_list<vecS, vecS, bidirectionalS,
+		property<vertex_group_t, std::size_t,
+		property<vertex_name_t, std::string,
+		property<vertex_distance_t, float
+		>>>,
+		property<edge_family_t, std::size_t,
+		property<edge_type_t, std::size_t,
+		property<edge_weight_t, float
+		>>>
+		> graph_t;
+}
+typedef detail::graph_t Graph;
+typedef boost::graph_traits<Graph>::vertex_descriptor vertex_t;
+typedef boost::graph_traits<Graph>::edge_descriptor edge_t;
 
-typedef boost::graph_traits<tree_t>::vertex_descriptor node_t;
-typedef boost::graph_traits<tree_t>::edge_descriptor branch_t;
+bool parse(const std::string& text, Graph& graph);
 
 }};
 

@@ -18,112 +18,132 @@
  */
 
 #pragma once
-#ifndef DNG_PEDIGREE_H
-#define DNG_PEDIGREE_H
+#ifndef DNG_PEDIGREE_PEELER_H
+#define DNG_PEDIGREE_PEELER_H
 
-#include <boost/multi_index_container.hpp>
-#include <boost/multi_index/identity.hpp>
-#include <boost/multi_index/ordered_index.hpp>
-#include <boost/multi_index/random_access_index.hpp>
+#include <functional>
 
-#include <boost/tokenizer.hpp>
+#include <dng/matrix.h>
+#include <dng/io/ped.h>
+#include <dng/newick.h>
+
+/*
+RULES FOR LINKING READ GROUPS TO PEOPLE.
+
+0) Read all read groups in bam files. Map RG to Library to Sample.
+
+1) If no tissue information is present in pedigree, check to see if there is a
+   sample with the same label as the individual.  If so, connect that sample to
+   the individual with a somatic branch of length 0.  [TODO: Length 0 or 1???]
+
+2) If tissue information is present, build a tissue tree connecting samples
+   to zygotic genotypes.  Build mutation matrices for every unique branch
+   length.
+
+3) If a sample has multiple libraries, connect the libraries to sample with a 
+   pcr-error branch.  Otherwise, connect a sigle library directly.
+
+4) If a library has multiple read-groups, concat the read-groups.
+
+*/
 
 namespace dng {
 
 class Pedigree {
 public:
-	typedef boost::multi_index_container<std::string,
-		boost::multi_index::indexed_by<
-			boost::multi_index::random_access<>,
-			boost::multi_index::ordered_unique<
-			boost::multi_index::identity<std::string>>
-		>> NameContainer;
+	typedef std::vector<std::vector<std::size_t>> family_members_t;
 
-	typedef std::vector<std::vector<std::string>> DataTable;
+	bool Initialize(double theta, double mu);
+
+	bool Construct(const io::Pedigree& pedigree);
 	
-	Pedigree() {
-	}
-	
-	// Fetch the name of a member of the pedigree
-	const std::string& name(std::size_t id) const {
-		return names_[id];
-	}
-	// How many members, including the dummy, are in the pedigree.
-	std::size_t member_count() const {
-		return names_.size();
-	}
-	
-	// Given the name of an individual return its id.
-	// If the name is not valid, return the id of the 0-th
-	// individual.
-	std::size_t id(const std::string &name) const {
-		auto it = names_.get<1>().find(name);
-		if(it == names_.get<1>().end())
-			return std::size_t(0);
-		return names_.project<0>(it) - names_.begin();
-	}
-	
-	// A reference to the data table
-	const DataTable & table() const {
-		return table_;
-	}
-	
-	
-	// Parse a string-like object into a pedigree
-	// TODO: maybe we can just keep pointers to the deliminators in memory
-	// TODO: add comment support
-	// TODO: warnings for rows that don't have enough elements?
-	// TODO: gender checking
-	// TODO: convert datatable to indexed relationships
-	template<typename Range>
-	bool Parse(const Range &text) {
-		using namespace boost;
-		using namespace std;
-		// Construct the tokenizer
-		typedef tokenizer<char_separator<char>,
-			typename Range::const_iterator> tokenizer;
-		char_separator<char> sep("\t", "\n", keep_empty_tokens);
-		tokenizer tokens(text, sep);
+	double CalculateLogLikelihood(const IndividualBuffer &penetrances) {
+		// TODO: Assert that length of penetrances is equal to num_members_;
+		// Copy Penetrance values into the lower buffer
+		// TODO: Eliminate this copy????
+		lower_ = penetrances;
+		// Copy genotype Priors
+		// TODO: Only update founders
+		// TODO: use a different prior based on reference
+		upper_.assign(num_members_, genotype_prior_);
 		
-		// reset the pedigree string table
-		table_.reserve(128);
-		table_.resize(1);
-		table_.back().clear();
-		table_.back().reserve(6);
-		
-		// Work through tokens and build vectors for each row
-		for (auto tok_iter = tokens.begin(); tok_iter != tokens.end();
-			++tok_iter) {
-			if(*tok_iter == "\n") {
-				// Resize so that we have six elements
-				table_.back().resize(6,"");
-				// Push new row onto table
-				table_.emplace_back();
-				table_.back().reserve(6);
-			} else {
-				// Add token to the current row
-				table_.back().push_back(*tok_iter);
-			}
-		}
-		table_.back().resize(6,"");
-		
-		// Go through col 1 and pull out child names
-		// Add a dummy 0-th pedigree member to handle
-		// unknown individuals.
-		names_.clear();
-		names_.push_back("");
-		for( auto &row : table_)
-			names_.push_back(row[1]);
-		
-		return true;
+		// Peel pedigree one family at a time
+		for(std::size_t i = 0; i < peeling_op_.size(); ++i)
+			(peeling_op_[i])(*this, i);
+			
+		// Sum over roots
+		double ret = 0.0;
+		for(auto r : roots_)
+			ret += log((lower_[r]*upper_[r]).sum());
+		return ret;
 	}
-		
+	
 protected:
-	NameContainer names_;
-	DataTable table_;
+	family_members_t family_members_;
+	std::size_t num_members_;
+	std::vector<std::size_t> roots_;
+	
+	IndividualBuffer upper_; // Holds P(Data & G=g)
+	IndividualBuffer lower_; // Holds P(Data | G=g)
+	
+	Vector10d genotype_prior_; // Holds P(G | theta)
+
+	MeiosisMatrix meiosis_;
+
+	void PeelToFather(std::size_t id) {
+		using namespace Eigen;
+		auto family_members = family_members_[id];
+		Vector100d buffer;
+		buffer.setOnes();
+		// Sum over children
+		for(std::size_t i = 2; i < family_members.size(); i++) {
+			buffer *= (meiosis_ * lower_[family_members[i]].matrix()).array();
+		}
+		// Include Mom
+		Map<Matrix10d, Aligned> mat(buffer.data());
+		lower_[family_members[0]] *= (mat *
+			(upper_[family_members[1]]*lower_[family_members[1]]).matrix()).array();
+	}
+
+	void PeelToMother(std::size_t id) {
+		using namespace Eigen;
+		auto family_members = family_members_[id];
+		Vector100d buffer;
+		buffer.setOnes();
+		// Sum over children
+		for(std::size_t i = 2; i < family_members.size(); i++) {
+			buffer *= (meiosis_ * lower_[family_members[i]].matrix()).array();
+		}
+		// Include Dad
+		Map<RowMatrix10d, Aligned> mat(buffer.data());
+		lower_[family_members[1]] *= (mat *
+			(upper_[family_members[0]]*lower_[family_members[0]]).matrix()).array();
+	}
+
+	void PeelToChild(std::size_t id) {
+		using namespace Eigen;
+		auto family_members = family_members_[id];
+		Vector100d buffer;
+		buffer.setOnes();
+		// Sum over children
+		for(std::size_t i = 3; i < family_members.size(); i++) {
+			buffer *= (meiosis_ * lower_[family_members[i]].matrix()).array();
+		}
+		// Parents
+		buffer *= kroneckerProduct(
+			(lower_[family_members[0]] * upper_[family_members[0]]).matrix(),
+			(lower_[family_members[1]] * upper_[family_members[1]]).matrix()
+		).array();
+		
+		upper_[family_members[2]].matrix() = meiosis_.transpose() * buffer.matrix();
+	}
+	typedef Pedigree Op;
+	typedef std::function<void(Pedigree&, std::size_t)> PeelOp;
+
+	std::vector<PeelOp> peeling_op_;	
 };
 
+}; // namespace dng
 
-} // namespace dng
 
-#endif // DNG_PEDIGREE_H
+#endif // DNG_PEDIGREE_PEELER_H

@@ -32,6 +32,10 @@ namespace qi = boost::spirit::qi;
 namespace standard = boost::spirit::standard;
 namespace phoenix = boost::phoenix;
 
+typedef dng::newick::Graph tree_t;
+typedef boost::graph_traits<tree_t>::vertex_descriptor node_t;
+typedef boost::graph_traits<tree_t>::edge_descriptor branch_t;
+
 struct make_tip_impl {
 	typedef node_t result_type;
 
@@ -101,6 +105,19 @@ struct newick_grammar : qi::grammar<Iterator, tree_t(), standard::space_type> {
 	qi::rule<Iterator, std::string(), standard::space_type> label,unquoted,squoted,dquoted;
 };
 
+
+bool dng::newick::parse(const std::string& text, Graph& graph) {
+	using standard::space;
+	newick_grammar<std::string::const_iterator> newick_parser;
+	std::string::const_iterator first = text.begin();
+	bool r = qi::phrase_parse(first, text.end(), newick_parser, space, graph);
+	if( first != text.end() || !r ) {
+		return false;
+	}
+	return true;
+}
+
+#if 0
 using namespace std;
 
 int main(int argc, char* argv[]) {
@@ -130,5 +147,6 @@ int main(int argc, char* argv[]) {
 	
 	return 0;
 }
+#endif
 
 
