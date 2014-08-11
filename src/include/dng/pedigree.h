@@ -69,7 +69,7 @@ public:
 		
 		// Peel pedigree one family at a time
 		for(std::size_t i = 0; i < peeling_op_.size(); ++i)
-			(peeling_op_[i])(this, i);
+			peeling_op_[i](this, i);
 			
 		// Sum over roots
 		double ret = 0.0;
@@ -90,17 +90,18 @@ protected:
 
 	MeiosisMatrix meiosis_;
 
+	Vector100d buffer_;
+
 	void PeelToFather(std::size_t id) {
 		using namespace Eigen;
 		auto family_members = family_members_[id];
-		Vector100d buffer;
-		buffer.setOnes();
+		buffer_.setOnes();
 		// Sum over children
 		for(std::size_t i = 2; i < family_members.size(); i++) {
-			buffer *= (meiosis_ * lower_[family_members[i]].matrix()).array();
+			buffer_ *= (meiosis_ * lower_[family_members[i]].matrix()).array();
 		}
 		// Include Mom
-		Map<Matrix10d, Aligned> mat(buffer.data());
+		Map<Matrix10d, Aligned> mat(buffer_.data());
 		lower_[family_members[0]] *= (mat *
 			(upper_[family_members[1]]*lower_[family_members[1]]).matrix()).array();
 	}
@@ -108,14 +109,13 @@ protected:
 	void PeelToMother(std::size_t id) {
 		using namespace Eigen;
 		auto family_members = family_members_[id];
-		Vector100d buffer;
-		buffer.setOnes();
+		buffer_.setOnes();
 		// Sum over children
 		for(std::size_t i = 2; i < family_members.size(); i++) {
-			buffer *= (meiosis_ * lower_[family_members[i]].matrix()).array();
+			buffer_ *= (meiosis_ * lower_[family_members[i]].matrix()).array();
 		}
 		// Include Dad
-		Map<RowMatrix10d, Aligned> mat(buffer.data());
+		Map<RowMatrix10d, Aligned> mat(buffer_.data());
 		lower_[family_members[1]] *= (mat *
 			(upper_[family_members[0]]*lower_[family_members[0]]).matrix()).array();
 	}
@@ -123,19 +123,18 @@ protected:
 	void PeelToChild(std::size_t id) {
 		using namespace Eigen;
 		auto family_members = family_members_[id];
-		Vector100d buffer;
-		buffer.setOnes();
+		buffer_.setOnes();
 		// Sum over children
 		for(std::size_t i = 3; i < family_members.size(); i++) {
-			buffer *= (meiosis_ * lower_[family_members[i]].matrix()).array();
+			buffer_ *= (meiosis_ * lower_[family_members[i]].matrix()).array();
 		}
 		// Parents
-		buffer *= kroneckerProduct(
+		buffer_ *= kroneckerProduct(
 			(lower_[family_members[0]] * upper_[family_members[0]]).matrix(),
 			(lower_[family_members[1]] * upper_[family_members[1]]).matrix()
 		).array();
 		
-		upper_[family_members[2]].matrix() = meiosis_.transpose() * buffer.matrix();
+		upper_[family_members[2]].matrix() = meiosis_.transpose() * buffer_.matrix();
 	}
 	typedef Pedigree Op;
 
