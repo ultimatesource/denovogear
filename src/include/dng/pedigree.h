@@ -69,7 +69,7 @@ public:
 		
 		// Peel pedigree one family at a time
 		for(std::size_t i = 0; i < peeling_op_.size(); ++i)
-			(peeling_op_[i])(*this, i);
+			(peeling_op_[i])(this, i);
 			
 		// Sum over roots
 		double ret = 0.0;
@@ -138,7 +138,9 @@ protected:
 		upper_[family_members[2]].matrix() = meiosis_.transpose() * buffer.matrix();
 	}
 	typedef Pedigree Op;
-	typedef std::function<void(Pedigree&, std::size_t)> PeelOp;
+
+	//typedef std::function<void(Pedigree&, std::size_t)> PeelOp;
+	typedef decltype(std::mem_fn(&Pedigree::PeelToFather)) PeelOp;
 
 	std::vector<PeelOp> peeling_op_;	
 };
