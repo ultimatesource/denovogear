@@ -87,10 +87,10 @@ bool dng::Pedigree::Initialize(double theta, double mu) {
 bool dng::Pedigree::Construct(const io::Pedigree& pedigree) {
 	using namespace boost;
 	using namespace std;
-	using dng::newick::vertex_t;
-	using dng::newick::edge_t;
-	using dng::newick::Graph;
-	typedef Graph graph_t;
+	//using dng::newick::vertex_t;
+	//using dng::newick::edge_t;
+	//using dng::newick::Graph;
+	//typedef Graph graph_t;
 	
   	// Reset Family Information
   	roots_.clear();
@@ -142,7 +142,7 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree) {
 		back_inserter(articulation_vertices)).first;
 			
 	// Determine which edges belong to which nuclear families.
-	typedef vector<vector<graph_traits<graph_t>::edge_descriptor>> 
+	typedef vector<vector<graph_traits<Graph>::edge_descriptor>> 
 		family_labels_t;
 	family_labels_t family_labels(num_families);
   	for(tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei)
@@ -164,7 +164,7 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree) {
   	// the group.  The pivot of the last group doesn't matter.
   	vector<vertex_t> pivots(num_families);
   	for(auto a : articulation_vertices) {
-  		graph_traits<graph_t>::out_edge_iterator ei, ei_end;
+  		graph_traits<Graph>::out_edge_iterator ei, ei_end;
 		for(tie(ei, ei_end) = out_edges(a, pedigree_graph); ei != ei_end; ++ei) {
 			// Just overwrite existing value so that the last one wins.
 			pivots[families[*ei]] = a;

@@ -32,7 +32,7 @@ namespace qi = boost::spirit::qi;
 namespace standard = boost::spirit::standard;
 namespace phoenix = boost::phoenix;
 
-typedef dng::newick::Graph tree_t;
+typedef dng::Graph tree_t;
 typedef boost::graph_traits<tree_t>::vertex_descriptor node_t;
 typedef boost::graph_traits<tree_t>::edge_descriptor branch_t;
 
@@ -116,37 +116,3 @@ bool dng::newick::parse(const std::string& text, Graph& graph) {
 	}
 	return true;
 }
-
-#if 0
-using namespace std;
-
-int main(int argc, char* argv[]) {
-	string s = "((A:1,B:2)J:4,C:5)U:6;";
-	tree_t tree;
-	
-	using standard::space;
-	newick_grammar<string::iterator> newick_parser;
-	auto first = s.begin();
-	bool r = qi::phrase_parse(first, s.end(), newick_parser, space, tree);
-	if( first != s.end() || !r ) {
-		cerr << "ERROR";
-		return 1;
-	}
-	cout << num_vertices(tree) << endl;
-	cout << num_edges(tree) << endl;
-	for(int i=0;i<num_vertices(tree);++i) {
-		cout << i << " " << get(boost::vertex_name,tree,i) 
-		     << ":" << get(boost::vertex_distance,tree,i);
-		auto a = inv_adjacent_vertices(i, tree);
-		if(a.first != a.second) {
-			cout << "\t" << get(boost::vertex_name,tree,*a.first);
-		} 
-		
-		cout << endl;
-	}
-	
-	return 0;
-}
-#endif
-
-

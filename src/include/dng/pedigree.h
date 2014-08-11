@@ -18,8 +18,8 @@
  */
 
 #pragma once
-#ifndef DNG_PEDIGREE_PEELER_H
-#define DNG_PEDIGREE_PEELER_H
+#ifndef DNG_PEDIGREE_H
+#define DNG_PEDIGREE_H
 
 #include <functional>
 
@@ -147,4 +147,4 @@ protected:
 }; // namespace dng
 
 
-#endif // DNG_PEDIGREE_PEELER_H
+#endif // DNG_PEDIGREE_H
