@@ -86,13 +86,30 @@ bool dng::Pedigree::Initialize(double theta, double mu) {
 	return true;
 }
 
-bool dng::Pedigree::Construct(const io::Pedigree& pedigree) {
+/*
+RULES FOR LINKING READ GROUPS TO PEOPLE.
+
+0) Read all read groups in bam files. Map RG to Library to Sample.
+
+1) If tissue information is present, build a tissue tree connecting samples
+   to zygotic genotypes.  Build mutation matrices for every unique branch
+   length.
+
+2) If no tissue information is present in pedigree, check to see if there is a
+   sample with the same label as the individual.  If so, connect that sample to
+   the individual with a somatic branch of length 0.  [TODO: Length 0 or 1???]
+
+3) If a sample has multiple libraries, connect the libraries to sample with a 
+   pcr-error branch.  Otherwise, connect a single library directly.
+
+4) If a library has multiple read-groups, concat the read-groups.
+
+*/
+
+
+bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroups& rgs) {
 	using namespace boost;
 	using namespace std;
-	//using dng::newick::vertex_t;
-	//using dng::newick::edge_t;
-	//using dng::newick::Graph;
-	//typedef Graph graph_t;
 	
   	// Reset Family Information
   	roots_.clear();
@@ -137,23 +154,31 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree) {
 			);
 		// check to see if the parser added any members
 		if(ret.first != -1) {
+			// insert somatic information
 			id = add_edge(child, ret.first, pedigree_graph);
 			edge_types[id.first] = 2;
-			auto vis = make_dfs_visitor(put_property(edge_types, 2, on_examine_edge()));
-			auto pm = make_shared_array_property_map(num_vertices(pedigree_graph),color_traits<int>::white(),
-					get(vertex_index,pedigree_graph));
-			depth_first_visit(pedigree_graph, ret.first, vis, pm);
-			//depth_first_search(pedigree_graph, root_vertex(ret.first).visitor(vis));
+			// mark all the descentent nodes as being of type 2
+			//auto vis = make_dfs_visitor(put_property(edge_types, 2, on_examine_edge()));
+			//auto pm = make_shared_array_property_map(num_vertices(pedigree_graph),color_traits<int>::white(),
+			//		get(vertex_index,pedigree_graph));
+			//depth_first_visit(pedigree_graph, ret.first, vis, pm);
+		} else {
+			auto v = add_vertex(pedigree_graph);
+			id = add_edge(child,v,pedigree_graph);
+			edge_types[id.first] = 2;
+			put(vertex_name, pedigree_graph, v, row[1]);
+			put(vertex_distance,pedigree_graph,v,0.0);
 		}
 	}
 	// Remove the dummy individual from the graph
 	clear_vertex(pedigree.id(""), pedigree_graph);
 
+	auto vertex_names = get(vertex_name, pedigree_graph);
 	for(tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei) {
-		cout << source(*ei,pedigree_graph) << " -> "
-		     << target(*ei,pedigree_graph) << 
-		     "[" << edge_types[*ei] << "]" <<
-		     "\n";
+		cout << "[" << edge_types[*ei] << "] "
+			<< source(*ei,pedigree_graph) << " -> " << target(*ei,pedigree_graph)
+			<< " " << vertex_names[target(*ei,pedigree_graph)]
+			<< "\n";
 	}
 		
 	// Calculate the connected components.  This defines independent sections

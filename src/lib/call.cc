@@ -96,6 +96,10 @@ int Call::operator()(Call::argument_type &arg) {
 	
 	dng::ReadGroups rgs(indata);
 
+	dng::Pedigree peeler;
+	peeler.Initialize(arg.theta, arg.mu);
+	peeler.Construct(ped,rgs);
+
 	dng::MPileup mpileup(rgs.groups());
 
 	cerr << "Contig\tPos\tRef";
@@ -160,12 +164,7 @@ int Call::operator()(Call::argument_type &arg) {
 		cerr << "\n";
 		return;
 	});
-	
-	
-	dng::Pedigree peeler;
-	peeler.Initialize(arg.theta, arg.mu);
-	peeler.Construct(ped);
-	
+		
 	/*
 	dng::PedigreePeeler::IndividualBuffer buf;
 	buf.resize(7, dng::PedigreePeeler::Vector10d::Zero());

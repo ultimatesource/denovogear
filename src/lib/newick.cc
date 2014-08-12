@@ -51,8 +51,9 @@ struct make_inode_impl {
 	node_t operator()(std::vector<node_t> v, tree_t &g) const {
 		using namespace boost;
 		auto id = add_vertex(g);
-		for(auto a : v)
-			add_edge(id,a,g);
+		for(auto a : v) {
+			add_edge(id,a,2,g);
+		}
 		put(vertex_name,g,id,"");
 		put(vertex_distance,g,id,0.0);
 		return id;
