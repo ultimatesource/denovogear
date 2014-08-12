@@ -127,6 +127,8 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 	auto groups = get(vertex_group, pedigree_graph);
 	auto families = get(edge_family, pedigree_graph);
 	auto edge_types = get(edge_type, pedigree_graph);
+	auto vertex_names = get(vertex_name, pedigree_graph);
+
 
 	// Go through rows and construct the graph
 	for(auto &row : pedigree.table()) {
@@ -173,7 +175,10 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 	// Remove the dummy individual from the graph
 	clear_vertex(pedigree.id(""), pedigree_graph);
 
-	auto vertex_names = get(vertex_name, pedigree_graph);
+	for(tie(vi,vi_end) = vertices(pedigree_graph); vi != vi_end; ++vi) {
+		if()
+	}
+
 	for(tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei) {
 		cout << "[" << edge_types[*ei] << "] "
 			<< source(*ei,pedigree_graph) << " -> " << target(*ei,pedigree_graph)
