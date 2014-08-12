@@ -32,10 +32,6 @@ namespace qi = boost::spirit::qi;
 namespace standard = boost::spirit::standard;
 namespace phoenix = boost::phoenix;
 
-typedef dng::Graph tree_t;
-typedef boost::graph_traits<tree_t>::vertex_descriptor node_t;
-typedef boost::graph_traits<tree_t>::edge_descriptor branch_t;
-
 struct make_tip_impl {
 	typedef node_t result_type;
 
@@ -76,7 +72,7 @@ struct set_prop_impl {
 const phoenix::function<set_prop_impl> set_prop;
 
 template <typename Iterator>
-struct newick_grammar : qi::grammar<Iterator, tree_t(), standard::space_type> {
+struct newick_grammar : qi::grammar<Iterator, node_t(tree_t&), standard::space_type> {
 	// http://evolution.genetics.washington.edu/phylip/newick_doc.html
 	newick_grammar() : newick_grammar::base_type(start) {
 		using standard::char_; using qi::eps;
@@ -86,7 +82,7 @@ struct newick_grammar : qi::grammar<Iterator, tree_t(), standard::space_type> {
 		using phoenix::bind; using phoenix::val;
 		using boost::vertex_distance; using boost::vertex_name;
 		
-		start    = omit[node(_val)] >> ';';
+		start    = -(node(_r1) || ';');
 		node     = tip(_r1) | inode(_r1);
 		
 		tip      = label[_val=make_tip(_1,_r1)]
@@ -100,19 +96,21 @@ struct newick_grammar : qi::grammar<Iterator, tree_t(), standard::space_type> {
 		dquoted   = raw[lexeme['"' >> *(char_ - '"') >> '"']];
 	}
 	
-	qi::rule<Iterator, tree_t(), standard::space_type> start;
+	qi::rule<Iterator, node_t(tree_t&), standard::space_type> start;
 	qi::rule<Iterator, node_t(tree_t&), standard::space_type> node,tip,inode;
 	qi::rule<Iterator, std::string(), standard::space_type> label,unquoted,squoted,dquoted;
 };
 
 
-bool dng::newick::parse(const std::string& text, Graph& graph) {
-	using standard::space;
+std::pair<node_t,bool>
+dng::newick::parse(const std::string& text, tree_t& graph) {
+	using standard::space; using phoenix::ref;
 	newick_grammar<std::string::const_iterator> newick_parser;
 	std::string::const_iterator first = text.begin();
-	bool r = qi::phrase_parse(first, text.end(), newick_parser, space, graph);
+	node_t root = -1;
+	bool r = qi::phrase_parse(first, text.end(), newick_parser(phoenix::ref(graph)), space, root);
 	if( first != text.end() || !r ) {
-		return false;
+		return std::make_pair(-1,false);
 	}
-	return true;
+	return std::make_pair(root,true);
 }

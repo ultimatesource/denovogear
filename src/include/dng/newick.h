@@ -24,7 +24,12 @@
 
 namespace dng { namespace newick {
 
-bool parse(const std::string& text, Graph& graph);
+typedef dng::Graph tree_t;
+typedef boost::graph_traits<tree_t>::vertex_descriptor node_t;
+typedef boost::graph_traits<tree_t>::edge_descriptor branch_t;
+
+
+std::pair<node_t,bool> parse(const std::string& text, tree_t& tree);
 
 }};
 

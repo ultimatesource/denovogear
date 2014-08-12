@@ -161,11 +161,12 @@ int Call::operator()(Call::argument_type &arg) {
 		return;
 	});
 	
-	/*
-	dng::PedigreePeeler peeler;
-	peeler.Initialize(arg.theta, arg.mu);
-	peeler.Construct(pedigree);
 	
+	dng::Pedigree peeler;
+	peeler.Initialize(arg.theta, arg.mu);
+	peeler.Construct(ped);
+	
+	/*
 	dng::PedigreePeeler::IndividualBuffer buf;
 	buf.resize(7, dng::PedigreePeeler::Vector10d::Zero());
 	buf[1][1] = 1.0;

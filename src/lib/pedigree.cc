@@ -22,6 +22,8 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/biconnected_components.hpp>
 #include <boost/graph/connected_components.hpp>
+#include <boost/graph/depth_first_search.hpp>
+#include <boost/graph/visitors.hpp>
 
 #include <boost/range/algorithm/find.hpp>
 
@@ -105,6 +107,10 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree) {
 	graph_traits<Graph>::edge_iterator ei, ei_end;
 	graph_traits<Graph>::vertex_iterator vi, vi_end;
 	
+	auto groups = get(vertex_group, pedigree_graph);
+	auto families = get(edge_family, pedigree_graph);
+	auto edge_types = get(edge_type, pedigree_graph);
+
 	// Go through rows and construct the graph
 	for(auto &row : pedigree.table()) {
 		// check to see if mom and dad have been seen before
@@ -122,14 +128,34 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree) {
 		put(edge_type, pedigree_graph, id.first, 1);
 		id = add_edge(dad, child, pedigree_graph);
 		put(edge_type, pedigree_graph, id.first, 1);
+
+		// Process newick file
+		auto ret = newick::parse(row[5], pedigree_graph);
+		if(!ret.second)
+			throw std::runtime_error(
+				"unable to parse somatic data for individual '" + row[1] + "'."
+			);
+		// check to see if the parser added any members
+		if(ret.first != -1) {
+			id = add_edge(child, ret.first, pedigree_graph);
+			edge_types[id.first] = 2;
+			auto vis = make_dfs_visitor(put_property(edge_types, 2, on_examine_edge()));
+			auto pm = make_shared_array_property_map(num_vertices(pedigree_graph),color_traits<int>::white(),
+					get(vertex_index,pedigree_graph));
+			depth_first_visit(pedigree_graph, ret.first, vis, pm);
+			//depth_first_search(pedigree_graph, root_vertex(ret.first).visitor(vis));
+		}
 	}
 	// Remove the dummy individual from the graph
 	clear_vertex(pedigree.id(""), pedigree_graph);
-	
-	auto groups = get(vertex_group, pedigree_graph);
-	auto families = get(edge_family, pedigree_graph);
-	auto edge_types = get(edge_type, pedigree_graph);
-	
+
+	for(tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei) {
+		cout << source(*ei,pedigree_graph) << " -> "
+		     << target(*ei,pedigree_graph) << 
+		     "[" << edge_types[*ei] << "]" <<
+		     "\n";
+	}
+		
 	// Calculate the connected components.  This defines independent sections
 	// of the graph.
 	std::size_t num_groups = connected_components(pedigree_graph, groups);
