@@ -25,32 +25,24 @@
 
 // Install graph properties for pedigree analysis.
 namespace boost {
-  enum edge_length_t { edge_length };
-  //enum edge_family_t { edge_family };
-  enum edge_type_t { edge_type };
+enum edge_length_t { edge_length };
+enum edge_type_t { edge_type };
+enum vertex_label_t { vertex_label };
 
-  enum vertex_label_t { vertex_label };
-  //enum vertex_group_t { vertex_group };
-  
-  BOOST_INSTALL_PROPERTY(edge, edge_length);
-  //BOOST_INSTALL_PROPERTY(edge, family);
-  BOOST_INSTALL_PROPERTY(edge, type);
-
-  BOOST_INSTALL_PROPERTY(vertex, label);
-  //BOOST_INSTALL_PROPERTY(vertex, group);
-
+BOOST_INSTALL_PROPERTY(edge, length);
+BOOST_INSTALL_PROPERTY(edge, type);
+BOOST_INSTALL_PROPERTY(vertex, label);
 }
 
-namespace dng {
-
-namespace detail {
-	using namespace boost;
-	typedef property<vertex_label_t, std::string> VertexLabel;
-	typedef property<edge_type_t, std::size_t> EdgeType;
-	typedef property<edge_length_t, float, EdgeType> EdgeLength;
-	typedef adjacency_list<vecS, vecS, bidirectionalS, LabelProp, EdgeLength> graph_t;
+namespace dng { namespace graph {
+typedef boost::property<boost::vertex_label_t, std::string> VertexLabel;
+typedef boost::property<boost::edge_type_t, std::size_t> EdgeType;
+typedef boost::property<boost::edge_length_t, float, EdgeType> EdgeLength;
+typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::bidirectionalS,
+	VertexLabel, EdgeLength> Graph;
 }
-typedef detail::graph_t Graph;
+
+using graph::Graph;
 typedef boost::graph_traits<Graph>::vertex_descriptor vertex_t;
 typedef boost::graph_traits<Graph>::edge_descriptor edge_t;
 
