@@ -104,7 +104,6 @@ RULES FOR LINKING READ GROUPS TO PEOPLE.
 
 */
 
-
 bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroups& rgs) {
 	using namespace boost;
 	using namespace std;
@@ -137,13 +136,13 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 		auto id = edge(dad, mom, pedigree_graph);
 		if(!id.second) {
 			id = add_edge(dad, mom, pedigree_graph);
-			put(edge_type, pedigree_graph, id.first, 0);
+			put(edge_type, pedigree_graph, id.first, kSpousal);
 		}
 		// add the meiotic edges
 		id = add_edge(mom, child, pedigree_graph);
-		put(edge_type, pedigree_graph, id.first, 1);
+		put(edge_type, pedigree_graph, id.first, kMeiotic);
 		id = add_edge(dad, child, pedigree_graph);
-		put(edge_type, pedigree_graph, id.first, 1);
+		put(edge_type, pedigree_graph, id.first, kMeiotic);
 
 		// Process newick file
 		int res = newick::parse(row[5], child, pedigree_graph);
@@ -152,12 +151,13 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 				"unable to parse somatic data for individual '" + row[1] + "'." );
 		} else if(res == 0) {
 			vertex_t v = add_vertex(row[1], pedigree_graph);
-			add_edge(child,v,dng::graph::EdgeLength(0.0f,2),pedigree_graph);
+			add_edge(child,v,dng::graph::EdgeLength(0.0f,kMitotic),pedigree_graph);
 		}
 	}
 	// Remove the dummy individual from the graph
 	clear_vertex(pedigree.id(""), pedigree_graph);
 
+	// Connect Read Groups to Samples
 	for(tie(vi,vi_end) = vertices(pedigree_graph); vi != vi_end; ++vi) {
 
 	}

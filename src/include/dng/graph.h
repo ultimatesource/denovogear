@@ -54,7 +54,11 @@ using graph::Graph;
 typedef boost::graph_traits<Graph>::vertex_descriptor vertex_t;
 typedef boost::graph_traits<Graph>::edge_descriptor edge_t;
 
+enum struct k_edge_type : std::size_t {
+	kSpousal, kMeiotic, kMitotic, kLibrary
 };
+
+}
 
 
 #endif // DNG_GRAPH_H

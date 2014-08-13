@@ -61,7 +61,7 @@ struct make_root_impl {
 	typedef void result_type;
 
 	void operator()(std::pair<node_t,float> a, node_t& r, tree_t &g) const {
-		boost::add_edge(r,a.first,dng::graph::EdgeLength(a.second, 2),g);
+		boost::add_edge(r,a.first,dng::graph::EdgeLength(a.second, dng::kMitotic),g);
 	}
 };
 const phoenix::function<make_root_impl> make_root;

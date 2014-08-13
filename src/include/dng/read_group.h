@@ -34,9 +34,32 @@
 
 namespace dng {
 
+namespace rg {
+	struct id {};
+	struct lb {};
+	struct sm {};
+}
+
+// @RG ID: str->index; index->lb_index;
+// @RG LB: str->index; index->str;
+// @RG SM: str->index; index->lb_indies;
+
 class ReadGroups {
 public:
+	struct rg_t {
+		std::string id;
+		std::string library;
+		std::string sample;
+
+		bool operator<(const rg_t& other) { return id < other.id; }
+	};
 	typedef boost::container::flat_set<std::string> StrSet;
+
+	typedef boost::multi_index_container<rg_t, indexed_by<
+		ordered_unique<tag<rg::id>, identity<rg_t>>,
+		ordered_non_unique<tag<rg::lb>, member<rg_t,std::string,&rg_t::library>>,
+		ordered_non_unique<member<tag<rg::sm>,rg_t,std::string,&rg_t::sample>>
+		>> db_t;
 
 	ReadGroups() { }
 	
@@ -68,7 +91,10 @@ public:
 	inline std::size_t num_libraries() const { return libraries_.size(); }
 	inline std::size_t num_samples() const { return samples_.size(); }
 
+	const db_t& data() const { return data_; }
+
 protected:
+	db_t data_;
 
 	StrSet groups_;
 	StrSet libraries_;
@@ -80,14 +106,6 @@ protected:
 
 template<typename InFiles>
 void ReadGroups::Parse(InFiles &range) {
-	// structure to hold information on each read-group
-
-	struct rg_t {
-		std::string sample;
-		std::string library;
-	};
-	std::map<std::string,rg_t> group_data;
-	
 	// iterate through each file in the range
 	for(auto &f : range) {
 		// get header text and continue on failre
@@ -126,22 +144,22 @@ void ReadGroups::Parse(InFiles &range) {
 			auto it = tags.find("ID");
 			if(it == tags.end() || it->second.empty())
 				continue;
-			// constuct the rg_t
-			rg_t& val = group_data[it->second];
 			// check to see if this is a duplicate
-			if(!val.library.empty())
+			if(data_.find(it->second) != data_.end())
 				continue;
 			// library tag
-			auto it2 = tags.find("LB");
-			if(it2 != tags.end())
-				val.library = std::move(it2->second);
+			rg_t val{it->second};
+			it = tags.find("LB");
+			if(it != tags.end())
+				val.library = std::move(it->second);
 			else
-				val.library = it->second;
+				val.library = val.id;
 			// sample tag
-			if((it2 = tags.find("SM")) != tags.end())
-				val.sample = std::move(it2->second);
+			if((it = tags.find("SM")) != tags.end())
+				val.sample = std::move(it->second);
 			else
-				val.sample = it->second;
+				val.sample = val.id;
+			data_.insert(std::move(val));
 		}
 	}
 		
