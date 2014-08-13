@@ -112,14 +112,17 @@ struct newick_grammar : qi::grammar<Iterator, node_t(tree_t&), standard::space_t
 };
 
 
-bool dng::newick::parse(const std::string& text, node_t& root, tree_t& graph) {
+int dng::newick::parse(const std::string& text, node_t root, tree_t& graph) {
 	using standard::space; using phoenix::ref;
 	newick_grammar<std::string::const_iterator> newick_parser;
 	std::string::const_iterator first = text.begin();
+	qi::parse(first, text.end(), *space);
+	if(first == text.end())
+		return 0;
 	bool r = qi::phrase_parse(first, text.end(),
 		newick_parser(phoenix::ref(graph)), space, root);
 	if( first != text.end() || !r ) {
-		return false;
+		return -1;
 	}
-	return true;
+	return 1;
 }

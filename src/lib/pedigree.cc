@@ -22,8 +22,6 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/biconnected_components.hpp>
 #include <boost/graph/connected_components.hpp>
-#include <boost/graph/depth_first_search.hpp>
-#include <boost/graph/visitors.hpp>
 
 #include <boost/range/algorithm/find.hpp>
 
@@ -124,11 +122,10 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 	graph_traits<Graph>::edge_iterator ei, ei_end;
 	graph_traits<Graph>::vertex_iterator vi, vi_end;
 	
+	auto edge_types = get(edge_type, pedigree_graph);
+	auto vertex_labels = get(vertex_label, pedigree_graph);
 	auto groups = get(vertex_group, pedigree_graph);
 	auto families = get(edge_family, pedigree_graph);
-	auto edge_types = get(edge_type, pedigree_graph);
-	auto vertex_names = get(vertex_name, pedigree_graph);
-
 
 	// Go through rows and construct the graph
 	for(auto &row : pedigree.table()) {
@@ -149,43 +146,29 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 		put(edge_type, pedigree_graph, id.first, 1);
 
 		// Process newick file
-		auto ret = newick::parse(row[5], pedigree_graph);
-		if(!ret.second)
+		int res = newick::parse(row[5], child, pedigree_graph);
+		if(res == -1) {
 			throw std::runtime_error(
-				"unable to parse somatic data for individual '" + row[1] + "'."
-			);
-		// check to see if the parser added any members
-		if(ret.first != -1) {
-			// insert somatic information
-			id = add_edge(child, ret.first, pedigree_graph);
-			edge_types[id.first] = 2;
-			// mark all the descentent nodes as being of type 2
-			//auto vis = make_dfs_visitor(put_property(edge_types, 2, on_examine_edge()));
-			//auto pm = make_shared_array_property_map(num_vertices(pedigree_graph),color_traits<int>::white(),
-			//		get(vertex_index,pedigree_graph));
-			//depth_first_visit(pedigree_graph, ret.first, vis, pm);
-		} else {
-			auto v = add_vertex(pedigree_graph);
-			id = add_edge(child,v,pedigree_graph);
-			edge_types[id.first] = 2;
-			put(vertex_name, pedigree_graph, v, row[1]);
-			put(vertex_distance,pedigree_graph,v,0.0);
+				"unable to parse somatic data for individual '" + row[1] + "'." );
+		} else if(res == 0) {
+			vertex_t v = add_vertex(row[1], pedigree_graph);
+			add_edge(child,v,dng::graph::EdgeLength(0.0f,2),pedigree_graph);
 		}
 	}
 	// Remove the dummy individual from the graph
 	clear_vertex(pedigree.id(""), pedigree_graph);
 
 	for(tie(vi,vi_end) = vertices(pedigree_graph); vi != vi_end; ++vi) {
-		if()
+
 	}
 
 	for(tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei) {
 		cout << "[" << edge_types[*ei] << "] "
 			<< source(*ei,pedigree_graph) << " -> " << target(*ei,pedigree_graph)
-			<< " " << vertex_names[target(*ei,pedigree_graph)]
+			<< " " << vertex_labels[target(*ei,pedigree_graph)]
 			<< "\n";
 	}
-		
+	
 	// Calculate the connected components.  This defines independent sections
 	// of the graph.
 	std::size_t num_groups = connected_components(pedigree_graph, groups);
@@ -212,7 +195,7 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
   		// last one wins
   		auto first_edge = family_labels[f][0];
   		auto src_vertex = source(first_edge, pedigree_graph);
-		root_families[groups(src_vertex)] = f;
+		root_families[groups[src_vertex]] = f;
   	}
   	
   	// Identitify the pivot for each family.

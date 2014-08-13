@@ -28,7 +28,7 @@ typedef dng::Graph tree_t;
 typedef boost::graph_traits<tree_t>::vertex_descriptor node_t;
 typedef boost::graph_traits<tree_t>::edge_descriptor branch_t;
 
-bool parse(const std::string& text, node_t& root, tree_t& tree);
+int parse(const std::string& text, node_t root, tree_t& tree);
 
 }};
 
