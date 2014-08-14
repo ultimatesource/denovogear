@@ -134,7 +134,6 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 		// check to see if mom and dad have been seen before
 		// TODO: check for parent-child inbreeding
 		vertex_t child = num_libraries_+pedigree.id(row[1]);
-		cerr << row[1] << " " << child << "\n";
 		vertex_t dad = num_libraries_+pedigree.id(row[2]);
 		vertex_t mom = num_libraries_+pedigree.id(row[3]);
 		auto id = edge(dad, mom, pedigree_graph);
@@ -155,7 +154,8 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 		}
 	}
 	// Remove the dummy individual from the graph
-	clear_vertex(num_libraries_+pedigree.id({}), pedigree_graph);
+	std::size_t dummy_index = num_libraries_+pedigree.id({});
+	clear_vertex(dummy_index, pedigree_graph);
 
 	// Connect Samples to Libraries
 	for(tie(vi,vi_end) = vertices(pedigree_graph); vi != vi_end; ++vi) {
@@ -177,20 +177,9 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 	// This defines "nuclear" families and pivot indiviuduals.
 	// Nodes which have no edges will not be part of any family.
 	vector<vertex_t> articulation_vertices;
-	for(tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei) {
-		families[*ei] = -1;
-	}
 	std::size_t num_families = biconnected_components(pedigree_graph, families,
 		back_inserter(articulation_vertices)).first;
-	
-	for(tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei) {
-		cout << "[" << (int)edge_types[*ei] << "] "
-			<< "[" << families[*ei]  << "] "
-			<< source(*ei,pedigree_graph) << " -> " << target(*ei,pedigree_graph)
-			<< " " << labels[target(*ei,pedigree_graph)]
-			<< "\n";
-	}
-	
+		
 	// Determine which edges belong to which nuclear families.
 	typedef vector<vector<graph_traits<Graph>::edge_descriptor>> 
 		family_labels_t;
@@ -212,7 +201,7 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
   	// Identitify the pivot for each family.
   	// The pivot will be the last art. point that has an edge in
   	// the group.  The pivot of the last group doesn't matter.
-  	vector<vertex_t> pivots(num_families);
+  	vector<vertex_t> pivots(num_families,dummy_index);
   	for(auto a : articulation_vertices) {
   		graph_traits<Graph>::out_edge_iterator ei, ei_end;
 		for(tie(ei, ei_end) = out_edges(a, pedigree_graph); ei != ei_end; ++ei) {
@@ -224,40 +213,17 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
   	for(auto f : root_families) {
   		if(f == -1) // skip all singleton groups
   			continue;
-  		pivots[f] = 0;
+  		pivots[f] = dummy_index;
   	}
 
 	// Non-dummy singleton groups are root elements.
 	for(tie(vi, vi_end) = vertices(pedigree_graph); vi != vi_end; ++vi) {
-		if(degree(*vi,pedigree_graph) > 0 || *vi == 0)
+		if(degree(*vi,pedigree_graph) > 0 || *vi == dummy_index)
 			continue;
 		roots_.push_back(*vi);
 	}
 
-	for(tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei) {
-		cout << "[" << (int)edge_types[*ei] << "] "
-			<< "[" << families[*ei]  << "] "
-			<< source(*ei,pedigree_graph) << " -> " << target(*ei,pedigree_graph)
-			<< " " << labels[target(*ei,pedigree_graph)]
-			<< "\n";
-	}
-
-	std::copy(articulation_vertices.begin(), articulation_vertices.end(),
-		std::ostream_iterator<vertex_t>(cout,","));
-	cout << endl;
-	std::copy(pivots.begin(), pivots.end(), std::ostream_iterator<vertex_t>(cout,","));
-	cout << endl;
- 	for(std::size_t k = 0; k < family_labels.size(); ++k) {
- 		cout << "Family " << k+1 << ":\n";
- 		for(auto &a : family_labels[k]) {
-			cout << "    [" << (int)edge_types[a] << "] "
-				<< source(a,pedigree_graph) << " -> " << target(a,pedigree_graph)
-				<< " " << labels[target(a,pedigree_graph)]
-				<< "\n";
- 		}
- 	}
-
-
+ 	num_nodes_ = num_vertices(pedigree_graph);
   	// Detect Family Structure and pivot positions
   	for(std::size_t k = 0; k < family_labels.size(); ++k) {
   		auto &family_edges = family_labels[k];
@@ -271,8 +237,6 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
   			return (edge_types(x) != EdgeType::Spousal); });
   		size_t num_parent_edges = distance(family_edges.begin(),pos);
   		
-  		cout << num_parent_edges << " " << family_edges.size() << endl;
-
   		// Check to see what type of graph we have
   		if(num_parent_edges == 0) {
   			// If we do not have a parent-child single branch,
@@ -283,7 +247,14 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
   			vertex_t parent = source(*pos, pedigree_graph);
   			vertex_t child = target(*pos, pedigree_graph);
   			family_members_.push_back({parent,child});
-  			peeling_op_.emplace_back(&Op::PeelToTissue);
+  			if(pivots[k] == dummy_index) {
+  				roots_.push_back(family_members_.back()[0]);
+  				peeling_op_.emplace_back(&Op::PeelUp);
+  			} else if(pivots[k] == parent) {
+  				peeling_op_.emplace_back(&Op::PeelUp);
+  			} else {
+  				peeling_op_.emplace_back(&Op::PeelDown);
+  			}
   		} else if(num_parent_edges == 1) {
   			// We have a nuclear family with 1 or more children
   			family_members_.push_back({
@@ -297,7 +268,7 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
   			auto pivot_pos = boost::find(family_members_.back(), pivots[k]);
   			size_t p = distance(family_members_.back().begin(),pivot_pos);
   			// A family without a pivot is a root family
-  			if(pivots[k] == 0 ) {
+  			if(pivots[k] == dummy_index ) {
   				p = 0;
   				roots_.push_back(family_members_.back()[0]);
   			} else if(p > 2) {
@@ -324,6 +295,30 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
   			return false;
   		}
    	}
+
+/*
+	for(tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei) {
+		cout << "[" << (int)edge_types[*ei] << ","
+			<< "" << families[*ei]  << "] "
+			<< source(*ei,pedigree_graph) << " -> " << target(*ei,pedigree_graph)
+			<< " " << labels[target(*ei,pedigree_graph)]
+			<< "\n";
+	}
+
+ 	for(std::size_t k = 0; k < family_labels.size(); ++k) {
+ 		cout << "Family " << k+1 << ": " << pivots[k] << "\n";
+ 		for(auto &a : family_labels[k]) {
+			cout << "    [" << (int)edge_types[a] << "] "
+				<< source(a,pedigree_graph) << " -> " << target(a,pedigree_graph)
+				<< " " << labels[target(a,pedigree_graph)]
+				<< "\n";
+ 		}
+ 	}
+ 	cout << "Roots:";
+ 	for(auto a : roots_)
+ 		cout << " " << a;
+ 	cout << endl;
+*/
 
 	return true;
 }

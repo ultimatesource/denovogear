@@ -38,15 +38,15 @@ public:
 
 	bool Construct(const io::Pedigree& pedigree, const dng::ReadGroups& rgs);
 	
-	double CalculateLogLikelihood(const IndividualBuffer &penetrances) {
+	double CalculateLogLikelihood(IndividualBuffer penetrances) {
 		// TODO: Assert that length of penetrances is equal to num_members_;
 		// Copy Penetrance values into the lower buffer
 		// TODO: Eliminate this copy????
-		lower_ = penetrances;
+		lower_ = std::move(penetrances);
 		// Copy genotype Priors
 		// TODO: Only update founders
 		// TODO: use a different prior based on reference
-		upper_.assign(num_members_, genotype_prior_);
+		upper_.assign(num_nodes_, genotype_prior_);
 		
 		// Peel pedigree one family at a time
 		for(std::size_t i = 0; i < peeling_op_.size(); ++i)
@@ -54,14 +54,17 @@ public:
 			
 		// Sum over roots
 		double ret = 0.0;
-		for(auto r : roots_)
+		for(auto r : roots_) {
 			ret += log((lower_[r]*upper_[r]).sum());
+		}
 		return ret;
 	}
 	
+	std::size_t size() const { return num_nodes_; }
+
 protected:
 	family_members_t family_members_;
-	std::size_t num_members_, num_libraries_;
+	std::size_t num_members_, num_libraries_, num_nodes_;
 	std::vector<std::size_t> roots_;
 	
 	IndividualBuffer upper_; // Holds P(Data & G=g)
@@ -74,11 +77,19 @@ protected:
 
 	Vector100d buffer_;
 
-	void PeelToTissue(std::size_t id) {
+	void PeelUp(std::size_t id) {
 		using namespace Eigen;
 		auto family_members = family_members_[id];
 		lower_[family_members[0]] *= (mitosis_ * lower_[family_members[1]].matrix()).array();
 	}
+
+	void PeelDown(std::size_t id) {
+		using namespace Eigen;
+		auto family_members = family_members_[id];
+		upper_[family_members[1]].matrix() = mitosis_.transpose() *
+			(upper_[family_members[0]]*lower_[family_members[0]]).matrix();
+	}
+
 
 	void PeelToFather(std::size_t id) {
 		using namespace Eigen;

@@ -99,15 +99,17 @@ int Call::operator()(Call::argument_type &arg) {
 	dng::Pedigree peeler;
 	peeler.Initialize(arg.theta, arg.mu);
 	peeler.Construct(ped,rgs);
-
+	
 	dng::MPileup mpileup(rgs.groups());
 
+	/*
 	cerr << "Contig\tPos\tRef";
 	for(auto a : rgs.groups()) {
 		cerr << '\t' << a;
 	}
 	cerr << endl;
-	
+	*/
+
 	// information to hold reference
 	char *ref = nullptr;
 	int ref_sz = 0;
@@ -120,7 +122,6 @@ int Call::operator()(Call::argument_type &arg) {
 			{0.9,0.001,0.001,1.05}, {0.1,0.01,0.01,1.1});
 	
 	std::vector<depth5_t> read_depths(rgs.libraries().size(),{0,0});
-	IndividualBuffer lib_lhs(rgs.libraries().size());
 	
 	const char gts[10][3] = {"AA","AC","AG","AT","CC","CG","CT","GG","GT","TT"};
 	
@@ -139,12 +140,15 @@ int Call::operator()(Call::argument_type &arg) {
 			ref[position] : 'N';
 		int ref_index = seq::char_index(ref_base);
 		
-		cerr << h->target_name[target_id]
-		     << "\t" << position+1
-		     << "\t" << ref_base;
+		cout << h->target_name[target_id]
+		     << "\t" << position+1;
 		
 		// reset all depth counters
 		read_depths.assign(read_depths.size(),{0,0});
+		//TODO: Get rid of this fill by changing ops???
+		IndividualBuffer lib_likelihoods(peeler.size(),Vector10d::Ones());
+		//fill(lib_likelihoods.begin()/*+read_depths.size()*/,lib_likelihoods.end(),
+		//	Vector10d::Ones());
 		// pileup on read counts
 		// TODO: handle overflow?
 		for(std::size_t u=0;u<data.size();++u) {
@@ -156,12 +160,12 @@ int Call::operator()(Call::argument_type &arg) {
 			}
 		}
 		for(std::size_t u=0;u<read_depths.size();++u) {
-			lib_lhs[u] = genotype_likelihood({read_depths[u].key},ref_index);
-			Vector10d::Index n;
-			lib_lhs[u].maxCoeff(&n);
-			cerr << "\t" << gts[n];
+			lib_likelihoods[u] = genotype_likelihood({read_depths[u].key},ref_index);
+			//cout << "\t" << lib_likelihoods[u];
 		}
-		cerr << "\n";
+		double d = peeler.CalculateLogLikelihood(lib_likelihoods);
+		cout << "\t" << exp(d) << endl;
+
 		return;
 	});
 		
