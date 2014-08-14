@@ -18,11 +18,11 @@
  */
 
 #include <dng/pedigree.h>
+#include <dng/graph.h>
 
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/biconnected_components.hpp>
 #include <boost/graph/connected_components.hpp>
-
 #include <boost/range/algorithm/find.hpp>
 
 bool dng::Pedigree::Initialize(double theta, double mu) {
@@ -80,7 +80,9 @@ bool dng::Pedigree::Initialize(double theta, double mu) {
 			}
 		}
 	}
-			
+	
+	mitosis_.setIdentity();
+
 	return true;
 }
 
@@ -116,13 +118,14 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
   	peeling_op_.reserve(128);
 			
 	num_members_ = pedigree.member_count();
-	
-	Graph pedigree_graph(num_members_);
+	num_libraries_ = rgs.libraries().size();
+
+	Graph pedigree_graph(num_libraries_+num_members_);
 	graph_traits<Graph>::edge_iterator ei, ei_end;
 	graph_traits<Graph>::vertex_iterator vi, vi_end;
 	
 	auto edge_types = get(edge_type, pedigree_graph);
-	auto vertex_labels = get(vertex_label, pedigree_graph);
+	auto labels = get(vertex_label, pedigree_graph);
 	auto groups = get(vertex_group, pedigree_graph);
 	auto families = get(edge_family, pedigree_graph);
 
@@ -130,19 +133,20 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 	for(auto &row : pedigree.table()) {
 		// check to see if mom and dad have been seen before
 		// TODO: check for parent-child inbreeding
-		vertex_t child = pedigree.id(row[1]);
-		vertex_t dad = pedigree.id(row[2]);
-		vertex_t mom = pedigree.id(row[3]);
+		vertex_t child = num_libraries_+pedigree.id(row[1]);
+		cerr << row[1] << " " << child << "\n";
+		vertex_t dad = num_libraries_+pedigree.id(row[2]);
+		vertex_t mom = num_libraries_+pedigree.id(row[3]);
 		auto id = edge(dad, mom, pedigree_graph);
 		if(!id.second) {
 			id = add_edge(dad, mom, pedigree_graph);
-			put(edge_type, pedigree_graph, id.first, kSpousal);
+			put(edge_type, pedigree_graph, id.first, EdgeType::Spousal);
 		}
 		// add the meiotic edges
 		id = add_edge(mom, child, pedigree_graph);
-		put(edge_type, pedigree_graph, id.first, kMeiotic);
+		put(edge_type, pedigree_graph, id.first, EdgeType::Meiotic);
 		id = add_edge(dad, child, pedigree_graph);
-		put(edge_type, pedigree_graph, id.first, kMeiotic);
+		put(edge_type, pedigree_graph, id.first, EdgeType::Meiotic);
 
 		// Process newick file
 		int res = newick::parse(row[5], child, pedigree_graph);
@@ -151,22 +155,22 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 				"unable to parse somatic data for individual '" + row[1] + "'." );
 		} else if(res == 0) {
 			vertex_t v = add_vertex(row[1], pedigree_graph);
-			add_edge(child,v,dng::graph::EdgeLength(0.0f,kMitotic),pedigree_graph);
+			add_edge(child,v,dng::graph::EdgeLengthProp(0.0f,EdgeType::Mitotic),pedigree_graph);
 		}
 	}
 	// Remove the dummy individual from the graph
-	clear_vertex(pedigree.id(""), pedigree_graph);
+	clear_vertex(num_libraries_+pedigree.id({}), pedigree_graph);
 
-	// Connect Read Groups to Samples
+	// Connect Samples to Libraries
 	for(tie(vi,vi_end) = vertices(pedigree_graph); vi != vi_end; ++vi) {
-
-	}
-
-	for(tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei) {
-		cout << "[" << edge_types[*ei] << "] "
-			<< source(*ei,pedigree_graph) << " -> " << target(*ei,pedigree_graph)
-			<< " " << vertex_labels[target(*ei,pedigree_graph)]
-			<< "\n";
+		if(labels[*vi].empty())
+			continue;
+		auto r = rgs.data().get<rg::sm>().equal_range(labels[*vi]);
+		for(;r.first != r.second;++r.first) {
+			add_edge(*vi,rg::index(rgs.libraries(), r.first->library),
+				dng::graph::EdgeLengthProp(0.0f,EdgeType::Library),pedigree_graph);
+		}
+		labels[*vi].clear();
 	}
 	
 	// Calculate the connected components.  This defines independent sections
@@ -177,9 +181,20 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 	// This defines "nuclear" families and pivot indiviuduals.
 	// Nodes which have no edges will not be part of any family.
 	vector<vertex_t> articulation_vertices;
+	for(tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei) {
+		families[*ei] = -1;
+	}
 	std::size_t num_families = biconnected_components(pedigree_graph, families,
 		back_inserter(articulation_vertices)).first;
-			
+	
+	for(tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei) {
+		cout << "[" << (int)edge_types[*ei] << "] "
+			<< "[" << families[*ei]  << "] "
+			<< source(*ei,pedigree_graph) << " -> " << target(*ei,pedigree_graph)
+			<< " " << labels[target(*ei,pedigree_graph)]
+			<< "\n";
+	}
+	
 	// Determine which edges belong to which nuclear families.
 	typedef vector<vector<graph_traits<Graph>::edge_descriptor>> 
 		family_labels_t;
@@ -223,6 +238,30 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 		roots_.push_back(*vi);
 	}
 
+	for(tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei) {
+		cout << "[" << (int)edge_types[*ei] << "] "
+			<< "[" << families[*ei]  << "] "
+			<< source(*ei,pedigree_graph) << " -> " << target(*ei,pedigree_graph)
+			<< " " << labels[target(*ei,pedigree_graph)]
+			<< "\n";
+	}
+
+	std::copy(articulation_vertices.begin(), articulation_vertices.end(),
+		std::ostream_iterator<vertex_t>(cout,","));
+	cout << endl;
+	std::copy(pivots.begin(), pivots.end(), std::ostream_iterator<vertex_t>(cout,","));
+	cout << endl;
+ 	for(std::size_t k = 0; k < family_labels.size(); ++k) {
+ 		cout << "Family " << k+1 << ":\n";
+ 		for(auto &a : family_labels[k]) {
+			cout << "    [" << (int)edge_types[a] << "] "
+				<< source(a,pedigree_graph) << " -> " << target(a,pedigree_graph)
+				<< " " << labels[target(a,pedigree_graph)]
+				<< "\n";
+ 		}
+ 	}
+
+
   	// Detect Family Structure and pivot positions
   	for(std::size_t k = 0; k < family_labels.size(); ++k) {
   		auto &family_edges = family_labels[k];
@@ -233,9 +272,11 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
   		
   		// Find the range of the parent types
   		auto pos = boost::find_if(family_edges, [&](edge_t x) -> bool { 
-  			return edge_types(x) != 0; });
+  			return (edge_types(x) != EdgeType::Spousal); });
   		size_t num_parent_edges = distance(family_edges.begin(),pos);
   		
+  		cout << num_parent_edges << " " << family_edges.size() << endl;
+
   		// Check to see what type of graph we have
   		if(num_parent_edges == 0) {
   			// If we do not have a parent-child single branch,
@@ -245,12 +286,14 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
   				return false;
   			vertex_t parent = source(*pos, pedigree_graph);
   			vertex_t child = target(*pos, pedigree_graph);
-  			// TODO: What do we do here?
+  			family_members_.push_back({parent,child});
+  			peeling_op_.emplace_back(&Op::PeelToTissue);
   		} else if(num_parent_edges == 1) {
   			// We have a nuclear family with 1 or more children
-  			family_members_.emplace_back();
-  			family_members_.back().push_back(source(family_edges.front(), pedigree_graph)); // Dad
-  			family_members_.back().push_back(target(family_edges.front(), pedigree_graph)); // Mom
+  			family_members_.push_back({
+  				source(family_edges.front(), pedigree_graph), // Dad
+  				target(family_edges.front(), pedigree_graph)  // Mom
+  			});
   			while(pos != family_edges.end()) {
   				family_members_.back().push_back(target(*pos, pedigree_graph)); // Child
   				++pos; ++pos; // child edges come in pairs
@@ -285,6 +328,7 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
   			return false;
   		}
    	}
+
 	return true;
 }
 

@@ -119,8 +119,8 @@ int Call::operator()(Call::argument_type &arg) {
 	genotype::DirichletMultinomialMixture genotype_likelihood(
 			{0.9,0.001,0.001,1.05}, {0.1,0.01,0.01,1.1});
 	
-	std::vector<depth5_t> read_depths(rgs.num_libraries(),{0,0});
-	IndividualBuffer lib_lhs(rgs.num_libraries());
+	std::vector<depth5_t> read_depths(rgs.libraries().size(),{0,0});
+	IndividualBuffer lib_lhs(rgs.libraries().size());
 	
 	const char gts[10][3] = {"AA","AC","AG","AT","CC","CG","CT","GG","GT","TT"};
 	
@@ -151,7 +151,7 @@ int Call::operator()(Call::argument_type &arg) {
 			for(auto &r : data[u]) {
 				if(r.is_missing || r.qual.first[r.pos] < arg.min_basequal)
 					continue;
-				read_depths[rgs.library_index(u)].counts[
+				read_depths[rgs.library_from_id(u)].counts[
 					seq::base_index(r.aln.seq_at(r.pos))] += 1;
 			}
 		}

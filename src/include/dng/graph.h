@@ -41,22 +41,23 @@ BOOST_INSTALL_PROPERTY(vertex, group);
 }
 
 namespace dng { namespace graph {
-typedef boost::property<boost::vertex_group_t, std::size_t> VertexGroup;
-typedef boost::property<boost::vertex_label_t, std::string, VertexGroup> VertexLabel;
-typedef boost::property<boost::edge_family_t, std::size_t> EdgeFamily;
-typedef boost::property<boost::edge_type_t, std::size_t, EdgeFamily> EdgeType;
-typedef boost::property<boost::edge_length_t, float, EdgeType> EdgeLength;
+enum struct EdgeType : std::size_t {
+	Spousal, Meiotic, Mitotic, Library
+};
+
+typedef boost::property<boost::vertex_group_t, std::size_t> VertexGroupProp;
+typedef boost::property<boost::vertex_label_t, std::string, VertexGroupProp> VertexLabelProp;
+typedef boost::property<boost::edge_family_t, std::size_t> EdgeFamilyProp;
+typedef boost::property<boost::edge_type_t, EdgeType, EdgeFamilyProp> EdgeTypeProp;
+typedef boost::property<boost::edge_length_t, float, EdgeTypeProp> EdgeLengthProp;
 typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::bidirectionalS,
-	VertexLabel, EdgeLength> Graph;
+	VertexLabelProp, EdgeLengthProp> Graph;
 }
 
 using graph::Graph;
+using graph::EdgeType;
 typedef boost::graph_traits<Graph>::vertex_descriptor vertex_t;
 typedef boost::graph_traits<Graph>::edge_descriptor edge_t;
-
-enum struct k_edge_type : std::size_t {
-	kSpousal, kMeiotic, kMitotic, kLibrary
-};
 
 }
 

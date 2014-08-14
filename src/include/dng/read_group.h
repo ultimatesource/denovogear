@@ -30,6 +30,12 @@
 #include <boost/range/algorithm_ext/erase.hpp>
 #include <boost/container/flat_set.hpp>
 
+#include <boost/multi_index_container.hpp>
+#include <boost/multi_index/identity.hpp>
+#include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/member.hpp>
+
+
 #include <unordered_set>
 
 namespace dng {
@@ -44,22 +50,34 @@ namespace rg {
 // @RG LB: str->index; index->str;
 // @RG SM: str->index; index->lb_indies;
 
-class ReadGroups {
-public:
+namespace detail {
+	namespace mi = boost::multi_index;
+	using boost::multi_index_container;
+	using mi::indexed_by;
+	using mi::tag;
+	using mi::member;
+	using mi::identity;
+	using mi::ordered_non_unique;
+	using mi::ordered_unique;
+
 	struct rg_t {
 		std::string id;
 		std::string library;
 		std::string sample;
-
-		bool operator<(const rg_t& other) { return id < other.id; }
 	};
-	typedef boost::container::flat_set<std::string> StrSet;
 
 	typedef boost::multi_index_container<rg_t, indexed_by<
-		ordered_unique<tag<rg::id>, identity<rg_t>>,
+		ordered_unique<tag<rg::id>, member<rg_t,std::string,&rg_t::id>>,
 		ordered_non_unique<tag<rg::lb>, member<rg_t,std::string,&rg_t::library>>,
-		ordered_non_unique<member<tag<rg::sm>,rg_t,std::string,&rg_t::sample>>
-		>> db_t;
+		ordered_non_unique<tag<rg::sm>, member<rg_t,std::string,&rg_t::sample>>
+		>> DataBase;
+}
+
+class ReadGroups {
+public:
+	typedef boost::container::flat_set<std::string> StrSet;
+	typedef detail::rg_t ReadGroup;
+	typedef detail::DataBase DataBase;
 
 	ReadGroups() { }
 	
@@ -70,39 +88,33 @@ public:
 
 	template<typename InFiles>
 	void Parse(InFiles &range);
-
-	template<typename Str>
-	std::size_t group_index(const Str& id) const {
-		auto it = groups_.find(id);
-		return (it == groups_.end()) ? -1
-			: static_cast<std::size_t>(it-groups_.begin());
-	}
 	
 	inline const StrSet& groups() const { return groups_; }
-	
-	inline std::size_t library_index(std::size_t x) const {
-		return library_ids_[x];
-	}
-	inline std::size_t sample_index(std::size_t x) const {
-		return sample_ids_[x];
-	}
-	
-	inline std::size_t num_groups() const { return groups_.size(); }
-	inline std::size_t num_libraries() const { return libraries_.size(); }
-	inline std::size_t num_samples() const { return samples_.size(); }
+	inline const StrSet& libraries() const { return libraries_; }
+	inline const StrSet& samples() const { return samples_; }
+	inline const DataBase& data() const { return data_; }
 
-	const db_t& data() const { return data_; }
+	inline std::size_t library_from_id(std::size_t n) const {
+		return library_from_id_[n];
+	}
+
 
 protected:
-	db_t data_;
+	DataBase data_;
 
 	StrSet groups_;
 	StrSet libraries_;
 	StrSet samples_;
 	
-	std::vector<std::size_t> library_ids_;
-	std::vector<std::size_t> sample_ids_;
+	std::vector<std::size_t> library_from_id_;
 };
+
+namespace rg {
+inline std::size_t index(const ReadGroups::StrSet& set, const std::string& query) {
+	auto it = set.find(query);
+	return (it != set.end()) ? static_cast<std::size_t>(it-set.begin()) : -1;
+}
+}
 
 template<typename InFiles>
 void ReadGroups::Parse(InFiles &range) {
@@ -148,7 +160,7 @@ void ReadGroups::Parse(InFiles &range) {
 			if(data_.find(it->second) != data_.end())
 				continue;
 			// library tag
-			rg_t val{it->second};
+			ReadGroup val{it->second};
 			it = tags.find("LB");
 			if(it != tags.end())
 				val.library = std::move(it->second);
@@ -162,33 +174,26 @@ void ReadGroups::Parse(InFiles &range) {
 			data_.insert(std::move(val));
 		}
 	}
-		
+	
 	// construct data vectors
-	groups_.reserve(group_data.size());
-	libraries_.reserve(group_data.size());
-	samples_.reserve(group_data.size());	
-	for(auto &a : group_data) {
-		groups_.insert(a.first);
-		libraries_.insert(a.second.library);
-		samples_.insert(a.second.sample);
+	groups_.reserve(data_.size());
+	libraries_.reserve(data_.size());
+	samples_.reserve(data_.size());	
+	for(auto &a : data_) {
+		groups_.insert(a.id);
+		libraries_.insert(a.library);
+		samples_.insert(a.sample);
 	}
 	
 	// connect groups to libraries and samples	
-	library_ids_.resize(groups_.size(),-1);
-	sample_ids_.resize(libraries_.size(),-1);
-	size_t u=0;
-	for(auto &a : group_data) {
-		auto it = libraries_.find(a.second.library);
-		assert(it != libraries_.end());
-		library_ids_[u] = (it-libraries_.begin());
-		it = samples_.find(a.second.sample);
-		assert(it != samples_.end());
-		sample_ids_[library_ids_[u]] = (it-samples_.begin());
-		++u;
+	library_from_id_.resize(groups_.size());
+	for(auto &a : data_) {
+		library_from_id_[rg::index(groups_,a.id)] = rg::index(libraries_,a.library);
+
 	}
 }
 
-};
+}
 
 #endif
 

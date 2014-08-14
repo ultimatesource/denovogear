@@ -61,7 +61,7 @@ public:
 	
 protected:
 	family_members_t family_members_;
-	std::size_t num_members_;
+	std::size_t num_members_, num_libraries_;
 	std::vector<std::size_t> roots_;
 	
 	IndividualBuffer upper_; // Holds P(Data & G=g)
@@ -70,8 +70,15 @@ protected:
 	Vector10d genotype_prior_; // Holds P(G | theta)
 
 	MeiosisMatrix meiosis_;
+	Matrix10d mitosis_;
 
 	Vector100d buffer_;
+
+	void PeelToTissue(std::size_t id) {
+		using namespace Eigen;
+		auto family_members = family_members_[id];
+		lower_[family_members[0]] *= (mitosis_ * lower_[family_members[1]].matrix()).array();
+	}
 
 	void PeelToFather(std::size_t id) {
 		using namespace Eigen;

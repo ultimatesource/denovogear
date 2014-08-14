@@ -51,7 +51,7 @@ struct make_inode_impl {
 		using namespace boost;
 		auto id = add_vertex(label,g);
 		for(auto a : v)
-			add_edge(id,a.first,dng::graph::EdgeLength(a.second, 2),g);
+			add_edge(id,a.first,dng::graph::EdgeLengthProp(a.second, dng::EdgeType::Mitotic),g);
 		return id;
 	}
 };
@@ -61,7 +61,7 @@ struct make_root_impl {
 	typedef void result_type;
 
 	void operator()(std::pair<node_t,float> a, node_t& r, tree_t &g) const {
-		boost::add_edge(r,a.first,dng::graph::EdgeLength(a.second, dng::kMitotic),g);
+		boost::add_edge(r,a.first,dng::graph::EdgeLengthProp(a.second, dng::EdgeType::Mitotic),g);
 	}
 };
 const phoenix::function<make_root_impl> make_root;
