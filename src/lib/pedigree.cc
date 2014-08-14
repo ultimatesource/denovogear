@@ -138,15 +138,11 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 		vertex_t dad = num_libraries_+pedigree.id(row[2]);
 		vertex_t mom = num_libraries_+pedigree.id(row[3]);
 		auto id = edge(dad, mom, pedigree_graph);
-		if(!id.second) {
-			id = add_edge(dad, mom, pedigree_graph);
-			put(edge_type, pedigree_graph, id.first, EdgeType::Spousal);
-		}
+		if(!id.second)
+			add_edge(dad, mom, EdgeType::Spousal, pedigree_graph);
 		// add the meiotic edges
-		id = add_edge(mom, child, pedigree_graph);
-		put(edge_type, pedigree_graph, id.first, EdgeType::Meiotic);
-		id = add_edge(dad, child, pedigree_graph);
-		put(edge_type, pedigree_graph, id.first, EdgeType::Meiotic);
+		add_edge(mom, child, EdgeType::Meiotic, pedigree_graph);
+		add_edge(dad, child, EdgeType::Meiotic, pedigree_graph);
 
 		// Process newick file
 		int res = newick::parse(row[5], child, pedigree_graph);
@@ -155,7 +151,7 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 				"unable to parse somatic data for individual '" + row[1] + "'." );
 		} else if(res == 0) {
 			vertex_t v = add_vertex(row[1], pedigree_graph);
-			add_edge(child,v,dng::graph::EdgeLengthProp(0.0f,EdgeType::Mitotic),pedigree_graph);
+			add_edge(child,v,EdgeType::Mitotic,pedigree_graph);
 		}
 	}
 	// Remove the dummy individual from the graph
@@ -168,7 +164,7 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 		auto r = rgs.data().get<rg::sm>().equal_range(labels[*vi]);
 		for(;r.first != r.second;++r.first) {
 			add_edge(*vi,rg::index(rgs.libraries(), r.first->library),
-				dng::graph::EdgeLengthProp(0.0f,EdgeType::Library),pedigree_graph);
+				EdgeType::Library,pedigree_graph);
 		}
 		labels[*vi].clear();
 	}
