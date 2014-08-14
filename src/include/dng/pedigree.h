@@ -32,8 +32,6 @@ namespace dng {
 
 class Pedigree {
 public:
-	typedef std::vector<std::vector<std::size_t>> family_members_t;
-
 	bool Initialize(double theta, double mu);
 
 	bool Construct(const io::Pedigree& pedigree, const dng::ReadGroups& rgs);
@@ -50,7 +48,7 @@ public:
 		
 		// Peel pedigree one family at a time
 		for(std::size_t i = 0; i < peeling_op_.size(); ++i)
-			peeling_op_[i](this, i);
+			peeling_op_[i](this, family_members_[i]);
 			
 		// Sum over roots
 		double ret = 0.0;
@@ -63,7 +61,9 @@ public:
 	std::size_t size() const { return num_nodes_; }
 
 protected:
-	family_members_t family_members_;
+	typedef std::vector<size_t> family_members_t;
+
+	std::vector<family_members_t> family_members_;
 	std::size_t num_members_, num_libraries_, num_nodes_;
 	std::vector<std::size_t> roots_;
 	
@@ -77,51 +77,41 @@ protected:
 
 	Vector100d buffer_;
 
-	void PeelUp(std::size_t id) {
-		using namespace Eigen;
-		auto family_members = family_members_[id];
+	void PeelUp(const family_members_t &family_members) {
 		lower_[family_members[0]] *= (mitosis_ * lower_[family_members[1]].matrix()).array();
 	}
 
-	void PeelDown(std::size_t id) {
-		using namespace Eigen;
-		auto family_members = family_members_[id];
+	void PeelDown(const family_members_t &family_members) {
 		upper_[family_members[1]].matrix() = mitosis_.transpose() *
 			(upper_[family_members[0]]*lower_[family_members[0]]).matrix();
 	}
 
 
-	void PeelToFather(std::size_t id) {
-		using namespace Eigen;
-		auto family_members = family_members_[id];
+	void PeelToFather(const family_members_t &family_members) {
 		buffer_.setOnes();
 		// Sum over children
 		for(std::size_t i = 2; i < family_members.size(); i++) {
 			buffer_ *= (meiosis_ * lower_[family_members[i]].matrix()).array();
 		}
 		// Include Mom
-		Map<Matrix10d, Aligned> mat(buffer_.data());
+		Eigen::Map<Matrix10d, Eigen::Aligned> mat(buffer_.data());
 		lower_[family_members[0]] *= (mat *
 			(upper_[family_members[1]]*lower_[family_members[1]]).matrix()).array();
 	}
 
-	void PeelToMother(std::size_t id) {
-		using namespace Eigen;
-		auto family_members = family_members_[id];
+	void PeelToMother(const family_members_t &family_members) {
 		buffer_.setOnes();
 		// Sum over children
 		for(std::size_t i = 2; i < family_members.size(); i++) {
 			buffer_ *= (meiosis_ * lower_[family_members[i]].matrix()).array();
 		}
 		// Include Dad
-		Map<RowMatrix10d, Aligned> mat(buffer_.data());
+		Eigen::Map<RowMatrix10d, Eigen::Aligned> mat(buffer_.data());
 		lower_[family_members[1]] *= (mat *
 			(upper_[family_members[0]]*lower_[family_members[0]]).matrix()).array();
 	}
 
-	void PeelToChild(std::size_t id) {
-		using namespace Eigen;
-		auto family_members = family_members_[id];
+	void PeelToChild(const family_members_t &family_members) {
 		buffer_.setOnes();
 		// Sum over children
 		for(std::size_t i = 3; i < family_members.size(); i++) {
@@ -137,7 +127,6 @@ protected:
 	}
 	typedef Pedigree Op;
 
-	//typedef std::function<void(Pedigree&, std::size_t)> PeelOp;
 	typedef decltype(std::mem_fn(&Pedigree::PeelToFather)) PeelOp;
 
 	std::vector<PeelOp> peeling_op_;	
