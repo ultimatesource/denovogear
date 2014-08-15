@@ -41,9 +41,19 @@ public:
 
 	typedef std::vector<std::vector<std::string>> DataTable;
 	
-	Pedigree() {
-	}
-	
+	enum class Gender : char {
+		Unknown = 0, Male = 1, Female = 2
+	};
+
+	struct Member {
+		std::size_t id;
+		//std::size_t fam;
+		std::size_t dad;
+		std::size_t mom;
+		Gender sex;
+		std::string sample_tree;
+	};
+
 	// Fetch the name of a member of the pedigree
 	const std::string& name(std::size_t id) const {
 		return names_[id];
@@ -62,13 +72,11 @@ public:
 			return std::size_t(0);
 		return names_.project<0>(it) - names_.begin();
 	}
-	
-	// A reference to the data table
-	const DataTable & table() const {
-		return table_;
-	}
-	
-	
+
+	std::vector<std::vector<std::string>> table() const {
+		return {};
+	}	
+		
 	// Parse a string-like object into a pedigree
 	// TODO: maybe we can just keep pointers to the deliminators in memory
 	// TODO: add comment support
@@ -85,42 +93,42 @@ public:
 		char_separator<char> sep("\t", "\n", keep_empty_tokens);
 		tokenizer tokens(text, sep);
 		
-		// reset the pedigree string table
-		table_.reserve(128);
-		table_.resize(1);
-		table_.back().clear();
-		table_.back().reserve(6);
-		
-		// Work through tokens and build vectors for each row
-		for (auto tok_iter = tokens.begin(); tok_iter != tokens.end();
-			++tok_iter) {
-			if(*tok_iter == "\n") {
-				// Resize so that we have six elements
-				table_.back().resize(6,"");
-				// Push new row onto table
-				table_.emplace_back();
-				table_.back().reserve(6);
-			} else {
-				// Add token to the current row
-				table_.back().push_back(*tok_iter);
-			}
-		}
-		table_.back().resize(6,"");
-		
 		// Go through col 1 and pull out child names
 		// Add a dummy 0-th pedigree member to handle
 		// unknown individuals.
 		names_.clear();
 		names_.push_back("");
-		for( auto &row : table_)
-			names_.push_back(row[1]);
 		
+		std::vector<std::string> row(6);
+		std::size_t k = 0;
+		// Work through tokens and build vectors for each row
+		for (auto tok_iter = tokens.begin(); tok_iter != tokens.end(); ++tok_iter) {
+			if(*tok_iter == "\n") {
+				auto ret = names_.push_back(row[1]);
+				if(ret.second) {
+					auto itc = ret.first;
+					auto itf = names_.push_back(row[2]).first;
+					auto itm = names_.push_back(row[3]).first;
+					std::cout << (itc-names_.begin())
+						 << "\t" << (itf-names_.begin())
+						 << "\t" << (itm-names_.begin())
+						 << std::endl;
+				}
+				row.clear();
+				k = 0;
+			} else if(k >= 6) {
+				continue;
+			} else {
+				// Add token to the current row
+				row[k] = *tok_iter;
+				k += 1;
+			}
+		}
 		return true;
 	}
 		
 protected:
 	NameContainer names_;
-	DataTable table_;
 };
 
 }} // namespace dng::io

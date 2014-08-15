@@ -38,9 +38,9 @@ public:
 	
 	double CalculateLogLikelihood() {
 		// Copy genotype Priors
-		// TODO: Only update founders
 		// TODO: use a different prior based on reference
-		upper_.assign(num_nodes_, genotype_prior_);
+		// TODO: only update founders
+		std::fill(upper_.begin(), upper_.begin()+num_members_, genotype_prior_);
 		
 		// Peel pedigree one family at a time
 		for(std::size_t i = 0; i < peeling_op_.size(); ++i)

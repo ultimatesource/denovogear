@@ -146,13 +146,22 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 	sorted_ids[0] = sorted_ped.size();
 
 	// Go through rows and construct the graph
+	vertex_t dummy_index = sorted_ids[pedigree.id({})];
 	for(auto &row : pedigree.table()) {
-		// check to see if mom and dad have been seen before
 		// TODO: check for parent-child inbreeding
 		vertex_t child = sorted_ids[pedigree.id(row[1])];
 		vertex_t dad = sorted_ids[pedigree.id(row[2])];
 		vertex_t mom = sorted_ids[pedigree.id(row[3])];
-		cout << row[1] << ": " << child << endl;
+
+		// Don't half specify parents.
+		// TODO: move this to the pedigree class
+		if(dad == dummy_index && mom != dummy_index) {
+			dad = add_vertex(pedigree_graph);
+		} else if(mom == dummy_index && dad != dummy_index ) {
+			mom = add_vertex(pedigree_graph);
+		}
+
+		// check to see if mom and dad have been seen before
 		auto id = edge(dad, mom, pedigree_graph);
 		if(!id.second)
 			add_edge(dad, mom, EdgeType::Spousal, pedigree_graph);
@@ -171,7 +180,6 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 		}
 	}
 	// Remove the dummy individual from the graph
-	std::size_t dummy_index = sorted_ids[pedigree.id({})];
 	clear_vertex(dummy_index, pedigree_graph);
 
 	// Connect Samples to Libraries
@@ -395,9 +403,23 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
  				cout << "\tr\tlower[" << family_members_[i][1] << "]\n";
  				for(int j=2;j<family_members_[i].size();++j)
 	 				cout << "\tr\tlower[" << family_members_[i][j] << "]\n";
+ 		} else if(peeling_op_[i] == &Op::PeelToFather2) {
+ 				cout << " (PeelToFather2)\n";
+ 				cout << "\trw\tlower[" << family_members_[i][0] << "]\n";
+ 				cout << "\tr\tupper[" << family_members_[i][1] << "]\n";
+ 				cout << "\tr\tlower[" << family_members_[i][1] << "]\n";
+ 				for(int j=2;j<family_members_[i].size();++j)
+	 				cout << "\tr\tlower[" << family_members_[i][j] << "]\n";
  		} else if(peeling_op_[i] == &Op::PeelToMother) {
  				cout << " (PeelToMother)\n";
  				cout << "\tw\tlower[" << family_members_[i][1] << "]\n";
+ 				cout << "\tr\tupper[" << family_members_[i][0] << "]\n";
+ 				cout << "\tr\tlower[" << family_members_[i][0] << "]\n";
+ 				for(int j=2;j<family_members_[i].size();++j)
+	 				cout << "\tr\tlower[" << family_members_[i][j] << "]\n";
+ 		} else if(peeling_op_[i] == &Op::PeelToMother2) {
+ 				cout << " (PeelToMother2)\n";
+ 				cout << "\trw\tlower[" << family_members_[i][1] << "]\n";
  				cout << "\tr\tupper[" << family_members_[i][0] << "]\n";
  				cout << "\tr\tlower[" << family_members_[i][0] << "]\n";
  				for(int j=2;j<family_members_[i].size();++j)
