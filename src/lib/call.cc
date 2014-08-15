@@ -98,7 +98,9 @@ int Call::operator()(Call::argument_type &arg) {
 
 	dng::Pedigree peeler;
 	peeler.Initialize(arg.theta, arg.mu);
-	peeler.Construct(ped,rgs);
+	if(!peeler.Construct(ped,rgs)) {
+		throw std::runtime_error("Unable to construct peeler for pedigree; possible non-zero-loop pedigree.");
+	}
 	
 	dng::MPileup mpileup(rgs.groups());
 
@@ -145,8 +147,6 @@ int Call::operator()(Call::argument_type &arg) {
 		
 		// reset all depth counters
 		read_depths.assign(read_depths.size(),{0,0});
-		//TODO: Get rid of this fill by changing ops???
-		IndividualBuffer lib_likelihoods(peeler.size(),Vector10d::Ones());
 		//fill(lib_likelihoods.begin()/*+read_depths.size()*/,lib_likelihoods.end(),
 		//	Vector10d::Ones());
 		// pileup on read counts
@@ -160,10 +160,10 @@ int Call::operator()(Call::argument_type &arg) {
 			}
 		}
 		for(std::size_t u=0;u<read_depths.size();++u) {
-			lib_likelihoods[u] = genotype_likelihood({read_depths[u].key},ref_index);
+			peeler.lower(u) = genotype_likelihood({read_depths[u].key},ref_index);
 			//cout << "\t" << lib_likelihoods[u];
 		}
-		double d = peeler.CalculateLogLikelihood(lib_likelihoods);
+		double d = peeler.CalculateLogLikelihood();
 		cout << "\t" << exp(d) << endl;
 
 		return;

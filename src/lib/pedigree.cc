@@ -129,13 +129,30 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 	auto groups = get(vertex_group, pedigree_graph);
 	auto families = get(edge_family, pedigree_graph);
 
+	// Sort rows in pedigree, founders first
+	// TODO: Move this ordering to pedigree class
+	vector<pair<size_t,size_t>>
+		sorted_ped(pedigree.table().size(), {2,0});
+	for(size_t k=0;k<pedigree.table().size();++k) {
+		sorted_ped[k].first -= (pedigree.id(pedigree.table()[k][2])==0) ? 1 : 0;
+		sorted_ped[k].first -= (pedigree.id(pedigree.table()[k][3])==0) ? 1 : 0;
+		sorted_ped[k].second = pedigree.id(pedigree.table()[k][1]);
+	}
+	sort(sorted_ped.begin(), sorted_ped.end());
+	vector<size_t> sorted_ids(1+sorted_ped.size());
+	for(size_t k=0;k<sorted_ped.size();++k) {
+		sorted_ids[sorted_ped[k].second] = k;
+	}
+	sorted_ids[0] = sorted_ped.size();
+
 	// Go through rows and construct the graph
 	for(auto &row : pedigree.table()) {
 		// check to see if mom and dad have been seen before
 		// TODO: check for parent-child inbreeding
-		vertex_t child = num_libraries_+pedigree.id(row[1]);
-		vertex_t dad = num_libraries_+pedigree.id(row[2]);
-		vertex_t mom = num_libraries_+pedigree.id(row[3]);
+		vertex_t child = sorted_ids[pedigree.id(row[1])];
+		vertex_t dad = sorted_ids[pedigree.id(row[2])];
+		vertex_t mom = sorted_ids[pedigree.id(row[3])];
+		cout << row[1] << ": " << child << endl;
 		auto id = edge(dad, mom, pedigree_graph);
 		if(!id.second)
 			add_edge(dad, mom, EdgeType::Spousal, pedigree_graph);
@@ -154,7 +171,7 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 		}
 	}
 	// Remove the dummy individual from the graph
-	std::size_t dummy_index = num_libraries_+pedigree.id({});
+	std::size_t dummy_index = sorted_ids[pedigree.id({})];
 	clear_vertex(dummy_index, pedigree_graph);
 
 	// Connect Samples to Libraries
@@ -163,7 +180,7 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 			continue;
 		auto r = rgs.data().get<rg::sm>().equal_range(labels[*vi]);
 		for(;r.first != r.second;++r.first) {
-			add_edge(*vi,rg::index(rgs.libraries(), r.first->library),
+			add_edge(*vi,num_members_+rg::index(rgs.libraries(), r.first->library),
 				EdgeType::Library,pedigree_graph);
 		}
 		labels[*vi].clear();
@@ -216,14 +233,22 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
   		pivots[f] = dummy_index;
   	}
 
+  	/*
 	// Non-dummy singleton groups are root elements.
+	// This has been removed because singleton groups have no data
 	for(tie(vi, vi_end) = vertices(pedigree_graph); vi != vi_end; ++vi) {
 		if(degree(*vi,pedigree_graph) > 0 || *vi == dummy_index)
 			continue;
 		roots_.push_back(*vi);
 	}
+	*/
 
  	num_nodes_ = num_vertices(pedigree_graph);
+ 	upper_.resize(num_nodes_);
+ 	lower_.resize(num_nodes_);
+
+ 	vector<std::size_t> lower_written(num_nodes_,-1);
+
   	// Detect Family Structure and pivot positions
   	for(std::size_t k = 0; k < family_labels.size(); ++k) {
   		auto &family_edges = family_labels[k];
@@ -249,9 +274,19 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
   			family_members_.push_back({parent,child});
   			if(pivots[k] == dummy_index) {
   				roots_.push_back(family_members_.back()[0]);
-  				peeling_op_.emplace_back(&Op::PeelUp);
+  				if(lower_written[parent] != -1)
+  					peeling_op_.emplace_back(&Op::PeelUp2);
+  				else {
+  					lower_written[parent] = k;
+  					peeling_op_.emplace_back(&Op::PeelUp);  					
+  				}
   			} else if(pivots[k] == parent) {
-  				peeling_op_.emplace_back(&Op::PeelUp);
+  				if(lower_written[parent] != -1)
+  					peeling_op_.emplace_back(&Op::PeelUp2);
+  				else {
+  					lower_written[parent] = k;
+  					peeling_op_.emplace_back(&Op::PeelUp);  					
+  				}
   			} else {
   				peeling_op_.emplace_back(&Op::PeelDown);
   			}
@@ -261,32 +296,44 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
   				source(family_edges.front(), pedigree_graph), // Dad
   				target(family_edges.front(), pedigree_graph)  // Mom
   			});
+  			auto& family_members = family_members_.back();
   			while(pos != family_edges.end()) {
-  				family_members_.back().push_back(target(*pos, pedigree_graph)); // Child
+  				family_members.push_back(target(*pos, pedigree_graph)); // Child
   				++pos; ++pos; // child edges come in pairs
   			}
-  			auto pivot_pos = boost::find(family_members_.back(), pivots[k]);
-  			size_t p = distance(family_members_.back().begin(),pivot_pos);
+  			auto pivot_pos = boost::find(family_members, pivots[k]);
+  			size_t p = distance(family_members.begin(),pivot_pos);
   			// A family without a pivot is a root family
   			if(pivots[k] == dummy_index ) {
   				p = 0;
-  				roots_.push_back(family_members_.back()[0]);
+  				roots_.push_back(family_members[0]);
   			} else if(p > 2) {
-  				swap(family_members_.back()[p], family_members_.back()[2]);
+  				swap(family_members[p], family_members[2]);
   				p = 2;
   			}
   			// TODO: Assert that p makes sense
 			
 			switch(p) {
 			case 0:
-				peeling_op_.emplace_back(&Op::PeelToFather);
+				if(lower_written[family_members[0]] != -1) {
+					peeling_op_.emplace_back(&Op::PeelToFather2);	
+				} else {
+					lower_written[family_members[0]] = k;
+					peeling_op_.emplace_back(&Op::PeelToFather);
+				}
 				break;
 			case 1:
-				peeling_op_.emplace_back(&Op::PeelToMother);
+				if(lower_written[family_members[1]] != -1) {
+					peeling_op_.emplace_back(&Op::PeelToMother2);	
+				} else {
+					lower_written[family_members[1]] = k;
+					peeling_op_.emplace_back(&Op::PeelToMother);
+				}
 				break;
 			case 2:
 			default:
-				peeling_op_.emplace_back(&Op::PeelToChild);
+				peeling_op_.emplace_back((family_members.size() == 3) ?
+					&Op::PeelToChild : &Op::PeelToChild2);
 				break;
 			};
   		} else {
@@ -295,6 +342,7 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
   			return false;
   		}
    	}
+
 
 /*
 	for(tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei) {
@@ -319,6 +367,65 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
  		cout << " " << a;
  	cout << endl;
 */
+
+
+ 	cout << "Init Op\n";
+ 	for(int i=0;i<num_libraries_;++i) {
+ 		cout << "\tw\tlower[" << num_members_+i << "]\n"; 
+ 	}
+ 	for(int i=0;i<peeling_op_.size();++i) {
+ 		cout << "Peeling Op " << i+1;
+ 		if(peeling_op_[i] == &Op::PeelUp) {
+ 				cout << " (PeelUp)\n";
+ 				cout << "\tw\tlower[" << family_members_[i][0] << "]\n";
+ 				cout << "\tr\tlower[" << family_members_[i][1] << "]\n";
+ 		} else if(peeling_op_[i] == &Op::PeelUp2) {
+ 				cout << " (PeelUp2)\n";
+ 				cout << "\trw\tlower[" << family_members_[i][0] << "]\n";
+ 				cout << "\tr\tlower[" << family_members_[i][1] << "]\n";
+ 		} else if(peeling_op_[i] == &Op::PeelDown) {
+ 				cout << " (PeelDown)\n";
+ 				cout << "\tw\tupper[" << family_members_[i][1] << "]\n";
+ 				cout << "\tr\tupper[" << family_members_[i][0] << "]\n";
+ 				cout << "\tr\tlower[" << family_members_[i][0] << "]\n";
+ 		} else if(peeling_op_[i] == &Op::PeelToFather) {
+ 				cout << " (PeelToFather)\n";
+ 				cout << "\tw\tlower[" << family_members_[i][0] << "]\n";
+ 				cout << "\tr\tupper[" << family_members_[i][1] << "]\n";
+ 				cout << "\tr\tlower[" << family_members_[i][1] << "]\n";
+ 				for(int j=2;j<family_members_[i].size();++j)
+	 				cout << "\tr\tlower[" << family_members_[i][j] << "]\n";
+ 		} else if(peeling_op_[i] == &Op::PeelToMother) {
+ 				cout << " (PeelToMother)\n";
+ 				cout << "\tw\tlower[" << family_members_[i][1] << "]\n";
+ 				cout << "\tr\tupper[" << family_members_[i][0] << "]\n";
+ 				cout << "\tr\tlower[" << family_members_[i][0] << "]\n";
+ 				for(int j=2;j<family_members_[i].size();++j)
+	 				cout << "\tr\tlower[" << family_members_[i][j] << "]\n";
+ 		} else if(peeling_op_[i] == &Op::PeelToChild) {
+ 				cout << " (PeelToChild)\n";
+ 				cout << "\tw\tupper[" << family_members_[i][2] << "]\n";
+ 				cout << "\tr\tupper[" << family_members_[i][0] << "]\n";
+ 				cout << "\tr\tlower[" << family_members_[i][0] << "]\n";
+ 				cout << "\tr\tupper[" << family_members_[i][1] << "]\n";
+ 				cout << "\tr\tlower[" << family_members_[i][1] << "]\n";
+ 		} else if(peeling_op_[i] == &Op::PeelToChild2) {
+ 				cout << " (PeelToChild2)\n";
+ 				cout << "\tw\tupper[" << family_members_[i][2] << "]\n";
+ 				cout << "\tr\tupper[" << family_members_[i][0] << "]\n";
+ 				cout << "\tr\tlower[" << family_members_[i][0] << "]\n";
+ 				cout << "\tr\tupper[" << family_members_[i][1] << "]\n";
+ 				cout << "\tr\tlower[" << family_members_[i][1] << "]\n";
+ 				for(int j=3;j<family_members_[i].size();++j)
+	 				cout << "\tr\tlower[" << family_members_[i][j] << "]\n";
+  		} else
+ 				cout << " (Unknown)\n";
+ 	}
+	cout << "Root Op\n";
+	for(int i=0;i<roots_.size();++i) {
+		cout << "\tr\tupper[" << roots_[i] << "]\n";
+		cout << "\tr\tlower[" << roots_[i] << "]\n";
+	} 	
 
 	return true;
 }

@@ -36,11 +36,7 @@ public:
 
 	bool Construct(const io::Pedigree& pedigree, const dng::ReadGroups& rgs);
 	
-	double CalculateLogLikelihood(IndividualBuffer penetrances) {
-		// TODO: Assert that length of penetrances is equal to num_members_;
-		// Copy Penetrance values into the lower buffer
-		// TODO: Eliminate this copy????
-		lower_ = std::move(penetrances);
+	double CalculateLogLikelihood() {
 		// Copy genotype Priors
 		// TODO: Only update founders
 		// TODO: use a different prior based on reference
@@ -48,7 +44,8 @@ public:
 		
 		// Peel pedigree one family at a time
 		for(std::size_t i = 0; i < peeling_op_.size(); ++i)
-			peeling_op_[i](this, family_members_[i]);
+			//peeling_op_[i](this, family_members_[i]);
+			(this->*peeling_op_[i])(family_members_[i]);
 			
 		// Sum over roots
 		double ret = 0.0;
@@ -58,6 +55,10 @@ public:
 		return ret;
 	}
 	
+	Vector10d& lower(std::size_t k) {
+		return lower_[num_members_+k];
+	}
+
 	std::size_t size() const { return num_nodes_; }
 
 protected:
@@ -66,10 +67,7 @@ protected:
 	std::vector<family_members_t> family_members_;
 	std::size_t num_members_, num_libraries_, num_nodes_;
 	std::vector<std::size_t> roots_;
-	
-	IndividualBuffer upper_; // Holds P(Data & G=g)
-	IndividualBuffer lower_; // Holds P(Data | G=g)
-	
+		
 	Vector10d genotype_prior_; // Holds P(G | theta)
 
 	MeiosisMatrix meiosis_;
@@ -77,7 +75,14 @@ protected:
 
 	Vector100d buffer_;
 
+	IndividualBuffer upper_; // Holds P(Data & G=g)
+	IndividualBuffer lower_; // Holds P(Data | G=g)
+
 	void PeelUp(const family_members_t &family_members) {
+		lower_[family_members[0]] = (mitosis_ * lower_[family_members[1]].matrix()).array();
+	}
+
+	void PeelUp2(const family_members_t &family_members) {
 		lower_[family_members[0]] *= (mitosis_ * lower_[family_members[1]].matrix()).array();
 	}
 
@@ -88,9 +93,21 @@ protected:
 
 
 	void PeelToFather(const family_members_t &family_members) {
-		buffer_.setOnes();
 		// Sum over children
-		for(std::size_t i = 2; i < family_members.size(); i++) {
+		buffer_ = (meiosis_ * lower_[family_members[2]].matrix()).array();
+		for(std::size_t i = 3; i < family_members.size(); i++) {
+			buffer_ *= (meiosis_ * lower_[family_members[i]].matrix()).array();
+		}
+		// Include Mom
+		Eigen::Map<Matrix10d, Eigen::Aligned> mat(buffer_.data());
+		lower_[family_members[0]] = (mat *
+			(upper_[family_members[1]]*lower_[family_members[1]]).matrix()).array();
+	}
+
+	void PeelToFather2(const family_members_t &family_members) {
+		// Sum over children
+		buffer_ = (meiosis_ * lower_[family_members[2]].matrix()).array();
+		for(std::size_t i = 3; i < family_members.size(); i++) {
 			buffer_ *= (meiosis_ * lower_[family_members[i]].matrix()).array();
 		}
 		// Include Mom
@@ -100,9 +117,21 @@ protected:
 	}
 
 	void PeelToMother(const family_members_t &family_members) {
-		buffer_.setOnes();
 		// Sum over children
-		for(std::size_t i = 2; i < family_members.size(); i++) {
+		buffer_ = (meiosis_ * lower_[family_members[2]].matrix()).array();
+		for(std::size_t i = 3; i < family_members.size(); i++) {
+			buffer_ *= (meiosis_ * lower_[family_members[i]].matrix()).array();
+		}
+		// Include Dad
+		Eigen::Map<RowMatrix10d, Eigen::Aligned> mat(buffer_.data());
+		lower_[family_members[1]] = (mat *
+			(upper_[family_members[0]]*lower_[family_members[0]]).matrix()).array();
+	}
+
+	void PeelToMother2(const family_members_t &family_members) {
+		// Sum over children
+		buffer_ = (meiosis_ * lower_[family_members[2]].matrix()).array();
+		for(std::size_t i = 3; i < family_members.size(); i++) {
 			buffer_ *= (meiosis_ * lower_[family_members[i]].matrix()).array();
 		}
 		// Include Dad
@@ -111,10 +140,22 @@ protected:
 			(upper_[family_members[0]]*lower_[family_members[0]]).matrix()).array();
 	}
 
+
 	void PeelToChild(const family_members_t &family_members) {
-		buffer_.setOnes();
+		assert(family_members.size()==3);
+		// Parents
+		buffer_ = kroneckerProduct(
+			(lower_[family_members[0]] * upper_[family_members[0]]).matrix(),
+			(lower_[family_members[1]] * upper_[family_members[1]]).matrix()
+		).array();
+		
+		upper_[family_members[2]].matrix() = meiosis_.transpose() * buffer_.matrix();
+	}
+	void PeelToChild2(const family_members_t &family_members) {
+		assert(family_members.size()>=4);
+		buffer_ = (meiosis_ * lower_[family_members[3]].matrix()).array();
 		// Sum over children
-		for(std::size_t i = 3; i < family_members.size(); i++) {
+		for(std::size_t i = 4; i < family_members.size(); i++) {
 			buffer_ *= (meiosis_ * lower_[family_members[i]].matrix()).array();
 		}
 		// Parents
@@ -125,9 +166,12 @@ protected:
 		
 		upper_[family_members[2]].matrix() = meiosis_.transpose() * buffer_.matrix();
 	}
+
+
 	typedef Pedigree Op;
 
-	typedef decltype(std::mem_fn(&Pedigree::PeelToFather)) PeelOp;
+	//typedef decltype(std::mem_fn(&Pedigree::PeelUp)) PeelOp;
+	typedef decltype(&Pedigree::PeelUp) PeelOp;
 
 	std::vector<PeelOp> peeling_op_;	
 };
