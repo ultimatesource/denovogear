@@ -48,7 +48,7 @@ using namespace RBD_LIBRARIES;
 #endif
 
 #ifndef VERSION
-#define VERSION "DeNovoGear 0.5.4"
+#define VERSION "DeNovoGear 1.0"
 #endif
 
 int RD_cutoff = 10; // cutoff for the read depth filter
