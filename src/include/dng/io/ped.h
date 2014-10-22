@@ -21,6 +21,7 @@
 #ifndef DNG_IO_PED_H
 #define DNG_IO_PED_H
 
+#include <iostream>
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/identity.hpp>
 #include <boost/multi_index/ordered_index.hpp>
@@ -46,13 +47,15 @@ public:
 	};
 
 	struct Member {
-		std::size_t id;
-		//std::size_t fam;
+		std::size_t fam;
+		std::size_t child;
 		std::size_t dad;
 		std::size_t mom;
 		Gender sex;
 		std::string sample_tree;
 	};
+
+	typedef std::vector<Member> MemberTable;
 
 	// Fetch the name of a member of the pedigree
 	const std::string& name(std::size_t id) const {
@@ -93,28 +96,22 @@ public:
 		char_separator<char> sep("\t", "\n", keep_empty_tokens);
 		tokenizer tokens(text, sep);
 		
-		// Go through col 1 and pull out child names
 		// Add a dummy 0-th pedigree member to handle
 		// unknown individuals.
 		names_.clear();
+		row_ids_.clear();
+		table_.clear()
 		names_.push_back("");
-		
+		row_ids_.push_back(0);
+		table_.push_back({0,0,0,0,Gender::Unknown,""});
+
+		// Buffer to hold tokens
 		std::vector<std::string> row(6);
 		std::size_t k = 0;
 		// Work through tokens and build vectors for each row
 		for (auto tok_iter = tokens.begin(); tok_iter != tokens.end(); ++tok_iter) {
 			if(*tok_iter == "\n") {
-				auto ret = names_.push_back(row[1]);
-				if(ret.second) {
-					auto itc = ret.first;
-					auto itf = names_.push_back(row[2]).first;
-					auto itm = names_.push_back(row[3]).first;
-					std::cout << (itc-names_.begin())
-						 << "\t" << (itf-names_.begin())
-						 << "\t" << (itm-names_.begin())
-						 << std::endl;
-				}
-				row.clear();
+				AddRow(row);
 				k = 0;
 			} else if(k >= 6) {
 				continue;
@@ -124,11 +121,44 @@ public:
 				k += 1;
 			}
 		}
+		// Process last row if needed
+		if(k >= 6)
+			AddRow(row);
+		row_ids_.resize(names_.size(),0);
+
+
+
 		return true;
 	}
 		
 protected:
+	inline bool AddRow(const std::vector<std::string>& row) {
+		auto itc = names_.push_back(row[1]).first; // child
+		size_t id = static_cast<size_t>(itc - names_.begin());
+		// check to see if this child ID has been processed before
+		if(id >= row_ids_.size()) {
+			row_ids_.resize(id+1,0);
+		} else if(row_ids_[id] != 0) {
+			return false;
+		}
+		row_ids_[id] = table_.size();
+
+		auto itf = names_.push_back(row[2]).first; // father
+		auto itm = names_.push_back(row[3]).first; // mother
+		table_.push_back({
+			0,
+			id,
+			static_cast<size_t>(itf - names_.begin()),
+			static_cast<size_t>(itm - names_.begin()),
+			Gender::Unknown,
+			row[5]
+		});
+		return true;
+	}
+
 	NameContainer names_;
+	std::vector<std::size_t> row_ids_; // links child id to table slot
+	MemberTable table_;
 };
 
 }} // namespace dng::io
