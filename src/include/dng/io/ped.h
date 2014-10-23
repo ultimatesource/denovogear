@@ -106,24 +106,25 @@ public:
 		table_.push_back({0,0,0,0,Gender::Unknown,"");
 
 		// Buffer to hold tokens
-		std::vector<std::string> row(6);
+		vector<array<string,6>> string_table(1);
+		string_table.reserve(64);
 		std::size_t k = 0;
 		// Work through tokens and build vectors for each row
 		for (auto tok_iter = tokens.begin(); tok_iter != tokens.end(); ++tok_iter) {
 			if(*tok_iter == "\n") {
-				AddRow(row);
 				k = 0;
+				continue;
 			} else if(k >= 6) {
 				continue;
-			} else {
-				// Add token to the current row
-				row[k] = *tok_iter;
-				k += 1;
+			} else if(k == 0) {
+				string_table.push_back();
 			}
+			// Add token to the current row
+			string_table.back()[k] = *tok_iter;
+			k += 1;
 		}
-		// Process last row if needed
-		if(k >= 6)
-			AddRow(row);
+
+
 		row_ids_.resize(names_.size(),0);
 
 		// Process all parents and rewrite unknown names
@@ -154,7 +155,7 @@ public:
 				mrow.dad = id;
 			}
 		}
-		
+				
 
 		return true;
 	}
