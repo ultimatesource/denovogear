@@ -103,7 +103,7 @@ public:
 		table_.clear()
 		names_.push_back("");
 		row_ids_.push_back(0);
-		table_.push_back({0,0,0,0,Gender::Unknown,""});
+		table_.push_back({0,0,0,0,Gender::Unknown,"");
 
 		// Buffer to hold tokens
 		std::vector<std::string> row(6);
@@ -126,7 +126,35 @@ public:
 			AddRow(row);
 		row_ids_.resize(names_.size(),0);
 
-
+		// Process all parents and rewrite unknown names
+		for(size_t u = 0; u < table_.size(); ++u) {
+			auto & mrow = table_[u];
+			// Point all unknown mom and dad entries to the unknown slot
+			if(row_ids_[mrow.dad] == 0 && mrow.dad != 0)
+				mrow.dad = 0;
+			if(row_ids_[mrow.mom] == 0 && mrow.mom != 0)
+				mrow.mom = 0;
+			// If only one parent specified, create a dummy parent
+			if(mrow.mom == 0 && mrow.dad != 0) {
+				// construct a pseudo mom name using tab, which prevents collisions
+				string mom_name = "dng:mom of\t" + names_[mrow.child];
+				size_t id = names_.size();
+				names_.push_back(mom_name);
+				row_ids_.push_back(table_.size());
+				table_.push_back({mrow.fam,id,0,0,Gender::Female,""});
+				mrow.mom = id;
+			}
+			if(mrow.dad == 0 && mrow.mom != 0) {
+				// construct a pseudo dad name using tab, which prevents collisions
+				string dad_name = "dng:dad of\t" + names_[mrow.child];
+				size_t id = names_.size();
+				names_.push_back(dad_name);
+				row_ids_.push_back(table_.size());
+				table_.push_back({mrow.fam,id,0,0,Gender::Male,""});
+				mrow.dad = id;
+			}
+		}
+		
 
 		return true;
 	}
