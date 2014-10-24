@@ -48,12 +48,14 @@ namespace dng {
 	typedef Eigen::Matrix<double, 100, 100> Matrix100d;
 	
 	typedef Eigen::Matrix<double, 100, 10> MeiosisMatrix;
+	typedef Matrix10d MitosisMatrix;
 
 	typedef std::vector<Vector10d, Eigen::aligned_allocator<Vector10d>> IndividualBuffer;
+	typedef std::vector<MeiosisMatrix, Eigen::aligned_allocator<MeiosisMatrix>> MeiosisMatrixVector;
+	typedef std::vector<Matrix10d, Eigen::aligned_allocator<Matrix10d>> MitosisMatrixVector;
 
 	const int nucleotides[10][2] = {{0,0},{0,1},{0,2},{0,3},
 		{1,1},{1,2},{1,3},{2,2},{2,3},{3,3}};
 };
 
 #endif // DNG_MATRIX_H
-

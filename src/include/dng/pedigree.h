@@ -90,7 +90,6 @@ protected:
 			(upper_[family_members[0]]*lower_[family_members[0]]).matrix();
 	}
 
-
 	void PeelToFather(const family_members_t &family_members) {
 		// Sum over children
 		buffer_ = (meiosis_ * lower_[family_members[2]].matrix()).array();
@@ -139,7 +138,6 @@ protected:
 			(upper_[family_members[0]]*lower_[family_members[0]]).matrix()).array();
 	}
 
-
 	void PeelToChild(const family_members_t &family_members) {
 		assert(family_members.size()==3);
 		// Parents
@@ -165,9 +163,6 @@ protected:
 		
 		upper_[family_members[2]].matrix() = meiosis_.transpose() * buffer_.matrix();
 	}
-
-
-	typedef Pedigree Op;
 
 	//typedef decltype(std::mem_fn(&Pedigree::PeelUp)) PeelOp;
 	typedef decltype(&Pedigree::PeelUp) PeelOp;
