@@ -120,7 +120,7 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 	num_members_ = pedigree.member_count();
 	num_libraries_ = rgs.libraries().size();
 
-	Graph pedigree_graph(num_libraries_+num_members_);
+	Graph pedigree_graph(num_members_+num_libraries_);
 	graph_traits<Graph>::edge_iterator ei, ei_end;
 	graph_traits<Graph>::vertex_iterator vi, vi_end;
 	
@@ -129,37 +129,13 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 	auto groups = get(vertex_group, pedigree_graph);
 	auto families = get(edge_family, pedigree_graph);
 
-	// Sort rows in pedigree, founders first
-	// TODO: Move this ordering to pedigree class
-	vector<pair<size_t,size_t>>
-		sorted_ped(pedigree.table().size(), {2,0});
-	for(size_t k=0;k<pedigree.table().size();++k) {
-		sorted_ped[k].first -= (pedigree.id(pedigree.table()[k][2])==0) ? 1 : 0;
-		sorted_ped[k].first -= (pedigree.id(pedigree.table()[k][3])==0) ? 1 : 0;
-		sorted_ped[k].second = pedigree.id(pedigree.table()[k][1]);
-	}
-	sort(sorted_ped.begin(), sorted_ped.end());
-	vector<size_t> sorted_ids(1+sorted_ped.size());
-	for(size_t k=0;k<sorted_ped.size();++k) {
-		sorted_ids[sorted_ped[k].second] = k;
-	}
-	sorted_ids[0] = sorted_ped.size();
-
 	// Go through rows and construct the graph
-	vertex_t dummy_index = sorted_ids[pedigree.id({})];
+	vertex_t dummy_index = 0;
 	for(auto &row : pedigree.table()) {
 		// TODO: check for parent-child inbreeding
-		vertex_t child = sorted_ids[pedigree.id(row[1])];
-		vertex_t dad = sorted_ids[pedigree.id(row[2])];
-		vertex_t mom = sorted_ids[pedigree.id(row[3])];
-
-		// Don't half specify parents.
-		// TODO: move this to the pedigree class
-		if(dad == dummy_index && mom != dummy_index) {
-			dad = add_vertex(pedigree_graph);
-		} else if(mom == dummy_index && dad != dummy_index ) {
-			mom = add_vertex(pedigree_graph);
-		}
+		vertex_t child = row.child;
+		vertex_t dad = row.dad;
+		vertex_t mom = row.mom;
 
 		// check to see if mom and dad have been seen before
 		auto id = edge(dad, mom, pedigree_graph);
@@ -170,12 +146,12 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 		add_edge(dad, child, EdgeType::Meiotic, pedigree_graph);
 
 		// Process newick file
-		int res = newick::parse(row[5], child, pedigree_graph);
+		int res = newick::parse(row.sample_tree, child, pedigree_graph);
 		if(res == -1) {
 			throw std::runtime_error(
-				"unable to parse somatic data for individual '" + row[1] + "'." );
+				"unable to parse somatic data for individual '" + pedigree.name(row.child) + "'." );
 		} else if(res == 0) {
-			vertex_t v = add_vertex(row[1], pedigree_graph);
+			vertex_t v = add_vertex(pedigree.name(row.child), pedigree_graph);
 			add_edge(child,v,EdgeType::Mitotic,pedigree_graph);
 		}
 	}
@@ -309,7 +285,7 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
   				family_members.push_back(target(*pos, pedigree_graph)); // Child
   				++pos; ++pos; // child edges come in pairs
   			}
-  			auto pivot_pos = boost::find(family_members, pivots[k]);
+  			auto pivot_pos = boost::range::find(family_members, pivots[k]);
   			size_t p = distance(family_members.begin(),pivot_pos);
   			// A family without a pivot is a root family
   			if(pivots[k] == dummy_index ) {
@@ -378,6 +354,9 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 
 
  	cout << "Init Op\n";
+ 	for(int i=0;i<num_members_;++i) {
+ 		cout << "\tw\tupper[" << i << "]\n"; 
+ 	}
  	for(int i=0;i<num_libraries_;++i) {
  		cout << "\tw\tlower[" << num_members_+i << "]\n"; 
  	}

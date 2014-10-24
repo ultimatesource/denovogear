@@ -160,7 +160,7 @@ int Call::operator()(Call::argument_type &arg) {
 			}
 		}
 		for(std::size_t u=0;u<read_depths.size();++u) {
-			peeler.lower(u) = genotype_likelihood({read_depths[u].key},ref_index);
+			peeler.library_lower(u) = genotype_likelihood({read_depths[u].key},ref_index);
 			//cout << "\t" << lib_likelihoods[u];
 		}
 		double d = peeler.CalculateLogLikelihood();

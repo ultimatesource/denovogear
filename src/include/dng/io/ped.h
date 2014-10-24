@@ -22,12 +22,20 @@
 #define DNG_IO_PED_H
 
 #include <iostream>
+#include <vector>
+#include <array>
+#include <deque>
+#include <string>
+#include <map>
+
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/identity.hpp>
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/random_access_index.hpp>
 
 #include <boost/tokenizer.hpp>
+
+#include <dng/utilities.h>
 
 namespace dng { namespace io {
 
@@ -39,8 +47,6 @@ public:
 			boost::multi_index::ordered_unique<
 			boost::multi_index::identity<std::string>>
 		>> NameContainer;
-
-	typedef std::vector<std::vector<std::string>> DataTable;
 	
 	enum class Gender : char {
 		Unknown = 0, Male = 1, Female = 2
@@ -57,13 +63,14 @@ public:
 
 	typedef std::vector<Member> MemberTable;
 
-	// Fetch the name of a member of the pedigree
-	const std::string& name(std::size_t id) const {
-		return names_[id];
-	}
 	// How many members, including the dummy, are in the pedigree.
 	std::size_t member_count() const {
 		return names_.size();
+	}
+
+	// Fetch the name of a member of the pedigree
+	const std::string& name(std::size_t id) const {
+		return names_[id];
 	}
 	
 	// Given the name of an individual return its id.
@@ -76,16 +83,19 @@ public:
 		return names_.project<0>(it) - names_.begin();
 	}
 
-	std::vector<std::vector<std::string>> table() const {
-		return {};
+	const MemberTable& table() const {
+		return table_;
 	}	
 		
 	// Parse a string-like object into a pedigree
+	// Insert additional founders such that every child either is a
+	//     founder or has both parents in the tree.
+	// Sort the indiviuals starting with the founders, and then working
+	//     the way down.
 	// TODO: maybe we can just keep pointers to the deliminators in memory
 	// TODO: add comment support
 	// TODO: warnings for rows that don't have enough elements?
 	// TODO: gender checking
-	// TODO: convert datatable to indexed relationships
 	template<typename Range>
 	bool Parse(const Range &text) {
 		using namespace boost;
@@ -96,17 +106,9 @@ public:
 		char_separator<char> sep("\t", "\n", keep_empty_tokens);
 		tokenizer tokens(text, sep);
 		
-		// Add a dummy 0-th pedigree member to handle
-		// unknown individuals.
-		names_.clear();
-		row_ids_.clear();
-		table_.clear()
-		names_.push_back("");
-		row_ids_.push_back(0);
-		table_.push_back({0,0,0,0,Gender::Unknown,"");
-
 		// Buffer to hold tokens
-		vector<array<string,6>> string_table(1);
+		// Use the 0-slot for unknown individuals
+		vector<std::array<string,6>> string_table(1);
 		string_table.reserve(64);
 		std::size_t k = 0;
 		// Work through tokens and build vectors for each row
@@ -117,76 +119,108 @@ public:
 			} else if(k >= 6) {
 				continue;
 			} else if(k == 0) {
-				string_table.push_back();
+				string_table.emplace_back();
 			}
 			// Add token to the current row
 			string_table.back()[k] = *tok_iter;
 			k += 1;
 		}
+		// Build map of unique child names
+		map<string,size_t> child_names;
+		child_names.emplace("",0);
+		for(k = 1; k < string_table.size();++k) {
+			bool success = child_names.emplace(string_table[k][1],k).second;
+			// If child name is duplicate, erase it
+			if(!success)
+				string_table[k][1].clear();
+		}
+		// Parent->children relationships
+		vector<vector<size_t>> children(string_table.size());
+		for(k = 1; k < string_table.size();++k) {
+			if(string_table[k][1].empty())
+				continue;
+			// If parents are not known, use the 0-slot for them
+			auto dad = child_names.find(string_table[k][2]);
+			auto mom = child_names.find(string_table[k][3]);
+			size_t ndad = (dad == child_names.end()) ? 0 : dad->second;
+			size_t nmom = (mom == child_names.end()) ? 0 : mom->second;
 
-
-		row_ids_.resize(names_.size(),0);
-
-		// Process all parents and rewrite unknown names
-		for(size_t u = 0; u < table_.size(); ++u) {
-			auto & mrow = table_[u];
-			// Point all unknown mom and dad entries to the unknown slot
-			if(row_ids_[mrow.dad] == 0 && mrow.dad != 0)
-				mrow.dad = 0;
-			if(row_ids_[mrow.mom] == 0 && mrow.mom != 0)
-				mrow.mom = 0;
-			// If only one parent specified, create a dummy parent
-			if(mrow.mom == 0 && mrow.dad != 0) {
-				// construct a pseudo mom name using tab, which prevents collisions
-				string mom_name = "dng:mom of\t" + names_[mrow.child];
-				size_t id = names_.size();
-				names_.push_back(mom_name);
-				row_ids_.push_back(table_.size());
-				table_.push_back({mrow.fam,id,0,0,Gender::Female,""});
-				mrow.mom = id;
+			// If one parent is known and the other is unknown, fix it.
+			// Use a \t to ensure no collision
+			if(ndad == 0 && nmom != 0) {
+				string par_name = "\tdng:dad_of_" + string_table[k][1];
+				string_table[k][2] = par_name;
+				ndad = string_table.size();
+				string_table.push_back({string_table[k][0], par_name,
+					{},{},"male",{}});
+				child_names.emplace(par_name,ndad);
+				children.emplace_back();
+			} else if(nmom == 0 && ndad != 0) {
+				string par_name = "\tdng:mom_of_" + string_table[k][1];
+				string_table[k][3] = par_name;
+				nmom = string_table.size();
+				string_table.push_back({string_table[k][0], par_name,
+					{},{},"female",{}});
+				child_names.emplace(par_name,nmom);
+				children.emplace_back();
 			}
-			if(mrow.dad == 0 && mrow.mom != 0) {
-				// construct a pseudo dad name using tab, which prevents collisions
-				string dad_name = "dng:dad of\t" + names_[mrow.child];
-				size_t id = names_.size();
-				names_.push_back(dad_name);
-				row_ids_.push_back(table_.size());
-				table_.push_back({mrow.fam,id,0,0,Gender::Male,""});
-				mrow.dad = id;
+
+			// Push k onto dad and mom
+			children[ndad].push_back(k);
+			children[nmom].push_back(k);
+		}
+		// Add a dummy 0-th pedigree member to handle unknown individuals.
+		// Use a breadth-first search starting at 0 to order pedigree
+		names_.clear();
+		names_.push_back("");
+		vector<char> touched(string_table.size(),0);
+		touched[0] = 2;
+		deque<size_t> visited{0};
+		while(!visited.empty()) {
+			size_t id = visited.front();
+			visited.pop_front();
+			for(auto a : children[id]) {
+				// only add child to list after we have visited both parents
+				if(touched[a] == 0) {
+					touched[a] = 1;
+				} else if(touched[a] == 1) {
+					names_.push_back(string_table[a][1]);
+					visited.push_back(a);
+					touched[a] = 2;
+				}
 			}
 		}
-				
+		// Construct table in the order of names_
+		table_.clear();
+		for(auto && name : names_) {
+			auto nrow = child_names[name];
+			table_.emplace_back(Member{
+				0,
+				id(string_table[nrow][1]),
+				id(string_table[nrow][2]),
+				id(string_table[nrow][3]),
+				ParseGender(string_table[nrow][4]),
+				string_table[nrow][5]
+			});
+		}
 
 		return true;
 	}
 		
 protected:
-	inline bool AddRow(const std::vector<std::string>& row) {
-		auto itc = names_.push_back(row[1]).first; // child
-		size_t id = static_cast<size_t>(itc - names_.begin());
-		// check to see if this child ID has been processed before
-		if(id >= row_ids_.size()) {
-			row_ids_.resize(id+1,0);
-		} else if(row_ids_[id] != 0) {
-			return false;
-		}
-		row_ids_[id] = table_.size();
-
-		auto itf = names_.push_back(row[2]).first; // father
-		auto itm = names_.push_back(row[3]).first; // mother
-		table_.push_back({
-			0,
-			id,
-			static_cast<size_t>(itf - names_.begin()),
-			static_cast<size_t>(itm - names_.begin()),
-			Gender::Unknown,
-			row[5]
-		});
-		return true;
+	static Gender ParseGender(std::string &str) {
+		static std::pair<std::string,Gender> keys[] = {
+			{"0", Gender::Unknown},
+			{"1", Gender::Male},
+			{"2", Gender::Female},
+			{"male", Gender::Male},
+			{"female", Gender::Female},
+			{"unknown", Gender::Unknown}
+		};
+		return dng::util::key_switch_tuple(str, keys, keys[0]).second;
 	}
 
 	NameContainer names_;
-	std::vector<std::size_t> row_ids_; // links child id to table slot
 	MemberTable table_;
 };
 

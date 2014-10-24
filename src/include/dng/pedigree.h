@@ -39,7 +39,6 @@ public:
 	double CalculateLogLikelihood() {
 		// Copy genotype Priors
 		// TODO: use a different prior based on reference
-		// TODO: only update founders
 		std::fill(upper_.begin(), upper_.begin()+num_members_, genotype_prior_);
 		
 		// Peel pedigree one family at a time
@@ -55,7 +54,7 @@ public:
 		return ret;
 	}
 	
-	Vector10d& lower(std::size_t k) {
+	Vector10d& library_lower(std::size_t k) {
 		return lower_[num_members_+k];
 	}
 
