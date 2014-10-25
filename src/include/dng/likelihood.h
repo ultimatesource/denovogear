@@ -41,7 +41,7 @@ public:
 	};
 	
 	Vector10d operator()(depth_t d, int ref_allele) {
-		Vector10d log_ret;
+		Vector10d log_ret{10};
 		int read_count = d.counts[0] + d.counts[1] +
 		                      d.counts[2] + d.counts[3];
 		for(int i=0;i<10;++i) {

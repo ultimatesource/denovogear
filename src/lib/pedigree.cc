@@ -36,6 +36,7 @@ bool dng::Pedigree::Initialize(double theta, double mu) {
 	};
 	// Use a parent-independent mutation model, which produces a
 	// beta-binomial
+	genotype_prior_.resize(10);
 	genotype_prior_ <<
 	        alpha[0]*(1.0+alpha[0])/theta/(1.0+theta), // AA
 	    2.0*alpha[0]*(    alpha[1])/theta/(1.0+theta), // AC
@@ -49,6 +50,7 @@ bool dng::Pedigree::Initialize(double theta, double mu) {
 	        alpha[3]*(1.0+alpha[3])/theta/(1.0+theta); // GG
 			
 	// Construct Mutation Process
+	meiosis_.resize(100,10);
 	double beta = 1.0;
 	for(auto d : nuc_freq)
 		beta -= d*d;
@@ -81,7 +83,7 @@ bool dng::Pedigree::Initialize(double theta, double mu) {
 		}
 	}
 	
-	mitosis_.setIdentity();
+	mitosis_.setIdentity(10,10);
 
 	return true;
 }
@@ -228,8 +230,9 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 	*/
 
  	num_nodes_ = num_vertices(pedigree_graph);
- 	upper_.resize(num_nodes_);
- 	lower_.resize(num_nodes_);
+ 	upper_.assign(num_nodes_, IndividualBuffer::value_type{10});
+ 	lower_.assign(num_nodes_, IndividualBuffer::value_type{10});
+ 	buffer_.resize(100,1);
 
  	vector<std::size_t> lower_written(num_nodes_,-1);
 

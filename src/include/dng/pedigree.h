@@ -97,9 +97,16 @@ protected:
 			buffer_ *= (meiosis_ * lower_[family_members[i]].matrix()).array();
 		}
 		// Include Mom
+#ifdef DNG_USE_DYNAMIC_EIGEN_CLASSES
+		buffer_.resize(10,10);
+		lower_[family_members[0]] = (buffer_.matrix() *
+			(upper_[family_members[1]]*lower_[family_members[1]]).matrix()).array();		
+		buffer_.resize(100,1);
+#else
 		Eigen::Map<Matrix10d, Eigen::Aligned> mat(buffer_.data());
 		lower_[family_members[0]] = (mat *
 			(upper_[family_members[1]]*lower_[family_members[1]]).matrix()).array();
+#endif
 	}
 
 	void PeelToFather2(const family_members_t &family_members) {
@@ -109,9 +116,16 @@ protected:
 			buffer_ *= (meiosis_ * lower_[family_members[i]].matrix()).array();
 		}
 		// Include Mom
+#ifdef DNG_USE_DYNAMIC_EIGEN_CLASSES
+		buffer_.resize(10,10);
+		lower_[family_members[0]] *= (buffer_.matrix() *
+			(upper_[family_members[1]]*lower_[family_members[1]]).matrix()).array();		
+		buffer_.resize(100,1);
+#else
 		Eigen::Map<Matrix10d, Eigen::Aligned> mat(buffer_.data());
 		lower_[family_members[0]] *= (mat *
 			(upper_[family_members[1]]*lower_[family_members[1]]).matrix()).array();
+#endif
 	}
 
 	void PeelToMother(const family_members_t &family_members) {
@@ -121,9 +135,16 @@ protected:
 			buffer_ *= (meiosis_ * lower_[family_members[i]].matrix()).array();
 		}
 		// Include Dad
+#ifdef DNG_USE_DYNAMIC_EIGEN_CLASSES
+		buffer_.resize(10,10);
+		lower_[family_members[0]] = (buffer_.matrix().transpose() *
+			(upper_[family_members[1]]*lower_[family_members[1]]).matrix()).array();		
+		buffer_.resize(100,1);
+#else
 		Eigen::Map<RowMatrix10d, Eigen::Aligned> mat(buffer_.data());
 		lower_[family_members[1]] = (mat *
 			(upper_[family_members[0]]*lower_[family_members[0]]).matrix()).array();
+#endif
 	}
 
 	void PeelToMother2(const family_members_t &family_members) {
@@ -133,9 +154,16 @@ protected:
 			buffer_ *= (meiosis_ * lower_[family_members[i]].matrix()).array();
 		}
 		// Include Dad
+#ifdef DNG_USE_DYNAMIC_EIGEN_CLASSES
+		buffer_.resize(10,10);
+		lower_[family_members[0]] *= (buffer_.matrix().transpose() *
+			(upper_[family_members[1]]*lower_[family_members[1]]).matrix()).array();		
+		buffer_.resize(100,1);
+#else
 		Eigen::Map<RowMatrix10d, Eigen::Aligned> mat(buffer_.data());
 		lower_[family_members[1]] *= (mat *
 			(upper_[family_members[0]]*lower_[family_members[0]]).matrix()).array();
+#endif
 	}
 
 	void PeelToChild(const family_members_t &family_members) {
@@ -166,6 +194,8 @@ protected:
 
 	//typedef decltype(std::mem_fn(&Pedigree::PeelUp)) PeelOp;
 	typedef decltype(&Pedigree::PeelUp) PeelOp;
+
+	typedef Pedigree Op;
 
 	std::vector<PeelOp> peeling_op_;	
 };
