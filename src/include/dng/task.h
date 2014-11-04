@@ -21,6 +21,8 @@
 #ifndef DNG_TASK_H
 #define DNG_TASK_H
 
+#include <vector>
+
 namespace dng {
 
 namespace task {

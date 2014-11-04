@@ -41,29 +41,15 @@ namespace dng {
 		uint16_t counts[8];
 	};
 
-#ifdef DNG_USE_DYNAMIC_EIGEN_CLASSES
-#	define DNG_MATRIX_1_   Eigen::Dynamic
-#	define DNG_MATRIX_10_  Eigen::Dynamic
-#	define DNG_MATRIX_100_ Eigen::Dynamic
-#else
-#	define DNG_MATRIX_1_   1
-#	define DNG_MATRIX_10_  10
-#	define DNG_MATRIX_100_ 100
-#endif
+	typedef Eigen::MatrixXd TransitionMatrix;
+	typedef std::vector<TransitionMatrix> TransitionVector;
+
+	typedef Eigen::ArrayXd GenotypeArray;
+	typedef Eigen::ArrayXXd PairedGenotypeArray;
+	typedef std::vector<GenotypeArray> IndividualBuffer;
 
 
-	typedef Eigen::Array<double, DNG_MATRIX_10_, 1> Vector10d;
-	typedef Eigen::Matrix<double, DNG_MATRIX_10_, DNG_MATRIX_10_> Matrix10d;
-	typedef Eigen::Matrix<double, DNG_MATRIX_10_, DNG_MATRIX_10_, Eigen::RowMajor> RowMatrix10d;
-	typedef Eigen::Array<double, DNG_MATRIX_100_, DNG_MATRIX_1_> Vector100d;
-	typedef Eigen::Matrix<double, DNG_MATRIX_100_, DNG_MATRIX_100_> Matrix100d;
-	
-	typedef Eigen::Matrix<double, DNG_MATRIX_100_, DNG_MATRIX_10_> MeiosisMatrix;
-	typedef Matrix10d MitosisMatrix;
-
-	typedef std::vector<Vector10d, Eigen::aligned_allocator<Vector10d>> IndividualBuffer;
-	typedef std::vector<MeiosisMatrix, Eigen::aligned_allocator<MeiosisMatrix>> MeiosisMatrixVector;
-	typedef std::vector<Matrix10d, Eigen::aligned_allocator<Matrix10d>> MitosisMatrixVector;
+	//typedef std::vector<GenotypeArray, Eigen::aligned_allocator<GenotypeArray>> IndividualBuffer;
 
 	const int nucleotides[10][2] = {{0,0},{0,1},{0,2},{0,3},
 		{1,1},{1,2},{1,3},{2,2},{2,3},{3,3}};

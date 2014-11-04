@@ -164,7 +164,8 @@ int Call::operator()(Call::argument_type &arg) {
 			//cout << "\t" << lib_likelihoods[u];
 		}
 		double d = peeler.CalculateLogLikelihood();
-		cout << "\t" << exp(d) << endl;
+		double p = peeler.CalculateMutProbability();
+		cout << '\t' << d << '\t' << p << endl;
 
 		return;
 	});

@@ -25,6 +25,50 @@
 #include <boost/graph/connected_components.hpp>
 #include <boost/range/algorithm/find.hpp>
 
+dng::TransitionMatrix meiosis_matrix(double mu, double (&nuc_freq)[4], bool bNoMut=false) {
+	// Construct Mutation Process
+	using dng::nucleotides;
+
+	dng::TransitionMatrix ret{100,10};
+	double beta = 1.0;
+	for(auto d : nuc_freq)
+		beta -= d*d;
+	beta = 1.0/beta;
+	beta = exp(-beta*mu);
+
+	Eigen::Matrix4d m;
+	for(int i : {0,1,2,3}) {
+		for(int j : {0,1,2,3}) {
+			m(i,j) = nuc_freq[i]*(1.0-beta);
+		}
+		m(i,i) += beta;
+	}
+	if(bNoMut) {
+		Eigen::Matrix4d b = (m.diagonal()).asDiagonal();
+		m = b;
+	}
+	for(int i = 0; i < 10; ++i) {
+		for(int j = 0; j < 10; ++j) {
+			int p = 10*i+j;
+			for(int k = 0; k < 10; ++k) {
+				ret(p,k) =
+					  ( m(nucleotides[i][0],nucleotides[k][0])
+					  + m(nucleotides[i][1],nucleotides[k][0]))
+				    * ( m(nucleotides[j][0],nucleotides[k][1])
+				      + m(nucleotides[j][1],nucleotides[k][1]))/4.0 ;
+				if(nucleotides[k][0] == nucleotides[k][1])
+					continue;
+				ret(p,k) +=
+					  ( m(nucleotides[i][0],nucleotides[k][1])
+					  + m(nucleotides[i][1],nucleotides[k][1]))
+				    * ( m(nucleotides[j][0],nucleotides[k][0])
+				      + m(nucleotides[j][1],nucleotides[k][0]))/4.0 ;
+			}
+		}
+	}
+	return ret;
+}
+
 bool dng::Pedigree::Initialize(double theta, double mu) {
 	using namespace Eigen;
 	using namespace std;
@@ -48,41 +92,10 @@ bool dng::Pedigree::Initialize(double theta, double mu) {
 	        alpha[2]*(1.0+alpha[2])/theta/(1.0+theta), // GG
 	    2.0*alpha[2]*(    alpha[3])/theta/(1.0+theta), // GT
 	        alpha[3]*(1.0+alpha[3])/theta/(1.0+theta); // GG
-			
-	// Construct Mutation Process
-	meiosis_.resize(100,10);
-	double beta = 1.0;
-	for(auto d : nuc_freq)
-		beta -= d*d;
-	beta = 1.0/beta;
-	beta = exp(-beta*mu);
-	Eigen::Matrix4d m;
-	for(int i : {0,1,2,3}) {
-		for(int j : {0,1,2,3}) {
-			m(i,j) = nuc_freq[i]*(1.0-beta);
-		}
-		m(i,i) += beta;
-	}
-	for(int i = 0; i < 10; ++i) {
-		for(int j = 0; j < 10; ++j) {
-			int p = 10*i+j;
-			for(int k = 0; k < 10; ++k) {
-				meiosis_(p,k) =
-					  ( m(nucleotides[i][0],nucleotides[k][0])
-					  + m(nucleotides[i][1],nucleotides[k][0]))
-				    * ( m(nucleotides[j][0],nucleotides[k][1])
-				      + m(nucleotides[j][1],nucleotides[k][1]))/4.0 ;
-				if(nucleotides[k][0] == nucleotides[k][1])
-					continue;
-				meiosis_(p,k) +=
-					  ( m(nucleotides[i][0],nucleotides[k][1])
-					  + m(nucleotides[i][1],nucleotides[k][1]))
-				    * ( m(nucleotides[j][0],nucleotides[k][0])
-				      + m(nucleotides[j][1],nucleotides[k][0]))/4.0 ;
-			}
-		}
-	}
 	
+	meiosis_ = meiosis_matrix(mu,nuc_freq);
+	meiosis_nomut_ = meiosis_matrix(mu,nuc_freq,true);
+
 	mitosis_.setIdentity(10,10);
 
 	return true;
@@ -233,6 +246,8 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
  	upper_.assign(num_nodes_, IndividualBuffer::value_type{10});
  	lower_.assign(num_nodes_, IndividualBuffer::value_type{10});
  	buffer_.resize(100,1);
+ 	full_transition_matrices_.resize(num_nodes_);
+ 	nomut_transition_matrices_.resize(num_nodes_);
 
  	vector<std::size_t> lower_written(num_nodes_,-1);
 
@@ -259,6 +274,10 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
   			vertex_t parent = source(*pos, pedigree_graph);
   			vertex_t child = target(*pos, pedigree_graph);
   			family_members_.push_back({parent,child});
+
+			full_transition_matrices_[child] = mitosis_;
+			nomut_transition_matrices_[child] = mitosis_;
+
   			if(pivots[k] == dummy_index) {
   				roots_.push_back(family_members_.back()[0]);
   				if(lower_written[parent] != -1)
@@ -285,7 +304,10 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
   			});
   			auto& family_members = family_members_.back();
   			while(pos != family_edges.end()) {
-  				family_members.push_back(target(*pos, pedigree_graph)); // Child
+  				vertex_t child = target(*pos, pedigree_graph);
+	 			full_transition_matrices_[child] = meiosis_;
+				nomut_transition_matrices_[child] = meiosis_nomut_; 				
+  				family_members.push_back(child); // Child
   				++pos; ++pos; // child edges come in pairs
   			}
   			auto pivot_pos = boost::range::find(family_members, pivots[k]);

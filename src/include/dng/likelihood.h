@@ -22,6 +22,7 @@
 
 #include <array>
 #include <cmath>
+#include <memory>
 
 #include <dng/matrix.h>
 
@@ -40,12 +41,12 @@ public:
 		double omega; // bias towards reference when heterozygote is sequenced
 	};
 	
-	Vector10d operator()(depth_t d, int ref_allele) {
-		Vector10d log_ret{10};
+	GenotypeArray operator()(depth_t d, int ref_allele) {
+		GenotypeArray log_ret{10};
 		int read_count = d.counts[0] + d.counts[1] +
 		                      d.counts[2] + d.counts[3];
 		for(int i=0;i<10;++i) {
-			auto &cache = cache_[ref_allele][i];
+			auto &cache = (*cache_)[ref_allele][i];
 			double lh1 = f1_, lh2 = f2_;
 			for(int j : {0,1,2,3} ) {
 				if(d.counts[j] < kCacheSize) {
@@ -54,20 +55,20 @@ public:
 					lh2 += cache[j][2*d.counts[j]+1]; // component 2
 				} else {
 					// if the value is not in the cache, calculate it
-					lh1 += lgamma(alphas_[ref_allele][i][j][0]+d.counts[j])
-							- alphas_[ref_allele][i][j][1];
-					lh2 += lgamma(alphas_[ref_allele][i][j][2]+d.counts[j])
-							- alphas_[ref_allele][i][j][3];
+					lh1 += lgamma((*alphas_)[ref_allele][i][j][0]+d.counts[j])
+							- (*alphas_)[ref_allele][i][j][1];
+					lh2 += lgamma((*alphas_)[ref_allele][i][j][2]+d.counts[j])
+							- (*alphas_)[ref_allele][i][j][3];
 				}
 			}
 			if(read_count < kCacheSize) {
 				lh1 -= cache[4][2*read_count];
 				lh2 -= cache[4][2*read_count+1];
 			} else {
-				lh1 += lgamma(alphas_[ref_allele][i][4][0]+read_count)
-						- alphas_[ref_allele][i][4][1];
-				lh2 += lgamma(alphas_[ref_allele][i][4][2]+read_count)
-						- alphas_[ref_allele][i][4][3];
+				lh1 += lgamma((*alphas_)[ref_allele][i][4][0]+read_count)
+						- (*alphas_)[ref_allele][i][4][1];
+				lh2 += lgamma((*alphas_)[ref_allele][i][4][2]+read_count)
+						- (*alphas_)[ref_allele][i][4][3];
 			}
 			log_ret[i] = (lh2 < lh1) ? lh1+log1p(exp(lh2-lh1)) :
 			                           lh2+log1p(exp(lh1-lh2)) ;
@@ -81,8 +82,11 @@ protected:
 	// NOTE: cache_[a][b][c][d] = sum alpha[a][b][c]+x for x in [0,d/2)
 	// NOTE: alpha_[a][b][c] = {alpha1, lgamma(alpha1), alpha2, lgamma(alpha2)}
 	typedef std::array<double,2*kCacheSize> cache_type;
-	std::array<std::array<std::array<cache_type,5>,10>,5> cache_;
-	std::array<std::array<std::array<std::array<double,4>,5>,10>,5> alphas_;
+	typedef std::array<std::array<std::array<cache_type,5>,10>,5> cache_t;
+	typedef std::array<std::array<std::array<std::array<double,4>,5>,10>,5> alphas_t;
+
+	std::unique_ptr<cache_t> cache_;
+	std::unique_ptr<alphas_t> alphas_;
 	double f1_, f2_; // log(f) and log(1-f)
 };
 

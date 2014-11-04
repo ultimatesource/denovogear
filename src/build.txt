@@ -1,5 +1,5 @@
 valgrind --log-file=val.log ./dng -p ex2.ped -f ~/Projects/sim_family/ref.fasta ~/Projects/sim_family/family.bam
 
-clang++ -g -std=c++11 -o dng dng-call.cc lib/call.cc lib/likelihood.cc lib/newick.cc lib/pedigree.cc -I./include -I/usr/include/eigen3 -I/usr/include/eigen3/unsupported -lboost_program_options -lboost_filesystem -lboost_system -lhts
+clang++ -O0 -g -std=c++11 -o dng dng-call.cc lib/call.cc lib/likelihood.cc lib/newick.cc lib/pedigree.cc -I./include -I/usr/include/eigen3 -I/usr/include/eigen3/unsupported -lboost_program_options -lboost_filesystem -lboost_system -lhts
 
 
