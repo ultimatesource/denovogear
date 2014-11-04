@@ -50,7 +50,7 @@ public:
 			double lh1 = f1_, lh2 = f2_;
 			for(int j : {0,1,2,3} ) {
 				if(d.counts[j] < kCacheSize) {
-					// access coefs that is in the cache
+					// access coefs that are in the cache
 					lh1 += cache[j][2*d.counts[j]];   // component 1
 					lh2 += cache[j][2*d.counts[j]+1]; // component 2
 				} else {
@@ -93,7 +93,7 @@ protected:
 /*
 double DirichletMultinomialLogProbability(double alphas[4], ReadData data) {
 	// TODO: Cache most of the math here
-	// TODO: Does not include the multinomail coefficient
+	// TODO: Does not include the multinomial coefficient
 	int read_count = data.reads[0]+data.reads[1]+data.reads[2]+data.reads[3];
 	double alpha_total = alphas[0]+alphas[1]+alphas[2]+alphas[3];
 	double result = 0.0;
