@@ -41,15 +41,20 @@ namespace dng {
 		uint16_t counts[8];
 	};
 
+#ifdef DNG_USE_FIXED_GENOTYPE_ARRAY
+	typedef Eigen::Array<double,10,1> GenotypeArray;
+	typedef std::vector<GenotypeArray, Eigen::aligned_allocator<GenotypeArray>> IndividualBuffer;
+#else
+	typedef Eigen::ArrayXd GenotypeArray;
+	typedef std::vector<GenotypeArray> IndividualBuffer;
+#endif
+
+#define DNG_INDIVIDUAL_BUFFER_ASSIGN_TYPE IndividualBuffer::value_type{10}
+
 	typedef Eigen::MatrixXd TransitionMatrix;
 	typedef std::vector<TransitionMatrix> TransitionVector;
 
-	typedef Eigen::ArrayXd GenotypeArray;
 	typedef Eigen::ArrayXXd PairedGenotypeArray;
-	typedef std::vector<GenotypeArray> IndividualBuffer;
-
-
-	//typedef std::vector<GenotypeArray, Eigen::aligned_allocator<GenotypeArray>> IndividualBuffer;
 
 	const int nucleotides[10][2] = {{0,0},{0,1},{0,2},{0,3},
 		{1,1},{1,2},{1,3},{2,2},{2,3},{3,3}};

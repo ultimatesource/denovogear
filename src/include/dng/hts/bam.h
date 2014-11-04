@@ -128,7 +128,7 @@ public:
 	File(const char *file, const char *mode, const char *region=nullptr, const char *fasta=nullptr,
 		int min_mapQ = 0, int min_len = 0) : hts::File(file,mode),
 			hdr_(nullptr), iter_(nullptr), min_mapQ_(min_mapQ), min_len_(min_len) {
-		// TODO: handle differnt modes here???
+		// TODO: handle different modes here???
 		// TODO: remove throws or move some of them to base class???
 	    if(!is_open())
 	    	throw std::runtime_error("unable to open file '" + std::string(file) + "'.");

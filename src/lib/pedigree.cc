@@ -243,8 +243,8 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 	*/
 
  	num_nodes_ = num_vertices(pedigree_graph);
- 	upper_.assign(num_nodes_, IndividualBuffer::value_type{10});
- 	lower_.assign(num_nodes_, IndividualBuffer::value_type{10});
+ 	upper_.assign(num_nodes_, DNG_INDIVIDUAL_BUFFER_ASSIGN_TYPE);
+ 	lower_.assign(num_nodes_, DNG_INDIVIDUAL_BUFFER_ASSIGN_TYPE);
  	buffer_.resize(100,1);
  	full_transition_matrices_.resize(num_nodes_);
  	nomut_transition_matrices_.resize(num_nodes_);

@@ -145,7 +145,7 @@ public:
 	void operator()(InFiles &range, Func func);
 		
 	template<typename RG>
-	MPileup(const RG& rg) : read_groups_(rg) {
+	MPileup(const RG& rg) : pool_(16384), read_groups_(rg) {
 		boost::sort(read_groups_);
 	}
 	
