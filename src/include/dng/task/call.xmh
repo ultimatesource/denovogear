@@ -26,8 +26,9 @@
  ***************************************************************************/
 
 //XM((bed), (b), "file containing a list of positions or regions", std::string, "")
-XM((fasta), (f), "faidx indexed reference sequence file", std::string, "") 
+XM((fasta), (f), "faidx indexed reference sequence file", std::string, "")
 XM((min)(qlen), (l), "minimum query length", int, 0)
+XM((min)(prob), (m), "minimum probability for reporting a mutation", double, DL(0.1,"0.1"))
 XM((mu), , "the mutation rate", double, DL(1e-9,"1e-9"))
 XM((ped), (p), "the pedigree file", std::string, "")
 XM((min)(basequal), (q), "minimum base quality", int, 0)

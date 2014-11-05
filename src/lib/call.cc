@@ -119,6 +119,7 @@ int Call::operator()(Call::argument_type &arg) {
 	
 	// quality
 	int min_qual = arg.min_basequal;
+	double min_prob = arg.min_prob;
 	
 	genotype::DirichletMultinomialMixture genotype_likelihood(
 			{0.9,0.001,0.001,1.05}, {0.1,0.01,0.01,1.1});
@@ -142,11 +143,6 @@ int Call::operator()(Call::argument_type &arg) {
 			ref[position] : 'N';
 		int ref_index = seq::char_index(ref_base);
 		
-		cout << h->target_name[target_id]
-		     << '\t' << position+1;
-		
-		cout << '\t' << ref_base;
-
 		// reset all depth counters
 		read_depths.assign(read_depths.size(),{0,0});
 		// pileup on read counts
@@ -167,6 +163,12 @@ int Call::operator()(Call::argument_type &arg) {
 		}
 		double d = peeler.CalculateLogLikelihood()+scale;
 		double p = peeler.CalculateMutProbability();
+		if(p < min_prob)
+			return;
+
+		cout << h->target_name[target_id]
+		     << '\t' << position+1;
+		cout << '\t' << ref_base;
 		cout << '\t' << d << '\t' << p;
 		cout << endl;
 
