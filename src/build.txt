@@ -9,6 +9,6 @@ clang++ -O3 -std=c++11 -o dng-b -DDNG_USE_FIXED_GENOTYPE_ARRAY dng-call.cc lib/c
 
 
 # HERSCHEL
-clang++35 -O3 -ffast-math -std=c++11 -o dng-a -DDNG_USE_FIXED_GENOTYPE_ARRAY dng-call.cc lib/call.cc lib/likelihood.cc lib/newick.cc lib/pedigree.cc -I/usr/local/include/c++/v1/ -I/usr/local/include -I./include -I/home/reed/include -I/home/reed/include/eigen3 -I/home/reed/include/eigen3/unsupported -L/usr/local/lib -L/home/reed/lib -lboost_program_options -lboost_filesystem -lboost_system -lhts -Wl,-rpath -Wl,/home/reed/lib
+clang++35 -O3 -ffast-math -std=c++11 -o dng-a -DNDEBUG -DDNG_USE_FIXED_GENOTYPE_ARRAY dng-call.cc lib/call.cc lib/likelihood.cc lib/newick.cc lib/pedigree.cc -I/usr/local/include/c++/v1/ -I/usr/local/include -I./include -I/home/reed/include -I/home/reed/include/eigen3 -I/home/reed/include/eigen3/unsupported -L/usr/local/lib -L/home/reed/lib -lboost_program_options -lboost_filesystem -lboost_system -lhts -Wl,-rpath -Wl,/home/reed/lib
 
 /usr/bin/time ./dng-a -p ceu.ped -r 10:60000-60100 -f ~/ceu2012/human_g1k_v37.fasta ~/ceu2012/*.bam

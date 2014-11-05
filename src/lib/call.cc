@@ -106,9 +106,9 @@ int Call::operator()(Call::argument_type &arg) {
 
 	
 	cout << "Contig\tPos\tRef\tLL\tPmut";
-	//for(auto a : rgs.libraries()) {
-	//	cout << '\t' << a;
-	//}
+	for(auto a : rgs.libraries()) {
+		cout << '\t' << a;
+	}
 	cout << endl;
 	
 
@@ -159,7 +159,6 @@ int Call::operator()(Call::argument_type &arg) {
 		for(std::size_t u=0;u<read_depths.size();++u) {
 			std::tie(peeler.library_lower(u),stemp) = genotype_likelihood({read_depths[u].key},ref_index);
 			scale += stemp;
-			//cout << "\t" << peeler.library_lower(u).transpose();
 		}
 		double d = peeler.CalculateLogLikelihood()+scale;
 		double p = peeler.CalculateMutProbability();
@@ -170,6 +169,15 @@ int Call::operator()(Call::argument_type &arg) {
 		     << '\t' << position+1;
 		cout << '\t' << ref_base;
 		cout << '\t' << d << '\t' << p;
+
+		for(std::size_t u=0;u<read_depths.size();++u) {
+			cout << '\t' << read_depths[u].counts[0]
+		         << ','  << read_depths[u].counts[1]
+		         << ','  << read_depths[u].counts[2]
+		         << ','  << read_depths[u].counts[3]		         
+		         << "/[" << peeler.library_lower(u).transpose() << ']';
+		}
+
 		cout << endl;
 
 		return;
