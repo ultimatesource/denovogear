@@ -22,6 +22,7 @@
 #define DNG_PEDIGREE_H
 
 #include <functional>
+#include <cmath>
 
 #include <dng/matrix.h>
 #include <dng/io/ped.h>
@@ -61,7 +62,14 @@ public:
 	double CalculateMutProbability() {
 		double bottom = LogPeelAll(full_transition_matrices_);
 		double top = LogPeelAll(nomut_transition_matrices_);
-		return -expm1(top-bottom);
+#ifdef NDEBUG
+		//NOTE: fast math may disable the trick below to avoid negative zero.
+		//      Use abs to work around it.
+		return std::abs(std::expm1(top-bottom));
+#else
+		// Avoid -0, but if something goes wrong still return negative probabilities
+		return 0.0-expm1(top-bottom);
+#endif
 	}	
 
 protected:

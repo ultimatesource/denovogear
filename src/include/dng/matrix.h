@@ -49,7 +49,7 @@ namespace dng {
 	typedef std::vector<GenotypeArray> IndividualBuffer;
 #endif
 
-#define DNG_INDIVIDUAL_BUFFER_ASSIGN_TYPE IndividualBuffer::value_type{10}
+#define DNG_INDIVIDUAL_BUFFER_ASSIGN_TYPE IndividualBuffer::value_type::Ones(10)
 
 	typedef Eigen::MatrixXd TransitionMatrix;
 	typedef std::vector<TransitionMatrix> TransitionVector;

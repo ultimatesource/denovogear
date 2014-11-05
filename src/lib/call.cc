@@ -105,10 +105,10 @@ int Call::operator()(Call::argument_type &arg) {
 	dng::MPileup mpileup(rgs.groups());
 
 	
-	cout << "Contig\tPos\tRef";
-	for(auto a : rgs.libraries()) {
-		cout << '\t' << a;
-	}
+	cout << "Contig\tPos\tRef\tLL\tPmut";
+	//for(auto a : rgs.libraries()) {
+	//	cout << '\t' << a;
+	//}
 	cout << endl;
 	
 
@@ -159,11 +159,13 @@ int Call::operator()(Call::argument_type &arg) {
 					seq::base_index(r.aln.seq_at(r.pos))] += 1;
 			}
 		}
+		double scale = 0.0, stemp;
 		for(std::size_t u=0;u<read_depths.size();++u) {
-			peeler.library_lower(u) = genotype_likelihood({read_depths[u].key},ref_index);
-			cout << "\t" << peeler.library_lower(u).transpose();
+			std::tie(peeler.library_lower(u),stemp) = genotype_likelihood({read_depths[u].key},ref_index);
+			scale += stemp;
+			//cout << "\t" << peeler.library_lower(u).transpose();
 		}
-		double d = peeler.CalculateLogLikelihood();
+		double d = peeler.CalculateLogLikelihood()+scale;
 		double p = peeler.CalculateMutProbability();
 		cout << '\t' << d << '\t' << p;
 		cout << endl;

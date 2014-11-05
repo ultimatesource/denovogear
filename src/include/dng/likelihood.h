@@ -41,7 +41,7 @@ public:
 		double omega; // bias towards reference when heterozygote is sequenced
 	};
 	
-	GenotypeArray operator()(depth_t d, int ref_allele) {
+	std::pair<GenotypeArray,double> operator()(depth_t d, int ref_allele) {
 		GenotypeArray log_ret{10};
 		int read_count = d.counts[0] + d.counts[1] +
 		                      d.counts[2] + d.counts[3];
@@ -73,7 +73,8 @@ public:
 			log_ret[i] = (lh2 < lh1) ? lh1+log1p(exp(lh2-lh1)) :
 			                           lh2+log1p(exp(lh1-lh2)) ;
 		}
-		return (log_ret - log_ret.maxCoeff()).exp();
+		double scale = log_ret.maxCoeff();
+		return std::make_pair((log_ret - scale).exp(),scale);
 	}
 	
 	DirichletMultinomialMixture(params_t model_a, params_t model_b);

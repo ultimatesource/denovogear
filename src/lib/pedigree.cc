@@ -135,9 +135,9 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 	num_members_ = pedigree.member_count();
 	num_libraries_ = rgs.libraries().size();
 
-	for(auto a : rgs.data()) {
-		cerr << a.id << '\t' << a.library << '\t' << a.sample << endl;
-	}
+	//for(auto a : rgs.data()) {
+	//	cerr << a.id << '\t' << a.library << '\t' << a.sample << endl;
+	//}
 
 	Graph pedigree_graph(num_members_+num_libraries_);
 	graph_traits<Graph>::edge_iterator ei, ei_end;
@@ -183,8 +183,9 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 			continue;
 		auto r = rgs.data().get<rg::sm>().equal_range(labels[*vi]);
 		for(;r.first != r.second;++r.first) {
-			add_edge(*vi,num_members_+rg::index(rgs.libraries(), r.first->library),
-				EdgeType::Library,pedigree_graph);
+			vertex_t v = num_members_+rg::index(rgs.libraries(), r.first->library);
+			if(!edge(*vi,v,pedigree_graph).second)
+				add_edge(*vi,v,EdgeType::Library,pedigree_graph);
 		}
 		labels[*vi].clear();
 	}
@@ -246,8 +247,8 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 	}
 	*/
 
-	for(tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei) {
-		cout << "[" << (int)edge_types[*ei] << ","
+/*	for(tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei) {
+		cerr << "[" << (int)edge_types[*ei] << ","
 			<< "" << families[*ei]  << "] "
 			<< source(*ei,pedigree_graph) << " -> " << target(*ei,pedigree_graph)
 			<< " " << labels[target(*ei,pedigree_graph)]
@@ -255,19 +256,19 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 	}
 
  	for(std::size_t k = 0; k < family_labels.size(); ++k) {
- 		cout << "Family " << k+1 << ": " << pivots[k] << "\n";
+ 		cerr << "Family " << k+1 << ": " << pivots[k] << "\n";
  		for(auto &a : family_labels[k]) {
-			cout << "    [" << (int)edge_types[a] << "] "
+			cerr << "    [" << (int)edge_types[a] << "] "
 				<< source(a,pedigree_graph) << " -> " << target(a,pedigree_graph)
 				<< " " << labels[target(a,pedigree_graph)]
 				<< "\n";
  		}
  	}
- 	cout << "Roots:";
+ 	cerr << "Roots:";
  	for(auto a : roots_)
- 		cout << " " << a;
- 	cout << endl;
-
+ 		cerr << " " << a;
+ 	cerr << endl;
+*/
  	num_nodes_ = num_vertices(pedigree_graph);
  	upper_.assign(num_nodes_, DNG_INDIVIDUAL_BUFFER_ASSIGN_TYPE);
  	lower_.assign(num_nodes_, DNG_INDIVIDUAL_BUFFER_ASSIGN_TYPE);
@@ -378,7 +379,8 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
   		}
    	}
 
- 	cerr << "Init Op\n";
+/*	
+	cerr << "Init Op\n";
  	for(int i=0;i<num_members_;++i) {
  		cerr << "\tw\tupper[" << i << "]\n"; 
  	}
@@ -452,7 +454,7 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 		cerr << "\tr\tupper[" << roots_[i] << "]\n";
 		cerr << "\tr\tlower[" << roots_[i] << "]\n";
 	} 	
-
+*/
 	return true;
 }
 
