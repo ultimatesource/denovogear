@@ -104,13 +104,13 @@ int Call::operator()(Call::argument_type &arg) {
 	
 	dng::MPileup mpileup(rgs.groups());
 
-	/*
-	cerr << "Contig\tPos\tRef";
-	for(auto a : rgs.groups()) {
-		cerr << '\t' << a;
+	
+	cout << "Contig\tPos\tRef";
+	for(auto a : rgs.libraries()) {
+		cout << '\t' << a;
 	}
-	cerr << endl;
-	*/
+	cout << endl;
+	
 
 	// information to hold reference
 	char *ref = nullptr;
@@ -143,12 +143,12 @@ int Call::operator()(Call::argument_type &arg) {
 		int ref_index = seq::char_index(ref_base);
 		
 		cout << h->target_name[target_id]
-		     << "\t" << position+1;
+		     << '\t' << position+1;
 		
+		cout << '\t' << ref_base;
+
 		// reset all depth counters
 		read_depths.assign(read_depths.size(),{0,0});
-		//fill(lib_likelihoods.begin()/*+read_depths.size()*/,lib_likelihoods.end(),
-		//	Vector10d::Ones());
 		// pileup on read counts
 		// TODO: handle overflow?
 		for(std::size_t u=0;u<data.size();++u) {
@@ -161,11 +161,12 @@ int Call::operator()(Call::argument_type &arg) {
 		}
 		for(std::size_t u=0;u<read_depths.size();++u) {
 			peeler.library_lower(u) = genotype_likelihood({read_depths[u].key},ref_index);
-			//cout << "\t" << lib_likelihoods[u];
+			cout << "\t" << peeler.library_lower(u).transpose();
 		}
 		double d = peeler.CalculateLogLikelihood();
 		double p = peeler.CalculateMutProbability();
-		cout << '\t' << d << '\t' << p << endl;
+		cout << '\t' << d << '\t' << p;
+		cout << endl;
 
 		return;
 	});

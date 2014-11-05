@@ -135,6 +135,10 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 	num_members_ = pedigree.member_count();
 	num_libraries_ = rgs.libraries().size();
 
+	for(auto a : rgs.data()) {
+		cerr << a.id << '\t' << a.library << '\t' << a.sample << endl;
+	}
+
 	Graph pedigree_graph(num_members_+num_libraries_);
 	graph_traits<Graph>::edge_iterator ei, ei_end;
 	graph_traits<Graph>::vertex_iterator vi, vi_end;
@@ -214,7 +218,7 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 		root_families[groups[src_vertex]] = f;
   	}
   	
-  	// Identitify the pivot for each family.
+  	// Identify the pivot for each family.
   	// The pivot will be the last art. point that has an edge in
   	// the group.  The pivot of the last group doesn't matter.
   	vector<vertex_t> pivots(num_families,dummy_index);
@@ -241,6 +245,28 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 		roots_.push_back(*vi);
 	}
 	*/
+
+	for(tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei) {
+		cout << "[" << (int)edge_types[*ei] << ","
+			<< "" << families[*ei]  << "] "
+			<< source(*ei,pedigree_graph) << " -> " << target(*ei,pedigree_graph)
+			<< " " << labels[target(*ei,pedigree_graph)]
+			<< "\n";
+	}
+
+ 	for(std::size_t k = 0; k < family_labels.size(); ++k) {
+ 		cout << "Family " << k+1 << ": " << pivots[k] << "\n";
+ 		for(auto &a : family_labels[k]) {
+			cout << "    [" << (int)edge_types[a] << "] "
+				<< source(a,pedigree_graph) << " -> " << target(a,pedigree_graph)
+				<< " " << labels[target(a,pedigree_graph)]
+				<< "\n";
+ 		}
+ 	}
+ 	cout << "Roots:";
+ 	for(auto a : roots_)
+ 		cout << " " << a;
+ 	cout << endl;
 
  	num_nodes_ = num_vertices(pedigree_graph);
  	upper_.assign(num_nodes_, DNG_INDIVIDUAL_BUFFER_ASSIGN_TYPE);
@@ -352,105 +378,79 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
   		}
    	}
 
-
-/*
-	for(tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei) {
-		cout << "[" << (int)edge_types[*ei] << ","
-			<< "" << families[*ei]  << "] "
-			<< source(*ei,pedigree_graph) << " -> " << target(*ei,pedigree_graph)
-			<< " " << labels[target(*ei,pedigree_graph)]
-			<< "\n";
-	}
-
- 	for(std::size_t k = 0; k < family_labels.size(); ++k) {
- 		cout << "Family " << k+1 << ": " << pivots[k] << "\n";
- 		for(auto &a : family_labels[k]) {
-			cout << "    [" << (int)edge_types[a] << "] "
-				<< source(a,pedigree_graph) << " -> " << target(a,pedigree_graph)
-				<< " " << labels[target(a,pedigree_graph)]
-				<< "\n";
- 		}
- 	}
- 	cout << "Roots:";
- 	for(auto a : roots_)
- 		cout << " " << a;
- 	cout << endl;
-*/
-
-
- 	cout << "Init Op\n";
+ 	cerr << "Init Op\n";
  	for(int i=0;i<num_members_;++i) {
- 		cout << "\tw\tupper[" << i << "]\n"; 
+ 		cerr << "\tw\tupper[" << i << "]\n"; 
  	}
  	for(int i=0;i<num_libraries_;++i) {
- 		cout << "\tw\tlower[" << num_members_+i << "]\n"; 
+ 		cerr << "\tw\tlower[" << num_members_+i << "]\n"; 
  	}
  	for(int i=0;i<peeling_op_.size();++i) {
- 		cout << "Peeling Op " << i+1;
+ 		cerr << "Peeling Op " << i+1;
  		if(peeling_op_[i] == &Op::PeelUp) {
- 				cout << " (PeelUp)\n";
- 				cout << "\tw\tlower[" << family_members_[i][0] << "]\n";
- 				cout << "\tr\tlower[" << family_members_[i][1] << "]\n";
+ 				cerr << " (PeelUp)\n";
+ 				cerr << "\tw\tlower[" << family_members_[i][0] << "]\n";
+ 				cerr << "\tr\tlower[" << family_members_[i][1] << "]\n";
  		} else if(peeling_op_[i] == &Op::PeelUp2) {
- 				cout << " (PeelUp2)\n";
- 				cout << "\trw\tlower[" << family_members_[i][0] << "]\n";
- 				cout << "\tr\tlower[" << family_members_[i][1] << "]\n";
+ 				cerr << " (PeelUp2)\n";
+ 				cerr << "\trw\tlower[" << family_members_[i][0] << "]\n";
+ 				cerr << "\tr\tlower[" << family_members_[i][1] << "]\n";
  		} else if(peeling_op_[i] == &Op::PeelDown) {
- 				cout << " (PeelDown)\n";
- 				cout << "\tw\tupper[" << family_members_[i][1] << "]\n";
- 				cout << "\tr\tupper[" << family_members_[i][0] << "]\n";
- 				cout << "\tr\tlower[" << family_members_[i][0] << "]\n";
+ 				cerr << " (PeelDown)\n";
+ 				cerr << "\tw\tupper[" << family_members_[i][1] << "]\n";
+ 				cerr << "\tr\tupper[" << family_members_[i][0] << "]\n";
+ 				cerr << "\tr\tlower[" << family_members_[i][0] << "]\n";
  		} else if(peeling_op_[i] == &Op::PeelToFather) {
- 				cout << " (PeelToFather)\n";
- 				cout << "\tw\tlower[" << family_members_[i][0] << "]\n";
- 				cout << "\tr\tupper[" << family_members_[i][1] << "]\n";
- 				cout << "\tr\tlower[" << family_members_[i][1] << "]\n";
+ 				cerr << " (PeelToFather)\n";
+ 				cerr << "\tw\tlower[" << family_members_[i][0] << "]\n";
+ 				cerr << "\tr\tupper[" << family_members_[i][1] << "]\n";
+ 				cerr << "\tr\tlower[" << family_members_[i][1] << "]\n";
  				for(int j=2;j<family_members_[i].size();++j)
-	 				cout << "\tr\tlower[" << family_members_[i][j] << "]\n";
+	 				cerr << "\tr\tlower[" << family_members_[i][j] << "]\n";
  		} else if(peeling_op_[i] == &Op::PeelToFather2) {
- 				cout << " (PeelToFather2)\n";
- 				cout << "\trw\tlower[" << family_members_[i][0] << "]\n";
- 				cout << "\tr\tupper[" << family_members_[i][1] << "]\n";
- 				cout << "\tr\tlower[" << family_members_[i][1] << "]\n";
+ 				cerr << " (PeelToFather2)\n";
+ 				cerr << "\trw\tlower[" << family_members_[i][0] << "]\n";
+ 				cerr << "\tr\tupper[" << family_members_[i][1] << "]\n";
+ 				cerr << "\tr\tlower[" << family_members_[i][1] << "]\n";
  				for(int j=2;j<family_members_[i].size();++j)
-	 				cout << "\tr\tlower[" << family_members_[i][j] << "]\n";
+	 				cerr << "\tr\tlower[" << family_members_[i][j] << "]\n";
  		} else if(peeling_op_[i] == &Op::PeelToMother) {
- 				cout << " (PeelToMother)\n";
- 				cout << "\tw\tlower[" << family_members_[i][1] << "]\n";
- 				cout << "\tr\tupper[" << family_members_[i][0] << "]\n";
- 				cout << "\tr\tlower[" << family_members_[i][0] << "]\n";
+ 				cerr << " (PeelToMother)\n";
+ 				cerr << "\tw\tlower[" << family_members_[i][1] << "]\n";
+ 				cerr << "\tr\tupper[" << family_members_[i][0] << "]\n";
+ 				cerr << "\tr\tlower[" << family_members_[i][0] << "]\n";
  				for(int j=2;j<family_members_[i].size();++j)
-	 				cout << "\tr\tlower[" << family_members_[i][j] << "]\n";
+	 				cerr << "\tr\tlower[" << family_members_[i][j] << "]\n";
  		} else if(peeling_op_[i] == &Op::PeelToMother2) {
- 				cout << " (PeelToMother2)\n";
- 				cout << "\trw\tlower[" << family_members_[i][1] << "]\n";
- 				cout << "\tr\tupper[" << family_members_[i][0] << "]\n";
- 				cout << "\tr\tlower[" << family_members_[i][0] << "]\n";
+ 				cerr << " (PeelToMother2)\n";
+ 				cerr << "\trw\tlower[" << family_members_[i][1] << "]\n";
+ 				cerr << "\tr\tupper[" << family_members_[i][0] << "]\n";
+ 				cerr << "\tr\tlower[" << family_members_[i][0] << "]\n";
  				for(int j=2;j<family_members_[i].size();++j)
-	 				cout << "\tr\tlower[" << family_members_[i][j] << "]\n";
+	 				cerr << "\tr\tlower[" << family_members_[i][j] << "]\n";
  		} else if(peeling_op_[i] == &Op::PeelToChild) {
- 				cout << " (PeelToChild)\n";
- 				cout << "\tw\tupper[" << family_members_[i][2] << "]\n";
- 				cout << "\tr\tupper[" << family_members_[i][0] << "]\n";
- 				cout << "\tr\tlower[" << family_members_[i][0] << "]\n";
- 				cout << "\tr\tupper[" << family_members_[i][1] << "]\n";
- 				cout << "\tr\tlower[" << family_members_[i][1] << "]\n";
+ 				cerr << " (PeelToChild)\n";
+ 				cerr << "\tw\tupper[" << family_members_[i][2] << "]\n";
+ 				cerr << "\tr\tupper[" << family_members_[i][0] << "]\n";
+ 				cerr << "\tr\tlower[" << family_members_[i][0] << "]\n";
+ 				cerr << "\tr\tupper[" << family_members_[i][1] << "]\n";
+ 				cerr << "\tr\tlower[" << family_members_[i][1] << "]\n";
  		} else if(peeling_op_[i] == &Op::PeelToChild2) {
- 				cout << " (PeelToChild2)\n";
- 				cout << "\tw\tupper[" << family_members_[i][2] << "]\n";
- 				cout << "\tr\tupper[" << family_members_[i][0] << "]\n";
- 				cout << "\tr\tlower[" << family_members_[i][0] << "]\n";
- 				cout << "\tr\tupper[" << family_members_[i][1] << "]\n";
- 				cout << "\tr\tlower[" << family_members_[i][1] << "]\n";
+ 				cerr << " (PeelToChild2)\n";
+ 				cerr << "\tw\tupper[" << family_members_[i][2] << "]\n";
+ 				cerr << "\tr\tupper[" << family_members_[i][0] << "]\n";
+ 				cerr << "\tr\tlower[" << family_members_[i][0] << "]\n";
+ 				cerr << "\tr\tupper[" << family_members_[i][1] << "]\n";
+ 				cerr << "\tr\tlower[" << family_members_[i][1] << "]\n";
  				for(int j=3;j<family_members_[i].size();++j)
-	 				cout << "\tr\tlower[" << family_members_[i][j] << "]\n";
+	 				cerr << "\tr\tlower[" << family_members_[i][j] << "]\n";
   		} else
- 				cout << " (Unknown)\n";
+ 				cerr << " (Unknown)\n";
  	}
-	cout << "Root Op\n";
+	cerr << "Root Op\n";
 	for(int i=0;i<roots_.size();++i) {
-		cout << "\tr\tupper[" << roots_[i] << "]\n";
-		cout << "\tr\tlower[" << roots_[i] << "]\n";
+		cerr << "\tr\tupper[" << roots_[i] << "]\n";
+		cerr << "\tr\tlower[" << roots_[i] << "]\n";
 	} 	
 
 	return true;
