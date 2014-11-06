@@ -148,10 +148,11 @@ public:
 	    }
 	}
 	File(File&& other) : hts::File(std::move(other)), hdr_(other.hdr_),
-		iter_(other.iter_)
+		iter_(other.iter_), min_mapQ_(other.min_mapQ_), min_len_(other.min_len_)
 	{
 		other.hdr_ = nullptr;
-		other.iter_ = nullptr;		
+		other.iter_ = nullptr;
+
 	}
 	File(const File&) = delete;
 	
@@ -171,6 +172,9 @@ public:
 		hdr_ = other.hdr_;
 		other.hdr_ = nullptr;
 
+		min_mapQ_ = other.min_mapQ_;
+		min_len_  = other.min_len_;
+
 		return *this;
 	}
 	File& operator=(const File&) = delete;
@@ -187,7 +191,7 @@ public:
 		    if (a.map_qual() < min_mapQ_)
 		    	continue;
 		    // TODO: Move this to the outer loop?
-		    if (min_len_) {
+		    if (min_len_ > 0) {
 		    	auto p = a.cigar();
 		    	if(bam_cigar2qlen(p.second-p.first, p.first) < min_len_)
 		    		continue;

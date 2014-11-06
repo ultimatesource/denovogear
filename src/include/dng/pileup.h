@@ -187,6 +187,7 @@ void MPileup::operator()(InFiles &range, Func func) {
 	uint64_t fast_forward_loc = 0;
 	
 	// if we have no read_groups specified, use each file as a single group
+	// TODO: check this
 	if(data.empty()) {
 		data.resize(scanners.size());
 	}
@@ -242,7 +243,6 @@ int MPileup::Advance(Scanners &range, data_type &data, uint64_t &target_loc,
 	}
 	if(fast_forward)
 		target_loc = fast_forward_loc;
-		
 	if(target_loc >= fast_forward_loc) {
 		uint64_t next_loc = numeric_limits<uint64_t>::max();
 		std::size_t k = 0;

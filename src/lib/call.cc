@@ -175,7 +175,8 @@ int Call::operator()(Call::argument_type &arg) {
 		         << ','  << read_depths[u].counts[1]
 		         << ','  << read_depths[u].counts[2]
 		         << ','  << read_depths[u].counts[3]		         
-		         << "/[" << peeler.library_lower(u).transpose() << ']';
+		         //<< "/[" << peeler.library_lower(u).transpose() << ']';
+		         ;
 		}
 
 		cout << endl;
