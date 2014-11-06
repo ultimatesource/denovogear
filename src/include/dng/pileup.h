@@ -145,7 +145,7 @@ public:
 	void operator()(InFiles &range, Func func);
 		
 	template<typename RG>
-	MPileup(const RG& rg) : pool_(16384), read_groups_(rg) {
+	MPileup(const RG& rg) : pool_(4048), read_groups_(rg) {
 		boost::sort(read_groups_);
 	}
 	
@@ -230,7 +230,10 @@ int MPileup::Advance(Scanners &range, data_type &data, uint64_t &target_loc,
 		auto it = d.begin();
 		while(it != d.end()) {
 			if(it->end <= target_loc) {
-				d.erase(it++);
+				// TODO: disposer should not throw
+				d.erase_and_dispose(it++,[this](node_type *p) {
+					this->pool_.Free(*p);
+				});
 				continue;
 			}
 			uint64_t q = cigar::target_to_query(target_loc,it->beg,it->cigar);

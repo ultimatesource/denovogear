@@ -44,7 +44,8 @@ public:
 	
 	IntrusivePool(std::size_t sz=1024, std::size_t maxsz
 		= std::numeric_limits<std::size_t>::max()) : 
-		block_size_(sz/2), half_max_block_size_(maxsz/2)
+		block_size_(sz/2), half_max_block_size_(maxsz/2),
+		count_(0)
 	{
 		if(block_size_ == 0)
 			block_size_ = 1;
@@ -54,6 +55,7 @@ public:
 	}
 	
 	node_type& Malloc() {
+		//std::cerr << "Malloc " << ++count_ << std::endl;
 		// Check the inactive list first
 		if(!inactive_.empty()) {
 			node_type& n = inactive_.front();
@@ -72,6 +74,7 @@ public:
 	void Free(node_type& n) {
 		// Put the node on the list of free elements
 		inactive_.push_front(n);
+		//std::cerr << "Free " << count_-- << std::endl;
 	}
 	
 	virtual ~IntrusivePool() {
@@ -99,6 +102,8 @@ protected:
 	std::size_t block_size_;
 	std::size_t half_max_block_size_;
 	
+	std::size_t count_;	
+
 	list_type inactive_;
 	
 private:
