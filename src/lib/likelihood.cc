@@ -23,7 +23,7 @@
 
 dng::genotype::DirichletMultinomialMixture
 ::DirichletMultinomialMixture(params_t model_a, params_t model_b) :
-	cache_(new cache_t), alphas_(new alphas_t)
+	cache_(5), alphas_(5)
 {
 	double a,u,e,m,h;
 	
@@ -50,8 +50,8 @@ dng::genotype::DirichletMultinomialMixture
 			tmp[4] = tmp[0] + tmp[1] + tmp[2] + tmp[3];
 			double aa = a/tmp[4];
 			for(int x=0;x<5;++x) {
-				(*alphas_)[r][g][x][0] = aa*tmp[x];
-				(*alphas_)[r][g][x][1] = lgamma(aa*tmp[x]);
+				alphas_[r][g][x][0] = aa*tmp[x];
+				alphas_[r][g][x][1] = lgamma(aa*tmp[x]);
 			}
 		}
 	}
@@ -76,8 +76,8 @@ dng::genotype::DirichletMultinomialMixture
 			tmp[4] = tmp[0] + tmp[1] + tmp[2] + tmp[3];
 			double aa = a/tmp[4];
 			for(int x=0;x<5;++x) {
-				(*alphas_)[r][g][x][2] = aa*tmp[x];
-				(*alphas_)[r][g][x][3] = lgamma(aa*tmp[x]);
+				alphas_[r][g][x][2] = aa*tmp[x];
+				alphas_[r][g][x][3] = lgamma(aa*tmp[x]);
 			}
 		}
 	}
@@ -88,13 +88,12 @@ dng::genotype::DirichletMultinomialMixture
 			for(int x=0;x<5;++x) {
 				double t1 = 0.0, t2 = 0.0;
 				for(int k=0;k<kCacheSize;++k) {
-					(*cache_)[r][g][x][2*k] = t1;
-					(*cache_)[r][g][x][2*k+1] = t2;
-					t1 += log((*alphas_)[r][g][x][0]+k);
-					t2 += log((*alphas_)[r][g][x][2]+k);
+					cache_[r][g][x][2*k] = t1;
+					cache_[r][g][x][2*k+1] = t2;
+					t1 += log(alphas_[r][g][x][0]+k);
+					t2 += log(alphas_[r][g][x][2]+k);
 				}
 			}
 		}
 	}
 }
-
