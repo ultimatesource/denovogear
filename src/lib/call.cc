@@ -97,21 +97,19 @@ int Call::operator()(Call::argument_type &arg) {
 	dng::ReadGroups rgs(indata);
 
 	dng::Pedigree peeler;
-	peeler.Initialize({arg.theta, arg.mu, 10.0, {0.2,0.3,0.3,0.2}});
+	peeler.Initialize({arg.theta, arg.mu, arg.ref_weight, {0.2,0.3,0.3,0.2}});
 	if(!peeler.Construct(ped,rgs)) {
 		throw std::runtime_error("Unable to construct peeler for pedigree; possible non-zero-loop pedigree.");
 	}
 	
 	dng::MPileup mpileup(rgs.groups());
 
-	
 	cout << "Contig\tPos\tRef\tLL\tPmut";
 	for(auto a : rgs.libraries()) {
 		cout << '\t' << a;
 	}
 	cout << endl;
 	
-
 	// information to hold reference
 	char *ref = nullptr;
 	int ref_sz = 0;
