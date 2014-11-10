@@ -97,7 +97,7 @@ int Call::operator()(Call::argument_type &arg) {
 	dng::ReadGroups rgs(indata);
 
 	dng::Pedigree peeler;
-	peeler.Initialize(arg.theta, arg.mu);
+	peeler.Initialize({arg.theta, arg.mu, 10.0, {0.2,0.3,0.3,0.2}});
 	if(!peeler.Construct(ped,rgs)) {
 		throw std::runtime_error("Unable to construct peeler for pedigree; possible non-zero-loop pedigree.");
 	}
@@ -142,7 +142,7 @@ int Call::operator()(Call::argument_type &arg) {
 		char ref_base = (ref && 0 <= position && position < ref_sz) ?
 			ref[position] : 'N';
 		int ref_index = seq::char_index(ref_base);
-		
+
 		// reset all depth counters
 		read_depths.assign(read_depths.size(),{0,0});
 		// pileup on read counts
@@ -160,8 +160,8 @@ int Call::operator()(Call::argument_type &arg) {
 			std::tie(peeler.library_lower(u),stemp) = genotype_likelihood({read_depths[u].key},ref_index);
 			scale += stemp;
 		}
-		double d = peeler.CalculateLogLikelihood()+scale;
-		double p = peeler.CalculateMutProbability();
+		double d = peeler.CalculateLogLikelihood(ref_index)+scale;
+		double p = peeler.CalculateMutProbability(ref_index);
 		if(p < min_prob)
 			return;
 

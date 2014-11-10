@@ -25,7 +25,10 @@
 #include <boost/graph/connected_components.hpp>
 #include <boost/range/algorithm/find.hpp>
 
-dng::TransitionMatrix meiosis_matrix(double mu, double (&nuc_freq)[4], bool bNoMut=false) {
+
+// TODO: separate mother/father sub matrices
+// TODO: mitosis matrix function
+dng::TransitionMatrix meiosis_matrix(double mu, std::array<double,4> nuc_freq, bool bNoMut=false) {
 	// Construct Mutation Process
 	using dng::nucleotides;
 
@@ -69,32 +72,48 @@ dng::TransitionMatrix meiosis_matrix(double mu, double (&nuc_freq)[4], bool bNoM
 	return ret;
 }
 
-bool dng::Pedigree::Initialize(double theta, double mu) {
+dng::GenotypeArray population_prior(double theta, std::array<double,4> nuc_freq, std::array<double,4> prior) {
+	dng::GenotypeArray ret{10};
+	double alpha[4] = {
+		theta*nuc_freq[0]+prior[0], theta*nuc_freq[1]+prior[1],
+		theta*nuc_freq[2]+prior[2], theta*nuc_freq[3]+prior[3]
+	};
+	double alpha_sum = alpha[0]+alpha[1]+alpha[2]+alpha[3];
+	ret <<
+	        alpha[0]*(1.0+alpha[0])/alpha_sum/(1.0+alpha_sum), // AA
+	    2.0*alpha[0]*(    alpha[1])/alpha_sum/(1.0+alpha_sum), // AC
+	    2.0*alpha[0]*(    alpha[2])/alpha_sum/(1.0+alpha_sum), // AG
+	    2.0*alpha[0]*(    alpha[3])/alpha_sum/(1.0+alpha_sum), // AT
+	        alpha[1]*(1.0+alpha[1])/alpha_sum/(1.0+alpha_sum), // CC
+	    2.0*alpha[1]*(    alpha[2])/alpha_sum/(1.0+alpha_sum), // CG
+	    2.0*alpha[1]*(    alpha[3])/alpha_sum/(1.0+alpha_sum), // CT
+	        alpha[2]*(1.0+alpha[2])/alpha_sum/(1.0+alpha_sum), // GG
+	    2.0*alpha[2]*(    alpha[3])/alpha_sum/(1.0+alpha_sum), // GT
+	        alpha[3]*(1.0+alpha[3])/alpha_sum/(1.0+alpha_sum); // GG
+    return ret;
+}
+
+
+bool dng::Pedigree::Initialize(params_t p) {
 	using namespace Eigen;
 	using namespace std;
+	// TODO: Validate params_t p or return false???
+
 	// Construct Genotype Prior
-	double nuc_freq[4] = { 0.25, 0.25, 0.25, 0.25 };
 	double alpha[4] = {
-		theta*nuc_freq[0], theta*nuc_freq[1],
-		theta*nuc_freq[2], theta*nuc_freq[3]
+		p.theta*p.nuc_freq[0], p.theta*p.nuc_freq[1],
+		p.theta*p.nuc_freq[2], p.theta*p.nuc_freq[3]
 	};
 	// Use a parent-independent mutation model, which produces a
 	// beta-binomial
-	genotype_prior_.resize(10);
-	genotype_prior_ <<
-	        alpha[0]*(1.0+alpha[0])/theta/(1.0+theta), // AA
-	    2.0*alpha[0]*(    alpha[1])/theta/(1.0+theta), // AC
-	    2.0*alpha[0]*(    alpha[2])/theta/(1.0+theta), // AG
-	    2.0*alpha[0]*(    alpha[3])/theta/(1.0+theta), // AT
-	        alpha[1]*(1.0+alpha[1])/theta/(1.0+theta), // CC
-	    2.0*alpha[1]*(    alpha[2])/theta/(1.0+theta), // CG
-	    2.0*alpha[1]*(    alpha[3])/theta/(1.0+theta), // CT
-	        alpha[2]*(1.0+alpha[2])/theta/(1.0+theta), // GG
-	    2.0*alpha[2]*(    alpha[3])/theta/(1.0+theta), // GT
-	        alpha[3]*(1.0+alpha[3])/theta/(1.0+theta); // GG
+	genotype_prior_[0] = population_prior(p.theta, p.nuc_freq, {p.ref_weight,0,0,0});
+	genotype_prior_[1] = population_prior(p.theta, p.nuc_freq, {0,p.ref_weight,0,0});
+	genotype_prior_[2] = population_prior(p.theta, p.nuc_freq, {0,0,p.ref_weight,0});
+	genotype_prior_[3] = population_prior(p.theta, p.nuc_freq, {0,0,0,p.ref_weight});
+	genotype_prior_[4] = population_prior(p.theta, p.nuc_freq, {0,0,0,0});
 	
-	meiosis_ = meiosis_matrix(mu,nuc_freq);
-	meiosis_nomut_ = meiosis_matrix(mu,nuc_freq,true);
+	meiosis_ = meiosis_matrix(p.mu,p.nuc_freq);
+	meiosis_nomut_ = meiosis_matrix(p.mu,p.nuc_freq,true);
 
 	mitosis_.setIdentity(10,10);
 

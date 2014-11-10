@@ -23,6 +23,7 @@
 
 #include <functional>
 #include <cmath>
+#include <array>
 
 #include <dng/matrix.h>
 #include <dng/io/ped.h>
@@ -33,14 +34,23 @@ namespace dng {
 
 class Pedigree {
 public:
-	bool Initialize(double theta, double mu);
+	struct params_t {
+		//params_t() : theta{0.001}, mu{1e-9}, ref_weight{0.0}, nuc_freq{0.25,0.25,0.25,0.25}
+		//	{ }
+		double theta;
+		double mu;
+		double ref_weight;
+		std::array<double,4> nuc_freq;
+	};
+
+	bool Initialize(params_t p);
 
 	bool Construct(const io::Pedigree& pedigree, const dng::ReadGroups& rgs);
 
-	double LogPeelAll(const TransitionVector &mat) {
+	double LogPeelAll(const TransitionVector &mat, int ref) {
 		// Copy genotype Priors
 		// TODO: use a different prior based on reference
-		std::fill(upper_.begin(), upper_.begin()+num_members_, genotype_prior_);
+		std::fill(upper_.begin(), upper_.begin()+num_members_, genotype_prior_[ref]);
 		
 		// Peel pedigree one family at a time
 		for(std::size_t i = 0; i < peeling_op_.size(); ++i)
@@ -55,20 +65,20 @@ public:
 		return ret;
 	}
 
-	double CalculateLogLikelihood() {
-		return LogPeelAll(full_transition_matrices_);
+	double CalculateLogLikelihood(int ref) {
+		return LogPeelAll(full_transition_matrices_,ref);
 	}
 	
-	double CalculateMutProbability() {
-		double bottom = LogPeelAll(full_transition_matrices_);
-		double top = LogPeelAll(nomut_transition_matrices_);
+	double CalculateMutProbability(int ref) {
+		double bottom = LogPeelAll(full_transition_matrices_,ref);
+		double top = LogPeelAll(nomut_transition_matrices_,ref);
 #ifdef NDEBUG
 		//NOTE: fast math may disable the trick below to avoid negative zero.
 		//      Use abs to work around it.
 		return std::abs(std::expm1(top-bottom));
 #else
 		// Avoid -0, but if something goes wrong still return negative probabilities
-		return 0.0-expm1(top-bottom);
+		return 0.0-std::expm1(top-bottom);
 #endif
 	}	
 
@@ -85,13 +95,13 @@ protected:
 	TransitionVector full_transition_matrices_;
 	TransitionVector nomut_transition_matrices_;
 
-	GenotypeArray genotype_prior_; // Holds P(G | theta)
+	GenotypeArray genotype_prior_[5]; // Holds P(G | theta)
 	PairedGenotypeArray buffer_;
 
 	IndividualBuffer upper_; // Holds P(Data & G=g)
 	IndividualBuffer lower_; // Holds P(Data | G=g)
-public:
 
+public:
 	decltype(lower_)::reference library_lower(std::size_t k) {
 		return lower_[num_members_+k];
 	}
