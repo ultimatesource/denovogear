@@ -25,14 +25,9 @@
 #include <boost/graph/connected_components.hpp>
 #include <boost/range/algorithm/find.hpp>
 
-
-// TODO: separate mother/father sub matrices
-// TODO: mitosis matrix function
-dng::TransitionMatrix meiosis_matrix(double mu, std::array<double,4> nuc_freq, bool bNoMut=false) {
-	// Construct Mutation Process
-	using dng::nucleotides;
-
-	dng::TransitionMatrix ret{100,10};
+// Calculate an Felsenstein (1981) Substitution Matrix based on rate and nucleotide frequency
+// If bNoMut is true, mask out the off diagonal.
+Eigen::Matrix4d f81_matrix(double mu, std::array<double,4> nuc_freq, bool bNoMut=false) {
 	double beta = 1.0;
 	for(auto d : nuc_freq)
 		beta -= d*d;
@@ -46,10 +41,40 @@ dng::TransitionMatrix meiosis_matrix(double mu, std::array<double,4> nuc_freq, b
 		}
 		m(i,i) += beta;
 	}
-	if(bNoMut) {
-		Eigen::Matrix4d b = (m.diagonal()).asDiagonal();
-		m = b;
+	return (bNoMut) ? (m.diagonal()).asDiagonal() : m;
+}
+
+dng::TransitionMatrix mitosis_matrix(double mu, std::array<double,4> nuc_freq, bool bNoMut=false) {
+	using dng::nucleotides;
+
+	// construct haploid mutation matrix
+	Eigen::Matrix4d m = f81_matrix(mu,nuc_freq,bNoMut);
+
+	// Matrix to hold the return value
+	dng::TransitionMatrix ret{10,10};
+
+	// Populate the matrix by combining two haploid mutation matrices
+	for(int p = 0; p < 10; ++p) {
+		for(int k = 0; k < 10; ++k) {
+			ret(p,k) = 0.5*( m(nucleotides[p][0],nucleotides[k][0])*m(nucleotides[p][1],nucleotides[k][1])
+				            +m(nucleotides[p][0],nucleotides[k][1])*m(nucleotides[p][1],nucleotides[k][0]));
+			if(nucleotides[p][0] == nucleotides[p][1])
+				continue;
+			ret(p,k) += 0.5*( m(nucleotides[p][1],nucleotides[k][0])*m(nucleotides[p][0],nucleotides[k][1])
+				             +m(nucleotides[p][1],nucleotides[k][1])*m(nucleotides[p][0],nucleotides[k][0]));
+		}
 	}
+	return ret;
+}
+
+// TODO: separate mother/father sub matrices
+dng::TransitionMatrix meiosis_matrix(double mu, std::array<double,4> nuc_freq, bool bNoMut=false) {
+	// Construct Mutation Process
+	using dng::nucleotides;
+
+	Eigen::Matrix4d m = f81_matrix(mu,nuc_freq,bNoMut);
+
+	dng::TransitionMatrix ret{100,10};
 	for(int i = 0; i < 10; ++i) {
 		for(int j = 0; j < 10; ++j) {
 			int p = 10*i+j;
@@ -115,7 +140,8 @@ bool dng::Pedigree::Initialize(params_t p) {
 	meiosis_ = meiosis_matrix(p.mu,p.nuc_freq);
 	meiosis_nomut_ = meiosis_matrix(p.mu,p.nuc_freq,true);
 
-	mitosis_.setIdentity(10,10);
+	mitosis_ = mitosis_matrix(p.mu_somatic,p.nuc_freq);
+	pcr_ = mitosis_matrix(p.mu_pcr,p.nuc_freq);
 
 	return true;
 }
@@ -321,8 +347,13 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
   			vertex_t child = target(*pos, pedigree_graph);
   			family_members_.push_back({parent,child});
 
-			full_transition_matrices_[child] = mitosis_;
-			nomut_transition_matrices_[child] = mitosis_;
+  			if(edge_types(*pos) == EdgeType::Library) {
+				full_transition_matrices_[child] = pcr_;
+				nomut_transition_matrices_[child] = pcr_;
+  			} else {
+				full_transition_matrices_[child] = mitosis_;
+				nomut_transition_matrices_[child] = mitosis_;
+			}
 
   			if(pivots[k] == dummy_index) {
   				roots_.push_back(family_members_.back()[0]);

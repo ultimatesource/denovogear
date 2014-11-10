@@ -56,8 +56,10 @@ namespace dng {
 
 	typedef Eigen::ArrayXXd PairedGenotypeArray;
 
-	const int nucleotides[10][2] = {{0,0},{0,1},{0,2},{0,3},
+	constexpr int nucleotides[10][2] = {{0,0},{0,1},{0,2},{0,3},
 		{1,1},{1,2},{1,3},{2,2},{2,3},{3,3}};
+
+	constexpr int genotypes_folded[16] = {0,1,2,3,1,4,5,6,2,5,7,8,3,6,8,9};
 };
 
 #endif // DNG_MATRIX_H

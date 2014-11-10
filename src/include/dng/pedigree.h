@@ -39,6 +39,8 @@ public:
 		//	{ }
 		double theta;
 		double mu;
+		double mu_somatic;
+		double mu_pcr;
 		double ref_weight;
 		std::array<double,4> nuc_freq;
 	};
@@ -90,7 +92,7 @@ protected:
 	std::size_t num_members_, num_libraries_, num_nodes_;
 	std::vector<std::size_t> roots_;
 	
-	TransitionMatrix mitosis_;
+	TransitionMatrix mitosis_, pcr_;
 	TransitionMatrix meiosis_, meiosis_nomut_;
 	TransitionVector full_transition_matrices_;
 	TransitionVector nomut_transition_matrices_;
