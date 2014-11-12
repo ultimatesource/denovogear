@@ -174,7 +174,7 @@ void ReadGroups::Parse(InFiles &range) {
 				// Prevent collision of LB tags from different samples by appending sample tag
 				val.library += "\t" + val.sample;
 			} else
-				val.library = val.id;
+				val.library = val.id + "\t" + val.sample;
 			data_.insert(std::move(val));
 		}
 	}

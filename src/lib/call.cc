@@ -26,6 +26,7 @@
 #include <iomanip>
 
 #include <boost/range/iterator_range.hpp>
+#include <boost/range/algorithm/replace.hpp>
 
 #include <dng/task/call.h>
 #include <dng/pedigree.h>
@@ -105,8 +106,8 @@ int Call::operator()(Call::argument_type &arg) {
 	dng::MPileup mpileup(rgs.groups());
 
 	cout << "Contig\tPos\tRef\tLL\tPmut";
-	for(auto a : rgs.libraries()) {
-		cout << '\t' << a;
+	for(std::string str : rgs.libraries()) {
+		cout << '\t' << boost::replace(str, '\t', '.');
 	}
 	cout << endl;
 	
