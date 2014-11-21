@@ -38,6 +38,6 @@ src/version.h
 src/config.h
 
 # Ignore the build directory
-denovogear-code/build/*
-!denovogear-code/build/.gitkeep
+build/*
+!build/.gitkeep
 
