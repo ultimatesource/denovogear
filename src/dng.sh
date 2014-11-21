@@ -17,7 +17,7 @@
 #
 
 # version info
-version_num=1.0
+version_num=1.0.1
 
 # set default libexec location
 # under certail conditions this may fail to work, so an installer should set
