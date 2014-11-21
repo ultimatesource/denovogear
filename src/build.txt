@@ -9,6 +9,25 @@ clang++ -O3 -std=c++11 -o dng-b -DDNG_USE_FIXED_GENOTYPE_ARRAY dng-call.cc lib/c
 
 
 # HERSCHEL
-clang++35 -O3 -ffast-math -std=c++11 -o dng-a -DNDEBUG -DDNG_USE_FIXED_GENOTYPE_ARRAY dng-call.cc lib/call.cc lib/likelihood.cc lib/newick.cc lib/pedigree.cc -I/usr/local/include/c++/v1/ -I/usr/local/include -I./include -I/home/reed/include -I/home/reed/include/eigen3 -I/home/reed/include/eigen3/unsupported -L/usr/local/lib -L/home/reed/lib -lboost_program_options -lboost_filesystem -lboost_system -lhts -Wl,-rpath -Wl,/home/reed/lib
+clang++35 -O3 -ffast-math -march=native -std=c++11 -o dng-a -DNDEBUG -DDNG_USE_FIXED_GENOTYPE_ARRAY dng-call.cc lib/call.cc lib/likelihood.cc lib/newick.cc lib/pedigree.cc -I/usr/local/include/c++/v1/ -I/usr/local/include -I./include -I/home/reed/include -I/home/reed/include/eigen3 -I/home/reed/include/eigen3/unsupported -L/usr/local/lib -L/home/reed/lib -lboost_program_options -lboost_filesystem -lboost_system -lhts -Wl,-rpath -Wl,/home/reed/lib
 
 /usr/bin/time ./dng-a -p ceu.ped -r 10:60000-60100 -f ~/ceu2012/human_g1k_v37.fasta ~/ceu2012/*.bam
+
+clang++35 -O3 -ffast-math -march=native -mno-avx -std=c++11 -o dng-a -DNDEBUG -DDNG_USE_FIXED_GENOTYPE_ARRAY dng-call.cc lib/call.cc lib/likelihood.cc lib/newick.cc lib/pedigree.cc -I/usr/local/include/c++/v1/ -I/usr/local/include -I./include -I/home/reed/include -I/home/reed/include/eigen3 -I/home/reed/include/eigen3/unsupported -L/usr/local/lib -L/home/reed/lib -lboost_program_options -lboost_filesystem -lboost_system -lhts -Wl,-rpath -Wl,/home/reed/lib
+
+clang++35 -O3 -ffast-math -march=native -mno-avx -std=c++11 -o dng-b -DNDEBUG dng-call.cc lib/call.cc lib/likelihood.cc lib/newick.cc lib/pedigree.cc -I/usr/local/include/c++/v1/ -I/usr/local/include -I./include -I/home/reed/include -I/home/reed/include/eigen3 -I/home/reed/include/eigen3/unsupported -L/usr/local/lib -L/home/reed/lib -lboost_program_options -lboost_filesystem -lboost_system -lhts -Wl,-rpath -Wl,/home/reed/lib
+
+clang++35 -O3 -ffast-math -march=native -mno-avx -std=c++11 -o dng-c -DDNG_USE_FIXED_GENOTYPE_ARRAY -DNDEBUG dng-call.cc lib/call.cc lib/likelihood.cc lib/newick.cc lib/pedigree.cc -I/usr/local/include/c++/v1/ -I/usr/local/include -I./include -I/home/reed/include -I/usr/local/include/eigen3 -I/usr/local/include/eigen3/unsupported -L/usr/local/lib -L/home/reed/lib -lboost_program_options -lboost_filesystem -lboost_system -lhts -Wl,-rpath -Wl,/home/reed/lib
+
+clang++35 -O3 -ffast-math -march=native -mno-avx -std=c++11 -o dng-d -DNDEBUG dng-call.cc lib/call.cc lib/likelihood.cc lib/newick.cc lib/pedigree.cc -I/usr/local/include/c++/v1/ -I/usr/local/include -I./include -I/home/reed/include -I/usr/local/include/eigen3 -I/usr/local/include/eigen3/unsupported -L/usr/local/lib -L/home/reed/lib -lboost_program_options -lboost_filesystem -lboost_system -lhts -Wl,-rpath -Wl,/home/reed/lib
+
+echo -n dng-a && /usr/bin/time ./dng-a -p ceu.ped -f ~/ceu2012/human_g1k_v37.fasta ~/ceu2012/NA128*.bam > /dev/null
+echo -n dng-b && /usr/bin/time ./dng-b -p ceu.ped -f ~/ceu2012/human_g1k_v37.fasta ~/ceu2012/NA128*.bam > /dev/null
+echo -n dng-c && /usr/bin/time ./dng-c -p ceu.ped -f ~/ceu2012/human_g1k_v37.fasta ~/ceu2012/NA128*.bam > /dev/null
+echo -n dng-d && /usr/bin/time ./dng-d -p ceu.ped -f ~/ceu2012/human_g1k_v37.fasta ~/ceu2012/NA128*.bam > /dev/null
+
+clang++35 -O3 -ffast-math -march=native -mno-avx -std=c++11 -o dng-a -DNDEBUG -DDNG_USE_FIXED_GENOTYPE_ARRAY dng-call.cc lib/call.cc lib/likelihood.cc lib/newick.cc lib/pedigree.cc -I/usr/local/include/c++/v1/ -I/usr/local/include -I./include -I/home/reed/include -I/home/reed/include/eigen3 -I/home/reed/include/eigen3/unsupported -L/usr/local/lib -L/home/reed/lib -lboost_program_options -lboost_filesystem -lboost_system -lhts -Wl,-rpath -Wl,/home/reed/lib
+
+./dng-a -f /storage/b37_reference/human_g1k_v37.fasta -p ceu.ped -r 10:1-10000000 -m 0.01 -q 13 -Q 3  /storage/CEUTrio/20120117/CEUTrio.HiSeq.WGS.b37_decoy.NA128*.bam > 20120117-ch10.txt &
+./dng-a -f /storage/b37_reference/human_g1k_v37.fasta -p ceu.ped -r 10:1-10000000 -m 0.01 -q 13 -Q 3  /storage/CEUTrio/20130906/NA128*.bam > 20130906-ch10.txt &
+./dng-a -f /storage/b37_reference/human_g1k_v37.fasta -p ceu.ped -r 10:1-10000000 -m 0.01 -q 13 -Q 3  /storage/CEUTrio/20110915/CEUTrio.HiSeq.WGS.b37_decoy.NA128*.bam > 20110915-ch10.txt &
