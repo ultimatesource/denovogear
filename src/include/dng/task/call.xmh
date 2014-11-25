@@ -32,6 +32,7 @@ XM((min)(prob), (m), "minimum probability for reporting a mutation", double, DL(
 XM((mu), , "the germline mutation rate", double, DL(1e-9,"1e-9"))
 XM((mu)(somatic), , "the somatic mutation rate", double, DL(0.0,"0"))
 XM((mu)(library), , "the library prep mutation rate", double, DL(0.0,"0"))
+XM((nuc)(freqs), , "nucleotide frequencies in ACGT order", std::string, "0.3,0.2,0.2,0.3")
 XM((ped), (p), "the pedigree file", std::string, "")
 XM((min)(basequal), (q), "minimum base quality", int, 0)
 XM((min)(mapqual), (Q), "minimum mapping quality", int, 0)

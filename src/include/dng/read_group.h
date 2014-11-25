@@ -152,25 +152,29 @@ void ReadGroups::Parse(InFiles &range) {
 			if( k < v )
 				tags.emplace(std::string(k,v-1), std::string(v,p));
 			
-			// continue if this @RG does not have and ID
+			// continue to next @RG if this @RG does not have an ID
 			auto it = tags.find("ID");
 			if(it == tags.end() || it->second.empty())
 				continue;
 			// check to see if this is a duplicate
+			// TODO: Raise warning/error if this is a collision of different sm/lb data
 			if(data_.find(it->second) != data_.end())
 				continue;
-			// library tag
 			ReadGroup val{it->second};
-			it = tags.find("LB");
-			if(it != tags.end())
-				val.library = std::move(it->second);
-			else
-				val.library = val.id;
+
 			// sample tag
 			if((it = tags.find("SM")) != tags.end())
 				val.sample = std::move(it->second);
 			else
 				val.sample = val.id;
+			// library tag
+			it = tags.find("LB");
+			if(it != tags.end()) {
+				val.library = std::move(it->second);
+				// Prevent collision of LB tags from different samples by appending sample tag
+				val.library += "\t" + val.sample;
+			} else
+				val.library = val.id + "\t" + val.sample;
 			data_.insert(std::move(val));
 		}
 	}
