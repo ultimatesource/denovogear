@@ -28,6 +28,8 @@
 #include <boost/range/iterator_range.hpp>
 #include <boost/range/algorithm/replace.hpp>
 
+#include <boost/spirit/home/x3.hpp>
+
 #include <dng/task/call.h>
 #include <dng/pedigree.h>
 #include <dng/fileio.h>
@@ -40,6 +42,7 @@
 
 using namespace dng::task;
 using namespace dng;
+namespace x3 = boost::spirit::x3;
 
 // Helper function that mimics boost::istream_range
 template<class Elem, class Traits> inline
@@ -97,8 +100,27 @@ int Call::operator()(Call::argument_type &arg) {
 	
 	dng::ReadGroups rgs(indata);
 
+	std::array<double, 4> freqs;
+	// TODO: read directly into freqs????  This will need a wrapper that provides an "insert" function.
+	// TODO: include the size into the pattern, but this makes it harder to catch the second error.
+	{
+		std::vector<double> f;
+		f.reserve(4);
+		x3::ascii::space_type space;
+		auto b = arg.nuc_freqs.begin();
+		auto e = arg.nuc_freqs.end();
+		bool r = x3::phrase_parse(b, e, x3::double_ % ',', space,f);
+		if(!r || b != e ) {
+			throw std::runtime_error("Unable to parse nuc-freq option. It must be a comma separated list of floating-point numbers.");
+		}
+		if(f.size() != 4) {
+			throw std::runtime_error("Wrong number of values passed to nuc-freq. Expected 4; found " + std::to_string(f.size()) + ".");
+		}
+		std::copy(f.begin(),f.end(),&freqs[0]);
+	}
+
 	dng::Pedigree peeler;
-	peeler.Initialize({arg.theta, arg.mu, arg.mu_somatic, arg.mu_library, arg.ref_weight, {0.2,0.3,0.3,0.2}});
+	peeler.Initialize({arg.theta, arg.mu, arg.mu_somatic, arg.mu_library, arg.ref_weight, freqs});
 	if(!peeler.Construct(ped,rgs)) {
 		throw std::runtime_error("Unable to construct peeler for pedigree; possible non-zero-loop pedigree.");
 	}
