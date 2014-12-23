@@ -54,12 +54,15 @@ istreambuf_range(std::basic_istream<Elem, Traits>& in)
         std::istreambuf_iterator<Elem, Traits>());
 }
 
+
+// The main loop for dng-call application
+// argument_type arg holds the processed command line arguments
 int Call::operator()(Call::argument_type &arg) {
 	using namespace std;
 	
+	// Parse pedigree from file	
 	dng::io::Pedigree ped;
 
-	// Parse pedigree from file	
 	if(!arg.ped.empty()) {
 		ifstream ped_file(arg.ped);
 		if(!ped_file.is_open()) {
@@ -91,18 +94,22 @@ int Call::operator()(Call::argument_type &arg) {
 
 	// Open up the input sam files
 	vector<hts::bam::File> indata;
-		
 	for(auto str : arg.input) {
 		indata.emplace_back(str.c_str(), "r", arg.region.c_str(), arg.fasta.c_str(),
 			arg.min_mapqual, arg.min_qlen);
 	}
+
+	// Read the header form the first file
 	const bam_hdr_t *h = indata[0].header();
 	
+	// Construct read groups from the input data
 	dng::ReadGroups rgs(indata);
 
+	// Parse Nucleotide Frequencies
 	std::array<double, 4> freqs;
 	// TODO: read directly into freqs????  This will need a wrapper that provides an "insert" function.
 	// TODO: include the size into the pattern, but this makes it harder to catch the second error.
+	// TODO: turn this into utility function
 	{
 		std::vector<double> f;
 		f.reserve(4);
@@ -119,14 +126,18 @@ int Call::operator()(Call::argument_type &arg) {
 		std::copy(f.begin(),f.end(),&freqs[0]);
 	}
 
+	// Construct peeling algorithm from parameters and pedigree information
 	dng::Pedigree peeler;
 	peeler.Initialize({arg.theta, arg.mu, arg.mu_somatic, arg.mu_library, arg.ref_weight, freqs});
 	if(!peeler.Construct(ped,rgs)) {
 		throw std::runtime_error("Unable to construct peeler for pedigree; possible non-zero-loop pedigree.");
 	}
 	
+	// Begin Pileup Phase
 	dng::MPileup mpileup(rgs.groups());
 
+	// Output header
+	// TODO: make this optional
 	cout << "Contig\tPos\tRef\tLL\tPmut";
 	for(std::string str : rgs.libraries()) {
 		cout << '\t' << boost::replace(str, '\t', '.');
@@ -138,19 +149,23 @@ int Call::operator()(Call::argument_type &arg) {
 	int ref_sz = 0;
 	int ref_target_id = -1;
 	
-	// quality
+	// quality thresholds 
 	int min_qual = arg.min_basequal;
 	double min_prob = arg.min_prob;
 	
+	// Model genotype likelihoods as a mixuture of two dirichlet multinomials
+	// TODO: control these with parameters
 	genotype::DirichletMultinomialMixture genotype_likelihood(
 			{0.9,0.001,0.001,1.05}, {0.1,0.01,0.01,1.1});
 	
+
+	// Preform pileup on data by passing a lambda-function to the mpileup () operator
 	std::vector<depth5_t> read_depths(rgs.libraries().size(),{0,0});
-	
 	const char gts[10][3] = {"AA","AC","AG","AT","CC","CG","CT","GG","GT","TT"};
-	
+
 	mpileup(indata, [&](const dng::MPileup::data_type &data, uint64_t loc)
 	{
+		// Calculate target position and fetch sequence name
 		int target_id = location_to_target(loc);
 		int position = location_to_position(loc);
 		if(target_id != ref_target_id && fai != nullptr) {
@@ -160,12 +175,15 @@ int Call::operator()(Call::argument_type &arg) {
 				0, 0x7fffffff, &ref_sz);
 			ref_target_id = target_id;
 		}
+
+		// Calculate reference base
 		char ref_base = (ref && 0 <= position && position < ref_sz) ?
 			ref[position] : 'N';
 		int ref_index = seq::char_index(ref_base);
 
 		// reset all depth counters
 		read_depths.assign(read_depths.size(),{0,0});
+		
 		// pileup on read counts
 		// TODO: handle overflow?
 		for(std::size_t u=0;u<data.size();++u) {
@@ -176,16 +194,23 @@ int Call::operator()(Call::argument_type &arg) {
 					seq::base_index(r.aln.seq_at(r.pos))] += 1;
 			}
 		}
+		// calculate genotype likelihoods and store in the lower library vector
 		double scale = 0.0, stemp;
 		for(std::size_t u=0;u<read_depths.size();++u) {
 			std::tie(peeler.library_lower(u),stemp) = genotype_likelihood({read_depths[u].key},ref_index);
 			scale += stemp;
 		}
+
+		// Calculate probabilities
 		double d = peeler.CalculateLogLikelihood(ref_index)+scale;
 		double p = peeler.CalculateMutProbability(ref_index);
+		
+		// Skip this site if it does not meet lower probability threshold
 		if(p < min_prob)
 			return;
 
+		// Print position and read information
+		// TODO: turn this into VCF format
 		cout << h->target_name[target_id]
 		     << '\t' << position+1;
 		cout << '\t' << ref_base;
@@ -205,24 +230,12 @@ int Call::operator()(Call::argument_type &arg) {
 		return;
 	});
 		
-	/*
-	dng::PedigreePeeler::IndividualBuffer buf;
-	buf.resize(7, dng::PedigreePeeler::Vector10d::Zero());
-	buf[1][1] = 1.0;
-	buf[2][1] = 1.0;
-	buf[3][1] = 1.0;
-	buf[4][0] = 1.0;
-	buf[5][0] = 1.0;
-	buf[6][0] = 1.0;
-	
-	double d = peeler.CalculateLogLikelihood(buf);
-	cout << exp(d) << endl;
-	*/
+	// Cleanup
+	// TODO: RAII support these things
 	if (ref != nullptr)
 		free(ref);
 	if (fai != nullptr)
 		fai_destroy(fai);
-	
 	
 	return EXIT_SUCCESS;
 }

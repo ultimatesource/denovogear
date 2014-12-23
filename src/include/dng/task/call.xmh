@@ -22,6 +22,8 @@
 /***************************************************************************
  *    X-Macro List                                                         *
  *                                                                         *
+ * Defines options for dng-call                                            *
+ *                                                                         *
  * XM((long)(name), (shortname), "description", typename, defaultvalue)    *
  ***************************************************************************/
 
