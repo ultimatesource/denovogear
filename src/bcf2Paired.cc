@@ -109,7 +109,7 @@ int bcf2Paired (bcf_hdr_t *h, bcf1_t *b, Pair pair1, pair_t* tumor, pair_t* norm
 	for (i = 0; i < b->n_gi; ++i)
 		if (b->gi[i].fmt == bcf_str2int("PL", 2)) break;
 	if (i == b->n_gi) return -6; // no PL ***
-	if (read_I16(b, anno) != 0) return -7; // no I16; FIXME: can be improved ***
+	if (read_I16(b, anno) != 0) d_rest = 0; // no I16; FIXME: can be improved ***
 	d_rest = dp = anno[0] + anno[1] + anno[2] + anno[3];
 	//if (dp == 0) return -8; // depth is zero ***
 	mq = (int)(sqrt((double)(anno[9] + anno[11]) / dp) + .499);
