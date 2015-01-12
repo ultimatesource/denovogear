@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Copyright (C) 2013-2014 Reed A. Cartwright <reed@cartwrig.ht>
 #
