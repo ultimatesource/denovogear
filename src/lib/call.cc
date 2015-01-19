@@ -30,6 +30,8 @@
 
 #include <boost/spirit/home/x3.hpp>
 
+#include <boost/algorithm/string.hpp>
+
 #include <dng/task/call.h>
 #include <dng/pedigree.h>
 #include <dng/fileio.h>
@@ -37,6 +39,7 @@
 #include <dng/read_group.h>
 #include <dng/likelihood.h>
 #include <dng/seq.h>
+#include <dng/hts/vcf.h>
 
 #include <htslib/faidx.h>
 
@@ -136,14 +139,46 @@ int Call::operator()(Call::argument_type &arg) {
 	// Begin Pileup Phase
 	dng::MPileup mpileup(rgs.groups());
 
-	// Output header
-	// TODO: make this optional
+#ifdef DEBUG_STDOUT
+	// Old method of printing out results, leaving in for now mainly for testing purposes.
+	// TODO: remove once vcf output has been throughly tested 
 	cout << "Contig\tPos\tRef\tLL\tPmut";
 	for(std::string str : rgs.libraries()) {
 		cout << '\t' << boost::replace(str, '\t', '.');
 	}
 	cout << endl;
+#else
+
+	// Write VCF header
+	string mode("w");
+	if(boost::algorithm::ends_with(boost::to_upper_copy(arg.output), ".BCF") == true)
+	  {
+	    // if file ends with .bcf write to a bcf file instead of VCF
+	    mode += "b";
+	  }
+	// TODO: Add code to allow for compressed output
+
+	hts::vcf::Vcfostream vcfo(arg.output.c_str(), mode.c_str(), arg.ped.c_str());
+	//hts::vcf::Vcfostream vcfo("-", "w", "ceu.ped");
+	//vcfo.addHdrMetadata("fasta", arg.fasta.c_str());
+	vcfo.addHdrMetadata("region", arg.region.c_str());
+	vcfo.addHdrMetadata("min_qlen", arg.min_qlen);
+	vcfo.addHdrMetadata("min_mapqual", arg.min_mapqual);
+	vcfo.addHdrMetadata("mu", arg.mu);	
+	vcfo.addHdrMetadata("mu_somatic", arg.mu_somatic);
+	vcfo.addHdrMetadata("mu_library", arg.mu_library);
+	vcfo.addHdrMetadata("theta", arg.theta);
+	vcfo.addHdrMetadata("ref_weight", arg.ref_weight);
+	vcfo.addHdrMetadata("min_basequal", arg.min_basequal);
 	
+	// Add each genotype column
+	for(std::string str : rgs.libraries())
+	  {
+	    std::string sample_name = boost::replace(str, '\t', '.');
+	    vcfo.addSample(sample_name.c_str());
+	  }
+	vcfo.writeHdr();
+#endif
 	// information to hold reference
 	char *ref = nullptr;
 	int ref_sz = 0;
@@ -209,6 +244,8 @@ int Call::operator()(Call::argument_type &arg) {
 		if(p < min_prob)
 			return;
 
+		//vcfo.addRecord(h->target_name[target_id], position+1, ref_base, d, p, read_depths);
+#ifdef DEBUG_STDOUT 
 		// Print position and read information
 		// TODO: turn this into VCF format
 		cout << h->target_name[target_id]
@@ -226,7 +263,9 @@ int Call::operator()(Call::argument_type &arg) {
 		}
 
 		cout << endl;
-
+#else
+		vcfo.addRecord(h->target_name[target_id], position+1, ref_base, d, p, read_depths);
+#endif
 		return;
 	});
 		
