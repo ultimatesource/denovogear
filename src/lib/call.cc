@@ -158,26 +158,26 @@ int Call::operator()(Call::argument_type &arg) {
 	  }
 	// TODO: Add code to allow for compressed output
 
-	hts::vcf::Vcfostream vcfo(arg.output.c_str(), mode.c_str(), arg.ped.c_str());
+	hts::vcf::File vcfout(arg.output.c_str(), mode.c_str(), arg.ped.c_str());
 	//hts::vcf::Vcfostream vcfo("-", "w", "ceu.ped");
 	//vcfo.addHdrMetadata("fasta", arg.fasta.c_str());
-	vcfo.addHdrMetadata("region", arg.region.c_str());
-	vcfo.addHdrMetadata("min_qlen", arg.min_qlen);
-	vcfo.addHdrMetadata("min_mapqual", arg.min_mapqual);
-	vcfo.addHdrMetadata("mu", arg.mu);	
-	vcfo.addHdrMetadata("mu_somatic", arg.mu_somatic);
-	vcfo.addHdrMetadata("mu_library", arg.mu_library);
-	vcfo.addHdrMetadata("theta", arg.theta);
-	vcfo.addHdrMetadata("ref_weight", arg.ref_weight);
-	vcfo.addHdrMetadata("min_basequal", arg.min_basequal);
+	vcfout.AddHeaderMetadata("region", arg.region.c_str());
+	vcfout.AddHeaderMetadata("min_qlen", arg.min_qlen);
+	vcfout.AddHeaderMetadata("min_mapqual", arg.min_mapqual);
+	vcfout.AddHeaderMetadata("mu", arg.mu);	
+	vcfout.AddHeaderMetadata("mu_somatic", arg.mu_somatic);
+	vcfout.AddHeaderMetadata("mu_library", arg.mu_library);
+	vcfout.AddHeaderMetadata("theta", arg.theta);
+	vcfout.AddHeaderMetadata("ref_weight", arg.ref_weight);
+	vcfout.AddHeaderMetadata("min_basequal", arg.min_basequal);
 	
 	// Add each genotype column
 	for(std::string str : rgs.libraries())
 	  {
 	    std::string sample_name = boost::replace(str, '\t', '.');
-	    vcfo.addSample(sample_name.c_str());
+	    vcfout.AddSample(sample_name.c_str());
 	  }
-	vcfo.writeHdr();
+	vcfout.WriteHeader();
 #endif
 	// information to hold reference
 	char *ref = nullptr;
@@ -264,7 +264,7 @@ int Call::operator()(Call::argument_type &arg) {
 
 		cout << endl;
 #else
-		vcfo.addRecord(h->target_name[target_id], position+1, ref_base, d, p, read_depths);
+		vcfout.AddRecord(h->target_name[target_id], position+1, ref_base, d, p, read_depths);
 #endif
 		return;
 	});

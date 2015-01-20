@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014 Reed A. Cartwright
- * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
+ * Copyright (c) 2015 Reed A. Cartwright
+ * Authors:  Kael Dai <kdai1@asu.edu>
  *
  * This file is part of DeNovoGear.
  *
@@ -28,7 +28,7 @@ using namespace dng;
 
 namespace hts { namespace vcf {
 
-    Vcfostream::Vcfostream(const char *file, const char *mode, const char *pedfile) : hts::File(file, mode)
+    File::File(const char *file, const char *mode, const char *pedfile) : hts::File(file, mode)
     {
       hdr = bcf_hdr_init("w"); // VCF header
       rec = bcf_init1(); // VCF record/body line
@@ -36,7 +36,7 @@ namespace hts { namespace vcf {
       bcf_hdr_append(hdr, "##source=" SOURCE);
     }
     
-    void Vcfostream::addHdrMetadata(const char *key, const char *value)
+    void File::AddHeaderMetadata(const char *key, const char *value)
     {
       // convert key and value cstrings into one cstring "##key=value"
       size_t key_len = sizeof(key);
@@ -49,25 +49,25 @@ namespace hts { namespace vcf {
       bcf_hdr_append(hdr, line);
     }
 
-    void Vcfostream::addHdrMetadata(const char *key, double value)
+    void File::AddHeaderMetadata(const char *key, double value)
     {
       string valstr = boost::lexical_cast<string>(value);
-      addHdrMetadata(key, valstr.c_str());
+      AddHeaderMetadata(key, valstr.c_str());
     }
 
-    void Vcfostream::addHdrMetadata(const char *key, int value)
+    void File::AddHeaderMetadata(const char *key, int value)
     {
       string valstr = boost::lexical_cast<string>(value);
-      addHdrMetadata(key, valstr.c_str());
+      AddHeaderMetadata(key, valstr.c_str());
     }
 
-    void Vcfostream::addSample(const char *sample)
+    void File::AddSample(const char *sample)
     {
       bcf_hdr_add_sample(hdr, sample);
       nsamples++;
     }
 
-    void Vcfostream::writeHdr()
+    void File::WriteHeader()
     {
       bcf_hdr_set_version(hdr, VCF_VERSION);
       bcf_hdr_append(hdr, "##INFO=<ID=LL,Number=1,Type=Float,Description=\"Log likelihood\">");
@@ -94,7 +94,7 @@ namespace hts { namespace vcf {
 
     }
     
-    void Vcfostream::addRecord(const char *chrom, int pos, const char ref, float ll, float pmut, std::vector<dng::depth5_t> &read_depths)
+    void File::AddRecord(const char *chrom, int pos, const char ref, float ll, float pmut, std::vector<dng::depth5_t> &read_depths)
     {
       // CHROM
       // there needs to be a matching contig id in the header otherwise bcf_write1() will fault [tracked issue to vcf.cc vcf_format()]
@@ -189,7 +189,7 @@ namespace hts { namespace vcf {
       bcf_clear(rec);
     }
     
-    Vcfostream::~Vcfostream()
+    File::~File()
     {
       if(rec != NULL)
 	bcf_destroy1(rec);

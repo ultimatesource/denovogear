@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014 Reed A. Cartwright
- * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
+ * Copyright (c) 2015 Reed A. Cartwright
+ * Authors:  kdai1 <kdai1@asu.edu>
  *
  * This file is part of DeNovoGear.
  *
@@ -16,9 +16,9 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef VCF_H__
-#define VCF_H__
+#pragma once
+#ifndef CXX_HTS_VCF_H
+#define CXX_HTS_VCF_H
 
 #include "dng/hts/hts.h"
 #include "dng/matrix.h"
@@ -34,7 +34,7 @@
 namespace hts { namespace vcf { 
 
 /**
- * Vcfostream - Class for writing VCF/BCF files to the output, either stdout or to a file
+ * File - Class for writing VCF/BCF files to the output, either stdout or to a file
  * To write to stdout set file="-" in constructor. To write as a BCF file set mode="wb" in constructor.
  * To use:
  *  1. call addHdrMetadata() and addSample() to add information to the VCF header
@@ -42,27 +42,27 @@ namespace hts { namespace vcf {
  *  3. For each site that will be output call addRecord()
  *  4. The destructor needs to be called to write to the file.
  */
-class Vcfostream : hts::File
+class File : hts::File
 {
  public:
-  Vcfostream(const char *file, const char *mode, const char *pedfile);
-  Vcfostream(const Vcfostream&) = delete;
-  Vcfostream& operator=(File&) = delete;
-  virtual ~Vcfostream();
+  File(const char *file, const char *mode, const char *pedfile);
+  File(const File&) = delete;
+  File& operator=(File&) = delete;
+  virtual ~File();
 
-  /** addHdrMetadata() - Adds a "##key=value" line to the VCF header */
-  void addHdrMetadata(const char *key, const char *value);
-  void addHdrMetadata(const char *key, double value);
-  void addHdrMetadata(const char *key, int value);
+  /** AddHeaderMetadata() - Adds a "##key=value" line to the VCF header */
+  void AddHeaderMetadata(const char *key, const char *value);
+  void AddHeaderMetadata(const char *key, double value);
+  void AddHeaderMetadata(const char *key, int value);
 
   /** Add another sample/genotype field to the VCF file. */
-  void addSample(const char *sample);
+  void AddSample(const char *sample);
 
   /** Creates the header field. Call only after adding all the sample fields */
-  void writeHdr();
+  void WriteHeader();
 
   /**
-   * addRecord() - Add a new line to the body of the VCF/BCF file
+   * AddRecord() - Add a new line to the body of the VCF/BCF file
    * @chrom: Value in CHROM field, the contig id for the sample
    * @pos: POS filed
    * @ref: REF field
@@ -74,7 +74,7 @@ class Vcfostream : hts::File
    * fields build from read_depths.count[]. Each genotype field will list the number of bases in the sample - listed in 
    * the order the bases appear in the REF and ALT field.
    */
-  void addRecord(const char *chrom, int pos, const char ref, float ll, float pmut, std::vector<dng::depth5_t> &read_depths);
+  void AddRecord(const char *chrom, int pos, const char ref, float ll, float pmut, std::vector<dng::depth5_t> &read_depths);
 
   
 						       
@@ -90,4 +90,4 @@ class Vcfostream : hts::File
 
 }}
 
-#endif /* VCF_H__ */
+#endif /* CXX_HTS_VCF_H */
