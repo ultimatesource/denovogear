@@ -76,6 +76,8 @@ class File : hts::File
       
       contig_ids = other.contig_ids;
       other.contig_ids.clear();
+
+      return *this;
     }
       
   virtual ~File()
