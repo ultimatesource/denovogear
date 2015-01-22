@@ -39,7 +39,7 @@
 #include <dng/read_group.h>
 #include <dng/likelihood.h>
 #include <dng/seq.h>
-#include <dng/hts/vcf.h>
+#include <dng/hts/bcf.h>
 
 #include <htslib/faidx.h>
 
@@ -59,9 +59,42 @@ istreambuf_range(std::basic_istream<Elem, Traits>& in)
         std::istreambuf_iterator<Elem, Traits>());
 }
 
-void vcf_GetMode(std::string &arg, std::string &mode)
+// Helper function to determines if output should be bcf file, vcf file, or stdout
+void vcf_GetMode(Call::argument_type &arg, std::string &filename, std::string &mode)
 {
-  
+  mode = "w";
+  if(arg.output.empty() || arg.output == "-")
+    {
+      filename = "-";
+    }
+  else{
+    // look for bcf:file or vcf:file
+    std::string fname_lower = boost::to_lower_copy(arg.output);
+    std::vector<std::string> arg_tokens;
+    boost::split(arg_tokens, arg.output, boost::is_any_of(":"));
+    if(arg_tokens.size() == 2)
+      {
+	// File is separated by type:filename
+	if(arg_tokens[0] == "bcf")
+	  {
+	    mode += "b";
+	  }
+	else if(arg_tokens[0] != "vcf")
+	  {
+	    throw std::runtime_error("Unknown file format in output '" +arg.output + "'. Used either vcf: or bcf:");
+	  }
+	filename = arg_tokens[1];
+      }
+    else if(arg_tokens.size() == 1)
+      {
+	// check to see if file ends with .bcf
+	if(boost::algorithm::ends_with(boost::to_upper_copy(arg.output), ".BCF") == true)
+	  {
+	    mode += "b";
+	  }
+	filename = arg.output;
+      }
+  }
 
 }
 
@@ -250,9 +283,10 @@ int Call::operator()(Call::argument_type &arg) {
 	//  }
 	// TODO: Add code to allow for compressed output
 
-	std::string mode; 
-	vcf_GetMode(arg.output, mode);
-	hts::bcf::File vcfout(arg.output.c_str(), mode.c_str(), SOURCE);
+	std::string mode;
+	std::string filename;
+	vcf_GetMode(arg, mode, filename);
+	hts::bcf::File vcfout(filename.c_str(), mode.c_str(), SOURCE);
 	vcf_AddHeaderText(vcfout, arg);
 	
 	// Add each genotype/sample column then save the header

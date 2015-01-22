@@ -17,8 +17,8 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 #pragma once
-#ifndef CXX_HTS_VCF_H
-#define CXX_HTS_VCF_H
+#ifndef CXX_HTS_BCF_H
+#define CXX_HTS_BCF_H
 
 #include "hts.h"
 
@@ -36,10 +36,10 @@ namespace hts { namespace bcf {
  * File - Class for writing VCF/BCF files to the output, either stdout or to a file
  * To write to stdout set file="-" in constructor. To write as a BCF file set mode="wb" in constructor.
  * To use:
- *  1. call addHdrMetadata() and addSample() to add information to the VCF header
- *  2. call writeHdr() to finish the header
- *  3. For each site that will be output call addRecord()
- *  4. The destructor needs to be called to write to the file.
+ *  1. call addHeaderMetadata() and addSample() to add information to the VCF header
+ *  2. call WriteHdr() to finish the header
+ *  3. populate the first few columns of a VCF body line using SetID(), SetFilter(), SetAlleles(), UpdateInfo() and UpdateSamples() 
+ *  4. call WriteRecord() to save/print the current VCF line and move on to the next
  */
 class File : hts::File
 {
@@ -287,4 +287,4 @@ class File : hts::File
 
 }}
 
-#endif /* CXX_HTS_VCF_H */
+#endif /* CXX_HTS_BCF_H */
