@@ -158,6 +158,7 @@ void vcf_AddRecord(hts::bcf::File &vcfout, const char *chrom, int pos, const cha
 	      char alt_allele_char = seq::indexed_char(alt_allele_index); 
 	      allele_order.push_back(alt_allele_index);
 	      allele_order_str.push_back(std::string(1, alt_allele_char));
+	      break;
 	    }
 	}
     }
@@ -285,7 +286,7 @@ int Call::operator()(Call::argument_type &arg) {
 
 	std::string mode;
 	std::string filename;
-	vcf_GetMode(arg, mode, filename);
+	vcf_GetMode(arg, filename, mode);
 	hts::bcf::File vcfout(filename.c_str(), mode.c_str(), SOURCE);
 	vcf_AddHeaderText(vcfout, arg);
 	

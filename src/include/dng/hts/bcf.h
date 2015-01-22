@@ -126,7 +126,7 @@ class File : hts::File
   /** Creates the header field. Call only after adding all the sample fields */
   void WriteHeader()
   {
-    bcf_hdr_set_version(hdr, "VCF_VERSION");
+    bcf_hdr_set_version(hdr, VCF_VERSION);
    
     bcf_hdr_add_sample(hdr, NULL); // libhts requires NULL sample before it will write out all the other samples
     bcf_hdr_write(handle(), hdr);
@@ -194,7 +194,8 @@ class File : hts::File
 
     // convert to a comma separated list 
     std::stringstream ss;
-    for(std::size_t a = 0; a < alleles.size(); a++)
+    ss << alleles[0];
+    for(std::size_t a = 1; a < alleles.size(); a++)
       ss << "," << alleles[a];
     
     bcf_update_alleles_str(hdr, rec, ss.str().c_str());
