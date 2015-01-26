@@ -57,13 +57,27 @@ class File : hts::File
       hdr = bcf_hdr_init("w"); // VCF header
       rec = bcf_init1(); // VCF record/body line
       
-      std::string s = std::string("#source=") + source;
-      bcf_hdr_append(hdr, s.c_str());
+      if(source != nullptr)
+	{
+	  std::string s = std::string("#source=") + source;
+	  bcf_hdr_append(hdr, s.c_str());
+	}
+      // throw an expection if no source is given?
+    }
+
+ File(File&& other) : hts::File(std::move(other)), 
+    hdr(other.hdr), rec(other.rec), contig_ids(other.contig_ids)
+    {
+      other.hdr = nullptr;
+      other.rec = nullptr;
+      other.contig_ids.clear();
     }
 
   File(const File&) = delete;
 
-  File& operator=(File& other)
+  File& operator=(const File&) = delete;
+
+  File& operator=(File&& other)
     {
       if(this == &other)
 	return *this;
@@ -94,12 +108,20 @@ class File : hts::File
   void AddHeaderMetadata(const char *key, const char *value)
   {
     if(key == nullptr || value == nullptr)
+      // libhts will seg-fault if line is NULL
       return;
 
     std::string line = std::string("##") + key + "=" + value;
     bcf_hdr_append(hdr, line.c_str());
   }
 
+  template<typename T>
+  void AddHeaderMetadata(const char *key, T &value)
+  {
+    AddHeaderMetadata(key, std::to_string(value).c_str());
+  }
+
+  /*
   void AddHeaderMetadata(const char *key, double value)
   {
     AddHeaderMetadata(key, std::to_string(value).c_str());
@@ -109,6 +131,7 @@ class File : hts::File
   {
     AddHeaderMetadata(key, std::to_string(value).c_str());
   }
+  */
 
   /** Use this version to add a new INFO/FILTER/FORMAT string to the header */
   void AddHeaderMetadata(const char *line)
@@ -128,7 +151,7 @@ class File : hts::File
   {
     bcf_hdr_set_version(hdr, VCF_VERSION);
    
-    bcf_hdr_add_sample(hdr, NULL); // libhts requires NULL sample before it will write out all the other samples
+    bcf_hdr_add_sample(hdr, nullptr); // libhts requires NULL sample before it will write out all the other samples
     bcf_hdr_write(handle(), hdr);
   }
 
@@ -162,7 +185,7 @@ class File : hts::File
     rec->pos = pos;
 
     // ID
-    if(id != NULL)
+    if(id != nullptr)
       {
 	bcf_update_id(hdr, rec, id);
       }
@@ -193,18 +216,19 @@ class File : hts::File
       return;
 
     // convert to a comma separated list 
-    std::stringstream ss;
-    ss << alleles[0];
+    std::string ss;
+    ss += alleles[0];
     for(std::size_t a = 1; a < alleles.size(); a++)
-      ss << "," << alleles[a];
+      ss += std::string(",") + alleles[a];
     
-    bcf_update_alleles_str(hdr, rec, ss.str().c_str());
+    bcf_update_alleles_str(hdr, rec, ss.c_str());
   }
 
 
   /**
    * UpdateInfoField() - Add another key=Value pair to the INFO field
    * @key: must be defined in the Header or won't be added.
+   * @value: if set to NULL then previous set key-value pairs will be removed.
    *
    * TODO: Add a vector<> version of flat, ints, and strings.
    */
@@ -220,9 +244,6 @@ class File : hts::File
 
   void UpdateInfo(const char *key, std::string &value)
   {
-    if(value.empty())
-      return;
-
     bcf_update_info_string(hdr, rec, key, value.c_str());
   }
 
@@ -236,22 +257,12 @@ class File : hts::File
    */
   void UpdateSamples(const char *name, std::vector<float> &data)
   {
-    float *values = new float[data.size()];
-    for(std::size_t a = 0; a < data.size(); a++)
-      values[a] = data[a];
-    bcf_update_format_float(hdr, rec, name, values, data.size());
-
-    delete [] values;
+    bcf_update_format_float(hdr, rec, name, &data[0], data.size());   
   }
 
   void UpdateSamples(const char *name, std::vector<int32_t> &data)
   {
-    int32_t *values = new int32_t[data.size()];
-    for(std::size_t a = 0; a < data.size(); a++)
-      values[a] = data[a];
-    bcf_update_format_int32(hdr, rec, name, values, data.size()); 
-
-    delete [] values;
+    bcf_update_format_int32(hdr, rec, name, &data[0], data.size());
   }
 
   
@@ -260,7 +271,7 @@ class File : hts::File
     const char **values = new const char*[data.size()];
     for(std::size_t a = 0; a < data.size(); a++)
       values[a] = data[a].c_str();
-    bcf_update_format_int32(hdr, rec, name, values, data.size());
+    bcf_update_format_string(hdr, rec, name, values, data.size());
 
     delete [] values;
   }
