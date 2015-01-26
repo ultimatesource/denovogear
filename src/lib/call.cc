@@ -59,7 +59,8 @@ istreambuf_range(std::basic_istream<Elem, Traits>& in)
         std::istreambuf_iterator<Elem, Traits>());
 }
 
-// Helper function to determines if output should be bcf file, vcf file, or stdout
+// Helper function to determines if output should be bcf file, vcf file, or stdout. Also
+// parses filename "bcf:<file>" --> "<file>"
 void vcf_GetMode(Call::argument_type &arg, std::string &filename, std::string &mode)
 {
   mode = "w";
@@ -163,10 +164,10 @@ void vcf_AddRecord(hts::bcf::File &vcfout, const char *chrom, int pos, const cha
 	}
     }
 
-  // Add REF, ALT fields
+  // Update REF, ALT fields
   vcfout.SetAlleles(allele_order_str);
 
-
+  // Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
   std::vector<int32_t> gtcounts;
   for(std::size_t sample = 0; sample < read_depths.size(); sample++)
     {
@@ -180,7 +181,6 @@ void vcf_AddRecord(hts::bcf::File &vcfout, const char *chrom, int pos, const cha
 
   vcfout.WriteRecord();
 }
-
 
 
 
@@ -276,14 +276,6 @@ int Call::operator()(Call::argument_type &arg) {
 #else
 
 	// Write VCF header
-	//string mode("w");
-	//if(boost::algorithm::ends_with(boost::to_upper_copy(arg.output), ".BCF") == true)
-	//  {
-	//    // if file ends with .bcf write to a bcf file instead of VCF
-	//    mode += "b";
-	//  }
-	// TODO: Add code to allow for compressed output
-
 	std::string mode;
 	std::string filename;
 	vcf_GetMode(arg, filename, mode);
@@ -384,12 +376,7 @@ int Call::operator()(Call::argument_type &arg) {
 		cout << endl;
 #else
 		vcf_AddRecord(vcfout, h->target_name[target_id], position+1, ref_base, d, p, read_depths);
-		
-		//vcfout.NewRecord(h->target_name[target_id], position+1, ".", ".", "PASS"); 
-		//vcfout.AddInfoField("LL", d);
-		//vcfout.AddInfoField("PMUT", p);
-		//vcfout.writeRecord();
-		//vcfout.AddRecord(h->target_name[target_id], position+1, ref_base, d, p, read_depths);
+	      
 #endif
 		return;
 	});

@@ -28,7 +28,6 @@
 #include <htslib/vcf.h>
 
 
-#define VCF_VERSION "VCFv4.1"
 
 namespace hts { namespace bcf { 
 
@@ -59,10 +58,11 @@ class File : hts::File
       
       if(source != nullptr)
 	{
-	  std::string s = std::string("#source=") + source;
+	  // source field is not required but commonly used in VCF files. 
+	  // htslib is not displaying line if source has spaces; fixed by wrapping in quotes
+	  std::string s = std::string("#source=\"") + source + "\"";
 	  bcf_hdr_append(hdr, s.c_str());
 	}
-      // throw an expection if no source is given?
     }
 
  File(File&& other) : hts::File(std::move(other)), 
@@ -116,22 +116,10 @@ class File : hts::File
   }
 
   template<typename T>
-  void AddHeaderMetadata(const char *key, T &value)
+  void AddHeaderMetadata(const char *key, T value)
   {
     AddHeaderMetadata(key, std::to_string(value).c_str());
   }
-
-  /*
-  void AddHeaderMetadata(const char *key, double value)
-  {
-    AddHeaderMetadata(key, std::to_string(value).c_str());
-  }
-
-  void AddHeaderMetadata(const char *key, int value)
-  {
-    AddHeaderMetadata(key, std::to_string(value).c_str());
-  }
-  */
 
   /** Use this version to add a new INFO/FILTER/FORMAT string to the header */
   void AddHeaderMetadata(const char *line)
@@ -149,8 +137,6 @@ class File : hts::File
   /** Creates the header field. Call only after adding all the sample fields */
   void WriteHeader()
   {
-    bcf_hdr_set_version(hdr, VCF_VERSION);
-   
     bcf_hdr_add_sample(hdr, nullptr); // libhts requires NULL sample before it will write out all the other samples
     bcf_hdr_write(handle(), hdr);
   }
