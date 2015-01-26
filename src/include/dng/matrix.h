@@ -41,12 +41,12 @@ namespace dng {
 		uint16_t counts[8];
 	};
 
-#ifdef DNG_USE_FIXED_GENOTYPE_ARRAY
-	typedef Eigen::Array<double,10,1> GenotypeArray;
-	typedef std::vector<GenotypeArray, Eigen::aligned_allocator<GenotypeArray>> IndividualBuffer;
-#else
+#ifdef DNG_USE_FIXED_DYNAMIC_ARRAY
 	typedef Eigen::ArrayXd GenotypeArray;
 	typedef std::vector<GenotypeArray> IndividualBuffer;
+#else
+	typedef Eigen::Array<double,10,1> GenotypeArray;
+	typedef std::vector<GenotypeArray, Eigen::aligned_allocator<GenotypeArray>> IndividualBuffer;
 #endif
 
 #define DNG_INDIVIDUAL_BUFFER_ASSIGN_TYPE IndividualBuffer::value_type::Ones(10)
