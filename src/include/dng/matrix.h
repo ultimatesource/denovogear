@@ -41,7 +41,7 @@ namespace dng {
 		uint16_t counts[8];
 	};
 
-#ifdef DNG_USE_FIXED_DYNAMIC_ARRAY
+#ifdef DNG_USE_DYNAMIC_GENOTYPE_ARRAY
 	typedef Eigen::ArrayXd GenotypeArray;
 	typedef std::vector<GenotypeArray> IndividualBuffer;
 #else
