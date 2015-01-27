@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014 Reed A. Cartwright
- * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
+ * Copyright (c) 2014-2015 Reed A. Cartwright <reed@cartwrig.ht>
+ * Copyright (c) 2015 Kael Dai <kdai1@asu.edu>
  *
  * This file is part of DeNovoGear.
  *
@@ -30,6 +30,8 @@
 
 #include <boost/spirit/home/x3.hpp>
 
+#include <boost/algorithm/string.hpp>
+
 #include <dng/task/call.h>
 #include <dng/pedigree.h>
 #include <dng/fileio.h>
@@ -37,8 +39,12 @@
 #include <dng/read_group.h>
 #include <dng/likelihood.h>
 #include <dng/seq.h>
+#include <dng/hts/bcf.h>
+#include <dng/hts/extra.h>
 
 #include <htslib/faidx.h>
+
+#include "version.h"
 
 using namespace dng::task;
 using namespace dng;
@@ -52,6 +58,95 @@ istreambuf_range(std::basic_istream<Elem, Traits>& in)
     return boost::iterator_range<std::istreambuf_iterator<Elem, Traits>>(
         std::istreambuf_iterator<Elem, Traits>(in),
         std::istreambuf_iterator<Elem, Traits>());
+}
+
+// Helper function to determines if output should be bcf file, vcf file, or stdout. Also
+// parses filename "bcf:<file>" --> "<file>"
+std::pair<std::string,std::string> vcf_get_output_mode(Call::argument_type &arg) {
+	using boost::algorithm::iequals;
+
+	if(arg.output.empty() || arg.output == "-")
+		return {"-","w"};
+	auto ret = hts::extra::extract_file_type(arg.output);
+	if(iequals(ret.first,"bcf")) {
+		return {ret.second,"wb"};
+	} else if(iequals(ret.first,"vcf")) {
+		return {ret.second,"w"};
+	} else {
+		throw std::runtime_error("Unknown file format '" + ret.second + "' for output '" + arg.output + "'.");
+	}
+	return {};
+}
+
+// Helper function for writing the necessary 
+void vcf_add_header_text(hts::bcf::File &vcfout, Call::argument_type &arg) {
+#define XM(lname, sname, desc, type, def) \
+	vcfout.AddHeaderMetadata(XS(lname), arg.XV(lname));
+#	include <dng/task/call.xmh>
+#undef XM	
+
+	// Add the available tags for INFO, FILTER, and FORMAT fields
+	// TODO: The commented lines are standard VCF fields that may be worth adding to dng output
+	vcfout.AddHeaderMetadata("##INFO=<ID=LL,Number=1,Type=Float,Description=\"Log likelihood\">");
+	vcfout.AddHeaderMetadata("##INFO=<ID=PMUT,Number=1,Type=Float,Description=\"Probability of mutation\">");
+	//vcfout.AddHeaderField("##INFO=<ID=NS,Number=1,Type=Integer,Description=\"Number of Samples With Data\">");
+	//vcfout.AddHeaderField("##INFO=<ID=DP,Number=1,Type=Integer,Description=\"Total Depth\">");
+	//vcfout.AddHeaderField("##INFO=<ID=AF,Number=A,Type=Float,Description=\"Allele Frequency\">");
+	//vcfout.AddHeaderField("##INFO=<ID=AA,Number=1,Type=String,Description=\"Ancestral Allele\">");
+	vcfout.AddHeaderMetadata("##FILTER=<ID=PASS,Description=\"All filters passed\">");
+	//vcfout.AddHeaderField("##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">");
+	//vcfout.AddHeaderField("##FORMAT=<ID=GQ,Number=1,Type=Integer,Description=\"Genotype Quality\">");
+	//vcfout.AddHeaderField("##FORMAT=<ID=DP,Number=1,Type=Integer,Description=\"Read Depth\">");
+	//vcfout.AddHeaderField("##FORMAT=<ID=HQ,Number=2,Type=Integer,Description=\"Haplotype Quality\">");
+
+	// AD defined http://gatkforums.broadinstitute.org/discussion/1268/how-should-i-interpret-vcf-files-produced-by-the-gatk
+	vcfout.AddHeaderMetadata("##FORMAT=<ID=AD,Number=.,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed\">");
+}
+
+void vcf_add_record(hts::bcf::File &vcfout, const char *chrom, int pos, const char ref,
+	double ll, double pmut, const std::vector<dng::depth5_t> &read_depths)
+{
+	vcfout.SetID(chrom, pos, nullptr);
+	// vcfout.setQuality() - Need phred scalled measure of the site samples
+	vcfout.SetFilter("PASS"); // Currently all sites that make it this far pass the threshold
+
+	vcfout.UpdateInfo("LL", static_cast<float>(ll));
+	vcfout.UpdateInfo("PMUT", static_cast<float>(pmut));
+
+	// Based on all the samples determine what nucleotides show up and 
+	// the order they will appear in the REF and ALT field
+	std::vector<uint16_t> allele_order; // List of nucleotides as they appear in the REF and ALT fields
+	std::string allele_order_str; // alt_order in string format, used for SetAlleles
+
+	std::size_t ref_index = seq::char_index(ref);
+	allele_order.push_back(ref_index);
+	allele_order_str = ref;
+	for(std::size_t index = 1; index < 4; index++) {
+		// iterate through the three remaining NTs, if the NT exists in one of the sample add it to alt_order
+		int alt_allele_index = (ref_index + index)%4;
+		for(std::size_t sample = 0; sample < read_depths.size(); sample++) {
+			if(read_depths[sample].counts[alt_allele_index] != 0) {
+				allele_order.push_back(alt_allele_index);
+				allele_order_str += std::string(",") + seq::indexed_char(alt_allele_index);
+				break;
+			}
+		}
+	}
+
+	// Update REF, ALT fields
+	vcfout.SetAlleles(allele_order_str);
+
+	// Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
+	std::vector<int32_t> gtcounts;
+	for(std::size_t sample = 0; sample < read_depths.size(); sample++) {
+		for(std::size_t nt = 0; nt < allele_order.size(); nt++) {
+			size_t allele_index = allele_order[nt];
+			gtcounts.push_back(read_depths[sample].counts[allele_index]);
+		}
+	}
+	vcfout.UpdateSamples("AD", gtcounts);
+
+	vcfout.WriteRecord();
 }
 
 
@@ -136,14 +231,28 @@ int Call::operator()(Call::argument_type &arg) {
 	// Begin Pileup Phase
 	dng::MPileup mpileup(rgs.groups());
 
-	// Output header
-	// TODO: make this optional
+#ifdef DEBUG_STDOUT
+	// Old method of printing out results, leaving in for now mainly for testing purposes.
+	// TODO: remove once vcf output has been throughly tested 
 	cout << "Contig\tPos\tRef\tLL\tPmut";
 	for(std::string str : rgs.libraries()) {
 		cout << '\t' << boost::replace(str, '\t', '.');
 	}
 	cout << endl;
+#else
+
+	// Write VCF header
+	auto out = vcf_get_output_mode(arg);
+	hts::bcf::File vcfout(out.first.c_str(), out.second.c_str(), PACKAGE_STRING);
+	vcf_add_header_text(vcfout, arg);
 	
+	// Add each genotype/sample column then save the header
+	for(std::string str : rgs.libraries()) {
+		std::string sample_name = boost::replace(str, '\t', '.');
+		vcfout.AddSample(sample_name.c_str());
+	}
+	vcfout.WriteHeader();
+#endif
 	// information to hold reference
 	char *ref = nullptr;
 	int ref_sz = 0;
@@ -209,6 +318,8 @@ int Call::operator()(Call::argument_type &arg) {
 		if(p < min_prob)
 			return;
 
+		//vcfo.addRecord(h->target_name[target_id], position+1, ref_base, d, p, read_depths);
+#ifdef DEBUG_STDOUT 
 		// Print position and read information
 		// TODO: turn this into VCF format
 		cout << h->target_name[target_id]
@@ -226,7 +337,9 @@ int Call::operator()(Call::argument_type &arg) {
 		}
 
 		cout << endl;
-
+#else
+		vcf_add_record(vcfout, h->target_name[target_id], position+1, ref_base, d, p, read_depths);
+#endif
 		return;
 	});
 		
