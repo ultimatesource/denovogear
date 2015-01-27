@@ -43,7 +43,7 @@
 #include <math.h>
 #include <getopt.h>
 
-
+#include "version.h"
 
 using namespace std;
 const int g_kFileNameLength = 500;
@@ -293,7 +293,7 @@ void getReadsFromBAM(char* bam_f, string chr1, long dnm_pos, long hap_pos, char*
 // Main
 int main( int argc, char* argv[])
 {
-  cout<<endl<<"DeNovoGear - SNV Phaser";
+  cerr << PACKAGE_STRING << " --- SNV Phaser" << std::endl;
   char DNM_f[g_kFileNameLength] = "EMPTY", parentGT_f[g_kFileNameLength] = "EMPTY", bam_f[g_kFileNameLength] = "EMPTY";
   long window = 1000; // default window size is 1000
 
