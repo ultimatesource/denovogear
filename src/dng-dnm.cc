@@ -33,6 +33,8 @@
 #include <math.h>
 #include <getopt.h>
 
+#include "version.h"
+
 using namespace std;
 #include "bcf.h"
 #include "bgzf.h"
@@ -45,10 +47,6 @@ using namespace std;
 
 #ifdef use_namespace
 using namespace RBD_LIBRARIES;
-#endif
-
-#ifndef VERSION
-#define VERSION "DeNovoGear 1.0.2"
 #endif
 
 int RD_cutoff = 10; // cutoff for the read depth filter
@@ -167,7 +165,7 @@ int writeVCFHeader(std::ofstream& fo_vcf, string op_vcf_f, string bcf_file, stri
     cerr<<"Unable to open vcf file for writing output. Exiting !"<<endl;
   }
   fo_vcf<<"##fileformat=VCFv4.1\n";
-  fo_vcf<<"##source="<<VERSION<<"\n";
+  fo_vcf<<"##source="<<PACKAGE_STRING<<"\n";
   fo_vcf<<"##input_bcf="<<bcf_file<<"\n";
   fo_vcf<<"##input_ped="<<ped_file<<"\n";
   fo_vcf<<"##cutoff_read_depth="<<RD_cutoff<<"\n";
@@ -432,7 +430,7 @@ int mainDNG(int argc, char *argv[])
 
 int main(int argc, char* argv[])
 {
-	cerr << VERSION;
+	cerr << PACKAGE_STRING << std::endl;
 	
 	if(argc >= 1)
 		return mainDNG(argc, argv);
