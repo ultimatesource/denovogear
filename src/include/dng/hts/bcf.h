@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2015 Reed A. Cartwright
- * Authors:  kdai1 <kdai1@asu.edu>
+ * Copyright (c) 2015 Reed A. Cartwright <reed@cartwrig.ht>
+ * Copyright (c) 2015 Kael Dai <kdai1@asu.edu>
  *
  * This file is part of DeNovoGear.
  *
@@ -27,188 +27,159 @@
 #include <set>
 #include <htslib/vcf.h>
 
-
-
 namespace hts { namespace bcf { 
 
 /**
  * File - Class for writing VCF/BCF files to the output, either stdout or to a file
  * To write to stdout set file="-" in constructor. To write as a BCF file set mode="wb" in constructor.
  * To use:
- *  1. call addHeaderMetadata() and addSample() to add information to the VCF header
+ *  1. call AddHeaderMetadata() and AddSample() to add information to the VCF header
  *  2. call WriteHdr() to finish the header
  *  3. populate the first few columns of a VCF body line using SetID(), SetFilter(), SetAlleles(), UpdateInfo() and UpdateSamples() 
  *  4. call WriteRecord() to save/print the current VCF line and move on to the next
  */
-class File : hts::File
-{
- public:
+class File : public hts::File {
+public:
   
   /**
    * Initialize File/output stream for writing VCF/BCF
    * @file - file name to write to, use "-" for stdout
    * @mode: "w" = write VCF, "wb" = write BCF
-   * @source: name of application writing the VCF file
+   * @source: name of application writing the VCF file (optional)
    */
-  File(const char *file, const char *mode, const char *source)
-    : hts::File(file, mode)
+	File(const char *file, const char *mode, const char *source = nullptr) : hts::File(file, mode) {
+		hdr = bcf_hdr_init("w"); // VCF header
+		rec = bcf_init1(); // VCF record/body line
+
+		if(source != nullptr) {
+			std::string s = std::string("#source=\"") + source + "\"";
+			bcf_hdr_append(hdr, s.c_str());
+		}
+    }
+    File(const File&) = delete;
+	File& operator=(const File&) = delete;
+
+	File(File&& other) : hts::File(std::move(other)), hdr(other.hdr),
+		rec(other.rec), contig_ids(std::move(other.contig_ids))
     {
-      hdr = bcf_hdr_init("w"); // VCF header
-      rec = bcf_init1(); // VCF record/body line
+		other.hdr = nullptr;
+		other.rec = nullptr;
+    }
+
+
+	File& operator=(File&& other) {
+		if(this == &other)
+      		return *this;
       
-      if(source != nullptr)
-	{
-	  // source field is not required but commonly used in VCF files. 
-	  // htslib is not displaying line if source has spaces; fixed by wrapping in quotes
-	  std::string s = std::string("#source=\"") + source + "\"";
-	  bcf_hdr_append(hdr, s.c_str());
+		hdr = other.hdr;
+		other.hdr = nullptr;
+
+		rec = other.rec;
+		other.rec = nullptr;
+
+		contig_ids = std::move(other.contig_ids);
+
+		return *this;
 	}
+  
+	virtual ~File() {
+		if(rec != nullptr)
+			bcf_destroy1(rec);
+
+		if(hdr != nullptr)
+			bcf_hdr_destroy(hdr);
     }
 
- File(File&& other) : hts::File(std::move(other)), 
-    hdr(other.hdr), rec(other.rec), contig_ids(other.contig_ids)
-    {
-      other.hdr = nullptr;
-      other.rec = nullptr;
-      other.contig_ids.clear();
-    }
+	/** Use this version to add a new INFO/FILTER/FORMAT string to the header */
+	int AddHeaderMetadata(const char *line) {
+		if(line == nullptr)
+			return -1; //bcf_hdr_append returns if line cannot be processed
+		return bcf_hdr_append(hdr, line);
+	}
 
-  File(const File&) = delete;
+	/** AddHeaderMetadata() - Adds a "##key=value" line to the VCF header */
+	int AddHeaderMetadata(const char *key, const char *value) {
+		if(key == nullptr || value == nullptr)
+			return -1;
+		std::string line = std::string("##") + key + "=" + value;
+		return bcf_hdr_append(hdr, line.c_str());
+	}
 
-  File& operator=(const File&) = delete;
+	int AddHeaderMetadata(const char *key, const std::string& value) {
+		return AddHeaderMetadata(key, value.c_str());
+	}
 
-  File& operator=(File&& other)
-    {
-      if(this == &other)
-	return *this;
-      
-      hdr = other.hdr;
-      other.hdr = nullptr;
 
-      rec = other.rec;
-      other.rec = nullptr;
-      
-      contig_ids = other.contig_ids;
-      other.contig_ids.clear();
+	template<typename T>
+	int AddHeaderMetadata(const char *key, T value) {
+		return AddHeaderMetadata(key, std::to_string(value));
+	}
 
-      return *this;
-    }
-      
-  virtual ~File()
-    {
-      if(rec != nullptr)
-	bcf_destroy1(rec);
+	/** Add another sample/genotype field to the VCF file. */
+	int AddSample(const char *sample) {
+		return bcf_hdr_add_sample(hdr, sample);
+	}
 
-      if(hdr != nullptr)
-	bcf_hdr_destroy(hdr);
+	/** Creates the header field. Call only after adding all the sample fields */
+	int WriteHeader() {
+		bcf_hdr_add_sample(hdr, nullptr); // libhts requires NULL sample before it will write out all the other samples
+		return bcf_hdr_write(handle(), hdr);
+	}
 
-    }
 
-  /** AddHeaderMetadata() - Adds a "##key=value" line to the VCF header */
-  void AddHeaderMetadata(const char *key, const char *value)
-  {
-    if(key == nullptr || value == nullptr)
-      // libhts will seg-fault if line is NULL
-      return;
-
-    std::string line = std::string("##") + key + "=" + value;
-    bcf_hdr_append(hdr, line.c_str());
-  }
-
-  template<typename T>
-  void AddHeaderMetadata(const char *key, T value)
-  {
-    AddHeaderMetadata(key, std::to_string(value).c_str());
-  }
-
-  /** Use this version to add a new INFO/FILTER/FORMAT string to the header */
-  void AddHeaderMetadata(const char *line)
-  {
-    if(line != nullptr)
-      bcf_hdr_append(hdr, line);
-  }
-
-  /** Add another sample/genotype field to the VCF file. */
-  void AddSample(const char *sample)
-  {
-    bcf_hdr_add_sample(hdr, sample);
-  }
-
-  /** Creates the header field. Call only after adding all the sample fields */
-  void WriteHeader()
-  {
-    bcf_hdr_add_sample(hdr, nullptr); // libhts requires NULL sample before it will write out all the other samples
-    bcf_hdr_write(handle(), hdr);
-  }
-
+	//TODO: Split off rec into its own wrapper.
 
   /** 
    * SetID() - Sets the CHROM, POS, and ID fields in the VCF record.
    * chrom is required field. If id is NULL then ID value will default to "."
    */
-  void SetID(const char *chrom, int pos, const char *id)
-  {
-    // CHROM
-    if(chrom == NULL)
-      return; // should display some error?
+	void SetID(const char *chrom, int pos, const char *id = nullptr) {
+		// CHROM
+		if(chrom == nullptr)
+			return; // should display some error?
 
-    std::string chrom_s(chrom);
-    if(contig_ids.find(chrom_s) == contig_ids.end())
-      {
-	// there needs to be a matching contig id in the header otherwise bcf_write1() will fault [tracked issue to vcf.cc vcf_format()]
-	std::string conv = std::string("##contig=<ID=") + chrom_s + ",length=1>";
-	bcf_hdr_append(hdr, conv.c_str());
-	contig_ids.insert(chrom_s);
-	//stringstream conv;
-	//conv << "##contig=<ID=" << chrom_s << ",length=1>"; // length is required by htslib but not sure what is the appropiate value?
-	//bcf_hdr_append(hdr, conv.str().c_str());
-	//bcf_hdr_write(fp,hdr); //TODO: unless we call write the ##contig header won't show up in the output
-	//contig_ids.insert(chrom_s);
-      }
-    rec->rid = bcf_hdr_name2id(hdr, chrom);
+		std::string chrom_s(chrom);
+		// TODO: Cache last contig_id, since it is likely to be the same??
+		// TODO: Preprocess the "##congig strings based on bam contigs???"
+		if(contig_ids.find(chrom_s) == contig_ids.end()) {
+			// there needs to be a matching contig id in the header otherwise bcf_write1() will fault [tracked issue to vcf.cc vcf_format()]
+			std::string conv = std::string("##contig=<ID=") + chrom_s + ",length=1>";
+			bcf_hdr_append(hdr, conv.c_str());
+			contig_ids.insert(chrom_s);
+		}
+		rec->rid = bcf_hdr_name2id(hdr, chrom);
 
-    // POS
-    rec->pos = pos;
+		// POS
+		rec->pos = pos;
 
-    // ID
-    if(id != nullptr)
-      {
-	bcf_update_id(hdr, rec, id);
-      }
-  }
+		// ID
+		if(id != nullptr) {
+			bcf_update_id(hdr, rec, id);
+		}
+	}
 
-  void SetQuality(int quality)
-  {
-    rec->qual = quality;
-  }
+ 	void SetQuality(int quality) {
+ 		rec->qual = quality;
+  	}
 
-  void setFilter(const char *filter)
-  {
-    if(filter != nullptr)
-      {
-	int32_t fid = bcf_hdr_id2int(hdr, BCF_DT_ID, "PASS");
-	bcf_update_filter(hdr, rec, &fid, 1);
-      }
-  }
+
+	int SetFilter(const char *filter) {
+		if(filter == nullptr)
+			return 0;
+		int32_t fid = bcf_hdr_id2int(hdr, BCF_DT_ID, filter);
+		return bcf_update_filter(hdr, rec, &fid, 1);
+	}
 
   /**
    * SetAlleles() - Set the REF and ALT fields in the current record
-   * @alleles: A list of all the alleles that show up in the sample. 
-   *          alleles[0] is used as the REF value.
+   * @str: A comma separated list of all the alleles that show up in the sample. 
+   *       the first element is the REF value.
    */
-  void SetAlleles(std::vector<std::string> &alleles)
-  {
-    if(alleles.size() == 0)
-      return;
-
-    // convert to a comma separated list 
-    std::string ss;
-    ss += alleles[0];
-    for(std::size_t a = 1; a < alleles.size(); a++)
-      ss += std::string(",") + alleles[a];
-    
-    bcf_update_alleles_str(hdr, rec, ss.c_str());
-  }
+	int SetAlleles(const std::string &str) {
+		if(str.empty())
+			return 0;
+		return bcf_update_alleles_str(hdr, rec, str.c_str());
+	}
 
 
   /**
@@ -218,20 +189,17 @@ class File : hts::File
    *
    * TODO: Add a vector<> version of flat, ints, and strings.
    */
-  void UpdateInfo(const char *key, float value)
-  {
-    bcf_update_info_float(hdr, rec, key, &value, 1);
-  }
+	int UpdateInfo(const char *key, float value) {
+		return bcf_update_info_float(hdr, rec, key, &value, 1);
+	}
 
-  void UpdateInfo(const char *key, int32_t value)
-  {
-    bcf_update_info_int32(hdr, rec, key, &value, 1);
-  }
+	int UpdateInfo(const char *key, int32_t value) {
+		return bcf_update_info_int32(hdr, rec, key, &value, 1);
+	}
 
-  void UpdateInfo(const char *key, std::string &value)
-  {
-    bcf_update_info_string(hdr, rec, key, value.c_str());
-  }
+	int UpdateInfo(const char *key, std::string &value) {
+		return bcf_update_info_string(hdr, rec, key, value.c_str());
+	}
 
 
   /**
@@ -241,47 +209,40 @@ class File : hts::File
    * @data: A list of values that will populate the sample/genotype fields. The vector
    *        should be a multiple of the number sample columns. 
    */
-  void UpdateSamples(const char *name, std::vector<float> &data)
-  {
-    bcf_update_format_float(hdr, rec, name, &data[0], data.size());   
-  }
-
-  void UpdateSamples(const char *name, std::vector<int32_t> &data)
-  {
-    bcf_update_format_int32(hdr, rec, name, &data[0], data.size());
-  }
-
-  
-  void UpdateSamples(const char *name, std::vector<std::string> &data)
-  {
-    const char **values = new const char*[data.size()];
-    for(std::size_t a = 0; a < data.size(); a++)
-      values[a] = data[a].c_str();
-    bcf_update_format_string(hdr, rec, name, values, data.size());
-
-    delete [] values;
-  }
+	int UpdateSamples(const char *name, const std::vector<float> &data) {
+		assert(name != nullptr);
+		return bcf_update_format_float(hdr, rec, name, &data[0], data.size());   
+	}
+	int UpdateSamples(const char *name, const std::vector<int32_t> &data) {
+		assert(name != nullptr);
+		return bcf_update_format_int32(hdr, rec, name, &data[0], data.size());
+	}
+	int UpdateSamples(const char *name, const std::vector<const char*> &data) {
+		assert(name != nullptr);
+		return bcf_update_format_string(hdr, rec, name, const_cast<const char**>(&data[0]), data.size());		
+	}
+	int UpdateSamples(const char *name, const std::vector<std::string> &data) {
+		std::vector<const char*> v(data.size());
+		for(decltype(data.size()) u = 0; u < data.size(); ++u )
+			v[u] = data[u].c_str();
+		return UpdateSamples(name, v);
+	}
 
 
-  /** Writes out the up-to-date info in the record and prepares for the next line */
-  void WriteRecord()
-  {
-    // Add line to the body of the VCF
-    bcf_write1(handle(), hdr, rec);
-    
-    // reset the record for the next line
-    bcf_clear(rec);
-  }
-  
+	/** Writes out the up-to-date info in the record and prepares for the next line */
+	void WriteRecord() {
+		// Add line to the body of the VCF
+		bcf_write1(handle(), hdr, rec);
 
-  
-						       
- protected:
-  bcf_hdr_t *hdr;
-  bcf1_t *rec;
-
-  std::set<std::string> contig_ids; // List of unique CHROM/contig values
-
+		// reset the record for the next line
+		bcf_clear(rec);
+	}
+        
+protected:
+	bcf_hdr_t *hdr;
+	bcf1_t *rec;
+	
+	std::set<std::string> contig_ids; // List of unique CHROM/contig values
 };
   
 
