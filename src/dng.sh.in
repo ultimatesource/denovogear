@@ -26,7 +26,7 @@ version_num="@DNG_VERSION@"
 : ${DNG_LIBEXEC_DIR:="$( cd "$( dirname "$0" )" && pwd )"/../libexec/@DNG_NAME_FOR_PKG_FILE@}
 
 # Internal commands
-int_cmds="help version citation"
+int_cmds="help version citation bibtex"
 
 submatch () { case "$2" in *$1*) return 0 ;; *) return 1 ;; esac ; }
 
@@ -107,8 +107,25 @@ dng_usage() {
 }
 
 dng_citation() {
-    echo "WARNING: Not yet implemented."
+    echo "Ramu et al. (2013) DeNovoGear: De Novo Indel and Point Mutation Discovery and Phasing. Nature Methods. 10(10):985--987. doi:10.1038/nmeth.2611"
     return 0
+}
+
+dng_bibtex() {
+    echo "@ARTICLE{RamuEtAl2013,
+  author  = {Avinash Ramu and Michiel J. Noordam and Rachel S. Schwartz
+            and Auther Wuster and Matthew E. Hurles
+            and Reed A. Cartwright and Donald F. Conrad},
+  title   = {{DeNovoGear}: \textit{de novo} indel and point mutation discovery
+            and phasing},
+  journal = {Nature Methods},
+  year    = {2013},
+  volume  = {10},
+  pages   = {985--987},
+  doi     = {10.1038/nmeth.2611},
+  url     = {http://dx.doi.org/10.1038/nmeth.2611}
+}"
+
 }
 
 # print usage if no arguments were given
