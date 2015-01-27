@@ -90,9 +90,9 @@ MESSAGE(STATUS "${DNG_NAME} version is ${DNG_VERSION}")
 ################################################################################
 # Packaging Information
 
-SET(CMAKE_DATA_DIR "share/dng" CACHE STRING
+SET(CMAKE_DATA_DIR "share/${DNG_NAME_FOR_PKG_FILE}" CACHE STRING
   "Install location for data (relative to prefix).")
-SET(CMAKE_DOC_DIR "doc/dng" CACHE STRING
+SET(CMAKE_DOC_DIR "doc/${DNG_NAME_FOR_PKG_FILE}" CACHE STRING
   "Install location for documentation (relative to prefix).")
 SET(CMAKE_MAN_DIR "man" CACHE STRING
   "Install location for man pages (relative to prefix).")

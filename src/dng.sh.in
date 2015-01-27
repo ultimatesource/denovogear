@@ -23,7 +23,7 @@ version_num="@DNG_VERSION@"
 # under certain conditions this may fail to work, so an installer should set
 # this to the proper installation directory, e.g. $prefix/libexec
 
-: ${DNG_LIBEXEC_DIR:="$( cd "$( dirname "$0" )" && pwd )"/../libexec/dng}
+: ${DNG_LIBEXEC_DIR:="$( cd "$( dirname "$0" )" && pwd )"/../libexec/@DNG_NAME_FOR_PKG_FILE@}
 
 # Internal commands
 int_cmds="help version citation"
