@@ -21,8 +21,15 @@
 #ifndef DNG_UTILITIES_H
 #define DNG_UTILITIES_H
 
-#include <boost/algorithm/string/predicate.hpp>
 #include <tuple>
+
+#include <boost/spirit/include/support_ascii.hpp>
+#include <boost/spirit/include/qi_real.hpp>
+#include <boost/spirit/include/qi_parse.hpp>
+#include <boost/spirit/include/qi_list.hpp>
+#include <boost/spirit/include/qi_char.hpp>
+
+#include <boost/algorithm/string/predicate.hpp>
 
 namespace dng { namespace util {
 
@@ -44,6 +51,19 @@ const B& key_switch_tuple(A &ss, const B (&key)[N], const B& default_value) {
 			return key[i];
 	}
 	return default_value;
+}
+
+// TODO: make the separator more generic
+template<typename S>
+std::pair<std::vector<double>,bool> parse_double_list(const S& str, char sep=',', size_t sz_hint=4) {
+	namespace qi = boost::spirit::qi;
+	std::vector<double> f;
+	f.reserve(sz_hint);
+	boost::spirit::ascii::space_type space;
+	auto b = boost::begin(str);
+	auto e = boost::end(str);
+	bool r = qi::phrase_parse(b,e, qi::double_ % sep,space,f);
+	return {f, (r && b == e) };
 }
 
 }};

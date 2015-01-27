@@ -28,8 +28,6 @@
 #include <boost/range/iterator_range.hpp>
 #include <boost/range/algorithm/replace.hpp>
 
-#include <boost/spirit/home/x3.hpp>
-
 #include <boost/algorithm/string.hpp>
 
 #include <dng/task/call.h>
@@ -39,6 +37,7 @@
 #include <dng/read_group.h>
 #include <dng/likelihood.h>
 #include <dng/seq.h>
+#include <dng/utilities.h>
 #include <dng/hts/bcf.h>
 #include <dng/hts/extra.h>
 
@@ -48,7 +47,6 @@
 
 using namespace dng::task;
 using namespace dng;
-namespace x3 = boost::spirit::x3;
 
 // Helper function that mimics boost::istream_range
 template<class Elem, class Traits> inline
@@ -204,21 +202,17 @@ int Call::operator()(Call::argument_type &arg) {
 	std::array<double, 4> freqs;
 	// TODO: read directly into freqs????  This will need a wrapper that provides an "insert" function.
 	// TODO: include the size into the pattern, but this makes it harder to catch the second error.
-	// TODO: turn this into utility function
 	{
-		std::vector<double> f;
-		f.reserve(4);
-		x3::ascii::space_type space;
-		auto b = arg.nuc_freqs.begin();
-		auto e = arg.nuc_freqs.end();
-		bool r = x3::phrase_parse(b, e, x3::double_ % ',', space,f);
-		if(!r || b != e ) {
-			throw std::runtime_error("Unable to parse nuc-freq option. It must be a comma separated list of floating-point numbers.");
+		auto f = util::parse_double_list(arg.nuc_freqs,',',4);
+		if(!f.second ) {
+			throw std::runtime_error("Unable to parse nuc-freq option. "
+				"It must be a comma separated list of floating-point numbers.");
 		}
-		if(f.size() != 4) {
-			throw std::runtime_error("Wrong number of values passed to nuc-freq. Expected 4; found " + std::to_string(f.size()) + ".");
+		if(f.first.size() != 4) {
+			throw std::runtime_error("Wrong number of values passed to nuc-freq. "
+				"Expected 4; found " + std::to_string(f.first.size()) + ".");
 		}
-		std::copy(f.begin(),f.end(),&freqs[0]);
+		std::copy(f.first.begin(),f.first.end(),&freqs[0]);
 	}
 
 	// Construct peeling algorithm from parameters and pedigree information
