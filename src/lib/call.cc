@@ -219,7 +219,8 @@ int Call::operator()(Call::argument_type &arg) {
 	dng::Pedigree peeler;
 	peeler.Initialize({arg.theta, arg.mu, arg.mu_somatic, arg.mu_library, arg.ref_weight, freqs});
 	if(!peeler.Construct(ped,rgs)) {
-		throw std::runtime_error("Unable to construct peeler for pedigree; possible non-zero-loop pedigree.");
+		throw std::runtime_error("Unable to construct peeler for pedigree; "
+			"possible non-zero-loop pedigree.");
 	}
 	
 	// Begin Pileup Phase

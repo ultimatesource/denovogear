@@ -67,7 +67,7 @@ ADD_EXECUTABLE(dng-call
   dng-call.cc
   lib/call.cc lib/likelihood.cc lib/newick.cc lib/pedigree.cc
 )
-SET_PROPERTY(TARGET dng-call PROPERTY CXX_STANDARD 14)
+SET_PROPERTY(TARGET dng-call PROPERTY CXX_STANDARD 11)
 SET_PROPERTY(TARGET dng-call PROPERTY CXX_STANDARD_REQUIRED ON)
 
 CONFIGURE_FILE(
