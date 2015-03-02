@@ -257,7 +257,7 @@ Please feel free to contact the authors about any concerns/comments.
 --rd_cutoff:     Read depth filter, sites where either one of the sample have read depth less than this threshold are filtered out. [10
 --region: region of the BCF file over which to perform denovo calling. [string of the form "chr:start-end"]
 
-### `dng call`: Finding Mutations in General Pedigrees
+### dng call: Finding Mutations in General Pedigrees
 
 `dng call` is an experimental module to identify mutations on zero-loop pedigrees from SAM/BAM/CRAM files.
 
@@ -278,10 +278,15 @@ Print Usage: `dng call --help`
 ```
 
 Column 1: Family ID
+
 Column 2: Individual ID
+
 Column 3: Father ID (0=unknown)
+
 Column 4: Mother ID (0=unknown)
+
 Column 5: Sex (1=male, 2=female, other=unknown)
+
 Column 6: Sample IDs; a newick-formatted tree
 
 
