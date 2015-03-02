@@ -21,6 +21,7 @@
 #define CXX_HTS_HTS_H
 
 #include <htslib/hts.h>
+#include <htslib/hfile.h>
 
 namespace hts {
 
@@ -50,14 +51,44 @@ public:
 	File& operator=(const File&) = delete;
 
 	int SetFaiFileName(const char* fn) {
-		return hts_set_fai_filename(fp_,fn);
+		assert(handle() != nullptr);
+		return hts_set_fai_filename(handle(),fn);
 	}
 	int SetThreads(int n) {
-		return hts_set_threads(fp_,n);
+		assert(handle() != nullptr);
+		return hts_set_threads(handle(),n);
 	}
 
-	bool is_open() const {return fp_ != nullptr; }
-	const char* name() const { return fp_->fn; }
+	int Flush() {
+		assert(handle() != nullptr);
+		if(!is_write())
+			return 0;
+		switch(format().format) {
+		case text_format:
+		case sam:
+		case vcf:
+			if(format().compression == no_compression)
+				return hflush(handle()->fp.hfile);
+			return 0;
+		default:
+			return 0;
+		}
+		return 0;
+	}
+
+	bool is_open() const { return handle() != nullptr; }
+	bool is_write() const {
+		assert(handle() != nullptr);
+		return handle()->is_write;
+	}
+	const char* name() const {
+		assert(handle() != nullptr);
+		return handle()->fn;
+	}
+	htsFormat format() const {
+		assert(handle() != nullptr);
+		return handle()->format;
+	}
 
 protected:
 	htsFile* handle() {return fp_;}
@@ -66,7 +97,6 @@ protected:
 private:
 	htsFile *fp_;     // the file handle	
 };
-
 
 };
 

@@ -123,7 +123,8 @@ public:
 	/** Creates the header field. Call only after adding all the sample fields */
 	int WriteHeader() {
 		bcf_hdr_add_sample(hdr, nullptr); // libhts requires NULL sample before it will write out all the other samples
-		return bcf_hdr_write(handle(), hdr);
+		int ret = bcf_hdr_write(handle(), hdr);
+		return (ret < 0) ? ret : Flush();
 	}
 
 
