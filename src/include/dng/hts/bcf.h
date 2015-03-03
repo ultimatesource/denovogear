@@ -123,8 +123,7 @@ public:
 	/** Creates the header field. Call only after adding all the sample fields */
 	int WriteHeader() {
 		bcf_hdr_add_sample(hdr, nullptr); // libhts requires NULL sample before it will write out all the other samples
-		int ret = bcf_hdr_write(handle(), hdr);
-		return (ret < 0) ? ret : Flush();
+		return bcf_hdr_write(handle(), hdr);
 	}
 
 
@@ -234,7 +233,6 @@ public:
 	void WriteRecord() {
 		// Add line to the body of the VCF
 		bcf_write1(handle(), hdr, rec);
-		Flush();
 		// reset the record for the next line
 		bcf_clear(rec);
 	}
