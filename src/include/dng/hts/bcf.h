@@ -234,7 +234,7 @@ public:
 	void WriteRecord() {
 		// Add line to the body of the VCF
 		bcf_write1(handle(), hdr, rec);
-
+		Flush();
 		// reset the record for the next line
 		bcf_clear(rec);
 	}
