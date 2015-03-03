@@ -2,8 +2,8 @@
 #  Denovogear Project Configuration
 #
 ## Project DeNovoGear
-PROJECT(DeNovoGear)
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8 FATAL_ERROR)
+PROJECT(DeNovoGear CXX C)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.1.0 FATAL_ERROR)
 
 # guard against in-source builds
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
