@@ -51,48 +51,48 @@ public:
 	File& operator=(const File&) = delete;
 
 	int SetFaiFileName(const char* fn) {
-		assert(handle() != nullptr);
 		return hts_set_fai_filename(handle(),fn);
 	}
 	int SetThreads(int n) {
-		assert(handle() != nullptr);
 		return hts_set_threads(handle(),n);
 	}
 
 	int Flush() {
-		assert(handle() != nullptr);
-		if(!is_write())
-			return 0;
-		switch(format().format) {
-		case text_format:
-		case sam:
-		case vcf:
-			if(format().compression == no_compression)
-				return hflush(handle()->fp.hfile);
-			return 0;
-		default:
-			return 0;
-		}
+		if(is_write() && !is_cram() && !is_compressed())
+			return hflush(handle()->fp.hfile);
 		return 0;
 	}
 
-	bool is_open() const { return handle() != nullptr; }
-	bool is_write() const {
-		assert(handle() != nullptr);
-		return handle()->is_write;
-	}
-	const char* name() const {
-		assert(handle() != nullptr);
-		return handle()->fn;
-	}
-	htsFormat format() const {
-		assert(handle() != nullptr);
-		return handle()->format;
+	bool is_open() const { return fp_ != nullptr; }
+	bool is_bin() const { return handle()->is_bin; }
+	bool is_write() const { return handle()->is_write; }
+	bool is_cram() const { return handle()->is_cram; }
+	bool is_compressed() const {
+#if HTSLIB_VERSION_NUM >= 10200
+		return handle()->format.compression;
+#else
+		return handle()->is_compressed;
+#endif
 	}
 
+	const char* name() const {
+		return handle()->fn;
+	}
+	/* //This only works with HTSLib 1.2+
+	htsFormat format() const {
+		return handle()->format;
+	}
+	*/
+
 protected:
-	htsFile* handle() {return fp_;}
-	const htsFile* handle() const { return fp_; }
+	htsFile* handle() {
+		assert(fp_ != nullptr);
+		return fp_;
+	}
+	const htsFile* handle() const {
+		assert(fp_ != nullptr);
+		return fp_;
+	}
 
 private:
 	htsFile *fp_;     // the file handle	
