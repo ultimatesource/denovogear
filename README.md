@@ -1,48 +1,59 @@
 [![Build Status](https://travis-ci.org/gatoravi/DNG_dev.png?branch=master)](https://travis-ci.org/gatoravi/DNG_dev)
 
-Authors: Don Conrad, Avinash Ramu ( aramu at genetics dot wustl dot edu ) and Reed A. Cartwright.
+Authors: Don Conrad, Avinash Ramu, Kael Dai, and Reed A. Cartwright.
 
 ## RELEASE NOTES
+v1.1
+Main program now called 'dng'  
+Added experimental 'dng call' module.  
+DeNovoGear now requires CMake 3.1+, Boost 1.47+, and Eigen 3+.  
+
 v1.0
-made changes to indel_mrate parameter
-better indenting
-mu_scale scales indel mutation rate linearly
+made changes to indel_mrate parameter  
+better indenting  
+mu_scale scales indel mutation rate linearly  
 
 v0.5.4
-added GPL v3
-updated output fields for indels, snps to be the same
+added GPL v3  
+updated output fields for indels, snps to be the same  
 
 v0.5.3
-removed 'X' allele in VCF op. VCF can be indexed by Tabix, IGVTools and used in Annovar.
-added region based denovo calling on BCF files, invoked with --region flag
-added vcf parser for denovo calling, invoked with --vcf flag
+removed 'X' allele in VCF op. VCF can be indexed by Tabix, IGVTools and used in Annovar.  
+added region based denovo calling on BCF files, invoked with --region flag  
+added vcf parser for denovo calling, invoked with --vcf flag  
 
 v0.5.2
-Added read-depth, posterior-probability filters.
-Output number of sites in the BCF and number of sites passing filters.
-Modified paired caller output.
+Added read-depth, posterior-probability filters.  
+Output number of sites in the BCF and number of sites passing filters.  
+Modified paired caller output.  
 
 v0.5.1
-Fixed bug in triallelic configuration. Some trialleic denovo configurations were being called incorrectly.
+Fixed bug in triallelic configuration.  
+Some trialleic denovo configurations were being called incorrectly.
+
+## DEPENDENCIES
+
+* Recent C++ compiler, supporting C++11 (eg. gcc 4.8.1+ or clang 3.3+)
+* CMake 3.1+ when compiling <http://www.cmake.org/download/#latest>
+* HTSlib <http://www.htslib.org/>
+* Eigen 3 <http://eigen.tuxfamily.org/>
+* Boost 1.47+ <http://www.boost.org/>
+
+Most Unix distributions contain package software that will install these dependencies for you.
+
+## DOWNLOAD
+Source code and binaries are available at <https://github.com/denovogear/denovogear/releases>.
+
 
 ## COMPILING
-Compilation of DeNovoGear requires CMake.  You can download CMake installers from the CMake
-website <http://www.cmake.org/cmake/resources/software.html>.  Most Linux
-distributions allow you to install CMake using their package software.
+Compilation of DeNovoGear requires CMake.  Most Linux distributions allow you to install CMake using their package software.
 
-Compiling and Installing on Linux:
+Compiling and Installing on Unix:
         `tar -xvzf denovogear*.tar.gz`
         `cd denovogear*/build`
         `cmake ..`
         `make`
         `sudo make install`
-
-Creating Packages:
-        `make package`
-        `make package_source`
-
-## BINARIES
-Binaries are available for MacOSX and for Linux. Please see http://sourceforge.net/projects/denovogear/files/Executables/
 
 ## RUNNING THE CODE
 
@@ -51,10 +62,10 @@ Binaries are available for MacOSX and for Linux. Please see http://sourceforge.n
 DeNovoGear takes in a PED file and a BCF file as input. The PED file describes the relationship between the samples and the BCF file contains the sequencing information for every locus.
 
 #### usage:
-	     `./denovogear dnm auto --ped sample.ped --bcf sample.bcf`
+	     `dng dnm auto --ped sample.ped --bcf sample.bcf`
 
         If you would rather start with the BAM files and have samtools installed, this would work,
-        `samtools mpileup -gDf hg19.fa s1.bam s2.bam s3.bam | ./denovogear dnm auto --ped sample.ped --bcf -`
+        `samtools mpileup -gDf hg19.fa s1.bam s2.bam s3.bam | dng dnm auto --ped sample.ped --bcf -`
 
 #####  about sample.bcf:
 BCF files can be generated from the alignment using the samtools mpileup
@@ -91,9 +102,9 @@ If you wish to change the default point or indel mutation rates use the --snp_mr
 or --indel_mrate switches respectively.
 
 For example
-	     `./denovogear dnm auto --ped sample.ped --bcf sample.bcf --snp_mrate 2e-10 --indel_mrate 1e-11`
+	     `dng dnm auto --ped sample.ped --bcf sample.bcf --snp_mrate 2e-10 --indel_mrate 1e-11`
 	            [OR]
-	     `./denovogear dnm auto --ped sample.ped --vcf sample.vcf --snp_mrate 2e-10 --indel_mrate 1e-11`
+	     `dng dnm auto --ped sample.ped --vcf sample.vcf --snp_mrate 2e-10 --indel_mrate 1e-11`
 
 The indel mutation rate prior is calculated based on the length of the insertion or deletion event,
 separate models are used for insertions and deletions. The two models are based on the indel observations from the 1000Genomes phase 1 data.
@@ -108,9 +119,9 @@ Note that a constant factor is used to scale the mutation rate, it is set to 1.0
 by default and can be set using the switch --mu_scale. This provides the users to scale the mutation rate prior according to their data-set.
 
 For example,
-        `./denovogear dnm auto --ped sample.ped --bcf sample.bcf --mu_scale 3`
+        `dng dnm auto --ped sample.ped --bcf sample.bcf --mu_scale 3`
 	     		   [OR]
-        `./denovogear dnm auto --ped sample.ped --vcf sample.vcf --mu_scale 3`
+        `dng dnm auto --ped sample.ped --vcf sample.vcf --mu_scale 3`
 
 
 #### OUTPUT FORMAT for TRIOS
@@ -144,29 +155,29 @@ Denovogear has separate models for autosomes, X chromosome in male offspring and
 
 #### Autosomes model usage
 
-        `./denovogear dnm auto --ped sample.ped --bcf sample.bcf`
+        `dng dnm auto --ped sample.ped --bcf sample.bcf`
             [OR]
-        `./denovogear dnm auto --ped sample.ped --vcf sample.vcf`
+        `dng dnm auto --ped sample.ped --vcf sample.vcf`
 
 #### X in male offspring model usage
 
-        `./denovogear dnm XS --ped sample.ped --bcf sample.bcf --region X`
+        `dng dnm XS --ped sample.ped --bcf sample.bcf --region X`
             [OR]
-        `./denovogear dnm XS --ped sample.ped --vcf sample.X.vcf` (only BCF allows for random access)
+        `dng dnm XS --ped sample.ped --vcf sample.X.vcf` (only BCF allows for random access)
 #### X in female offspring model usage
 
-        `./denovogear dnm XD --ped sample.ped --bcf sample.bcf --region X`
+        `dng dnm XD --ped sample.ped --bcf sample.bcf --region X`
             [OR]
-        `./denovogear dnm XD --ped sample.ped --vcf sample.X.vcf`
+        `dng dnm XD --ped sample.ped --vcf sample.X.vcf`
 
 ### PAIRED SAMPLE ANALYSIS
 DNG can be used to analyze paired samples for example to call somatic mutations between tumor/matched-normal pairs, the main difference in how to run the program is the way samples are specified in the PED file(see below),
 
 #### Usage:
 
-        `./denovogear dnm auto --ped paired.ped --bcf sample.bcf`
+        `dng dnm auto --ped paired.ped --bcf sample.bcf`
             [OR]
-        `./denovogear dnm auto --ped paired.ped --vcf sample.vcf`
+        `dng dnm auto --ped paired.ped --vcf sample.vcf`
 
 About the arguments,
 
@@ -206,7 +217,7 @@ A sample list of dnms file, sample_phasing_dnm_f is provided. Also a sample geno
 
 #### Usage:
 
-        `./denovogear phaser --dnm dnm_f --pgt gts_file --bam alignment.bam --window 1000`
+        `dng phaser --dnm dnm_f --pgt gts_file --bam alignment.bam --window 1000`
 
 About the arguments,
 
@@ -246,6 +257,39 @@ Please feel free to contact the authors about any concerns/comments.
 --pp_cutoff:     Posterior probability threshold. [0.0001]
 --rd_cutoff:     Read depth filter, sites where either one of the sample have read depth less than this threshold are filtered out. [10
 --region: region of the BCF file over which to perform denovo calling. [string of the form "chr:start-end"]
+
+### dng call: Finding Mutations in General Pedigrees
+
+`dng call` is an experimental module to identify mutations on zero-loop pedigrees from SAM/BAM/CRAM files.
+
+#### Usage:
+
+Example: `dng call -p family.ped family.bam`
+
+Print Usage: `dng call --help`
+
+#### Pedigree File Format
+
+`dng call` uses a 6-column, tab-separated pedigree file format
+
+```
+1   1   0   0   1   NA12891
+1   2   0   0   2   NA12892
+1   3   1   2   2   NA12878
+```
+
+Column 1: Family ID
+
+Column 2: Individual ID
+
+Column 3: Father ID (0=unknown)
+
+Column 4: Mother ID (0=unknown)
+
+Column 5: Sex (1=male, 2=female, other=unknown)
+
+Column 6: Sample IDs; a newick-formatted tree
+
 
 ## ACKNOWLEDGEMENTS
 DeNovoGear uses the Samtools libraries to parse BCF files, we thank the Heng Li and the rest of the authors of Samtools for making this resource available to developers.
