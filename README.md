@@ -4,31 +4,32 @@ Authors: Don Conrad, Avinash Ramu, Kael Dai, and Reed A. Cartwright.
 
 ## RELEASE NOTES
 v1.1
-Main program now called 'dng'
-Added experimental 'dng call' module.
-DeNovoGear now requires CMake 3.1+, Boost 1.47+, and Eigen 3+.
+Main program now called 'dng'  
+Added experimental 'dng call' module.  
+DeNovoGear now requires CMake 3.1+, Boost 1.47+, and Eigen 3+.  
 
 v1.0
-made changes to indel_mrate parameter
-better indenting
-mu_scale scales indel mutation rate linearly
+made changes to indel_mrate parameter  
+better indenting  
+mu_scale scales indel mutation rate linearly  
 
 v0.5.4
-added GPL v3
-updated output fields for indels, snps to be the same
+added GPL v3  
+updated output fields for indels, snps to be the same  
 
 v0.5.3
-removed 'X' allele in VCF op. VCF can be indexed by Tabix, IGVTools and used in Annovar.
-added region based denovo calling on BCF files, invoked with --region flag
-added vcf parser for denovo calling, invoked with --vcf flag
+removed 'X' allele in VCF op. VCF can be indexed by Tabix, IGVTools and used in Annovar.  
+added region based denovo calling on BCF files, invoked with --region flag  
+added vcf parser for denovo calling, invoked with --vcf flag  
 
 v0.5.2
-Added read-depth, posterior-probability filters.
-Output number of sites in the BCF and number of sites passing filters.
-Modified paired caller output.
+Added read-depth, posterior-probability filters.  
+Output number of sites in the BCF and number of sites passing filters.  
+Modified paired caller output.  
 
 v0.5.1
-Fixed bug in triallelic configuration. Some trialleic denovo configurations were being called incorrectly.
+Fixed bug in triallelic configuration.  
+Some trialleic denovo configurations were being called incorrectly.
 
 ## DEPENDENCIES
 
