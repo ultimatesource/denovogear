@@ -163,3 +163,10 @@ CONFIGURE_FILE(
 
 ADD_CUSTOM_TARGET(uninstall
   "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake") 
+
+
+#### NOTES ####
+
+## Build for 10.7+ on OSX
+# CXXFLAGS=-stdlib=libc++ cmake -DCMAKE_BUILD_TYPE=Release \
+#   -DUSE_STATIC_LIBS=on -DCMAKE_OSX_DEPLOYMENT_TARGET=10.7 ..

@@ -44,7 +44,6 @@ IF(Boost_FOUND)
 #  ENDIF(Boost_VERSION LESS 104700)
 ENDIF(Boost_FOUND)
 
-
 ADD_SUBDIRECTORY(contrib/newmat)
 ADD_SUBDIRECTORY(utils)
 
