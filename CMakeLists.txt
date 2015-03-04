@@ -2,8 +2,16 @@
 #  Denovogear Project Configuration
 #
 ## Project DeNovoGear
-PROJECT(DeNovoGear CXX C)
 CMAKE_MINIMUM_REQUIRED(VERSION 3.1.0 FATAL_ERROR)
+CMAKE_POLICY(SET CMP0025 NEW)
+
+PROJECT(DeNovoGear CXX C)
+
+# AppleClang doesn't know how to do these things
+IF("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
+  SET(CMAKE_CXX11_STANDARD_COMPILE_OPTION "-std=c++11")
+  SET(CMAKE_CXX11_EXTENSION_COMPILE_OPTION "-std=gnu++11")
+ENDIF()
 
 # guard against in-source builds
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
@@ -11,19 +19,16 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
 endif()
 
 # guard against bad build-type strings
-if (NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE "Release")
-endif()
-
-string(TOLOWER "${CMAKE_BUILD_TYPE}" cmake_build_type_tolower)
-if(    NOT cmake_build_type_tolower STREQUAL "debug"
-   AND NOT cmake_build_type_tolower STREQUAL "release"
-   AND NOT cmake_build_type_tolower STREQUAL "relwithdebinfo")
-  message(FATAL_ERROR "Unknown build type \"${CMAKE_BUILD_TYPE}\". Allowed values are Debug, Release, RelWithDebInfo (case-insensitive).")
-endif()
+IF(DEFINED CMAKE_BUILD_TYPE)
+  string(TOLOWER "${CMAKE_BUILD_TYPE}" cmake_build_type_tolower)
+  if(    NOT cmake_build_type_tolower STREQUAL "debug"
+     AND NOT cmake_build_type_tolower STREQUAL "release"
+     AND NOT cmake_build_type_tolower STREQUAL "relwithdebinfo")
+    message(FATAL_ERROR "Unknown build type \"${CMAKE_BUILD_TYPE}\". Allowed values are Debug, Release, RelWithDebInfo (case-insensitive).")
+  endif()
+ENDIF()
 
 ## Compiling Options
-
 SET(USE_STATIC_LIBS OFF CACHE BOOL "Link against static libraries.")
 SET(CMAKE_VERBOSE_MAKEFILE OFF CACHE BOOL "Turn on Verbose Makefiles" FORCE)
 
@@ -34,6 +39,8 @@ SET(CMAKE_BUILD_TYPE_INIT "RelWithDebInfo")
 SET_PROPERTY(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS ON)
 
 IF(USE_STATIC_LIBS)
+  SET(Boost_USE_STATIC_LIBS ON)
+  
 ENDIF(USE_STATIC_LIBS)
 
 ## Specify Project Information
