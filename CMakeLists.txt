@@ -19,7 +19,7 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
 endif()
 
 # guard against bad build-type strings
-IF(DEFINED CMAKE_BUILD_TYPE)
+IF(CMAKE_BUILD_TYPE)
   string(TOLOWER "${CMAKE_BUILD_TYPE}" cmake_build_type_tolower)
   if(    NOT cmake_build_type_tolower STREQUAL "debug"
      AND NOT cmake_build_type_tolower STREQUAL "release"
