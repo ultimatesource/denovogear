@@ -49,11 +49,13 @@ Source code and binaries are available at <https://github.com/denovogear/denovog
 Compilation of DeNovoGear requires CMake.  Most Linux distributions allow you to install CMake using their package software.
 
 Compiling and Installing on Unix:
-        `tar -xvzf denovogear*.tar.gz`
-        `cd denovogear*/build`
-        `cmake ..`
-        `make`
-        `sudo make install`
+```
+    tar -xvzf denovogear*.tar.gz
+    cd denovogear*/build
+    cmake ..
+    make
+    sudo make install
+```
 
 ## RUNNING THE CODE
 
