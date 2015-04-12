@@ -68,21 +68,15 @@ public:
 	bool is_write() const { return handle()->is_write; }
 	bool is_cram() const { return handle()->is_cram; }
 	bool is_compressed() const {
-#if HTSLIB_VERSION_NUM >= 10200
 		return handle()->format.compression;
-#else
-		return handle()->is_compressed;
-#endif
 	}
 
 	const char* name() const {
 		return handle()->fn;
 	}
-	/* //This only works with HTSLib 1.2+
 	htsFormat format() const {
 		return handle()->format;
 	}
-	*/
 
 protected:
 	htsFile* handle() {
