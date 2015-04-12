@@ -30,6 +30,7 @@ ENDIF()
 
 ## Compiling Options
 SET(USE_STATIC_LIBS OFF CACHE BOOL "Link against static libraries.")
+SET(USE_STATIC_FLAG OFF CACHE BOOL "Use -static flag to create completely static binaries.")
 SET(CMAKE_VERBOSE_MAKEFILE OFF CACHE BOOL "Turn on Verbose Makefiles" FORCE)
 
 ## Important Variables
