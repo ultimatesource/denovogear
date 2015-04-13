@@ -1,9 +1,21 @@
-##############################################################
+################################################################################
 #  Denovogear Project Configuration
 #
 ## Project DeNovoGear
 CMAKE_MINIMUM_REQUIRED(VERSION 3.1.0 FATAL_ERROR)
 CMAKE_POLICY(SET CMP0025 NEW)
+
+## Important Variables
+SET(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Modules")
+SET(CMAKE_BUILD_TYPE_INIT "RelWithDebInfo")
+SET_PROPERTY(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS ON)
+
+## Compiling options
+SET(USE_STATIC_LIBS OFF CACHE BOOL "Link against static libraries.")
+SET(USE_STATIC_FLAG OFF CACHE BOOL "Use -static flag to create completely static binaries.")
+
+################################################################################
+# Init Project
 
 PROJECT(DeNovoGear CXX C)
 
@@ -19,33 +31,20 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
   message(FATAL_ERROR "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there. You may need to remove CMakeCache.txt. ")
 endif()
 
-# guard against bad build-type strings
+## Guard against bad build-type strings
 IF(CMAKE_BUILD_TYPE)
   string(TOLOWER "${CMAKE_BUILD_TYPE}" cmake_build_type_tolower)
   if(    NOT cmake_build_type_tolower STREQUAL "debug"
      AND NOT cmake_build_type_tolower STREQUAL "release"
      AND NOT cmake_build_type_tolower STREQUAL "relwithdebinfo")
-    message(FATAL_ERROR "Unknown build type \"${CMAKE_BUILD_TYPE}\". Allowed values are Debug, Release, RelWithDebInfo (case-insensitive).")
+    message(FATAL_ERROR "Unsupported build type \"${CMAKE_BUILD_TYPE}\". Allowed values are Debug, Release, RelWithDebInfo (case-insensitive).")
   endif()
 ENDIF()
 
-## Compiling Options
-SET(USE_STATIC_LIBS OFF CACHE BOOL "Link against static libraries.")
-SET(USE_STATIC_FLAG OFF CACHE BOOL "Use -static flag to create completely static binaries.")
-SET(CMAKE_VERBOSE_MAKEFILE OFF CACHE BOOL "Turn on Verbose Makefiles" FORCE)
-
-## Important Variables
-
-SET(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Modules")
-SET(CMAKE_BUILD_TYPE_INIT "RelWithDebInfo")
-SET_PROPERTY(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS ON)
-
 ## Specify Project Information
-
 SET(DNG_NAME "DeNovoGear")
 SET(DNG_NAME_FOR_PKG_FILE "denovogear")
 SET(DNG_URL "https://github.com/denovogear/denovogear")
-
 
 ################################################################################
 # Version Information
