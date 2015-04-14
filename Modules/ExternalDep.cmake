@@ -24,6 +24,41 @@ SET(missing_ext_deps FALSE)
 #
 
 FIND_PACKAGE(Boost 1.47.0 REQUIRED COMPONENTS program_options filesystem system)
+
+IF(BUILD_EXTERNAL_PROJECTS AND NOT Boost_FOUND)
+  SET(boost_bootstrap "./bootstrap.sh")
+  IF(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+    LIST(APPEND boost_bootstrap --with-toolset=clang)
+  ELSEIF(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    LIST(APPEND boost_bootstrap --with-toolset=gcc)
+  endif()
+
+  SET(boost_build "./b2" install
+  	--prefix=<INSTALL_DIR>
+  	--with-program_options
+  	--with-filesystem
+  	--with-system
+  	--with-graph
+  	--disable-icu
+  	--ignore-site-config
+  	threading=multi
+  	link=static
+  	runtime-link=shared
+  	variant=release
+  	cxxflags=-std=c++11
+  )
+
+  ExternalProject_add(boost
+    URL http://sourceforge.net/projects/boost/files/boost/1.57.0/boost_1_57_0.tar.bz2/download
+    URL_MD5 1be49befbdd9a5ce9def2983ba3e7b76
+    PREFIX ext_deps/boost
+    BUILD_IN_SOURCE TRUE
+    CONFIGURE_COMMAND ${boost_bootstrap}
+    BUILD_COMMAND ${boost_build}
+    INSTALL_COMMAND ""
+  )
+ENDIF()
+
 IF(Boost_FOUND)
   ADD_DEFINITIONS(-DBOOST_ALL_NO_LIB -DBOOST_PROGRAM_OPTIONS_NO_LIB)
   INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
