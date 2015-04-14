@@ -13,6 +13,7 @@ SET_PROPERTY(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS ON)
 ## Compiling options
 SET(USE_STATIC_LIBS OFF CACHE BOOL "Link against static libraries.")
 SET(USE_STATIC_FLAG OFF CACHE BOOL "Use -static flag to create completely static binaries.")
+SET(BUILD_EXTERNAL_PROJECTS OFF CACHE BOOL "Build external dependencies if they are not found.")
 
 ################################################################################
 # Init Project
@@ -36,8 +37,9 @@ IF(CMAKE_BUILD_TYPE)
   string(TOLOWER "${CMAKE_BUILD_TYPE}" cmake_build_type_tolower)
   if(    NOT cmake_build_type_tolower STREQUAL "debug"
      AND NOT cmake_build_type_tolower STREQUAL "release"
-     AND NOT cmake_build_type_tolower STREQUAL "relwithdebinfo")
-    message(FATAL_ERROR "Unsupported build type \"${CMAKE_BUILD_TYPE}\". Allowed values are Debug, Release, RelWithDebInfo (case-insensitive).")
+     AND NOT cmake_build_type_tolower STREQUAL "relwithdebinfo"
+     AND NOT cmake_build_type_tolower STREQUAL "none")
+    message(FATAL_ERROR "Unsupported build type \"${CMAKE_BUILD_TYPE}\". Allowed values are Debug, Release, RelWithDebInfo, and None (case-insensitive).")
   endif()
 ENDIF()
 
@@ -149,6 +151,8 @@ ENDIF(NOT DEFINED CPACK_PACKAGE_FILE_NAME)
 SET(CPACK_GENERATOR "TGZ;TBZ2")
 SET(CPACK_SOURCE_GENERATOR "TGZ;TBZ2") 
 SET(CPACK_STRIP_FILES "libexec/dng/*")
+
+SET(CMAKE_INSTALL_LIBEXECDIR  "${CMAKE_INSTALL_LIBEXECDIR}/${DNG_NAME_FOR_PKG_FILE}")
 
 INCLUDE(CPack)
 
