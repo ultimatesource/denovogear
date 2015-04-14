@@ -102,7 +102,7 @@ TARGET_LINK_LIBRARIES(dng-phaser ZLIB::ZLIB)
 
 TARGET_LINK_LIBRARIES(dng-call ${Boost_LIBRARIES})
 TARGET_LINK_LIBRARIES(dng-call ${HTSLIB_LIBRARIES} Threads::Threads ZLIB::ZLIB)
-ADD_DEPENDENCIEs(dng-call ${EIGEN3_TARGET})
+ADD_DEPENDENCIEs(dng-call ${HTSLIB_EXT_TARGET} ${EIGEN3_EXT_TARGET})
 
 ################################################################################
 # Install
