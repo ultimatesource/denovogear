@@ -8,13 +8,22 @@ IF(CMAKE_BUILD_TYPE)
   STRING(TOUPPER "${CMAKE_BUILD_TYPE}" cmake_build_type_toupper)
   SET(EXT_CFLAGS "${EXT_CFLAGS} ${CMAKE_C_FLAGS_${cmake_build_type_toupper}}")
   SET(EXT_LDFLAGS "${EXT_LDFLAGS} ${CMAKE_STATIC_LINKER_FLAGS_${cmake_build_type_toupper}}")
+
+  ## Turn off debugging in libraries
+  IF(cmake_build_type_toupper STREQUAL "RELEASE" OR
+     cmake_build_type_toupper STREQUAL "RELWITHDEBINFO")
+    ADD_DEFINITIONS("-DBOOST_DISABLE_ASSERTS -DEIGEN_NO_DEBUG")
+    SET(boost_variant variant=release)
+  ELSE()
+    SET(boost_variant variant=debug)
+  ENDIF()
 ENDIF()
 
 IF(NOT BUILD_EXTERNAL_PROJECTS)
   SET(REQ REQUIRED)
-  SET(QUI "")
+  SET(QUI )
 ELSE()
-  SET(REQ QUIET)
+  SET(REQ )
   SET(QUI QUIET)
 ENDIF()
 SET(missing_ext_deps FALSE)
@@ -23,7 +32,7 @@ SET(missing_ext_deps FALSE)
 # BOOST
 #
 
-FIND_PACKAGE(Boost 1.47.0 REQUIRED COMPONENTS program_options filesystem system)
+FIND_PACKAGE(Boost 1.47.0 ${REQ} COMPONENTS program_options filesystem system)
 
 IF(BUILD_EXTERNAL_PROJECTS AND NOT Boost_FOUND)
   SET(boost_bootstrap "./bootstrap.sh")
@@ -34,22 +43,22 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT Boost_FOUND)
   endif()
 
   SET(boost_build "./b2" install
-  	--prefix=<INSTALL_DIR>
-  	--with-program_options
-  	--with-filesystem
-  	--with-system
-  	--with-graph
-  	--disable-icu
-  	--ignore-site-config
-  	threading=multi
-  	link=static
-  	runtime-link=shared
-  	variant=release
-  	cxxflags=-std=c++11
+    --prefix=<INSTALL_DIR>
+    --with-program_options
+    --with-filesystem
+    --with-system
+    #--with-graph
+    --disable-icu
+    --ignore-site-config
+    threading=multi
+    link=static
+    runtime-link=shared
+    cxxflags=-std=c++11
+    ${boost_variant}
   )
 
   ExternalProject_add(boost
-    URL http://sourceforge.net/projects/boost/files/boost/1.57.0/boost_1_57_0.tar.bz2/download
+    URL http://downloads.sourceforge.net/project/boost/boost/1.57.0/boost_1_57_0.tar.bz2
     URL_MD5 1be49befbdd9a5ce9def2983ba3e7b76
     PREFIX ext_deps/boost
     BUILD_IN_SOURCE TRUE
@@ -57,6 +66,18 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT Boost_FOUND)
     BUILD_COMMAND ${boost_build}
     INSTALL_COMMAND ""
   )
+  SET(Boost_FOUND TRUE)
+  SET(Boost_VERSION 1.57)
+  SET(Boost_INCLUDE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/boost/include/")
+  SET(Boost_LIBRARIES 
+    "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/boost/lib/libboost_program_options.a"
+    "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/boost/lib/libboost_filesystem.a"
+    "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/boost/lib/libboost_system.a"
+    )
+  SET(Boost_LIBRARY_DIRS "")
+  SET(BOOST_EXT_TARGET boost)
+  SET(Boost_USE_STATIC_LIBS TRUE)
+  MESSAGE(STATUS "Building Boost ${Boost_VERSION} as external dependency")  
 ENDIF()
 
 IF(Boost_FOUND)
@@ -89,7 +110,7 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT EIGEN3_FOUND)
   SET(EIGEN3_VERSION 3.2.4)
   SET(EIGEN3_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/eigen3/include/eigen3/")
   SET(EIGEN3_EXT_TARGET eigen3)
-  MESSAGE(STATUS "Building Eigen3 3.2.4 as external dependency")
+  MESSAGE(STATUS "Building Eigen3 ${EIGEN3_VERSION} as external dependency")
 ENDIF()
 
 IF(EIGEN3_FOUND)
@@ -103,7 +124,7 @@ ENDIF(EIGEN3_FOUND)
 # HTSLIB
 #
 
-FIND_PACKAGE(HTSLIB 1.2 ${REQ})
+FIND_PACKAGE(HTSLIB 1.2 ${REQ} ${QUI})
 
 IF(BUILD_EXTERNAL_PROJECTS AND NOT HTSLIB_FOUND)
   ExternalProject_Add(htslib
@@ -122,7 +143,7 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT HTSLIB_FOUND)
   SET(HTSLIB_LIBRARIES "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/htslib/lib/libhts.a")
   SET(HTSLIB_INCLUDE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/htslib/include/")
   SET(HTSLIB_EXT_TARGET htslib)
-  MESSAGE(STATUS "Building HTSLIB 1.2.1 as external dependency")
+  MESSAGE(STATUS "Building HTSLIB ${HTSLIB_VERSION} as external dependency")
 ENDIF()
 
 IF(HTSLIB_FOUND)
@@ -138,6 +159,6 @@ ENDIF(HTSLIB_FOUND)
 IF(NOT BUILD_EXTERNAL_PROJECTS AND missing_ext_deps)
   MESSAGE(SEND_ERROR "ERROR: Some dependecies could not be found on your system. "
     "To download and build the missing dependecies please set the following "
-    "configuration variable\n  BUILD_EXTERNAL_PROJECTS=1\n"
+    "configuration variable\n    BUILD_EXTERNAL_PROJECTS=1\n"
     "E.g. cmake -DBUILD_EXTERNAL_PROJECTS=1 .\n")
 ENDIF()

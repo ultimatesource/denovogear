@@ -15,12 +15,6 @@ FIND_PACKAGE(ZLIB REQUIRED)
 
 INCLUDE(ExternalDep)
 
-## Turn off debugging in libraries
-IF(CMAKE_BUILD_TYPE STREQUAL "Release" OR
-   CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-  ADD_DEFINITIONS("-DBOOST_DISABLE_ASSERTS -DEIGEN_NO_DEBUG")
-ENDIF()
-
 ################################################################################
 # Always make a full statement RPATH
 # See http://www.itk.org/Wiki/CMake_RPATH_handling
