@@ -105,6 +105,7 @@ void vcf_add_header_text(hts::bcf::File &vcfout, Call::argument_type &arg) {
 void vcf_add_record(hts::bcf::File &vcfout, const char *chrom, int pos, const char ref,
 	double ll, double pmut, const std::vector<dng::depth5_t> &read_depths)
 {
+
 	vcfout.SetID(chrom, pos, nullptr);
 	// vcfout.setQuality() - Need phred scalled measure of the site samples
 	vcfout.SetFilter("PASS"); // Currently all sites that make it this far pass the threshold
@@ -148,12 +149,37 @@ void vcf_add_record(hts::bcf::File &vcfout, const char *chrom, int pos, const ch
 	vcfout.WriteRecord();
 }
 
+void parse_contigs(std::string &vcf_fname, std::vector<std::string> &contigs)
+{
+        htsFile *fp = hts_open(vcf_fname.c_str(), "r");
+	bcf_hdr_t *hdr = bcf_hdr_read(fp);
+	int n_seq;
+	const char **sequences = NULL;
+	sequences = bcf_hdr_seqnames(hdr, &n_seq);
+	for(size_t a = 0; a < n_seq; a++) {
+	         contigs.emplace_back(std::string(sequences[a]));
+	}		      
+}
+
+void parse_contigs(const bam_hdr_t *hdr, std::vector<std::string> &contigs)
+{
+        uint32_t n_targets = hdr->n_targets;
+  	std::cout << n_targets << std::endl;
+	for(size_t a = 0; a < n_targets; a++) {
+	         if(hdr->target_name[a] == NULL)
+		       continue;
+
+	         contigs.emplace_back(std::string(hdr->target_name[a]));
+	}
+}
+
 
 // The main loop for dng-call application
 // argument_type arg holds the processed command line arguments
 int Call::operator()(Call::argument_type &arg) {
 	using namespace std;
 
+	// TODO: Should utilize hts::vcf::File instead of using htslib in call.cc
 	bool vcf_input = false;
 	std::string vcf_fname;
 	dng::pileup::vcf::VCFPileup vcfpileup;
@@ -163,8 +189,8 @@ int Call::operator()(Call::argument_type &arg) {
 	vector<hts::bam::File> indata;	
        	const bam_hdr_t *h;
 
-
 	dng::ReadGroups rgs;
+	std::vector<std::string> contigs;
 	
 	// Parse pedigree from file	
 	dng::io::Pedigree ped;
@@ -175,6 +201,7 @@ int Call::operator()(Call::argument_type &arg) {
 
 		// Construct read groups from the VCF data
 		rgs.Parse(vcf_fname.c_str());
+		parse_contigs(vcf_fname, contigs);
 	} else {  	
 	        if(!arg.ped.empty()) {
 		        ifstream ped_file(arg.ped);
@@ -211,8 +238,9 @@ int Call::operator()(Call::argument_type &arg) {
 		}
 		
 		// Read the header form the first file
-		const bam_hdr_t *h = indata[0].header();
-
+		h = indata[0].header();
+		parse_contigs(h, contigs);
+		
 		// Construct read groups from the BAM file
 		rgs.Parse(indata);
 	}
@@ -262,6 +290,11 @@ int Call::operator()(Call::argument_type &arg) {
 	auto out = vcf_get_output_mode(arg);
 	hts::bcf::File vcfout(out.first.c_str(), out.second.c_str(), PACKAGE_STRING);
 	vcf_add_header_text(vcfout, arg);
+
+	// Since we can't know here which contigs will in in the output. Need to add all of them
+	for(std::string contig : contigs) {
+	        vcfout.AddContig(contig.c_str());
+	}
 	
 	// Add each genotype/sample column then save the header
 	for(std::string str : rgs.libraries()) {
@@ -270,6 +303,7 @@ int Call::operator()(Call::argument_type &arg) {
 	}
 	vcfout.WriteHeader();
 #endif
+
 	// information to hold reference
 	char *ref = nullptr;
 	int ref_sz = 0;
@@ -288,9 +322,10 @@ int Call::operator()(Call::argument_type &arg) {
 	// Preform pileup on data by passing a lambda-function to the mpileup () operator
 	std::vector<depth5_t> read_depths(rgs.libraries().size(),{0,0});
 	const char gts[10][3] = {"AA","AC","AG","AT","CC","CG","CT","GG","GT","TT"};
-
-	auto calculate = [&](const char *target_name, char ref_base, int position) {
-
+	
+	
+	auto calculate = [&](const char *target_name, int position, char ref_base) {
+	  
 	      int ref_index = seq::char_index(ref_base);
 	  
               // calculate genotype likelihoods and store in the lower library vector
@@ -373,23 +408,29 @@ int Call::operator()(Call::argument_type &arg) {
     	       dng::MPileup mpileup(rgs.groups());
 	       mpileup(indata, [&](const dng::MPileup::data_type &data, uint64_t loc)
 	       {
+
 		     // Calculate target position and fetch sequence name
 		     int target_id = location_to_target(loc);
 		     int position = location_to_position(loc);
+		     
 		     if(target_id != ref_target_id && fai != nullptr) {
 		           if(ref != nullptr)
 			        free(ref);
 			   ref = faidx_fetch_seq(fai, h->target_name[target_id], 0, 0x7fffffff, &ref_sz);
+			   
 			   ref_target_id = target_id;
 		     }
-
+		     
+		     
+		     
 		     // Calculate reference base
 		     char ref_base = (ref && 0 <= position && position < ref_sz) ?
 		             ref[position] : 'N';
 
+			     
 		     // reset all depth counters
 		     read_depths.assign(read_depths.size(),{0,0});
-		
+		     		     
 		     // pileup on read counts
 		     // TODO: handle overflow?
 		     for(std::size_t u=0;u<data.size();++u) {

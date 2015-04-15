@@ -239,7 +239,6 @@ void ReadGroups::Parse(InFFile *fname)
 	  library_from_id_[rg::index(groups_,a.id)] = rg::index(libraries_,a.library);
 
 	}
-
 }
  
 }
