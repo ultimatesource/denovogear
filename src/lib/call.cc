@@ -219,7 +219,7 @@ int Call::operator()(Call::argument_type &arg) {
 	dng::Pedigree peeler;
 	peeler.Initialize({arg.theta, arg.mu, arg.mu_somatic, arg.mu_library, arg.ref_weight, freqs});
 	if(!peeler.Construct(ped,rgs)) {
-		throw std::runtime_error("Unable to construct peeler for pedigree; "
+	        throw std::runtime_error("Unable to construct peeler for pedigree; "
 			"possible non-zero-loop pedigree.");
 	}
 	
@@ -267,37 +267,119 @@ int Call::operator()(Call::argument_type &arg) {
 	std::vector<depth5_t> read_depths(rgs.libraries().size(),{0,0});
 	const char gts[10][3] = {"AA","AC","AG","AT","CC","CG","CT","GG","GT","TT"};
 
-	mpileup(indata, [&](const dng::MPileup::data_type &data, uint64_t loc)
-	{
-		// Calculate target position and fetch sequence name
-		int target_id = location_to_target(loc);
-		int position = location_to_position(loc);
-		if(target_id != ref_target_id && fai != nullptr) {
-			if(ref != nullptr)
-				free(ref);
-			ref = faidx_fetch_seq(fai, h->target_name[target_id],
-				0, 0x7fffffff, &ref_sz);
-			ref_target_id = target_id;
-		}
+	auto calculate = [](const char *targetname, char ref, int position) {
 
-		// Calculate reference base
-		char ref_base = (ref && 0 <= position && position < ref_sz) ?
-			ref[position] : 'N';
-		int ref_index = seq::char_index(ref_base);
+	      // calculate genotype likelihoods and store in the lower library vector
+	      double scale = 0.0, stemp;
+	      for(std::size_t u=0;u<read_depths.size();++u) {
+		     std::tie(peeler.library_lower(u),stemp) = genotype_likelihood({read_depths[u].key},ref_index);
+		     scale += stemp;
+	      }
 
-		// reset all depth counters
-		read_depths.assign(read_depths.size(),{0,0});
+	      // Calculate probabilities
+	      double d = peeler.CalculateLogLikelihood(ref_index)+scale;
+	      double p = peeler.CalculateMutProbability(ref_index);
+
+	      // Skip this site if it does not meet lower probability threshold
+	      if(p < min_prob)
+		     return;
+#ifdef DEBUG_STDOUT
+	      // Print position and read information
+	      // TODO: turn this into VCF format
+	      cout << h->target_name[target_id]
+	      << '\t' << position+1;
+	      cout << '\t' << ref_base;
+	      cout << '\t' << d << '\t' << p;
+
+	      for(std::size_t u=0;u<read_depths.size();++u) {
+             	      cout << '\t' << read_depths[u].counts[0]
+			   << ','  << read_depths[u].counts[1]
+			   << ','  << read_depths[u].counts[2]
+			   << ','  << read_depths[u].counts[3]
+			//<< "/[" << peeler.library_lower(u).transpose() << ']';
+			;
+	      }
+	      cout << endl;
+#else
+	      vcf_add_record(vcfout, h->target_name[target_id], position+1, ref_base, d, p, read_depths);
+#endif
+	      return;
+	};
+
+	
+	if(vcfinput == true) {
+	       vcfpileup(vcf_fname, [&](bcf_hdr_t *hdr, bcf1_t *rec)
+	       {
+	       	      // Won't be able to access ref->d unless we unpack the record first
+		      bcf_unpack(rec, BCF_UN_STR);
+
+		      // get chrom, position, ref from their fields
+		      const char *chrom = bcf_hdr_id2name(hdr, rec->rid);
+		      int32_t position = rec->pos;
+		      uint32_t n_alleles = rec->n_allele;
+		      uint32_t n_samples = bcf_hdr_nsamples(hdr);
+		      const char ref_base = *(rec->d.allele[0]);
+
+		      // Read all the Allele Depths for every sample into ad array
+		      n_ad = bcf_get_format_int32(hdr, rec, "AD", &ad, &n_ad_array);
+
+		      // Create a map between the order of vcf alleles (REF+ALT) and their correct index in read_depths.counts[]
+		      vector<size_t> a2i(n_alleles);
+		      for(int a = 0; a < n_alleles; a++) {
+		            char base = *(rec->d.allele[a]);
+		             a2i.push_back(char_index(base));
+		      }
+		      
+		      // Build the read_depths
+		      read_depths.assign(n_samples.size(),{0,0});
+		      vector<depth5_t> read_depths(n_samples, {0,0});
+		      for(size_t sample_ndx = 0; sample_ndx < n_samples; sample_ndx++) {
+		             for(size_t allele_ndx = 0; allele_ndx < n_alleles; allele_ndx++) {
+			            int32_t depth = ad[n_alleles*sample_ndx+allele_ndx];
+			            read_depths[sample_ndx].counts[a2i[allele_ndx]] = depth;
+			     }
+		      }
+		      	  		  
+		     calculate(chrom, position, ref_base);
+	       });
+	} else {       
+	       mpileup(indata, [&](const dng::MPileup::data_type &data, uint64_t loc)
+	       {
+		     // Calculate target position and fetch sequence name
+		     int target_id = location_to_target(loc);
+		     int position = location_to_position(loc);
+		     if(target_id != ref_target_id && fai != nullptr) {
+		           if(ref != nullptr)
+			        free(ref);
+			   ref = faidx_fetch_seq(fai, h->target_name[target_id], 0, 0x7fffffff, &ref_sz);
+			   ref_target_id = target_id;
+		     }
+
+		     // Calculate reference base
+		     char ref_base = (ref && 0 <= position && position < ref_sz) ?
+		             ref[position] : 'N';
+		     int ref_index = seq::char_index(ref_base);
+
+		     // reset all depth counters
+		     read_depths.assign(read_depths.size(),{0,0});
 		
-		// pileup on read counts
-		// TODO: handle overflow?
-		for(std::size_t u=0;u<data.size();++u) {
-			for(auto &r : data[u]) {
+		     // pileup on read counts
+		     // TODO: handle overflow?
+		     for(std::size_t u=0;u<data.size();++u) {
+		             for(auto &r : data[u]) {
 				if(r.is_missing || r.qual.first[r.pos] < arg.min_basequal)
 					continue;
 				read_depths[rgs.library_from_id(u)].counts[
 					seq::base_index(r.aln.seq_at(r.pos))] += 1;
-			}
-		}
+			     }     
+		     }
+
+		     calculate(h->target_name[target_id], position, ref_base);
+	       });
+	}
+		       
+
+		       
 		// calculate genotype likelihoods and store in the lower library vector
 		double scale = 0.0, stemp;
 		for(std::size_t u=0;u<read_depths.size();++u) {
@@ -313,7 +395,6 @@ int Call::operator()(Call::argument_type &arg) {
 		if(p < min_prob)
 			return;
 
-		//vcfo.addRecord(h->target_name[target_id], position+1, ref_base, d, p, read_depths);
 #ifdef DEBUG_STDOUT 
 		// Print position and read information
 		// TODO: turn this into VCF format

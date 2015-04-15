@@ -43,6 +43,7 @@ XM((ref)(weight), (R), "weight given to reference base for population prior", do
 XM((sam)(files), (s), "file containing a list of input filenames, one per line", std::string, "")
 XM((theta), , "the population diversity", double, DL(0.001, "0.001"))
 XM((output), (o),"Output VCF/BCF file", std::string, "-")
+XM((vcfin), (i), "Use a VCF file as input instead of BAM", std::string, "")
 
 /***************************************************************************
  *    cleanup                                                              *

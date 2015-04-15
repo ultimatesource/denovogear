@@ -35,8 +35,10 @@
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/member.hpp>
 
-
 #include <unordered_set>
+
+#include <htslib/vcf.h>
+
 
 namespace dng {
 
@@ -73,21 +75,39 @@ namespace detail {
 		>> DataBase;
 }
 
+ 
 class ReadGroups {
 public:
 	typedef boost::container::flat_set<std::string> StrSet;
 	typedef detail::rg_t ReadGroup;
 	typedef detail::DataBase DataBase;
 
-	ReadGroups() { }
+	//ReadGroups() { }
 	
-	template<typename InFiles>
-	ReadGroups(InFiles &range) {
-		Parse(range);
-	}
+	///template<typename InFiles>
+	//ReadGroups(InFiles &range) {
+	//	Parse(range);
+	//}
 
+	// Parse a single vcf file into read groups
+	//void ParseVCF(const char *fname);
+
+
+	
+	// Parse a list of BAM/SAM files into readgroups
 	template<typename InFiles>
 	void Parse(InFiles &range);
+
+	template<typename InFile>
+	void Parse(InFile *fname);
+	
+	/*
+	template<>
+	  void Parse<const char>(const char *fname)
+	  {
+
+	  }
+	*/
 	
 	inline const StrSet& groups() const { return groups_; }
 	inline const StrSet& libraries() const { return libraries_; }
@@ -115,6 +135,7 @@ inline std::size_t index(const ReadGroups::StrSet& set, const std::string& query
 	return (it != set.end()) ? static_cast<std::size_t>(it-set.begin()) : -1;
 }
 }
+
 
 template<typename InFiles>
 void ReadGroups::Parse(InFiles &range) {
@@ -197,6 +218,12 @@ void ReadGroups::Parse(InFiles &range) {
 	}
 }
 
+template<typename InFFile>
+void ReadGroups::Parse(InFFile *fname)
+{
+
+}
+ 
 }
 
 #endif
