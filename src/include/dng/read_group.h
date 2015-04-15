@@ -89,25 +89,13 @@ public:
 	//	Parse(range);
 	//}
 
-	// Parse a single vcf file into read groups
-	//void ParseVCF(const char *fname);
-
-
-	
 	// Parse a list of BAM/SAM files into readgroups
 	template<typename InFiles>
 	void Parse(InFiles &range);
 
+	// Parse a VCF file
 	template<typename InFile>
 	void Parse(InFile *fname);
-	
-	/*
-	template<>
-	  void Parse<const char>(const char *fname)
-	  {
-
-	  }
-	*/
 	
 	inline const StrSet& groups() const { return groups_; }
 	inline const StrSet& libraries() const { return libraries_; }
@@ -221,6 +209,36 @@ void ReadGroups::Parse(InFiles &range) {
 template<typename InFFile>
 void ReadGroups::Parse(InFFile *fname)
 {
+  
+	htsFile *fp = hts_open(fname, "r");
+	bcf_hdr_t *hdr = bcf_hdr_read(fp);
+	
+	// Read through samples from the header
+	int n_samples = bcf_hdr_nsamples(hdr);
+	char **samples = hdr->samples;
+	for(size_t a; a < n_samples; a++) {
+	      ReadGroup val{std::to_string(a)}; // Don't know what else to use for "@RG ID"?
+	      val.sample = std::string(samples[a]);
+	      val.library = val.id + "\t" + val.sample; // If we don't have to worry about collusions just use library=sample?
+	      data_.insert(std::move(val));
+	}
+
+	// construct data vectors
+	groups_.reserve(data_.size());
+	libraries_.reserve(data_.size());
+	samples_.reserve(data_.size());
+	for(auto &a : data_) {
+	  groups_.insert(a.id);
+	  libraries_.insert(a.library);
+	  samples_.insert(a.sample);
+	}
+
+	// connect groups to libraries and samples
+	library_from_id_.resize(groups_.size());
+	for(auto &a : data_) {
+	  library_from_id_[rg::index(groups_,a.id)] = rg::index(libraries_,a.library);
+
+	}
 
 }
  

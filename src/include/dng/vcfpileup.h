@@ -45,34 +45,26 @@ namespace dng { namespace pileup { namespace vcf {
 
 class VCFPileup {
 public:
-        typedef NodeList list_type;
-	typedef Node node_type;
-	typedef detail::NodePool pool_type;
-
-	typedef std::vector<list_type> data_type;
-	typedef void (callback_type)(const data_type&, uint64_t);
-
-	template<typename InFiles, typename Func>
-	void operator()(InFiles &range, Func func);
-
-	template<typename RG>
-	MPileup(const RG& rg) : pool_(4048), read_groups_(rg) {
-	        boost::sort(read_groups_);
-	}
-
+	typedef void (callback_type)(bcf_hdr_t*, bcf1_t*);
 	
+	VCFPileup() {
+	     // Not yet sure if ReadGroups should be passed in
+	}
+	
+	template<typename Func>
+	void operator()(const char *fname, Func func);
 
 private:
-	char *fname = 0;
-	bool iscompressed = false;
+	//char *fname = 0;
+	//bool iscompressed = false;
 };
 
-template<typename InFile, typename Func>
-void VCFPileup::operator()(InFile fname, Func func) {
-        // TODO: If using multiple input vcf files then we may require scanners to search each file for the same position
+template<typename Func>
+void VCFPileup::operator()(const char *fname, Func func) {
+        // TODO? If using multiple input vcf files then we may require scanners to search each file for the same position
 
         // type erase callback function
-        function<callback_type> call_back(func);
+        std::function<callback_type> call_back(func);
    
         // Open the VCF/BCF file
         htsFile *fp = hts_open(fname, "r");
@@ -84,10 +76,10 @@ void VCFPileup::operator()(InFile fname, Func func) {
 	  if(bcf_get_variant_types(rec) != VCF_SNP)
 	    continue;
 
-	  // TODO: Check the QUAL field or PL,PP genotype fields
+	  // TODO? Check the QUAL field or PL,PP genotype fields
 
 	  // execute func
-	  call_back(rec, hdr);
+	  call_back(hdr, rec);
 	}
 }
 	  
