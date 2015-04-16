@@ -147,6 +147,20 @@ void vcf_add_record(hts::bcf::File &vcfout, const char *chrom, int pos, const ch
 	vcfout.WriteRecord();
 }
 
+// Build a list of all of the possible contigs to add to the vcf header
+void parse_contigs(const bam_hdr_t *hdr, std::vector<std::string> &contigs)
+{
+        uint32_t n_targets = hdr->n_targets;
+        for(size_t a = 0; a < n_targets; a++) {
+               if(hdr->target_name[a] == NULL)
+                      continue;
+
+               contigs.emplace_back(std::string(hdr->target_name[a]));
+        }
+}
+
+
+
 
 // The main loop for dng-call application
 // argument_type arg holds the processed command line arguments
@@ -194,7 +208,7 @@ int Call::operator()(Call::argument_type &arg) {
 
 	// Read the header form the first file
 	const bam_hdr_t *h = indata[0].header();
-	
+
 	// Construct read groups from the input data
 	dng::ReadGroups rgs(indata);
 
@@ -252,7 +266,14 @@ int Call::operator()(Call::argument_type &arg) {
 	char *ref = nullptr;
 	int ref_sz = 0;
 	int ref_target_id = -1;
-	
+
+        // Since we can't know here which contigs will in in the output. Need to add all of them
+	std::vector<std::string> contigs;
+	parse_contigs(h,contigs);
+        for(std::string contig : contigs) {
+                vcfout.AddContig(contig.c_str());
+        }
+
 	// quality thresholds 
 	int min_qual = arg.min_basequal;
 	double min_prob = arg.min_prob;

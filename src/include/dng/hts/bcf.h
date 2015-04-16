@@ -60,7 +60,7 @@ public:
 	File& operator=(const File&) = delete;
 
 	File(File&& other) : hts::File(std::move(other)), hdr(other.hdr),
-		rec(other.rec), contig_ids(std::move(other.contig_ids))
+	  rec(other.rec)//, contig_ids(std::move(other.contig_ids))
     {
 		other.hdr = nullptr;
 		other.rec = nullptr;
@@ -77,7 +77,7 @@ public:
 		rec = other.rec;
 		other.rec = nullptr;
 
-		contig_ids = std::move(other.contig_ids);
+		//contig_ids = std::move(other.contig_ids);
 
 		return *this;
 	}
@@ -120,6 +120,14 @@ public:
 		return bcf_hdr_add_sample(hdr, sample);
 	}
 
+	/** Add a "#contig=" metadata entry to the VCF header. */
+	int AddContig(const char *contigid) {
+                if(contigid == nullptr)
+                        return -1;
+                std::string conv = std::string("##contig=<ID=") + contigid + ",length=1>";
+                return bcf_hdr_append(hdr, conv.c_str());
+        }
+
 	/** Creates the header field. Call only after adding all the sample fields */
 	int WriteHeader() {
 		bcf_hdr_add_sample(hdr, nullptr); // libhts requires NULL sample before it will write out all the other samples
@@ -138,6 +146,7 @@ public:
 		if(chrom == nullptr)
 			return; // should display some error?
 
+		/*
 		std::string chrom_s(chrom);
 		// TODO: Cache last contig_id, since it is likely to be the same??
 		// TODO: Preprocess the "##congig strings based on bam contigs???"
@@ -147,6 +156,8 @@ public:
 			bcf_hdr_append(hdr, conv.c_str());
 			contig_ids.insert(chrom_s);
 		}
+		*/
+
 		rec->rid = bcf_hdr_name2id(hdr, chrom);
 
 		// POS
@@ -241,7 +252,7 @@ protected:
 	bcf_hdr_t *hdr;
 	bcf1_t *rec;
 	
-	std::set<std::string> contig_ids; // List of unique CHROM/contig values
+	//std::set<std::string> contig_ids; // List of unique CHROM/contig values
 };
   
 
