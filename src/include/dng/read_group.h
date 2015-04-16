@@ -209,17 +209,20 @@ void ReadGroups::Parse(InFiles &range) {
 template<typename InFFile>
 void ReadGroups::Parse(InFFile *fname)
 {
-  
+  std::cout << "Parse VCF file: " << fname << std::endl;
 	htsFile *fp = hts_open(fname, "r");
 	bcf_hdr_t *hdr = bcf_hdr_read(fp);
 	
 	// Read through samples from the header
 	int n_samples = bcf_hdr_nsamples(hdr);
+	std::cout << n_samples << std::endl;
 	char **samples = hdr->samples;
-	for(size_t a; a < n_samples; a++) {
+	for(size_t a = 0; a < n_samples; a++) {
+	  //std::cout << "here" << std::endl;
+	  //std::cout << std::string(samples[a]) << std::endl;
 	      ReadGroup val{std::to_string(a)}; // Don't know what else to use for "@RG ID"?
 	      val.sample = std::string(samples[a]);
-	      val.library = val.id + "\t" + val.sample; // If we don't have to worry about collusions just use library=sample?
+	      val.library = val.sample; // May have to change in the future? 
 	      data_.insert(std::move(val));
 	}
 

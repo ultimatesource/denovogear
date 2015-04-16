@@ -142,7 +142,7 @@ void vcf_add_record(hts::bcf::File &vcfout, const char *chrom, int pos, const ch
 		for(std::size_t nt = 0; nt < allele_order.size(); nt++) {
 			size_t allele_index = allele_order[nt];
 			gtcounts.push_back(read_depths[sample].counts[allele_index]);
-		}
+	       	}
 	}
 	vcfout.UpdateSamples("AD", gtcounts);
 
@@ -156,20 +156,19 @@ void parse_contigs(std::string &vcf_fname, std::vector<std::string> &contigs)
 	int n_seq;
 	const char **sequences = NULL;
 	sequences = bcf_hdr_seqnames(hdr, &n_seq);
-	for(size_t a = 0; a < n_seq; a++) {
-	         contigs.emplace_back(std::string(sequences[a]));
+	for(size_t a = 0; a < n_seq; a++) {	  
+	       contigs.emplace_back(std::string(sequences[a]));
 	}		      
 }
 
 void parse_contigs(const bam_hdr_t *hdr, std::vector<std::string> &contigs)
 {
         uint32_t n_targets = hdr->n_targets;
-  	std::cout << n_targets << std::endl;
 	for(size_t a = 0; a < n_targets; a++) {
-	         if(hdr->target_name[a] == NULL)
-		       continue;
+	       if(hdr->target_name[a] == NULL)
+	       	      continue;
 
-	         contigs.emplace_back(std::string(hdr->target_name[a]));
+	       contigs.emplace_back(std::string(hdr->target_name[a]));
 	}
 }
 
@@ -194,26 +193,31 @@ int Call::operator()(Call::argument_type &arg) {
 	
 	// Parse pedigree from file	
 	dng::io::Pedigree ped;
+	if(!arg.ped.empty()) {
+	     ifstream ped_file(arg.ped);
+	     if(!ped_file.is_open()) {
+	           throw std::runtime_error(
+				     "unable to open pedigree file '" + arg.ped + "'.");
+	     }
+	     ped.Parse(istreambuf_range(ped_file));
+	} else {
+	     throw std::runtime_error("pedigree file was not specified.");
+	}
+	
+	
 
-	if(!arg.vcfin.empty()) {
+	if(arg.vcf_input) {
 	        vcf_input = true;
-		vcf_fname = arg.vcfin;
+		vcf_fname = arg.input[0];
+		if(arg.input.size() > 1) {
+
+		}
+		  
 
 		// Construct read groups from the VCF data
 		rgs.Parse(vcf_fname.c_str());
 		parse_contigs(vcf_fname, contigs);
 	} else {  	
-	        if(!arg.ped.empty()) {
-		        ifstream ped_file(arg.ped);
-			if(!ped_file.is_open()) {
-			        throw std::runtime_error(
-				      "unable to open pedigree file '" + arg.ped + "'.");
-			}
-			ped.Parse(istreambuf_range(ped_file));
-		} else {
-		        throw std::runtime_error("pedigree file was not specified.");
-		}
-
 		// Open Reference
 		if(!arg.fasta.empty()) {
 		        fai = fai_load(arg.fasta.c_str());
@@ -274,7 +278,7 @@ int Call::operator()(Call::argument_type &arg) {
 	}
 	
 
-
+	
 
 #ifdef DEBUG_STDOUT
 	// Old method of printing out results, leaving in for now mainly for testing purposes.
@@ -325,7 +329,7 @@ int Call::operator()(Call::argument_type &arg) {
 	
 	
 	auto calculate = [&](const char *target_name, int position, char ref_base) {
-	  
+
 	      int ref_index = seq::char_index(ref_base);
 	  
               // calculate genotype likelihoods and store in the lower library vector
@@ -339,9 +343,12 @@ int Call::operator()(Call::argument_type &arg) {
 	      double d = peeler.CalculateLogLikelihood(ref_index)+scale;
 	      double p = peeler.CalculateMutProbability(ref_index);
 
+	      std::cout << "d = " << d << std::endl;
+	      std::cout << "p = " << p << std::endl;
+	      
 	      // Skip this site if it does not meet lower probability threshold
 	      if(p < min_prob)
-		     return;
+	           return;
 #ifdef DEBUG_STDOUT
 	      // Print position and read information
 	      // TODO: turn this into VCF format
@@ -366,7 +373,7 @@ int Call::operator()(Call::argument_type &arg) {
 	};
 
 	
-	if(vcf_input == true) {
+	if(arg.vcf_input) {
 	       vcfpileup(vcf_fname.c_str(), [&](bcf_hdr_t *hdr, bcf1_t *rec)
 	       {
 	       	      // Won't be able to access ref->d unless we unpack the record first
@@ -386,22 +393,22 @@ int Call::operator()(Call::argument_type &arg) {
 		      n_ad = bcf_get_format_int32(hdr, rec, "AD", &ad, &n_ad_array);
 
 		      // Create a map between the order of vcf alleles (REF+ALT) and their correct index in read_depths.counts[]
-		      vector<size_t> a2i(n_alleles);
+		      vector<size_t> a2i;
 		      for(int a = 0; a < n_alleles; a++) {
-		            char base = *(rec->d.allele[a]);
+       		            char base = *(rec->d.allele[a]);
 			    a2i.push_back(seq::char_index(base));
 		      }
-		      
+			      
 		      // Build the read_depths
 		      read_depths.assign(n_samples,{0,0});
 		      for(size_t sample_ndx = 0; sample_ndx < n_samples; sample_ndx++) {
 		             for(size_t allele_ndx = 0; allele_ndx < n_alleles; allele_ndx++) {
 			            int32_t depth = ad[n_alleles*sample_ndx+allele_ndx];
-			            read_depths[sample_ndx].counts[a2i[allele_ndx]] = depth;
+				    read_depths[sample_ndx].counts[a2i[allele_ndx]] = depth;
 			     }
 		      }
-		      	  		  
-		     calculate(chrom, position, ref_base);
+
+		      calculate(chrom, position, ref_base);
 	       });
 	} else {
 	       // Begin Pileup Phase
