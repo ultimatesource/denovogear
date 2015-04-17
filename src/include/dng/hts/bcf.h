@@ -122,11 +122,11 @@ public:
 
 	/** Add a "#contig=" metadata entry to the VCF header. */
 	int AddContig(const char *contigid) {
-                if(contigid == nullptr)
-                        return -1;
-                std::string conv = std::string("##contig=<ID=") + contigid + ",length=1>";
-                return bcf_hdr_append(hdr, conv.c_str());
-        }
+	        if(contigid == nullptr)
+		        return -1;
+	        std::string conv = std::string("##contig=<ID=") + contigid + ",length=1>";
+	        return bcf_hdr_append(hdr, conv.c_str());
+	}
 
 	/** Creates the header field. Call only after adding all the sample fields */
 	int WriteHeader() {
@@ -148,16 +148,17 @@ public:
 
 		/*
 		std::string chrom_s(chrom);
+		/*
 		// TODO: Cache last contig_id, since it is likely to be the same??
 		// TODO: Preprocess the "##congig strings based on bam contigs???"
 		if(contig_ids.find(chrom_s) == contig_ids.end()) {
 			// there needs to be a matching contig id in the header otherwise bcf_write1() will fault [tracked issue to vcf.cc vcf_format()]
 			std::string conv = std::string("##contig=<ID=") + chrom_s + ",length=1>";
 			bcf_hdr_append(hdr, conv.c_str());
+			bcf_hdr_write(handle(), hdr);
 			contig_ids.insert(chrom_s);
 		}
 		*/
-
 		rec->rid = bcf_hdr_name2id(hdr, chrom);
 
 		// POS

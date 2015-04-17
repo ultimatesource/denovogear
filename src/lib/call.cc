@@ -40,6 +40,7 @@
 #include <dng/utilities.h>
 #include <dng/hts/bcf.h>
 #include <dng/hts/extra.h>
+#include <dng/vcfpileup.h>
 
 #include <htslib/faidx.h>
 
@@ -99,11 +100,13 @@ void vcf_add_header_text(hts::bcf::File &vcfout, Call::argument_type &arg) {
 
 	// AD defined http://gatkforums.broadinstitute.org/discussion/1268/how-should-i-interpret-vcf-files-produced-by-the-gatk
 	vcfout.AddHeaderMetadata("##FORMAT=<ID=AD,Number=.,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed\">");
+
 }
 
 void vcf_add_record(hts::bcf::File &vcfout, const char *chrom, int pos, const char ref,
 	double ll, double pmut, const std::vector<dng::depth5_t> &read_depths)
 {
+
 	vcfout.SetID(chrom, pos, nullptr);
 	// vcfout.setQuality() - Need phred scalled measure of the site samples
 	vcfout.SetFilter("PASS"); // Currently all sites that make it this far pass the threshold
@@ -140,25 +143,40 @@ void vcf_add_record(hts::bcf::File &vcfout, const char *chrom, int pos, const ch
 		for(std::size_t nt = 0; nt < allele_order.size(); nt++) {
 			size_t allele_index = allele_order[nt];
 			gtcounts.push_back(read_depths[sample].counts[allele_index]);
-		}
+	       	}
 	}
 	vcfout.UpdateSamples("AD", gtcounts);
 
 	vcfout.WriteRecord();
 }
 
-// Build a list of all of the possible contigs to add to the vcf header
+// Iterate through the VCF header and read in all the possible contig/chrom names
+// TODO: See if vector will use return-value optimization instead of passing in as a ref
+// TODO: export this functionality to the hts::bcf::File?
+void parse_contigs(std::string &vcf_fname, std::vector<std::string> &contigs)
+{
+        htsFile *fp = hts_open(vcf_fname.c_str(), "r");
+	bcf_hdr_t *hdr = bcf_hdr_read(fp);
+	int n_seq;
+	const char **sequences = NULL;
+	sequences = bcf_hdr_seqnames(hdr, &n_seq);
+	for(size_t a = 0; a < n_seq; a++) {	  
+	       contigs.emplace_back(std::string(sequences[a]));
+	}		      
+}
+
+// Parse all possible contigs from the bam header
 void parse_contigs(const bam_hdr_t *hdr, std::vector<std::string> &contigs)
 {
         uint32_t n_targets = hdr->n_targets;
-        for(size_t a = 0; a < n_targets; a++) {
-               if(hdr->target_name[a] == NULL)
-                      continue;
+	for(size_t a = 0; a < n_targets; a++) {
+	       if(hdr->target_name[a] == NULL)
+	       	      continue;
 
-               contigs.emplace_back(std::string(hdr->target_name[a]));
-        }
+	       contigs.emplace_back(std::string(hdr->target_name[a]));
+	}
+
 }
-
 
 
 
@@ -166,51 +184,77 @@ void parse_contigs(const bam_hdr_t *hdr, std::vector<std::string> &contigs)
 // argument_type arg holds the processed command line arguments
 int Call::operator()(Call::argument_type &arg) {
 	using namespace std;
+
+	// TODO: Should utilize hts::vcf::File instead of using htslib in call.cc
+	bool vcf_input = false;
+	std::string vcf_fname;
+	dng::pileup::vcf::VCFPileup vcfpileup;
+
+	faidx_t * fai = nullptr;
+	vector<hts::bam::File> indata;	
+       	const bam_hdr_t *h;
+
+	dng::ReadGroups rgs;
+	std::vector<std::string> contigs;
 	
 	// Parse pedigree from file	
 	dng::io::Pedigree ped;
-
 	if(!arg.ped.empty()) {
-		ifstream ped_file(arg.ped);
-		if(!ped_file.is_open()) {
-			throw std::runtime_error(
-				"unable to open pedigree file '" + arg.ped + "'."
-			);
-		}
-		ped.Parse(istreambuf_range(ped_file));
+	     ifstream ped_file(arg.ped);
+	     if(!ped_file.is_open()) {
+	           throw std::runtime_error(
+				     "unable to open pedigree file '" + arg.ped + "'.");
+	     }
+	     ped.Parse(istreambuf_range(ped_file));
 	} else {
-		throw std::runtime_error("pedigree file was not specified.");
+	     throw std::runtime_error("pedigree file was not specified.");
 	}
 	
-	// Open Reference
-	faidx_t * fai = nullptr;
-	if(!arg.fasta.empty()) {
-		fai = fai_load(arg.fasta.c_str());
-		if(fai == nullptr)
-			throw std::runtime_error("unable to open faidx-indexed reference file '"
-				+ arg.fasta + "'.");
-	}
 	
-	// If arg.files is specified, read input files from list
-	if(!arg.sam_files.empty()) {
-		ParsedList list(arg.sam_files.c_str(), ParsedList::kFile);
-		arg.input.clear(); // TODO: Throw error/warning if both are specified?
-		for(std::size_t i=0; i < list.Size(); ++i)
-			arg.input.emplace_back(list[i]);
+	if(arg.vcf_input) {
+	        // input is a VCF file
+	        vcf_input = true;
+		vcf_fname = arg.input[0];
+		if(arg.input.size() > 1) {
+   		       // TODO: Check for multiple vcf files, or if mixing VCF and BAM 
+		}
+		  
+
+		// Construct read groups from the VCF data
+		rgs.Parse(vcf_fname.c_str());
+		parse_contigs(vcf_fname, contigs);
+	} else { 
+	        // Input is a list of bam/sam files
+		// Open Reference
+		if(!arg.fasta.empty()) {
+		        fai = fai_load(arg.fasta.c_str());
+			if(fai == nullptr)
+			        throw std::runtime_error("unable to open faidx-indexed reference file '"
+				       + arg.fasta + "'.");
+		}
+	
+		// If arg.files is specified, read input files from list
+		if(!arg.sam_files.empty()) {
+		  ParsedList list(arg.sam_files.c_str(), ParsedList::kFile);
+		  arg.input.clear(); // TODO: Throw error/warning if both are specified?
+		  for(std::size_t i=0; i < list.Size(); ++i)
+		    arg.input.emplace_back(list[i]);
+		}
+
+		// Open up the input sam files
+		
+		for(auto str : arg.input) {
+		  indata.emplace_back(str.c_str(), "r", arg.region.c_str(), arg.fasta.c_str(),
+				      arg.min_mapqual, arg.min_qlen);
+		}
+		
+		// Read the header form the first file
+		h = indata[0].header();
+		parse_contigs(h, contigs);
+		
+		// Construct read groups from the BAM file
+		rgs.Parse(indata);
 	}
-
-	// Open up the input sam files
-	vector<hts::bam::File> indata;
-	for(auto str : arg.input) {
-		indata.emplace_back(str.c_str(), "r", arg.region.c_str(), arg.fasta.c_str(),
-			arg.min_mapqual, arg.min_qlen);
-	}
-
-	// Read the header form the first file
-	const bam_hdr_t *h = indata[0].header();
-
-	// Construct read groups from the input data
-	dng::ReadGroups rgs(indata);
 
 	// Parse Nucleotide Frequencies
 	std::array<double, 4> freqs;
@@ -233,12 +277,10 @@ int Call::operator()(Call::argument_type &arg) {
 	dng::Pedigree peeler;
 	peeler.Initialize({arg.theta, arg.mu, arg.mu_somatic, arg.mu_library, arg.ref_weight, freqs});
 	if(!peeler.Construct(ped,rgs)) {
-		throw std::runtime_error("Unable to construct peeler for pedigree; "
+	        throw std::runtime_error("Unable to construct peeler for pedigree; "
 			"possible non-zero-loop pedigree.");
 	}
 	
-	// Begin Pileup Phase
-	dng::MPileup mpileup(rgs.groups());
 
 #ifdef DEBUG_STDOUT
 	// Old method of printing out results, leaving in for now mainly for testing purposes.
@@ -254,6 +296,25 @@ int Call::operator()(Call::argument_type &arg) {
 	auto out = vcf_get_output_mode(arg);
 	hts::bcf::File vcfout(out.first.c_str(), out.second.c_str(), PACKAGE_STRING);
 	vcf_add_header_text(vcfout, arg);
+
+	// Need to match library.sample to the sample for the "##SAMPLE" metadata
+	for(std::string str : rgs.libraries()) {
+	       int str_end = str.length()-1;
+	       for(int a = 0; a < str_end; a++) {
+		      if(str[a] == '\t') {
+			     std::string sample_id = boost::replace(str, '\t', '.');
+			     std::string owner = str.substr(a+1);
+			     std::string field = "##SAMPLE=<ID=" + sample_id + ",Genomes=" + owner + ">";
+			     vcfout.AddHeaderMetadata(field.c_str());
+			     break;
+		      }
+	       }
+	}
+
+	// Since we can't know here which contigs will in in the output. Need to add all of them
+	for(std::string contig : contigs) {
+	        vcfout.AddContig(contig.c_str());
+	}
 	
 	// Add each genotype/sample column then save the header
 	for(std::string str : rgs.libraries()) {
@@ -262,6 +323,7 @@ int Call::operator()(Call::argument_type &arg) {
 	}
 	vcfout.WriteHeader();
 #endif
+
 	// information to hold reference
 	char *ref = nullptr;
 	int ref_sz = 0;
@@ -287,78 +349,130 @@ int Call::operator()(Call::argument_type &arg) {
 	// Preform pileup on data by passing a lambda-function to the mpileup () operator
 	std::vector<depth5_t> read_depths(rgs.libraries().size(),{0,0});
 	const char gts[10][3] = {"AA","AC","AG","AT","CC","CG","CT","GG","GT","TT"};
+	
+	
+	auto calculate = [&](const char *target_name, int position, char ref_base) {
 
-	mpileup(indata, [&](const dng::MPileup::data_type &data, uint64_t loc)
-	{
-		// Calculate target position and fetch sequence name
-		int target_id = location_to_target(loc);
-		int position = location_to_position(loc);
-		if(target_id != ref_target_id && fai != nullptr) {
-			if(ref != nullptr)
-				free(ref);
-			ref = faidx_fetch_seq(fai, h->target_name[target_id],
-				0, 0x7fffffff, &ref_sz);
-			ref_target_id = target_id;
-		}
+	      int ref_index = seq::char_index(ref_base);
+	  
+              // calculate genotype likelihoods and store in the lower library vector
+	      double scale = 0.0, stemp;
+	      for(std::size_t u=0;u<read_depths.size();++u) {
+		     std::tie(peeler.library_lower(u),stemp) = genotype_likelihood({read_depths[u].key},ref_index);
+		     scale += stemp;
+	      }
 
-		// Calculate reference base
-		char ref_base = (ref && 0 <= position && position < ref_sz) ?
-			ref[position] : 'N';
-		int ref_index = seq::char_index(ref_base);
+	      // Calculate probabilities
+	      double d = peeler.CalculateLogLikelihood(ref_index)+scale;
+	      double p = peeler.CalculateMutProbability(ref_index);
 
-		// reset all depth counters
-		read_depths.assign(read_depths.size(),{0,0});
-		
-		// pileup on read counts
-		// TODO: handle overflow?
-		for(std::size_t u=0;u<data.size();++u) {
-			for(auto &r : data[u]) {
+	      // Skip this site if it does not meet lower probability threshold
+	      if(p < min_prob)
+	           return;
+#ifdef DEBUG_STDOUT
+	      // Print position and read information
+	      // TODO: turn this into VCF format
+	      cout << target_name;
+	      << '\t' << position+1;
+	      cout << '\t' << ref_base;
+	      cout << '\t' << d << '\t' << p;
+
+	      for(std::size_t u=0;u<read_depths.size();++u) {
+             	      cout << '\t' << read_depths[u].counts[0]
+			   << ','  << read_depths[u].counts[1]
+			   << ','  << read_depths[u].counts[2]
+			   << ','  << read_depths[u].counts[3]
+			//<< "/[" << peeler.library_lower(u).transpose() << ']';
+			;
+	      }
+	      cout << endl;
+#else
+	      vcf_add_record(vcfout, target_name, position+1, ref_base, d, p, read_depths);
+#endif
+	      return;
+	};
+
+	
+	if(arg.vcf_input) {
+	       vcfpileup(vcf_fname.c_str(), [&](bcf_hdr_t *hdr, bcf1_t *rec)
+	       {
+	       	      // Won't be able to access ref->d unless we unpack the record first
+		      bcf_unpack(rec, BCF_UN_STR);
+
+		      // get chrom, position, ref from their fields
+		      const char *chrom = bcf_hdr_id2name(hdr, rec->rid);
+		      int32_t position = rec->pos;
+		      uint32_t n_alleles = rec->n_allele;
+		      uint32_t n_samples = bcf_hdr_nsamples(hdr);
+		      const char ref_base = *(rec->d.allele[0]);
+
+		      // Read all the Allele Depths for every sample into ad array
+		      int *ad = NULL;
+		      int n_ad = 0;
+		      int n_ad_array = 0;
+		      n_ad = bcf_get_format_int32(hdr, rec, "AD", &ad, &n_ad_array);
+
+		      // Create a map between the order of vcf alleles (REF+ALT) and their correct index in read_depths.counts[]
+		      vector<size_t> a2i;
+		      for(int a = 0; a < n_alleles; a++) {
+       		            char base = *(rec->d.allele[a]);
+			    a2i.push_back(seq::char_index(base));
+		      }
+			      
+		      // Build the read_depths
+		      read_depths.assign(n_samples,{0,0});
+		      for(size_t sample_ndx = 0; sample_ndx < n_samples; sample_ndx++) {
+		             for(size_t allele_ndx = 0; allele_ndx < n_alleles; allele_ndx++) {
+			            int32_t depth = ad[n_alleles*sample_ndx+allele_ndx];
+				    read_depths[sample_ndx].counts[a2i[allele_ndx]] = depth;
+			     }
+		      }
+
+		      calculate(chrom, position, ref_base);
+	       });
+	} else {
+	       // Begin Pileup Phase
+    	       dng::MPileup mpileup(rgs.groups());
+	       mpileup(indata, [&](const dng::MPileup::data_type &data, uint64_t loc)
+	       {
+
+		     // Calculate target position and fetch sequence name
+		     int target_id = location_to_target(loc);
+		     int position = location_to_position(loc);
+		     
+		     if(target_id != ref_target_id && fai != nullptr) {
+		           if(ref != nullptr)
+			        free(ref);
+			   ref = faidx_fetch_seq(fai, h->target_name[target_id], 0, 0x7fffffff, &ref_sz);
+			   
+			   ref_target_id = target_id;
+		     }
+		     
+		     
+		     
+		     // Calculate reference base
+		     char ref_base = (ref && 0 <= position && position < ref_sz) ?
+		             ref[position] : 'N';
+
+			     
+		     // reset all depth counters
+		     read_depths.assign(read_depths.size(),{0,0});
+		     		     
+		     // pileup on read counts
+		     // TODO: handle overflow?
+		     for(std::size_t u=0;u<data.size();++u) {
+		             for(auto &r : data[u]) {
 				if(r.is_missing || r.qual.first[r.pos] < arg.min_basequal)
 					continue;
 				read_depths[rgs.library_from_id(u)].counts[
 					seq::base_index(r.aln.seq_at(r.pos))] += 1;
-			}
-		}
-		// calculate genotype likelihoods and store in the lower library vector
-		double scale = 0.0, stemp;
-		for(std::size_t u=0;u<read_depths.size();++u) {
-			std::tie(peeler.library_lower(u),stemp) = genotype_likelihood({read_depths[u].key},ref_index);
-			scale += stemp;
-		}
+			     }     
+		     }
 
-		// Calculate probabilities
-		double d = peeler.CalculateLogLikelihood(ref_index)+scale;
-		double p = peeler.CalculateMutProbability(ref_index);
-		
-		// Skip this site if it does not meet lower probability threshold
-		if(p < min_prob)
-			return;
-
-		//vcfo.addRecord(h->target_name[target_id], position+1, ref_base, d, p, read_depths);
-#ifdef DEBUG_STDOUT 
-		// Print position and read information
-		// TODO: turn this into VCF format
-		cout << h->target_name[target_id]
-		     << '\t' << position+1;
-		cout << '\t' << ref_base;
-		cout << '\t' << d << '\t' << p;
-
-		for(std::size_t u=0;u<read_depths.size();++u) {
-			cout << '\t' << read_depths[u].counts[0]
-		         << ','  << read_depths[u].counts[1]
-		         << ','  << read_depths[u].counts[2]
-		         << ','  << read_depths[u].counts[3]		         
-		         //<< "/[" << peeler.library_lower(u).transpose() << ']';
-		         ;
-		}
-
-		cout << endl;
-#else
-		vcf_add_record(vcfout, h->target_name[target_id], position+1, ref_base, d, p, read_depths);
-#endif
-		return;
-	});
-		
+		     calculate(h->target_name[target_id], position, ref_base);
+	       });
+	}
+		       
 	// Cleanup
 	// TODO: RAII support these things
 	if (ref != nullptr)
