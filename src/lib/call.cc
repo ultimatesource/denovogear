@@ -100,6 +100,7 @@ void vcf_add_header_text(hts::bcf::File &vcfout, Call::argument_type &arg) {
 
 	// AD defined http://gatkforums.broadinstitute.org/discussion/1268/how-should-i-interpret-vcf-files-produced-by-the-gatk
 	vcfout.AddHeaderMetadata("##FORMAT=<ID=AD,Number=.,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed\">");
+
 }
 
 void vcf_add_record(hts::bcf::File &vcfout, const char *chrom, int pos, const char ref,
@@ -173,6 +174,8 @@ void parse_contigs(const bam_hdr_t *hdr, std::vector<std::string> &contigs)
 }
 
 
+
+
 // The main loop for dng-call application
 // argument_type arg holds the processed command line arguments
 int Call::operator()(Call::argument_type &arg) {
@@ -210,7 +213,7 @@ int Call::operator()(Call::argument_type &arg) {
 	        vcf_input = true;
 		vcf_fname = arg.input[0];
 		if(arg.input.size() > 1) {
-
+   		       // TODO: Check for multiple vcf files, or if mixing VCF and BAM 
 		}
 		  
 
@@ -249,9 +252,6 @@ int Call::operator()(Call::argument_type &arg) {
 		rgs.Parse(indata);
 	}
 
-	
-
-
 	// Parse Nucleotide Frequencies
 	std::array<double, 4> freqs;
 	// TODO: read directly into freqs????  This will need a wrapper that provides an "insert" function.
@@ -278,8 +278,6 @@ int Call::operator()(Call::argument_type &arg) {
 	}
 	
 
-	
-
 #ifdef DEBUG_STDOUT
 	// Old method of printing out results, leaving in for now mainly for testing purposes.
 	// TODO: remove once vcf output has been throughly tested 
@@ -294,6 +292,20 @@ int Call::operator()(Call::argument_type &arg) {
 	auto out = vcf_get_output_mode(arg);
 	hts::bcf::File vcfout(out.first.c_str(), out.second.c_str(), PACKAGE_STRING);
 	vcf_add_header_text(vcfout, arg);
+
+	// Need to match library.sample to the sample for the "##SAMPLE" metadata
+	for(std::string str : rgs.libraries()) {
+	       int str_end = str.length()-1;
+	       for(int a = 0; a < str_end; a++) {
+		      if(str[a] == '\t') {
+			     std::string sample_id = boost::replace(str, '\t', '.');
+			     std::string owner = str.substr(a+1);
+			     std::string field = "##SAMPLE=<ID=" + sample_id + ",Genomes=" + owner + ">";
+			     vcfout.AddHeaderMetadata(field.c_str());
+			     break;
+		      }
+	       }
+	}
 
 	// Since we can't know here which contigs will in in the output. Need to add all of them
 	for(std::string contig : contigs) {
@@ -343,9 +355,6 @@ int Call::operator()(Call::argument_type &arg) {
 	      double d = peeler.CalculateLogLikelihood(ref_index)+scale;
 	      double p = peeler.CalculateMutProbability(ref_index);
 
-	      std::cout << "d = " << d << std::endl;
-	      std::cout << "p = " << p << std::endl;
-	      
 	      // Skip this site if it does not meet lower probability threshold
 	      if(p < min_prob)
 	           return;

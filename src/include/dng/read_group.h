@@ -201,46 +201,65 @@ void ReadGroups::Parse(InFiles &range) {
 	// connect groups to libraries and samples	
 	library_from_id_.resize(groups_.size());
 	for(auto &a : data_) {
-		library_from_id_[rg::index(groups_,a.id)] = rg::index(libraries_,a.library);
+	       	library_from_id_[rg::index(groups_,a.id)] = rg::index(libraries_,a.library);
 
 	}
 }
 
+/**
+ * Parses an VCF file into read groups, sample names and libraries
+ * fname - file path and name string for input vcf file
+ */
 template<typename InFFile>
 void ReadGroups::Parse(InFFile *fname)
 {
-  std::cout << "Parse VCF file: " << fname << std::endl;
 	htsFile *fp = hts_open(fname, "r");
 	bcf_hdr_t *hdr = bcf_hdr_read(fp);
 	
 	// Read through samples from the header
 	int n_samples = bcf_hdr_nsamples(hdr);
-	std::cout << n_samples << std::endl;
-	char **samples = hdr->samples;
+	char **gt_samples = hdr->samples;
 	for(size_t a = 0; a < n_samples; a++) {
-	  //std::cout << "here" << std::endl;
-	  //std::cout << std::string(samples[a]) << std::endl;
 	      ReadGroup val{std::to_string(a)}; // Don't know what else to use for "@RG ID"?
-	      val.sample = std::string(samples[a]);
-	      val.library = val.sample; // May have to change in the future? 
+
+	      // Each genotype(i.e sample) column in the VCF file represents an unique library. If multiple libraries comes from
+	      // the same individual, then it must be specified in the "##SAMPLE=<ID=lib,Genomes=indv>" field in the header.
+	      // Otherwise we have to assume each library comes from a unique individual
+	      val.library = std::string(gt_samples[a]);
+	      val.sample = std::string(gt_samples[a]); // Default value
+     
+
+	      // Check "##SAMPLE" field for ID=val.library. If header field exists then function will return all key-value pairs
+	      bcf_hrec_t *kv_pairs = bcf_hdr_get_hrec(hdr, BCF_HL_STR, "ID", val.library.c_str(), "SAMPLE");
+	      if(kv_pairs != NULL) {
+	             for(int a = 0; a < kv_pairs->nkeys; a++) {
+		            if(kv_pairs->keys[a] != NULL && strcmp(kv_pairs->keys[a], "Genomes") == 0) { // May need to convert to upper, Vcf4.2 standard unclear?
+			           // TODO: Currently assuming there is only one genome per sample and not a mixture. If needed either
+			           // check there are no ';' or that "Mixture=1."
+			           val.sample = std::string(kv_pairs->vals[a]);
+				   std::cout << kv_pairs->keys[a] <<  ">" << val.sample << std::endl;
+			    }
+		     }
+	      }
+						   
 	      data_.insert(std::move(val));
 	}
 
+	// TODO: combine this code and above into inline.
 	// construct data vectors
 	groups_.reserve(data_.size());
 	libraries_.reserve(data_.size());
 	samples_.reserve(data_.size());
 	for(auto &a : data_) {
-	  groups_.insert(a.id);
-	  libraries_.insert(a.library);
-	  samples_.insert(a.sample);
+	       groups_.insert(a.id);
+	       libraries_.insert(a.library);
+	       samples_.insert(a.sample);
 	}
 
 	// connect groups to libraries and samples
 	library_from_id_.resize(groups_.size());
 	for(auto &a : data_) {
-	  library_from_id_[rg::index(groups_,a.id)] = rg::index(libraries_,a.library);
-
+	       library_from_id_[rg::index(groups_,a.id)] = rg::index(libraries_,a.library);
 	}
 }
  
