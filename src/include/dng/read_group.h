@@ -237,7 +237,7 @@ void ReadGroups::Parse(InFFile *fname)
 			           // TODO: Currently assuming there is only one genome per sample and not a mixture. If needed either
 			           // check there are no ';' or that "Mixture=1."
 			           val.sample = std::string(kv_pairs->vals[a]);
-				   std::cout << kv_pairs->keys[a] <<  ">" << val.sample << std::endl;
+				  
 			    }
 		     }
 	      }
