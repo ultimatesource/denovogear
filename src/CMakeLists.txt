@@ -1,7 +1,6 @@
 INCLUDE(CheckIncludeFile)
 INCLUDE(CheckFunctionExists)
 INCLUDE(CheckLibraryExists)
-INCLUDE(GNUInstallDirs)
 
 IF(USE_STATIC_LIBS)
   SET(Boost_USE_STATIC_LIBS ON)

@@ -76,8 +76,9 @@ std::pair<std::string,std::string> vcf_get_output_mode(Call::argument_type &arg)
 	return {};
 }
 
-// Helper function for writing the necessary 
+// Helper function for writing the vcf header information
 void vcf_add_header_text(hts::bcf::File &vcfout, Call::argument_type &arg) {
+
 #define XM(lname, sname, desc, type, def) \
 	vcfout.AddHeaderMetadata(XS(lname), arg.XV(lname));
 #	include <dng/task/call.xmh>
@@ -147,6 +148,19 @@ void vcf_add_record(hts::bcf::File &vcfout, const char *chrom, int pos, const ch
 	vcfout.WriteRecord();
 }
 
+// Build a list of all of the possible contigs to add to the vcf header
+std::vector<std::string> parse_contigs(const bam_hdr_t *hdr) {
+	if(hdr == nullptr)
+		return {};
+	std::vector<std::string> contigs;
+	uint32_t n_targets = hdr->n_targets;
+	for(size_t a = 0; a < n_targets; a++) {
+		if(hdr->target_name[a] == nullptr)
+			continue;
+		contigs.emplace_back(hdr->target_name[a]);
+	}
+	return contigs;
+}
 
 // The main loop for dng-call application
 // argument_type arg holds the processed command line arguments
@@ -194,7 +208,7 @@ int Call::operator()(Call::argument_type &arg) {
 
 	// Read the header form the first file
 	const bam_hdr_t *h = indata[0].header();
-	
+
 	// Construct read groups from the input data
 	dng::ReadGroups rgs(indata);
 
@@ -226,16 +240,6 @@ int Call::operator()(Call::argument_type &arg) {
 	// Begin Pileup Phase
 	dng::MPileup mpileup(rgs.groups());
 
-#ifdef DEBUG_STDOUT
-	// Old method of printing out results, leaving in for now mainly for testing purposes.
-	// TODO: remove once vcf output has been throughly tested 
-	cout << "Contig\tPos\tRef\tLL\tPmut";
-	for(std::string str : rgs.libraries()) {
-		cout << '\t' << boost::replace(str, '\t', '.');
-	}
-	cout << endl;
-#else
-
 	// Write VCF header
 	auto out = vcf_get_output_mode(arg);
 	hts::bcf::File vcfout(out.first.c_str(), out.second.c_str(), PACKAGE_STRING);
@@ -246,13 +250,20 @@ int Call::operator()(Call::argument_type &arg) {
 		std::string sample_name = boost::replace(str, '\t', '.');
 		vcfout.AddSample(sample_name.c_str());
 	}
-	vcfout.WriteHeader();
-#endif
+
 	// information to hold reference
 	char *ref = nullptr;
 	int ref_sz = 0;
 	int ref_target_id = -1;
-	
+
+	// Since we can't know here which contigs will be in the output, 
+	// we need to add all of them.
+	for(auto && contig : parse_contigs(h) ) {
+		vcfout.AddContig(contig.c_str());
+	}
+
+	vcfout.WriteHeader();
+
 	// quality thresholds 
 	int min_qual = arg.min_basequal;
 	double min_prob = arg.min_prob;
@@ -313,28 +324,7 @@ int Call::operator()(Call::argument_type &arg) {
 		if(p < min_prob)
 			return;
 
-		//vcfo.addRecord(h->target_name[target_id], position+1, ref_base, d, p, read_depths);
-#ifdef DEBUG_STDOUT 
-		// Print position and read information
-		// TODO: turn this into VCF format
-		cout << h->target_name[target_id]
-		     << '\t' << position+1;
-		cout << '\t' << ref_base;
-		cout << '\t' << d << '\t' << p;
-
-		for(std::size_t u=0;u<read_depths.size();++u) {
-			cout << '\t' << read_depths[u].counts[0]
-		         << ','  << read_depths[u].counts[1]
-		         << ','  << read_depths[u].counts[2]
-		         << ','  << read_depths[u].counts[3]		         
-		         //<< "/[" << peeler.library_lower(u).transpose() << ']';
-		         ;
-		}
-
-		cout << endl;
-#else
-		vcf_add_record(vcfout, h->target_name[target_id], position+1, ref_base, d, p, read_depths);
-#endif
+		vcf_add_record(vcfout, h->target_name[target_id], position, ref_base, d, p, read_depths);
 		return;
 	});
 		
