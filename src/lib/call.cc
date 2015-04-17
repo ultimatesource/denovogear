@@ -387,7 +387,7 @@ int Call::operator()(Call::argument_type &arg) {
 	      }
 	      cout << endl;
 #else
-	      vcf_add_record(vcfout, target_name, position+1, ref_base, d, p, read_depths);
+	      vcf_add_record(vcfout, target_name, position, ref_base, d, p, read_depths);
 #endif
 	      return;
 	};
