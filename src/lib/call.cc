@@ -76,8 +76,9 @@ std::pair<std::string,std::string> vcf_get_output_mode(Call::argument_type &arg)
 	return {};
 }
 
-// Helper function for writing the necessary 
+// Helper function for writing the vcf header information
 void vcf_add_header_text(hts::bcf::File &vcfout, Call::argument_type &arg) {
+
 #define XM(lname, sname, desc, type, def) \
 	vcfout.AddHeaderMetadata(XS(lname), arg.XV(lname));
 #	include <dng/task/call.xmh>
