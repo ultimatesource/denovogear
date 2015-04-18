@@ -169,12 +169,13 @@ void ReadGroups::Parse(InFiles &range) {
 				val.sample = val.id;
 			// library tag
 			it = tags.find("LB");
+			val.library = val.sample;
 			if(it != tags.end()) {
-				val.library = std::move(it->second);
-				// Prevent collision of LB tags from different samples by appending sample tag
-				val.library += "\t" + val.sample;
-			} else
-				val.library = val.id + "\t" + val.sample;
+				// Prevent collision of LB tags from different samples by prepending sample tag
+				if(val.library != it->second)
+					val.library += '\t' + it->second;
+			} else if(val.library != val.id)
+				val.library += '\t' + val.id;
 			data_.insert(std::move(val));
 		}
 	}

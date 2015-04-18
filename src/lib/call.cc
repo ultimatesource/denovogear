@@ -247,7 +247,7 @@ int Call::operator()(Call::argument_type &arg) {
 	
 	// Add each genotype/sample column then save the header
 	for(std::string str : rgs.libraries()) {
-		std::string sample_name = boost::replace(str, '\t', '.');
+		std::string sample_name = boost::replace(str, '\t', ':');
 		vcfout.AddSample(sample_name.c_str());
 	}
 
