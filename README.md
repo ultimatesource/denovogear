@@ -1,60 +1,110 @@
-[![Build Status](https://travis-ci.org/gatoravi/DNG_dev.png?branch=master)](https://travis-ci.org/gatoravi/DNG_dev)
-
 Authors: Don Conrad, Avinash Ramu, Kael Dai, and Reed A. Cartwright.
 
 ## RELEASE NOTES
-v1.1
-Main program now called 'dng'  
-Added experimental 'dng call' module.  
-DeNovoGear now requires CMake 3.1+, Boost 1.47+, and Eigen 3+.  
 
-v1.0
-made changes to indel_mrate parameter  
-better indenting  
-mu_scale scales indel mutation rate linearly  
+### v1.1.1
 
-v0.5.4
-added GPL v3  
-updated output fields for indels, snps to be the same  
+* FEATURE: When building with cmake, users have the option to download and install dependencies.
+Just run `cmake -DBUILD_EXTERNAL_PROJECTS=1 ..`
+* FEATURE: `dng help` now fully implemented
+* BUGFIX: When running `dng call` with HTSLIB 1.2.1, the following error message was being
+emitted: "FIXME: dirty header not synced".  This has been fixed.
+* BUGFIX: `dng call` now outputs correct 1-based site locations.
+* BUGFIX: a segfault was fixed in `dng dnm` and `dng phaser` caused by invalid commandline arguments
+* CHANGE: HTSLIB 1.2+ is now required.
+* Miscellaneous improvements to the build system
 
-v0.5.3
-removed 'X' allele in VCF op. VCF can be indexed by Tabix, IGVTools and used in Annovar.  
-added region based denovo calling on BCF files, invoked with --region flag  
-added vcf parser for denovo calling, invoked with --vcf flag  
+### v1.1
 
-v0.5.2
-Added read-depth, posterior-probability filters.  
-Output number of sites in the BCF and number of sites passing filters.  
-Modified paired caller output.  
+* Main program now called 'dng'
+* Added experimental 'dng call' module.
+* DeNovoGear now requires HTSLIB 1+, CMake 3.1+, Boost 1.47+, and Eigen 3+.
 
-v0.5.1
-Fixed bug in triallelic configuration.  
-Some trialleic denovo configurations were being called incorrectly.
+### v1.0
+
+* made changes to indel_mrate parameter
+* better indenting
+* mu_scale scales indel mutation rate linearly
+
+### v0.5.4
+
+* added GPL v3
+* updated output fields for indels, snps to be the same
+
+### v0.5.3
+
+* removed 'X' allele in VCF op. VCF can be indexed by Tabix, IGVTools and used in Annovar.
+* added region based denovo calling on BCF files, invoked with --region flag
+* added vcf parser for denovo calling, invoked with --vcf flag
+
+### v0.5.2
+
+* Added read-depth, posterior-probability filters.
+* Output number of sites in the BCF and number of sites passing filters.
+* Modified paired caller output.
+
+### v0.5.1
+
+* Fixed bug in triallelic configuration.
+* Some trialleic denovo configurations were being called incorrectly.
 
 ## DEPENDENCIES
 
 * Recent C++ compiler, supporting C++11 (eg. gcc 4.8.1+ or clang 3.3+)
 * CMake 3.1+ when compiling <http://www.cmake.org/download/#latest>
-* HTSlib <http://www.htslib.org/>
+* HTSlib 1.2+ <http://www.htslib.org/>
 * Eigen 3 <http://eigen.tuxfamily.org/>
 * Boost 1.47+ <http://www.boost.org/>
 
 Most Unix distributions contain package software that will install these dependencies for you.
 
-## DOWNLOAD
+## INSTALLATION
+
+### Download
+
 Source code and binaries are available at <https://github.com/denovogear/denovogear/releases>.
 
+### Compiling
 
-## COMPILING
 Compilation of DeNovoGear requires CMake.  Most Linux distributions allow you to install CMake using their package software.
 
-Compiling and Installing on Unix:
+Build on Unix from a Command Line Terminal:
 ```
     tar -xvzf denovogear*.tar.gz
     cd denovogear*/build
     cmake ..
     make
+```
+
+Optimized Build:
+```
+    tar -xvzf denovogear*.tar.gz
+    cd denovogear*/build
+    cmake -DCMAKE_BUILD_TYPE=Release ..
+    make
+```
+
+Build Missing Dependencies as Needed:
+```
+    tar -xvzf denovogear*.tar.gz
+    cd denovogear*/build
+    cmake -DBUILD_EXTERNAL_PROJECTS=1 ..
+    make
+```
+
+### Installation
+
+Global Install (requires root access):
+```
+    cd denovogear*/build
     sudo make install
+```
+
+Local Install:
+```
+    cd denovogear*/build
+    cmake -DCMAKE_INSTALL_PREFIX="${HOME}/dng"
+    make install
 ```
 
 ## RUNNING THE CODE
