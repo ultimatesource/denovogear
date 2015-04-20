@@ -160,13 +160,12 @@ public:
 	
 	int operator()() {
 		using namespace std;
-		// TODO: Split this up and allow customization
 		if(arg.version) {
 			return CmdVersion();
-		}		
+		}
 		if(arg.help || arg.input.empty()) {
 			return CmdHelp();
-		}		
+		}
 		return task_(arg);
 	}
 	
