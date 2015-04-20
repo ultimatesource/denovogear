@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Reed A. Cartwright
+ * Copyright (c) 2014-2015 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -33,6 +33,8 @@
 #include <boost/logic/tribool_io.hpp>
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
+
+#include "version.h"
 
 // Support the use of tribools in boost::program_options
 namespace boost {
@@ -159,25 +161,38 @@ public:
 	int operator()() {
 		using namespace std;
 		// TODO: Split this up and allow customization
-		if(arg.help || arg.input.empty()) {
-			//cerr << endl << VERSION_MSG << endl << endl;
-			string usage_name(arg.run_name);
-			if(usage_name.substr(0,4) == "dng-")
-				usage_name[3] = ' ';
-			cerr << "Usage:\n  "
-				 << usage_name << " [options] input1 input2 input3 ..."
-				 << endl << endl;
-			cerr << ext_desc_ << endl;
-			return EXIT_SUCCESS;
-		}
 		if(arg.version) {
-			// TODO this
-		}
-		
+			return CmdVersion();
+		}		
+		if(arg.help || arg.input.empty()) {
+			return CmdHelp();
+		}		
 		return task_(arg);
 	}
 	
-protected:	
+protected:
+	virtual int CmdHelp() const {
+		using namespace std;
+		string usage_name(arg.run_name);
+		if(usage_name.substr(0,4) == "dng-")
+			usage_name[3] = ' ';
+		cerr << "Usage:\n  "
+			 << usage_name << " [options] input1 input2 input3 ..."
+			 << endl << endl;
+		cerr << ext_desc_ << endl;
+		return EXIT_SUCCESS;		
+	}
+	virtual int CmdVersion() const {
+		using namespace std;
+		string usage_name(arg.run_name);
+		if(usage_name.substr(0,4) == "dng-")
+			usage_name[3] = ' ';
+
+		cerr << usage_name << " v" PACKAGE_VERSION << "\n";
+		cerr << "Copyright (c) 2014-2015 Reed A. Cartwright, Kael Dai, et al.\n";
+		return EXIT_SUCCESS;
+	}
+
 	po::options_description ext_desc_, int_desc_;
 	po::positional_options_description pos_desc_;
 	po::variables_map vm_;
