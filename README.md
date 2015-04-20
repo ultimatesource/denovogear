@@ -57,6 +57,7 @@ emitted: "FIXME: dirty header not synced".  This has been fixed.
 * Boost 1.47+ <http://www.boost.org/>
 
 Most Unix distributions contain package software that will install these dependencies for you.
+DNG contains code to [download and build missing dependencies](#build-missing-dependencies-as-needed).
 
 ## INSTALLATION
 
@@ -68,7 +69,7 @@ Source code and binaries are available at <https://github.com/denovogear/denovog
 
 Compilation of DeNovoGear requires CMake.  Most Linux distributions allow you to install CMake using their package software.
 
-Build on Unix from a Command Line Terminal:
+#### Build on Unix from a Command Line Terminal:
 ```
     tar -xvzf denovogear*.tar.gz
     cd denovogear*/build
@@ -76,7 +77,7 @@ Build on Unix from a Command Line Terminal:
     make
 ```
 
-Optimized Build:
+#### Optimized Build:
 ```
     tar -xvzf denovogear*.tar.gz
     cd denovogear*/build
@@ -84,7 +85,7 @@ Optimized Build:
     make
 ```
 
-Build Missing Dependencies as Needed:
+#### Build Missing Dependencies as Needed:
 ```
     tar -xvzf denovogear*.tar.gz
     cd denovogear*/build
@@ -94,13 +95,13 @@ Build Missing Dependencies as Needed:
 
 ### Installation
 
-Global Install (requires root access):
+#### Global Install (requires root access):
 ```
     cd denovogear*/build
     sudo make install
 ```
 
-Local Install:
+#### Local Install:
 ```
     cd denovogear*/build
     cmake -DCMAKE_INSTALL_PREFIX="${HOME}/dng"
@@ -120,6 +121,7 @@ DeNovoGear takes in a PED file and a BCF file as input. The PED file describes t
         `samtools mpileup -gDf hg19.fa s1.bam s2.bam s3.bam | dng dnm auto --ped sample.ped --bcf -`
 
 #####  about sample.bcf:
+
 BCF files can be generated from the alignment using the samtools mpileup
 command. The command to generate a bcf file from sample.bam is:
 	`samtools mpileup -gDf reference.fa sample.bam > sample.bcf`
@@ -127,6 +129,7 @@ The -D option of the samtools mpileup command retains the per-sample read depth
 which is preferred by denovogear as it helps to filter out sites without a minimum number of reads(but note that DNG will work without per-sample RD information, in which case the RD tag encodes the average read depth information). The -g option computes genotype likelihoods and produces a compressed bcf output and the -f option is used to indicate the reference fasta file against which the alignment was built. A sample BCF file 'sample_CEU.bcf' is included in the distribution.
 
 #####  about sample.ped:
+
 The PED file contains information about the trios present in the BCF file.
 Please make sure that all the members of the trios specified in the PED file
 are present in the BCF file. The PED file can be used to specify a subset of
@@ -144,6 +147,7 @@ CEU	NA12878_vald-sorted.bam.bam	NA12891_vald-sorted.bam.bam	NA12892_vald-sorted.
 An example PED file, sample_CEU.ped, is included in the distribution directory.
 
 ##### about "snp_lookup.txt" and "indel_lookup.txt":
+
 These are tables with precomputed priors (and other useful numbers) for all possible
 trio configurations, under the null (no mutation present) and alternative (true de novo).
 The default tables are generated during each program run using a prior of
@@ -223,6 +227,7 @@ Denovogear has separate models for autosomes, X chromosome in male offspring and
         `dng dnm XD --ped sample.ped --vcf sample.X.vcf`
 
 ### PAIRED SAMPLE ANALYSIS
+
 DNG can be used to analyze paired samples for example to call somatic mutations between tumor/matched-normal pairs, the main difference in how to run the program is the way samples are specified in the PED file(see below),
 
 #### Usage:
@@ -240,6 +245,7 @@ About the arguments,
 A sample PED file sample_paired.ped for paired sample analysis is provided with the package.
 
 #### OUTPUT FORMAT for Paired Sample Analysis
+
 The output format is a single row for each putative paired denovo mutation(DNM), with the following fields
 
         1. Event type (POINT MUTATION or INDEL).
@@ -261,6 +267,7 @@ The output format is a single row for each putative paired denovo mutation(DNM),
 
 
 ### PHASER
+
 DNG can be used to obtain parental phasing information for Denovo Mutations where phase informative sites are present. This is done by looking at reads which cover both the denovo base and a phase informative positions. Phase informative positions are SNP positions that lie within a certain window from the denovo site, the default window size is 1000 bp but the window-size can be set by the user.
 	For each DNM, a list of phase informative sites from the genotypes file is obtained, these are the loci which lie within the phasing window. Also, these sites do not have a het/het GT configuration for the parents and where the child is het. The number of DNM and phasing  allele combinations seen in the read level data is output by the program. For the phasing sites, the inferred parental origin is displayed.
 For example if the base at the phasing site is T and the parental genotypes are P1:CC and p2:TC at this site, then the parent of origin of this base is p2. By looking at the base in the denovo position on this read it is possible to infer the parent of origin of the denovo mutation.
@@ -281,6 +288,7 @@ About the arguments,
 	4. 	"window" is an optional argument which is the maximum distance between the DNM and a phasing site. The default value is 1000.
 
 #### Output
+
 	DNM_pos 1:182974758     INHERITED G     VARIANT A
         HAP POS 182974328 p1: CC p2: TC Number of denovo-phasing pairs found: 0
         HAP POS 182974572 p1: CC p2: TC Number of denovo-phasing pairs found: 2
@@ -302,6 +310,7 @@ About the arguments,
 Please feel free to contact the authors about any concerns/comments.
 
 ###General options for TRIOs and Paired Sample Calling
+
 --snp_mrate:     Mutation rate prior for SNPs. [1e-8]
 --indel_mrate:   Mutation rate prior for INDELs. [1e-9]
 --pair_mrate:    Mutation rate prior for paired sample analysis. [1e-9]
@@ -318,7 +327,7 @@ Please feel free to contact the authors about any concerns/comments.
 
 Example: `dng call -p family.ped family.bam`
 
-Print Usage: `dng call --help`
+Print Usage: `dng help call`
 
 #### Pedigree File Format
 
@@ -338,7 +347,7 @@ Column 3: Father ID (0=unknown)
 
 Column 4: Mother ID (0=unknown)
 
-Column 5: Sex (1=male, 2=female, other=unknown)
+Column 5: Sex (1=male, 2=female, 0=unknown)
 
 Column 6: Sample IDs; a newick-formatted tree
 
