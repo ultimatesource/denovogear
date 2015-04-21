@@ -24,6 +24,9 @@
 
 #include <iostream>
 #include <iomanip>
+#include <ctime>
+#include <chrono>
+#include <sstream>
 
 #include <boost/range/iterator_range.hpp>
 #include <boost/range/algorithm/replace.hpp>
@@ -76,23 +79,37 @@ std::pair<std::string,std::string> vcf_get_output_mode(Call::argument_type &arg)
 	return {};
 }
 
+std::string vcf_timestamp() {
+	using namespace std;
+    char buffer[64];
+    auto now = std::chrono::system_clock::now();
+    auto now_t = std::chrono::system_clock::to_time_t(now);
+    strftime(buffer, sizeof(buffer)/sizeof(char), "%FT%T%z", std::localtime(&now_t));
+    return {buffer};
+}
+
 // Helper function for writing the vcf header information
 void vcf_add_header_text(hts::bcf::File &vcfout, Call::argument_type &arg) {
+	using namespace std;
+	vcfout.AddHeaderMetadata("denovogearVersion", PACKAGE_VERSION);
+	vcfout.AddHeaderMetadata("denovogearCommand", "dng call");
 
 #define XM(lname, sname, desc, type, def) \
-	vcfout.AddHeaderMetadata(XS(lname), arg.XV(lname));
+	vcfout.AddHeaderMetadata("denovogearArgument=" XS(lname), arg.XV(lname));
 #	include <dng/task/call.xmh>
 #undef XM	
 
+	vcfout.AddHeaderMetadata("fileDate", vcf_timestamp());
+
 	// Add the available tags for INFO, FILTER, and FORMAT fields
-	// TODO: The commented lines are standard VCF fields that may be worth adding to dng output
 	vcfout.AddHeaderMetadata("##INFO=<ID=LL,Number=1,Type=Float,Description=\"Log likelihood\">");
 	vcfout.AddHeaderMetadata("##INFO=<ID=PMUT,Number=1,Type=Float,Description=\"Probability of mutation\">");
+	vcfout.AddHeaderMetadata("##FILTER=<ID=PASS,Description=\"All filters passed\">");
+	// TODO: The commented lines are standard VCF fields that may be worth adding to dng output
 	//vcfout.AddHeaderField("##INFO=<ID=NS,Number=1,Type=Integer,Description=\"Number of Samples With Data\">");
 	//vcfout.AddHeaderField("##INFO=<ID=DP,Number=1,Type=Integer,Description=\"Total Depth\">");
 	//vcfout.AddHeaderField("##INFO=<ID=AF,Number=A,Type=Float,Description=\"Allele Frequency\">");
 	//vcfout.AddHeaderField("##INFO=<ID=AA,Number=1,Type=String,Description=\"Ancestral Allele\">");
-	vcfout.AddHeaderMetadata("##FILTER=<ID=PASS,Description=\"All filters passed\">");
 	//vcfout.AddHeaderField("##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">");
 	//vcfout.AddHeaderField("##FORMAT=<ID=GQ,Number=1,Type=Integer,Description=\"Genotype Quality\">");
 	//vcfout.AddHeaderField("##FORMAT=<ID=DP,Number=1,Type=Integer,Description=\"Read Depth\">");
@@ -247,7 +264,7 @@ int Call::operator()(Call::argument_type &arg) {
 	
 	// Add each genotype/sample column then save the header
 	for(std::string str : rgs.libraries()) {
-		std::string sample_name = boost::replace(str, '\t', '.');
+		std::string sample_name = boost::replace(str, '\t', ':');
 		vcfout.AddSample(sample_name.c_str());
 	}
 
