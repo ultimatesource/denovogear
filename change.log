@@ -2,6 +2,7 @@ v1.1.1
 - FEATURE: When building with cmake, users have the option to download and install dependencies.
 Just run `cmake -DBUILD_EXTERNAL_PROJECTS=1 ..`
 - FEATURE: `dng help` now fully implemented
+- FEATURE: more information added to `dng call` output
 - BUGFIX: When running `dng call` with HTSLIB 1.2.1, the following error message was being
 emitted: "FIXME: dirty header not synced".  This has been fixed.
 - BUGFIX: `dng call` now outputs correct 1-based site locations.
