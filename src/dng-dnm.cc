@@ -348,10 +348,22 @@ int mainDNG(int argc, char *argv[])
   // Read in Command Line arguments
   while (1) {
     int option_index = 0;
-    static struct option long_options[] = {{"ped", 1, 0, 0},
-      {"bcf", 1, 0, 1},  {"snp_mrate", 1, 0, 2}, {"indel_mrate", 1, 0, 3},
-      {"poly_rate", 1, 0, 4}, {"pair_mrate", 1, 0, 5}, {"indel_mu_scale", 1, 0, 6}, {"output_vcf", 1, 0, 7},
-      {"pp_cutoff", 1, 0, 8}, {"rd_cutoff", 1, 0, 9}, {"h", 1, 0, 10}, {"vcf", 1, 0, 11}, {"region", 1, 0, 12}};
+    static struct option long_options[] = {
+      {"ped", 1, 0, 0},
+      {"bcf", 1, 0, 1},
+      {"snp_mrate", 1, 0, 2},
+      {"indel_mrate", 1, 0, 3},
+      {"poly_rate", 1, 0, 4},
+      {"pair_mrate", 1, 0, 5},
+      {"indel_mu_scale", 1, 0, 6},
+      {"output_vcf", 1, 0, 7},
+      {"pp_cutoff", 1, 0, 8},
+      {"rd_cutoff", 1, 0, 9},
+      {"h", 1, 0, 10},
+      {"vcf", 1, 0, 11},
+      {"region", 1, 0, 12},
+      {0,0,0,0}
+    };
     int c = getopt_long (argc-1, argv+1, "", long_options, &option_index);
     if (c == -1)
       break;

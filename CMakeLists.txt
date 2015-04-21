@@ -1,47 +1,52 @@
-##############################################################
+################################################################################
 #  Denovogear Project Configuration
 #
 ## Project DeNovoGear
-PROJECT(DeNovoGear CXX C)
 CMAKE_MINIMUM_REQUIRED(VERSION 3.1.0 FATAL_ERROR)
+CMAKE_POLICY(SET CMP0025 NEW)
+
+## Important Variables
+SET(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Modules")
+SET(CMAKE_BUILD_TYPE_INIT "RelWithDebInfo")
+SET_PROPERTY(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS ON)
+
+## Compiling options
+SET(USE_STATIC_LIBS OFF CACHE BOOL "Link against static libraries.")
+SET(USE_STATIC_FLAG OFF CACHE BOOL "Use -static flag to create completely static binaries.")
+SET(BUILD_EXTERNAL_PROJECTS OFF CACHE BOOL "Build external dependencies if they are not found.")
+
+################################################################################
+# Init Project
+
+PROJECT(DeNovoGear CXX C)
+
+# AppleClang doesn't know how to do these things
+IF("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang" AND
+  "${CMAKE_VERSION}" VERSION_LESS 3.2)
+  SET(CMAKE_CXX11_STANDARD_COMPILE_OPTION "-std=c++11")
+  SET(CMAKE_CXX11_EXTENSION_COMPILE_OPTION "-std=gnu++11")
+ENDIF()
 
 # guard against in-source builds
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
   message(FATAL_ERROR "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there. You may need to remove CMakeCache.txt. ")
 endif()
 
-# guard against bad build-type strings
-if (NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE "Release")
-endif()
-
-string(TOLOWER "${CMAKE_BUILD_TYPE}" cmake_build_type_tolower)
-if(    NOT cmake_build_type_tolower STREQUAL "debug"
-   AND NOT cmake_build_type_tolower STREQUAL "release"
-   AND NOT cmake_build_type_tolower STREQUAL "relwithdebinfo")
-  message(FATAL_ERROR "Unknown build type \"${CMAKE_BUILD_TYPE}\". Allowed values are Debug, Release, RelWithDebInfo (case-insensitive).")
-endif()
-
-## Compiling Options
-
-SET(USE_STATIC_LIBS OFF CACHE BOOL "Link against static libraries.")
-SET(CMAKE_VERBOSE_MAKEFILE OFF CACHE BOOL "Turn on Verbose Makefiles" FORCE)
-
-## Important Variables
-
-SET(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Modules")
-SET(CMAKE_BUILD_TYPE_INIT "RelWithDebInfo")
-SET_PROPERTY(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS ON)
-
-IF(USE_STATIC_LIBS)
-ENDIF(USE_STATIC_LIBS)
+## Guard against bad build-type strings
+IF(CMAKE_BUILD_TYPE)
+  string(TOLOWER "${CMAKE_BUILD_TYPE}" cmake_build_type_tolower)
+  if(    NOT cmake_build_type_tolower STREQUAL "debug"
+     AND NOT cmake_build_type_tolower STREQUAL "release"
+     AND NOT cmake_build_type_tolower STREQUAL "relwithdebinfo"
+     AND NOT cmake_build_type_tolower STREQUAL "none")
+    message(FATAL_ERROR "Unsupported build type \"${CMAKE_BUILD_TYPE}\". Allowed values are Debug, Release, RelWithDebInfo, and None (case-insensitive).")
+  endif()
+ENDIF()
 
 ## Specify Project Information
-
 SET(DNG_NAME "DeNovoGear")
 SET(DNG_NAME_FOR_PKG_FILE "denovogear")
 SET(DNG_URL "https://github.com/denovogear/denovogear")
-
 
 ################################################################################
 # Version Information
@@ -147,6 +152,9 @@ SET(CPACK_GENERATOR "TGZ;TBZ2")
 SET(CPACK_SOURCE_GENERATOR "TGZ;TBZ2") 
 SET(CPACK_STRIP_FILES "libexec/dng/*")
 
+INCLUDE(GNUInstallDirs)
+SET(CMAKE_INSTALL_LIBEXECDIR  "${CMAKE_INSTALL_LIBEXECDIR}/${DNG_NAME_FOR_PKG_FILE}")
+
 INCLUDE(CPack)
 
 INSTALL(FILES README.md COPYING.txt DESTINATION ${CMAKE_DOC_DIR})
@@ -161,3 +169,10 @@ CONFIGURE_FILE(
 
 ADD_CUSTOM_TARGET(uninstall
   "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake") 
+
+
+#### NOTES ####
+
+## Build for 10.7+ on OSX
+# CXXFLAGS=-stdlib=libc++ cmake -DCMAKE_BUILD_TYPE=Release \
+#   -DUSE_STATIC_LIBS=on -DCMAKE_OSX_DEPLOYMENT_TARGET=10.7 ..

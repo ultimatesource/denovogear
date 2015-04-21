@@ -23,6 +23,7 @@ version_num="@DNG_VERSION@"
 # under certain conditions this may fail to work, so an installer should set
 # this to the proper installation directory, e.g. $prefix/libexec
 
+# DNG_LIBEXEC_DIR="@PREFIX@/libexec" #Uncomment and change as needed
 : ${DNG_LIBEXEC_DIR:="$( cd "$( dirname "$0" )" && pwd )"/../libexec/@DNG_NAME_FOR_PKG_FILE@}
 
 # Internal commands
@@ -66,6 +67,14 @@ call_command() {
 }
 
 dng_version() {
+    if [ "$2" = "--help" ]; then
+        echo "USAGE: dng version"
+        echo ""
+        echo "Description: Displays version number."
+        echo ""
+        return 0
+    fi
+
     echo "DeNovoGear Version $version_num"
     return 0
 }
@@ -74,15 +83,16 @@ dng_help() {
     check_libexec
 
     if [ -n "$2" ]; then
-        if [ "$2" = "help" ]; then
+        if [ "$2" = "--help" ]; then
 	        echo "USAGE: dng help"
-	        echo "       dng help command"
+	        echo "       dng help [command]"
 	        echo ""
 	        echo "Description: Displays help information."
 	        echo "    The first form displays a list of available commands."
 	        echo "    The second form displays the help information for a command."
+            echo ""
 	    else
-	        call_command $2 "help"
+	        call_command $2 "--help"
 	    fi
 	    return $?
     fi
@@ -96,22 +106,36 @@ dng_help() {
     for i in $sorted; do
         echo "    $i"
     done
-    echo "For more information use 'dng help command'"
+    echo "For more information use 'dng help [command]'"
     return 0
 }
 
 dng_usage() {
     echo "USAGE: dng command [options]"
     echo "       dng help"
-    echo "       dng help command"
+    echo "       dng help [command]"
 }
 
 dng_citation() {
+    if [ "$2" = "--help" ]; then
+        echo "USAGE: dng citation"
+        echo ""
+        echo "Description: Displays reference for DeNovoGear."
+        echo ""
+        return 0
+    fi
     echo "Ramu et al. (2013) DeNovoGear: De Novo Indel and Point Mutation Discovery and Phasing. Nature Methods. 10(10):985--987. doi:10.1038/nmeth.2611"
     return 0
 }
 
 dng_bibtex() {
+    if [ "$2" = "--help" ]; then
+        echo "USAGE: dng bibtex"
+        echo ""
+        echo "Description: Displays bibtex-formatted reference for DeNovoGear."
+        echo ""
+        return 0
+    fi
     echo "@ARTICLE{RamuEtAl2013,
   author  = {Avinash Ramu and Michiel J. Noordam and Rachel S. Schwartz
             and Auther Wuster and Matthew E. Hurles

@@ -291,8 +291,7 @@ void getReadsFromBAM(char* bam_f, string chr1, long dnm_pos, long hap_pos, char*
 }
 
 // Main
-int main( int argc, char* argv[])
-{
+int main( int argc, char* argv[]){
   cerr << PACKAGE_STRING << " --- SNV Phaser" << std::endl;
   char DNM_f[g_kFileNameLength] = "EMPTY", parentGT_f[g_kFileNameLength] = "EMPTY", bam_f[g_kFileNameLength] = "EMPTY";
   long window = 1000; // default window size is 1000
@@ -300,26 +299,44 @@ int main( int argc, char* argv[])
   // Read in Command Line arguments
   while (1) {
     int option_index = 0;
-    static struct option long_options[] = {{"dnm", 1, 0, 0},
-             {"pgt", 1, 0, 1}, {"bam", 1, 0, 2}, {"window", 1, 0, 3},};
+    static struct option long_options[] = {
+      {"dnm", 1, 0, 0},
+      {"pgt", 1, 0, 1},
+      {"bam", 1, 0, 2},
+      {"window", 1, 0, 3},
+      {"help",0,0,'h'},
+      {0,0,0,0}
+    };
     int c = getopt_long (argc, argv, "", long_options, &option_index);
     if (c == -1)
       break;
-    switch(c)
-      {
-      case 0:
-	strcpy(DNM_f, optarg); // File with list of DNMs to be phased
-	break;
-      case 1:
-	strcpy(parentGT_f, optarg); // File with parental genotypes for phasing sites
-	break;
-      case 2:
-	strcpy(bam_f, optarg); // BAM file
-	break;
-      case 3:
-	window = atoi(optarg); // size of window for phasing sites( > insert size )
-	break;
-      }
+    switch(c) {
+    case 0:
+      strcpy(DNM_f, optarg); // File with list of DNMs to be phased
+	    break;
+    case 1:
+      strcpy(parentGT_f, optarg); // File with parental genotypes for phasing sites
+      break;
+    case 2:
+      strcpy(bam_f, optarg); // BAM file
+      break;
+    case 3:
+      window = atoi(optarg); // size of window for phasing sites( > insert size )
+      break;
+    case 'h':
+      cerr << "Usage:\n"
+           << "  dng phaser [options]\n\n"
+           << "Options:\n"
+           << "  --dnm filename: File with list of DNMs to be phased\n"
+           << "  --pgt filename: File with parental genotypes for phasing sites\n"
+           << "  --bam filename: bam file\n"
+           << "  --window size: size of window for phasing sites (> insert size)\n"
+           << endl;
+      return EXIT_SUCCESS;
+    default:
+      cerr << "ERROR: Unknown flag.\n";
+      return EXIT_FAILURE;
+    }
   }
 
   if(!strcmp(DNM_f, "EMPTY") || !strcmp(parentGT_f, "EMPTY") || !strcmp(bam_f, "EMPTY")) {
