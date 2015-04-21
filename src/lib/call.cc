@@ -24,6 +24,9 @@
 
 #include <iostream>
 #include <iomanip>
+#include <ctime>
+#include <chrono>
+#include <sstream>
 
 #include <boost/range/iterator_range.hpp>
 #include <boost/range/algorithm/replace.hpp>
@@ -76,6 +79,15 @@ std::pair<std::string,std::string> vcf_get_output_mode(Call::argument_type &arg)
 	return {};
 }
 
+std::string vcf_timestamp() {
+	using namespace std;
+    char buffer[64];
+    auto now = std::chrono::system_clock::now();
+    auto now_t = std::chrono::system_clock::to_time_t(now);
+    strftime(buffer, sizeof(buffer)/sizeof(char), "%FT%T%z", std::localtime(&now_t));
+    return {buffer};
+}
+
 // Helper function for writing the vcf header information
 void vcf_add_header_text(hts::bcf::File &vcfout, Call::argument_type &arg) {
 	using namespace std;
@@ -86,6 +98,8 @@ void vcf_add_header_text(hts::bcf::File &vcfout, Call::argument_type &arg) {
 	vcfout.AddHeaderMetadata("denovogearArgument=" XS(lname), arg.XV(lname));
 #	include <dng/task/call.xmh>
 #undef XM	
+
+	vcfout.AddHeaderMetadata("fileDate", vcf_timestamp());
 
 	// Add the available tags for INFO, FILTER, and FORMAT fields
 	vcfout.AddHeaderMetadata("##INFO=<ID=LL,Number=1,Type=Float,Description=\"Log likelihood\">");
