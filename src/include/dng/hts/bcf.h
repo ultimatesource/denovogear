@@ -47,54 +47,32 @@ public:
    * @mode: "w" = write VCF, "wb" = write BCF
    * @source: name of application writing the VCF file (optional)
    */
-	File(const char *file, const char *mode, const char *source = nullptr) : hts::File(file, mode) {
-		hdr = bcf_hdr_init("w"); // VCF header
-		rec = bcf_init1(); // VCF record/body line
+	File(hts::File&& other) : hts::File(std::move(other)),
+		hdr_{nullptr, bcf_hdr_destroy}, rec_{nullptr, bcf_destroy1} {
 
-		if(source != nullptr) {
-			std::string s = std::string("#source=\"") + source + "\"";
-			bcf_hdr_append(hdr, s.c_str());
-		}
-    }
-    File(const File&) = delete;
-	File& operator=(const File&) = delete;
+		if(!is_open()) // nothing to do
+			return;
+		if(format().category != variant_data)
+			throw std::runtime_error("file '" + std::string(name()) + "' does not contain variant data (BCF/VCF).")
 
-	File(File&& other) : hts::File(std::move(other)), hdr(other.hdr),
-	  rec(other.rec)//, contig_ids(std::move(other.contig_ids))
-    {
-		other.hdr = nullptr;
-		other.rec = nullptr;
-    }
-
-
-	File& operator=(File&& other) {
-		if(this == &other)
-      		return *this;
-      
-		hdr = other.hdr;
-		other.hdr = nullptr;
-
-		rec = other.rec;
-		other.rec = nullptr;
-
-		//contig_ids = std::move(other.contig_ids);
-
-		return *this;
+		if(is_write()) 
+			hdr_.reset(bcf_hdr_init("w"));
+		else
+			hdr_.reset(bcf_hdr_read(handle());
+		if(!hdr_)
+			throw std::runtime_error("unable to access header in file '" + std::string(name()) + "'.");
+		rec_.reset(bcf_init1());
+		if(!rec_)
+			throw std::runtime_error("unable to construct bcf record.");
 	}
-  
-	virtual ~File() {
-		if(rec != nullptr)
-			bcf_destroy1(rec);
-
-		if(hdr != nullptr)
-			bcf_hdr_destroy(hdr);
+	File(const char *file, const char *mode) : File(hts::File(file,mode) {
     }
-
+  
 	/** Use this version to add a new INFO/FILTER/FORMAT string to the header */
 	int AddHeaderMetadata(const char *line) {
 		if(line == nullptr)
 			return -1; //bcf_hdr_append returns if line cannot be processed
-		return bcf_hdr_append(hdr, line);
+		return bcf_hdr_append(hdr_.get(), line);
 	}
 
 	/** AddHeaderMetadata() - Adds a "##key=value" line to the VCF header */
@@ -102,7 +80,7 @@ public:
 		if(key == nullptr || value == nullptr)
 			return -1;
 		std::string line = std::string("##") + key + "=" + value;
-		return bcf_hdr_append(hdr, line.c_str());
+		return bcf_hdr_append(hdr_.get(), line.c_str());
 	}
 
 	int AddHeaderMetadata(const char *key, const std::string& value) {
@@ -116,17 +94,8 @@ public:
 	}
 
 	/** Add another sample/genotype field to the VCF file. */
-	int AddSample(const char *sample,const char *genomes=nullptr,
-		const char *mixture=nullptr,const char *description=nullptr) {
-		std::string ss = "##SAMPLE=<ID=" + std::string(sample);
-		if(genomes && genomes[0])
-			ss += ",Genomes=" + std::string(genomes);
-		if(mixture && mixture[0])
-			ss += ",Mixture=" + std::string(mixture);
-		if(description && description[0])
-			ss += ",Description=" + std::string(description);
-		AddHeaderMetadata(ss);
-		return bcf_hdr_add_sample(hdr, sample);
+	int AddSample(const char *sample) {
+		return bcf_hdr_add_sample(hdr_.get(), sample);
 	}
 
 	/** Add a "#contig=" metadata entry to the VCF header. */
@@ -134,15 +103,18 @@ public:
 		if(contigid == nullptr)
 			return -1;
 		std::string conv = std::string("##contig=<ID=") + contigid + ",length=1>";
-		return bcf_hdr_append(hdr, conv.c_str());
+		return bcf_hdr_append(hdr_.get(), conv.c_str());
 	}
 
 	/** Creates the header field. Call only after adding all the sample fields */
 	int WriteHeader() {
-		bcf_hdr_add_sample(hdr, nullptr); // htslib requires NULL sample before it will write out all the other samples
-		return bcf_hdr_write(handle(), hdr);
+		bcf_hdr_add_sample(hdr_.get(), nullptr); // htslib requires NULL sample before it will write out all the other samples
+		return bcf_hdr_write(handle(), hdr_.get());
 	}
 
+	std::pair<const char*[],int> samples() const {
+		return {hdr_->samples,bcf_hdr_nsamples(hdr_.get())};
+	}
 
 	//TODO: Split off rec into its own wrapper.
 
@@ -154,26 +126,26 @@ public:
 		// CHROM
 		if(chrom == nullptr)
 			return; // should display some error?
-		rec->rid = bcf_hdr_name2id(hdr, chrom);
+		rec_->rid = bcf_hdr_name2id(hdr_.get(), chrom);
 
 		// POS
-		rec->pos = pos;
+		rec_->pos = pos;
 
 		// ID
 		if(id != nullptr)
-			bcf_update_id(hdr, rec, id);
+			bcf_update_id(hdr_.get(), rec_.get(), id);
 	}
 
  	void SetQuality(int quality) {
- 		rec->qual = quality;
+ 		rec_->qual = quality;
   	}
 
 
 	int SetFilter(const char *filter) {
 		if(filter == nullptr)
 			return 0;
-		int32_t fid = bcf_hdr_id2int(hdr, BCF_DT_ID, filter);
-		return bcf_update_filter(hdr, rec, &fid, 1);
+		int32_t fid = bcf_hdr_id2int(hdr_.get(), BCF_DT_ID, filter);
+		return bcf_update_filter(hdr_.get(), rec_.get(), &fid, 1);
 	}
 
   /**
@@ -184,7 +156,7 @@ public:
 	int SetAlleles(const std::string &str) {
 		if(str.empty())
 			return 0;
-		return bcf_update_alleles_str(hdr, rec, str.c_str());
+		return bcf_update_alleles_str(hdr_.get(), rec_.get(), str.c_str());
 	}
 
 
@@ -196,15 +168,15 @@ public:
    * TODO: Add a vector<> version of flat, ints, and strings.
    */
 	int UpdateInfo(const char *key, float value) {
-		return bcf_update_info_float(hdr, rec, key, &value, 1);
+		return bcf_update_info_float(hdr_.get(), rec_.get(), key, &value, 1);
 	}
 
 	int UpdateInfo(const char *key, int32_t value) {
-		return bcf_update_info_int32(hdr, rec, key, &value, 1);
+		return bcf_update_info_int32(hdr_.get(), rec_.get(), key, &value, 1);
 	}
 
 	int UpdateInfo(const char *key, std::string &value) {
-		return bcf_update_info_string(hdr, rec, key, value.c_str());
+		return bcf_update_info_string(hdr_.get(), rec_.get(), key, value.c_str());
 	}
 
 
@@ -217,15 +189,16 @@ public:
    */
 	int UpdateSamples(const char *name, const std::vector<float> &data) {
 		assert(name != nullptr);
-		return bcf_update_format_float(hdr, rec, name, &data[0], data.size());   
+		return bcf_update_format_float(hdr_.get(), rec_.get(), name, &data[0], data.size());   
 	}
 	int UpdateSamples(const char *name, const std::vector<int32_t> &data) {
 		assert(name != nullptr);
-		return bcf_update_format_int32(hdr, rec, name, &data[0], data.size());
+		return bcf_update_format_int32(hdr_.get(), rec_.get(), name, &data[0], data.size());
 	}
 	int UpdateSamples(const char *name, const std::vector<const char*> &data) {
 		assert(name != nullptr);
-		return bcf_update_format_string(hdr, rec, name, const_cast<const char**>(&data[0]), data.size());		
+		return bcf_update_format_string(hdr_.get(), rec_.get(), name,
+			const_cast<const char**>(&data[0]), data.size());		
 	}
 	int UpdateSamples(const char *name, const std::vector<std::string> &data) {
 		std::vector<const char*> v(data.size());
@@ -234,20 +207,20 @@ public:
 		return UpdateSamples(name, v);
 	}
 
-
 	/** Writes out the up-to-date info in the record and prepares for the next line */
 	void WriteRecord() {
 		// Add line to the body of the VCF
-		bcf_write1(handle(), hdr, rec);
+		bcf_write1(handle(), hdr_.get(), rec_.get());
 		// reset the record for the next line
-		bcf_clear(rec);
+		bcf_clear(rec_.get());
 	}
         
-protected:
-	bcf_hdr_t *hdr;
-	bcf1_t *rec;
+private:
+	std::unique_ptr<bcf_hdr_t, void(*)(bcf_hdr_t*)> hdr_;	
+	std::unique_ptr<bcf1_t, void(*)(bcf1_t*)> rec_;	
+
 };
 
-}}
+}} // namespace hts::bcf
 
 #endif /* CXX_HTS_BCF_H */

@@ -134,6 +134,9 @@ public:
 
 	    if(!is_open()) // Return early if the opening failed.  User must also check is_open to detect failure.
 	    	return;
+	    if(format().category != sequence_data)
+			throw std::runtime_error("file '" + std::string(name()) + "' does not contain sequence data (BAM/SAM/CRAM).")
+
 	    SetFaiFileName(fasta);
 	    hdr_.reset(sam_hdr_read(handle()));
 	    if(!hdr_)

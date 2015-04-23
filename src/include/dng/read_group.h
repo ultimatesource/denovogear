@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Reed A. Cartwright
+ * Copyright (c) 2014,2015 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -91,11 +91,11 @@ public:
 
 	// Parse a list of BAM/SAM files into readgroups
 	template<typename InFiles>
-	void Parse(InFiles &range);
+	void ParseHeaderText(InFiles &range);
 
 	// Parse a VCF file
-	template<typename InFile>
-	void Parse(InFile *fname);
+	template<typename InFiles>
+	void Parse(InFiles &range);
 	
 	inline const StrSet& groups() const { return groups_; }
 	inline const StrSet& libraries() const { return libraries_; }
@@ -115,6 +115,29 @@ protected:
 	StrSet samples_;
 	
 	std::vector<std::size_t> library_from_id_;
+
+	void ReloadData() {
+		// clear data vectors
+		groups_.clear();
+		libraries_.clear();
+		samples_.clear();
+
+		// construct data vectors
+		groups_.reserve(data_.size());
+		libraries_.reserve(data_.size());
+		samples_.reserve(data_.size());	
+		for(auto&& a : data_) {
+			groups_.insert(a.id);
+			libraries_.insert(a.library);
+			samples_.insert(a.sample);
+		}
+		
+		// connect groups to libraries and samples	
+		library_from_id_.resize(groups_.size());
+		for(auto&& a : data_) {
+			library_from_id_[rg::index(groups_,a.id)] = rg::index(libraries_,a.library);
+		}		
+	}
 };
 
 namespace rg {
@@ -126,10 +149,10 @@ inline std::size_t index(const ReadGroups::StrSet& set, const std::string& query
 
 
 template<typename InFiles>
-void ReadGroups::Parse(InFiles &range) {
+void ReadGroups::ParseHeaderText(InFiles &range) {
 	// iterate through each file in the range
-	for(auto &f : range) {
-		// get header text and continue on failre
+	for(auto&& f : range) {
+		// get header text and continue on failure
 		const char *text = f.header()->text;
 		if(text == nullptr)
 			continue;
@@ -188,83 +211,39 @@ void ReadGroups::Parse(InFiles &range) {
 			data_.insert(std::move(val));
 		}
 	}
-	
-	// construct data vectors
-	groups_.reserve(data_.size());
-	libraries_.reserve(data_.size());
-	samples_.reserve(data_.size());	
-	for(auto &a : data_) {
-		groups_.insert(a.id);
-		libraries_.insert(a.library);
-		samples_.insert(a.sample);
-	}
-	
-	// connect groups to libraries and samples	
-	library_from_id_.resize(groups_.size());
-	for(auto &a : data_) {
-	       	library_from_id_[rg::index(groups_,a.id)] = rg::index(libraries_,a.library);
-
-	}
+	ReloadData();
 }
 
 /**
  * Parses an VCF file into read groups, sample names and libraries
  * fname - file path and name string for input vcf file
  */
-template<typename InFFile>
-void ReadGroups::Parse(InFFile *fname)
-{
-	htsFile *fp = hts_open(fname, "r");
-	bcf_hdr_t *hdr = bcf_hdr_read(fp);
-	
+template<typename InFile>
+void ReadGroups::ParseSamples(InFile &file) {
 	// Read through samples from the header
-	int n_samples = bcf_hdr_nsamples(hdr);
-	char **gt_samples = hdr->samples;
-	for(size_t a = 0; a < n_samples; a++) {
-	      ReadGroup val{std::to_string(a)}; // Don't know what else to use for "@RG ID"?
+	auto samples = file.samples();
+	for(int a = 0; a < samples.second; ++a) {
+		// Each sample column in a vcf file typically corresponds to an @RG SM: tag.
+		// However, we prefer to work with @RG LB: tags as our base data.
+		// In order to extract library information from VCF data, we support column
+		// ids in the following format SAMPLE:LIBRARY.
 
-	      // Each genotype(i.e sample) column in the VCF file represents an unique library. If multiple libraries comes from
-	      // the same individual, then it must be specified in the "##SAMPLE=<ID=lib,Genomes=indv>" field in the header.
-	      // Otherwise we have to assume each library comes from a unique individual
-	      val.library = std::string(gt_samples[a]);
-	      val.sample = std::string(gt_samples[a]); // Default value
-     
+		const char *sm = samples.first[a];
+		ReadGroups val{sm};
 
-	      // Check "##SAMPLE" field for ID=val.library. If header field exists then function will return all key-value pairs
-	      bcf_hrec_t *kv_pairs = bcf_hdr_get_hrec(hdr, BCF_HL_STR, "ID", val.library.c_str(), "SAMPLE");
-	      if(kv_pairs != NULL) {
-	             for(int a = 0; a < kv_pairs->nkeys; a++) {
-		            if(kv_pairs->keys[a] != NULL && strcmp(kv_pairs->keys[a], "Genomes") == 0) { // May need to convert to upper, Vcf4.2 standard unclear?
-			           // TODO: Currently assuming there is only one genome per sample and not a mixture. If needed either
-			           // check there are no ';' or that "Mixture=1."
-			           val.sample = std::string(kv_pairs->vals[a]);
-				  
-			    }
-		     }
-	      }
-						   
-	      data_.insert(std::move(val));
+		const char *p = strchr(b, ':');
+		if(p == nullptr || *(p+1) == '\0') {
+			val.library = sm;
+			val.sample = sm;
+		} else {
+			val.library = p+1;
+			val.sample.assign(sm,p);
+		}
+		data_.insert(std::move(val));
 	}
-
-	// TODO: combine this code and above into inline.
-	// construct data vectors
-	groups_.reserve(data_.size());
-	libraries_.reserve(data_.size());
-	samples_.reserve(data_.size());
-	for(auto &a : data_) {
-	       groups_.insert(a.id);
-	       libraries_.insert(a.library);
-	       samples_.insert(a.sample);
-	}
-
-	// connect groups to libraries and samples
-	library_from_id_.resize(groups_.size());
-	for(auto &a : data_) {
-	       library_from_id_[rg::index(groups_,a.id)] = rg::index(libraries_,a.library);
-	}
+	ReloadData();
 }
  
-}
+} // namespace dng
 
 #endif
-
