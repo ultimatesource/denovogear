@@ -116,7 +116,16 @@ public:
 	}
 
 	/** Add another sample/genotype field to the VCF file. */
-	int AddSample(const char *sample) {
+	int AddSample(const char *sample,const char *genomes=nullptr,
+		const char *mixture=nullptr,const char *description=nullptr) {
+		std::string ss = "##SAMPLE=<ID=" + std::string(sample);
+		if(genomes && genomes[0])
+			ss += ",Genomes=" + std::string(genomes);
+		if(mixture && mixture[0])
+			ss += ",Mixture=" + std::string(mixture);
+		if(description && description[0])
+			ss += ",Description=" + std::string(description);
+		AddHeaderMetadata(ss);
 		return bcf_hdr_add_sample(hdr, sample);
 	}
 
@@ -130,7 +139,7 @@ public:
 
 	/** Creates the header field. Call only after adding all the sample fields */
 	int WriteHeader() {
-		bcf_hdr_add_sample(hdr, nullptr); // libhts requires NULL sample before it will write out all the other samples
+		bcf_hdr_add_sample(hdr, nullptr); // htslib requires NULL sample before it will write out all the other samples
 		return bcf_hdr_write(handle(), hdr);
 	}
 
