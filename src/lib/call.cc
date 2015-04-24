@@ -169,29 +169,30 @@ void vcf_add_record(hts::bcf::File &vcfout, const char *chrom, int pos, const ch
 }
 
 // Build a list of all of the possible contigs to add to the vcf header
-std::vector<std::string> parse_contigs(const bam_hdr_t *hdr) {
+std::vector<std::pair<std::string,uint32_t>> parse_contigs(const bam_hdr_t *hdr) {
 	if(hdr == nullptr)
 		return {};
-	std::vector<std::string> contigs;
+	std::vector<std::pair<std::string,uint32_t>> contigs;
 	uint32_t n_targets = hdr->n_targets;
 	for(size_t a = 0; a < n_targets; a++) {
 		if(hdr->target_name[a] == nullptr)
 			continue;
-		contigs.emplace_back(hdr->target_name[a]);
+		contigs.emplace_back(hdr->target_name[a],hdr->target_len[a]);
 	}
 	return contigs;
 }
 
-std::vector<std::string> parse_contigs(const bcf_hdr_t *hdr) {
+// VCF header lacks a function to get sequence lengths
+// So we will we will hack our own based upon bcf_hdr_seqnames
+std::vector<std::pair<std::string,uint32_t>> parse_contigs(const bcf_hdr_t *hdr) {
 	if(hdr == nullptr)
 		return {};
-	std::vector<std::string> contigs;
-	int n_targets;
-	std::unique_ptr<const char*[]> targets{bcf_hdr_seqnames(hdr, &n_targets)};
-	for(size_t a = 0; a < n_targets; a++) {
-		if(targets[a] == nullptr)
+	std::vector<std::pair<std::string,uint32_t>> contigs;
+	vdict_t *d = (vdict_t*)h->dict[BCF_DT_CTG];
+	for (khint_t k=kh_begin(d); k<kh_end(d); k++) {
+		if ( !kh_exist(d,k) )
 			continue;
-		contigs.emplace_back(targets[a]);
+		contigs.emplace_back(kh_key(d,k),kh_val(d,k).info[0]);
 	}
 	return contigs;
 }
@@ -225,7 +226,7 @@ int Call::operator()(Call::argument_type &arg) {
 	std::array<double, 4> freqs;
 	// TODO: read directly into freqs????  This will need a wrapper that provides an "insert" function.
 	// TODO: include the size into the pattern, but this makes it harder to catch the second error.
-	// TODO: turn all of this into a template function that returs array<double,4>?
+	// TODO: turn all of this into a template function that returns array<double,4>?
 	{
 		auto f = util::parse_double_list(arg.nuc_freqs,',',4);
 		if(!f.second ) {
@@ -265,22 +266,8 @@ int Call::operator()(Call::argument_type &arg) {
 
 	// Write VCF header
 	auto out = vcf_get_output_mode(arg);
-	hts::bcf::File vcfout(out.first.c_str(), out.second.c_str(), PACKAGE_STRING);
+	hts::bcf::File vcfout(out.first.c_str(), out.second.c_str());
 	vcf_add_header_text(vcfout, arg);
-
-	// Need to match library.sample to the sample for the "##SAMPLE" metadata
-	for(std::string str : rgs.libraries()) {
-	       int str_end = str.length()-1;
-	       for(int a = 0; a < str_end; a++) {
-		      if(str[a] == '\t') {
-			     std::string sample_id = boost::replace(str, '\t', '.');
-			     std::string owner = str.substr(a+1);
-			     std::string field = "##SAMPLE=<ID=" + sample_id + ",Genomes=" + owner + ">";
-			     vcfout.AddHeaderMetadata(field.c_str());
-			     break;
-		      }
-	       }
-	}
 	
 	// Add each genotype/sample column then save the header
 	for(auto&& str : rgs.libraries()) {
@@ -290,10 +277,10 @@ int Call::operator()(Call::argument_type &arg) {
 
 	// Add contigs to header
 	for(auto&& contig : parse_contigs(h) ) {
-		vcfout.AddContig(contig.c_str());
+		vcfout.AddContig(contig.first.c_str(),contig.second);
 	}
 
-	vcfout.WriteHeader();	
+	vcfout.WriteHeader();
 
 	// information to hold reference
 	char *ref = nullptr;

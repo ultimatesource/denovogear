@@ -87,7 +87,6 @@ public:
 		return AddHeaderMetadata(key, value.c_str());
 	}
 
-
 	template<typename T>
 	int AddHeaderMetadata(const char *key, T value) {
 		return AddHeaderMetadata(key, std::to_string(value));
@@ -99,10 +98,11 @@ public:
 	}
 
 	/** Add a "#contig=" metadata entry to the VCF header. */
-	int AddContig(const char *contigid) {
+	int AddContig(const char *contigid, uint32_t length) {
 		if(contigid == nullptr)
 			return -1;
-		std::string conv = std::string("##contig=<ID=") + contigid + ",length=1>";
+		std::string conv = std::string("##contig=<ID=") + contigid
+			+ ",length=" + std::to_string(length) + ">";
 		return bcf_hdr_append(hdr_.get(), conv.c_str());
 	}
 
@@ -115,6 +115,8 @@ public:
 	std::pair<const char*[],int> samples() const {
 		return {hdr_->samples,bcf_hdr_nsamples(hdr_.get())};
 	}
+
+	const bcf_hdr_t * header() const { return hdr_.get(); }
 
 	//TODO: Split off rec into its own wrapper.
 
