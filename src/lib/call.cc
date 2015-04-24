@@ -82,30 +82,33 @@ std::pair<std::string,std::string> vcf_get_output_mode(Call::argument_type &arg)
 
 std::string vcf_timestamp() {
 	using namespace std;
-    char buffer[64];
+    std::string buffer(127,'\0');
     auto now = std::chrono::system_clock::now();
     auto now_t = std::chrono::system_clock::to_time_t(now);
-    strftime(buffer, sizeof(buffer)/sizeof(char), "%FT%T%z", std::localtime(&now_t));
-    return {buffer};
+    size_t sz = strftime(&buffer[0], 127, "Date=\"%FT%T%z\",Epoch=",
+    	std::localtime(&now_t));
+    buffer.resize(sz);
+    buffer += std::to_string(now);
+    return buffer;
 }
 
 // Helper function for writing the vcf header information
 void vcf_add_header_text(hts::bcf::File &vcfout, Call::argument_type &arg) {
 	using namespace std;
-	vcfout.AddHeaderMetadata("denovogearVersion", PACKAGE_VERSION);
-	vcfout.AddHeaderMetadata("denovogearCommand", "dng call");
+	std::string line{"##DeNovoGearCommandLine=<ID=dng-call,Version="
+		PACKAGE_VERSION ","};
+	line += vcf_timestamp();
+	line += ",CommandLineOptions=\"";
 
 #define XM(lname, sname, desc, type, def) \
-	vcfout.AddHeaderMetadata("denovogearArgument=" XS(lname), arg.XV(lname));
+	line += "--" XS(lname) + to_string(arg.XV(lname));
 #	include <dng/task/call.xmh>
-#undef XM	
-
-	vcfout.AddHeaderMetadata("fileDate", vcf_timestamp());
+#undef XM
+	line += "\">";
 
 	// Add the available tags for INFO, FILTER, and FORMAT fields
 	vcfout.AddHeaderMetadata("##INFO=<ID=LL,Number=1,Type=Float,Description=\"Log likelihood\">");
 	vcfout.AddHeaderMetadata("##INFO=<ID=PMUT,Number=1,Type=Float,Description=\"Probability of mutation\">");
-	vcfout.AddHeaderMetadata("##FILTER=<ID=PASS,Description=\"All filters passed\">");
 	// TODO: The commented lines are standard VCF fields that may be worth adding to dng output
 	//vcfout.AddHeaderField("##INFO=<ID=NS,Number=1,Type=Integer,Description=\"Number of Samples With Data\">");
 	//vcfout.AddHeaderField("##INFO=<ID=DP,Number=1,Type=Integer,Description=\"Total Depth\">");
@@ -201,25 +204,19 @@ std::vector<std::pair<std::string,uint32_t>> parse_contigs(const bcf_hdr_t *hdr)
 // argument_type arg holds the processed command line arguments
 int Call::operator()(Call::argument_type &arg) {
 	using namespace std;
-
-	// TODO: Should utilize hts::vcf::File instead of using htslib in call.cc
-	bool vcf_input = false;
-	std::string vcf_fname;
-	dng::pileup::vcf::VCFPileup vcfpileup;
-
-	faidx_t * fai = nullptr;
+	//faidx_t * fai = nullptr;
 	
 	// Parse pedigree from file	
 	dng::io::Pedigree ped;
 	if(!arg.ped.empty()) {
-	     ifstream ped_file(arg.ped);
-	     if(!ped_file.is_open()) {
-	           throw std::runtime_error(
-				     "unable to open pedigree file '" + arg.ped + "'.");
-	     }
-	     ped.Parse(istreambuf_range(ped_file));
+		ifstream ped_file(arg.ped);
+		if(!ped_file.is_open()) {
+			throw std::runtime_error(
+				"unable to open pedigree file '" + arg.ped + "'.");
+		}
+		ped.Parse(istreambuf_range(ped_file));
 	} else {
-	     throw std::runtime_error("pedigree file was not specified.");
+		throw std::runtime_error("pedigree file was not specified.");
 	}
 	
 	// Parse Nucleotide Frequencies
@@ -242,9 +239,10 @@ int Call::operator()(Call::argument_type &arg) {
 
 	// Construct peeling algorithm from parameters and pedigree information
 	dng::Pedigree peeler;
-	peeler.Initialize({arg.theta, arg.mu, arg.mu_somatic, arg.mu_library, arg.ref_weight, freqs});
+	peeler.Initialize({arg.theta, arg.mu, arg.mu_somatic, arg.mu_library,
+		arg.ref_weight, freqs});
 	if(!peeler.Construct(ped,rgs)) {
-	        throw std::runtime_error("Unable to construct peeler for pedigree; "
+		throw std::runtime_error("Unable to construct peeler for pedigree; "
 			"possible non-zero-loop pedigree.");
 	}
 
@@ -264,7 +262,7 @@ int Call::operator()(Call::argument_type &arg) {
 		throw std::runtime_error("mixing sequence data and variant data as input is not supported.");
 	}
 
-	// Write VCF header
+	// Begin writing VCF header
 	auto out = vcf_get_output_mode(arg);
 	hts::bcf::File vcfout(out.first.c_str(), out.second.c_str());
 	vcf_add_header_text(vcfout, arg);
