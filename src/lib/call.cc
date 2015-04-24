@@ -95,11 +95,13 @@ std::string vcf_timestamp() {
 // Helper function for writing the vcf header information
 void vcf_add_header_text(hts::bcf::File &vcfout, Call::argument_type &arg) {
 	using namespace std;
-	std::string line{"##DeNovoGearCommandLine=<ID=dng-call,Version="
+	string line{"##DeNovoGearCommandLine=<ID=dng-call,Version="
 		PACKAGE_VERSION ","};
 	line += vcf_timestamp();
 	line += ",CommandLineOptions=\"";
 
+// TODO: to_string loses precision.  Need to find/write a version
+// that is as exact as possible.
 #define XM(lname, sname, desc, type, def) \
 	line += "--" XS(lname) + to_string(arg.XV(lname));
 #	include <dng/task/call.xmh>
@@ -121,7 +123,6 @@ void vcf_add_header_text(hts::bcf::File &vcfout, Call::argument_type &arg) {
 
 	// AD defined http://gatkforums.broadinstitute.org/discussion/1268/how-should-i-interpret-vcf-files-produced-by-the-gatk
 	vcfout.AddHeaderMetadata("##FORMAT=<ID=AD,Number=.,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed\">");
-
 }
 
 void vcf_add_record(hts::bcf::File &vcfout, const char *chrom, int pos, const char ref,
@@ -246,6 +247,15 @@ int Call::operator()(Call::argument_type &arg) {
 			"possible non-zero-loop pedigree.");
 	}
 
+	// quality thresholds 
+	int min_qual = arg.min_basequal;
+	double min_prob = arg.min_prob;
+	
+	// Model genotype likelihoods as a mixture of two dirichlet multinomials
+	// TODO: control these with parameters
+	genotype::DirichletMultinomialMixture genotype_likelihood(
+			{0.9,0.001,0.001,1.05}, {0.1,0.01,0.01,1.1});
+
 	// Open input files
 	vector<hts::File> indata;
 	for(auto&& str : arg.input) {
@@ -263,28 +273,39 @@ int Call::operator()(Call::argument_type &arg) {
 	}
 
 	// Begin writing VCF header
-	auto out = vcf_get_output_mode(arg);
-	hts::bcf::File vcfout(out.first.c_str(), out.second.c_str());
+	auto out_file = vcf_get_output_mode(arg);
+	hts::bcf::File vcfout(out_file.first.c_str(), out_file.second.c_str());
 	vcf_add_header_text(vcfout, arg);
-	
-	// Add each genotype/sample column then save the header
-	for(auto&& str : rgs.libraries()) {
-		std::string sample_name = boost::replace(str, '\t', ':');
-		vcfout.AddSample(sample_name.c_str());
-	}
 
-	// Add contigs to header
-	for(auto&& contig : parse_contigs(h) ) {
-		vcfout.AddContig(contig.first.c_str(),contig.second);
-	}
+	// Preform pileup on data by passing a lambda-function to the mpileup () operator
+	std::vector<depth5_t> read_depths; //(rgs.libraries().size(),{0,0});
 
-	vcfout.WriteHeader();
+	auto calculate = [&](const char *target_name, int position, char ref_base) {
 
-	// information to hold reference
-	char *ref = nullptr;
-	int ref_sz = 0;
-	int ref_target_id = -1;
+		int ref_index = seq::char_index(ref_base);
 
+		// calculate genotype likelihoods and store in the lower library vector
+		double scale = 0.0, stemp;
+		for(std::size_t u=0;u<read_depths.size();++u) {
+			std::tie(peeler.library_lower(u),stemp) =
+				genotype_likelihood({read_depths[u].key}, ref_index);
+			scale += stemp;
+		}
+
+		// Calculate probabilities
+		double d = peeler.CalculateLogLikelihood(ref_index)+scale;
+		double p = peeler.CalculateMutProbability(ref_index);
+
+		// Skip this site if it does not meet lower probability threshold
+		if(p < min_prob)
+			return;
+
+		vcf_add_record(vcfout, target_name, position, ref_base, d, p, read_depths);
+		return;
+	};
+
+
+	// Treat sequence_data and variant data separately
 	if(cat == sequence_data) {
 		// Wrap input in hts::bam::File
 		vector<hts::bam::File> bamdata;
@@ -292,12 +313,36 @@ int Call::operator()(Call::argument_type &arg) {
 			bamdata.emplace_back(std::move(f), arg.region.c_str(), arg.fasta.c_str(),
 				arg.min_mapqual, arg.min_qlen);
 		}
-		// Read header from first file and construct read groups
+		// Read header from first file
 		const bam_hdr_t *h = indata[0].header();
+
+		// Add contigs to header
+		for(auto&& contig : parse_contigs(h) ) {
+			vcfout.AddContig(contig.first.c_str(),contig.second);
+		}
+
+		// Add each genotype/sample column then save the header
 		dng::ReadGroups rgs;
 		rgs.Parse(indata);
+		for(auto&& str : rgs.libraries()) {
+			std::string sample_name = boost::replace(str, '\t', ':');
+			vcfout.AddSample(sample_name.c_str());
+		}
+		vcfout.WriteHeader();
 
+		// Resize pileup buffer
+		read_depths.assign(rgs.libraries().size(),{0,0});
+
+	} else if(cat == variant_data) {
+
+	} else {
+		throw runtime_error("unsupported file category.")
 	}
+
+	// information to hold reference
+	char *ref = nullptr;
+	int ref_sz = 0;
+	int ref_target_id = -1;
 
 /*=======
 	if(arg.vcf_input) {
@@ -344,44 +389,7 @@ int Call::operator()(Call::argument_type &arg) {
 	}
 >>>>>>> e4921627695c2e2575510dbc660cb9c1b0d79d93
 */
-
-	// quality thresholds 
-	int min_qual = arg.min_basequal;
-	double min_prob = arg.min_prob;
 	
-	// Model genotype likelihoods as a mixuture of two dirichlet multinomials
-	// TODO: control these with parameters
-	genotype::DirichletMultinomialMixture genotype_likelihood(
-			{0.9,0.001,0.001,1.05}, {0.1,0.01,0.01,1.1});
-	
-
-	// Preform pileup on data by passing a lambda-function to the mpileup () operator
-	std::vector<depth5_t> read_depths(rgs.libraries().size(),{0,0});
-	const char gts[10][3] = {"AA","AC","AG","AT","CC","CG","CT","GG","GT","TT"};
-	
-	
-	auto calculate = [&](const char *target_name, int position, char ref_base) {
-
-	      int ref_index = seq::char_index(ref_base);
-	  
-              // calculate genotype likelihoods and store in the lower library vector
-	      double scale = 0.0, stemp;
-	      for(std::size_t u=0;u<read_depths.size();++u) {
-		     std::tie(peeler.library_lower(u),stemp) = genotype_likelihood({read_depths[u].key},ref_index);
-		     scale += stemp;
-	      }
-
-	      // Calculate probabilities
-	      double d = peeler.CalculateLogLikelihood(ref_index)+scale;
-	      double p = peeler.CalculateMutProbability(ref_index);
-
-	      // Skip this site if it does not meet lower probability threshold
-	      if(p < min_prob)
-	           return;
-
-	      vcf_add_record(vcfout, target_name, position, ref_base, d, p, read_depths);
-	      return;
-	};
 
 	
 /*	if(arg.vcf_input) {
@@ -423,7 +431,7 @@ int Call::operator()(Call::argument_type &arg) {
 	       });
 	} else { */
 	       // Begin Pileup Phase
-    	       dng::MPileup mpileup(rgs.groups());
+    	   dng::MPileup mpileup(rgs.groups());
 	       mpileup(indata, [&](const dng::MPileup::data_type &data, uint64_t loc)
 	       {
 
