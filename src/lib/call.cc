@@ -27,6 +27,7 @@
 #include <ctime>
 #include <chrono>
 #include <sstream>
+#include <string>
 
 #include <boost/range/iterator_range.hpp>
 #include <boost/range/algorithm/replace.hpp>
@@ -46,6 +47,7 @@
 #include <dng/vcfpileup.h>
 
 #include <htslib/faidx.h>
+#include <htslib/khash.h>
 
 #include "version.h"
 
@@ -82,14 +84,26 @@ std::pair<std::string,std::string> vcf_get_output_mode(Call::argument_type &arg)
 
 std::string vcf_timestamp() {
 	using namespace std;
+	using namespace std::chrono;
     std::string buffer(127,'\0');
-    auto now = std::chrono::system_clock::now();
-    auto now_t = std::chrono::system_clock::to_time_t(now);
+    auto now = system_clock::now();
+    auto now_t = system_clock::to_time_t(now);
     size_t sz = strftime(&buffer[0], 127, "Date=\"%FT%T%z\",Epoch=",
-    	std::localtime(&now_t));
+    	localtime(&now_t));
     buffer.resize(sz);
-    buffer += std::to_string(now);
+    auto epoch = std::chrono::duration_cast<std::chrono::milliseconds>(
+    	now.time_since_epoch());
+    buffer += to_string(epoch.count());
     return buffer;
+}
+
+template<typename VAL>
+std::string vcf_command_line_text(const char * arg, VAL val) {
+	return std::string("--") + arg + "=" + std::to_string(val);
+}
+
+std::string vcf_command_line_text(const char * arg, std::string val) {
+	return std::string("--") + arg + "=\'" + val + "\'";
 }
 
 // Helper function for writing the vcf header information
@@ -103,10 +117,13 @@ void vcf_add_header_text(hts::bcf::File &vcfout, Call::argument_type &arg) {
 // TODO: to_string loses precision.  Need to find/write a version
 // that is as exact as possible.
 #define XM(lname, sname, desc, type, def) \
-	line += "--" XS(lname) + to_string(arg.XV(lname));
+	line += vcf_command_line_text(XS(lname),arg.XV(lname)) + " ";
+
 #	include <dng/task/call.xmh>
 #undef XM
+	line.pop_back();
 	line += "\">";
+	vcfout.AddHeaderMetadata(line);
 
 	// Add the available tags for INFO, FILTER, and FORMAT fields
 	vcfout.AddHeaderMetadata("##INFO=<ID=LL,Number=1,Type=Float,Description=\"Log likelihood\">");
@@ -186,12 +203,14 @@ std::vector<std::pair<std::string,uint32_t>> parse_contigs(const bam_hdr_t *hdr)
 	return contigs;
 }
 
+/*
 // VCF header lacks a function to get sequence lengths
 // So we will we will hack our own based upon bcf_hdr_seqnames
 std::vector<std::pair<std::string,uint32_t>> parse_contigs(const bcf_hdr_t *hdr) {
 	if(hdr == nullptr)
 		return {};
 	std::vector<std::pair<std::string,uint32_t>> contigs;
+
 	vdict_t *d = (vdict_t*)h->dict[BCF_DT_CTG];
 	for (khint_t k=kh_begin(d); k<kh_end(d); k++) {
 		if ( !kh_exist(d,k) )
@@ -200,12 +219,12 @@ std::vector<std::pair<std::string,uint32_t>> parse_contigs(const bcf_hdr_t *hdr)
 	}
 	return contigs;
 }
+*/
 
 // The main loop for dng-call application
 // argument_type arg holds the processed command line arguments
 int Call::operator()(Call::argument_type &arg) {
 	using namespace std;
-	//faidx_t * fai = nullptr;
 	
 	// Parse pedigree from file	
 	dng::io::Pedigree ped;
@@ -219,7 +238,18 @@ int Call::operator()(Call::argument_type &arg) {
 	} else {
 		throw std::runtime_error("pedigree file was not specified.");
 	}
-	
+
+	// Open Reference
+	unique_ptr<char[], void(*)(void *)> ref{nullptr, free};
+	int ref_sz = 0, ref_target_id = -1;
+	unique_ptr<faidx_t, void(*)(faidx_t *)> fai{nullptr, fai_destroy};
+	if(!arg.fasta.empty()) {
+		fai.reset(fai_load(arg.fasta.c_str()));
+		if(!fai)
+			throw std::runtime_error("unable to open faidx-indexed reference file '"
+				+ arg.fasta + "'.");
+	}
+
 	// Parse Nucleotide Frequencies
 	std::array<double, 4> freqs;
 	// TODO: read directly into freqs????  This will need a wrapper that provides an "insert" function.
@@ -238,15 +268,6 @@ int Call::operator()(Call::argument_type &arg) {
 		std::copy(f.first.begin(),f.first.end(),&freqs[0]);
 	}
 
-	// Construct peeling algorithm from parameters and pedigree information
-	dng::Pedigree peeler;
-	peeler.Initialize({arg.theta, arg.mu, arg.mu_somatic, arg.mu_library,
-		arg.ref_weight, freqs});
-	if(!peeler.Construct(ped,rgs)) {
-		throw std::runtime_error("Unable to construct peeler for pedigree; "
-			"possible non-zero-loop pedigree.");
-	}
-
 	// quality thresholds 
 	int min_qual = arg.min_basequal;
 	double min_prob = arg.min_prob;
@@ -257,15 +278,18 @@ int Call::operator()(Call::argument_type &arg) {
 			{0.9,0.001,0.001,1.05}, {0.1,0.01,0.01,1.1});
 
 	// Open input files
+	dng::ReadGroups rgs;
 	vector<hts::File> indata;
+	vector<hts::bam::File> bamdata;
 	for(auto&& str : arg.input) {
 		indata.emplace_back(str.c_str(), "r");
 		if(indata.back().is_open())
 			continue;
 		throw std::runtime_error("unable to open input file '" + str + "'.");
 	}
+
 	// Check to see if all inputs are of the same type
-	htsFormatCategory cat = indata[0].format().category;
+	const htsFormatCategory cat = indata[0].format().category;
 	for(auto&& f : indata) {
 		if(f.format().category == cat)
 			continue;
@@ -277,18 +301,55 @@ int Call::operator()(Call::argument_type &arg) {
 	hts::bcf::File vcfout(out_file.first.c_str(), out_file.second.c_str());
 	vcf_add_header_text(vcfout, arg);
 
-	// Preform pileup on data by passing a lambda-function to the mpileup () operator
-	std::vector<depth5_t> read_depths; //(rgs.libraries().size(),{0,0});
+	if(cat == sequence_data) {
+		// Wrap input in hts::bam::File
+		for(auto&& f : indata) {
+			bamdata.emplace_back(std::move(f), arg.region.c_str(), arg.fasta.c_str(),
+				arg.min_mapqual, arg.min_qlen);
+		}
+		// Read header from first file
+		const bam_hdr_t *h = bamdata[0].header();
 
-	auto calculate = [&](const char *target_name, int position, char ref_base) {
+		// Add contigs to header
+		for(auto&& contig : parse_contigs(h) ) {
+			vcfout.AddContig(contig.first.c_str(),contig.second);
+		}
+
+		// Add each genotype/sample column
+		rgs.ParseHeaderText(bamdata);
+
+	} else if(cat == variant_data) {
+
+	} else {
+		throw runtime_error("unsupported file category.");
+	}
+
+	// Finish Header
+	for(auto str : rgs.libraries()) {
+		boost::replace(str, '\t', ':');
+		vcfout.AddSample(str.c_str());
+	}
+	vcfout.WriteHeader();
+
+	// Construct peeling algorithm from parameters and pedigree information
+	dng::Pedigree peeler;
+	peeler.Initialize({arg.theta, arg.mu, arg.mu_somatic, arg.mu_library,
+		arg.ref_weight, freqs});
+	if(!peeler.Construct(ped,rgs)) {
+		throw std::runtime_error("Unable to construct peeler for pedigree; "
+			"possible non-zero-loop pedigree.");
+	}
+
+	auto calculate = [&min_prob, &peeler, &vcfout, &genotype_likelihood](const std::vector<depth5_t>& depths,
+		const char *target_name, int position, char ref_base) {
 
 		int ref_index = seq::char_index(ref_base);
 
 		// calculate genotype likelihoods and store in the lower library vector
 		double scale = 0.0, stemp;
-		for(std::size_t u=0;u<read_depths.size();++u) {
+		for(std::size_t u=0;u<depths.size();++u) {
 			std::tie(peeler.library_lower(u),stemp) =
-				genotype_likelihood({read_depths[u].key}, ref_index);
+				genotype_likelihood({depths[u].key}, ref_index);
 			scale += stemp;
 		}
 
@@ -300,49 +361,52 @@ int Call::operator()(Call::argument_type &arg) {
 		if(p < min_prob)
 			return;
 
-		vcf_add_record(vcfout, target_name, position, ref_base, d, p, read_depths);
+		vcf_add_record(vcfout, target_name, position, ref_base, d, p, depths);
 		return;
 	};
 
-
 	// Treat sequence_data and variant data separately
 	if(cat == sequence_data) {
-		// Wrap input in hts::bam::File
-		vector<hts::bam::File> bamdata;
-		for(auto&& f : indata) {
-			bamdata.emplace_back(std::move(f), arg.region.c_str(), arg.fasta.c_str(),
-				arg.min_mapqual, arg.min_qlen);
-		}
-		// Read header from first file
-		const bam_hdr_t *h = indata[0].header();
+		// Preform pileup on data by passing a lambda-function to the mpileup () operator
+		std::vector<depth5_t> read_depths(rgs.libraries().size(),{0,0});
+		dng::MPileup mpileup(rgs.groups());
+		const bam_hdr_t *h = bamdata[0].header();
+		mpileup(bamdata, [&](const dng::MPileup::data_type &data, uint64_t loc) {
 
-		// Add contigs to header
-		for(auto&& contig : parse_contigs(h) ) {
-			vcfout.AddContig(contig.first.c_str(),contig.second);
-		}
+			// Calculate target position and fetch sequence name
+			int target_id = location_to_target(loc);
+			int position = location_to_position(loc);
 
-		// Add each genotype/sample column then save the header
-		dng::ReadGroups rgs;
-		rgs.Parse(indata);
-		for(auto&& str : rgs.libraries()) {
-			std::string sample_name = boost::replace(str, '\t', ':');
-			vcfout.AddSample(sample_name.c_str());
-		}
-		vcfout.WriteHeader();
+			if(target_id != ref_target_id && fai) {
+				ref.reset(faidx_fetch_seq(fai.get(), h->target_name[target_id],
+					0, 0x7fffffff, &ref_sz));
+				ref_target_id = target_id;
+			}
 
-		// Resize pileup buffer
-		read_depths.assign(rgs.libraries().size(),{0,0});
+			// Calculate reference base
+			char ref_base = (ref && 0 <= position && position < ref_sz) ?
+			ref[position] : 'N';
 
+			// reset all depth counters
+			read_depths.assign(read_depths.size(),{0,0});
+
+			// pileup on read counts
+			// TODO: handle overflow?  Down sample?
+			for(std::size_t u=0;u<data.size();++u) {
+				for(auto&& r : data[u]) {
+					if(r.is_missing || r.qual.first[r.pos] < arg.min_basequal)
+						continue;
+				read_depths[rgs.library_from_id(u)].counts[
+					seq::base_index(r.aln.seq_at(r.pos)) ] += 1;
+				}
+			}
+			calculate(read_depths, h->target_name[target_id], position, ref_base);
+		});
 	} else if(cat == variant_data) {
 
 	} else {
-		throw runtime_error("unsupported file category.")
+		throw runtime_error("unsupported file category.");
 	}
-
-	// information to hold reference
-	char *ref = nullptr;
-	int ref_sz = 0;
-	int ref_target_id = -1;
 
 /*=======
 	if(arg.vcf_input) {
@@ -431,43 +495,7 @@ int Call::operator()(Call::argument_type &arg) {
 	       });
 	} else { */
 	       // Begin Pileup Phase
-    	   dng::MPileup mpileup(rgs.groups());
-	       mpileup(indata, [&](const dng::MPileup::data_type &data, uint64_t loc)
-	       {
-
-		     // Calculate target position and fetch sequence name
-		     int target_id = location_to_target(loc);
-		     int position = location_to_position(loc);
-		     
-		     if(target_id != ref_target_id && fai != nullptr) {
-		           if(ref != nullptr)
-			        free(ref);
-			   ref = faidx_fetch_seq(fai, h->target_name[target_id], 0, 0x7fffffff, &ref_sz);
-			   
-			   ref_target_id = target_id;
-		     }
-		     
-		     
-		     
-		     // Calculate reference base
-		     char ref_base = (ref && 0 <= position && position < ref_sz) ?
-		             ref[position] : 'N';
-
-			     
-		     // reset all depth counters
-		     read_depths.assign(read_depths.size(),{0,0});
-		     		     
-		     // pileup on read counts
-		     // TODO: handle overflow?
-		     for(std::size_t u=0;u<data.size();++u) {
-		             for(auto &r : data[u]) {
-				if(r.is_missing || r.qual.first[r.pos] < arg.min_basequal)
-					continue;
-				read_depths[rgs.library_from_id(u)].counts[
-					seq::base_index(r.aln.seq_at(r.pos))] += 1;
-			     }     
-		     }
-
+ 
 /*<<<<<<< HEAD
 		// Calculate probabilities
 		double d = peeler.CalculateLogLikelihood(ref_index)+scale;
@@ -482,17 +510,9 @@ int Call::operator()(Call::argument_type &arg) {
 	});
 		
 =======
-*/		     calculate(h->target_name[target_id], position, ref_base);
-	       });
+*/
 	//}
 		       
-//>>>>>>> e4921627695c2e2575510dbc660cb9c1b0d79d93
-	// Cleanup
-	// TODO: RAII support these things
-	if (ref != nullptr)
-		free(ref);
-	if (fai != nullptr)
-		fai_destroy(fai);
-	
+//>>>>>>> e4921627695c2e2575510dbc660cb9c1b0d79d93	
 	return EXIT_SUCCESS;
 }

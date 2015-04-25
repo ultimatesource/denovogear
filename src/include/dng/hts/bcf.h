@@ -48,24 +48,27 @@ public:
    * @source: name of application writing the VCF file (optional)
    */
 	File(hts::File&& other) : hts::File(std::move(other)),
-		hdr_{nullptr, bcf_hdr_destroy}, rec_{nullptr, bcf_destroy1} {
+		hdr_{nullptr, bcf_hdr_destroy}, rec_{nullptr, bcf_destroy} {
 
 		if(!is_open()) // nothing to do
 			return;
-		if(format().category != variant_data)
-			throw std::runtime_error("file '" + std::string(name()) + "' does not contain variant data (BCF/VCF).")
 
 		if(is_write()) 
 			hdr_.reset(bcf_hdr_init("w"));
-		else
-			hdr_.reset(bcf_hdr_read(handle());
+		else {
+			if(format().category != variant_data)
+				throw std::runtime_error("file '" + std::string(name())
+					+ "' does not contain variant data (BCF/VCF).");
+			hdr_.reset(bcf_hdr_read(handle()));
+		}
 		if(!hdr_)
 			throw std::runtime_error("unable to access header in file '" + std::string(name()) + "'.");
 		rec_.reset(bcf_init1());
 		if(!rec_)
 			throw std::runtime_error("unable to construct bcf record.");
 	}
-	File(const char *file, const char *mode) : File(hts::File(file,mode) {
+
+	File(const char *file, const char *mode) : File(hts::File(file,mode)) {
     }
   
 	/** Use this version to add a new INFO/FILTER/FORMAT string to the header */
@@ -73,6 +76,9 @@ public:
 		if(line == nullptr)
 			return -1; //bcf_hdr_append returns if line cannot be processed
 		return bcf_hdr_append(hdr_.get(), line);
+	}
+	int AddHeaderMetadata(const std::string &line) {
+		return bcf_hdr_append(hdr_.get(), line.c_str());
 	}
 
 	/** AddHeaderMetadata() - Adds a "##key=value" line to the VCF header */
@@ -112,8 +118,8 @@ public:
 		return bcf_hdr_write(handle(), hdr_.get());
 	}
 
-	std::pair<const char*[],int> samples() const {
-		return {hdr_->samples,bcf_hdr_nsamples(hdr_.get())};
+	std::pair<char **,int> samples() const {
+		return {hdr_->samples, bcf_hdr_nsamples(hdr_.get())};
 	}
 
 	const bcf_hdr_t * header() const { return hdr_.get(); }

@@ -39,7 +39,6 @@
 
 #include <htslib/vcf.h>
 
-
 namespace dng {
 
 namespace rg {
@@ -75,19 +74,11 @@ namespace detail {
 		>> DataBase;
 }
 
- 
 class ReadGroups {
 public:
 	typedef boost::container::flat_set<std::string> StrSet;
 	typedef detail::rg_t ReadGroup;
 	typedef detail::DataBase DataBase;
-
-	//ReadGroups() { }
-	
-	///template<typename InFiles>
-	//ReadGroups(InFiles &range) {
-	//	Parse(range);
-	//}
 
 	// Parse a list of BAM/SAM files into readgroups
 	template<typename InFiles>
@@ -95,7 +86,7 @@ public:
 
 	// Parse a VCF file
 	template<typename InFiles>
-	void Parse(InFiles &range);
+	void ParseSamples(InFiles &range);
 	
 	inline const StrSet& groups() const { return groups_; }
 	inline const StrSet& libraries() const { return libraries_; }
@@ -116,28 +107,7 @@ protected:
 	
 	std::vector<std::size_t> library_from_id_;
 
-	void ReloadData() {
-		// clear data vectors
-		groups_.clear();
-		libraries_.clear();
-		samples_.clear();
-
-		// construct data vectors
-		groups_.reserve(data_.size());
-		libraries_.reserve(data_.size());
-		samples_.reserve(data_.size());	
-		for(auto&& a : data_) {
-			groups_.insert(a.id);
-			libraries_.insert(a.library);
-			samples_.insert(a.sample);
-		}
-		
-		// connect groups to libraries and samples	
-		library_from_id_.resize(groups_.size());
-		for(auto&& a : data_) {
-			library_from_id_[rg::index(groups_,a.id)] = rg::index(libraries_,a.library);
-		}		
-	}
+	inline void ReloadData();
 };
 
 namespace rg {
@@ -147,6 +117,28 @@ inline std::size_t index(const ReadGroups::StrSet& set, const std::string& query
 }
 }
 
+inline void ReadGroups::ReloadData() {
+	// clear data vectors
+	groups_.clear();
+	libraries_.clear();
+	samples_.clear();
+
+	// construct data vectors
+	groups_.reserve(data_.size());
+	libraries_.reserve(data_.size());
+	samples_.reserve(data_.size());	
+	for(auto&& a : data_) {
+		groups_.insert(a.id);
+		libraries_.insert(a.library);
+		samples_.insert(a.sample);
+	}
+	
+	// connect groups to libraries and samples	
+	library_from_id_.resize(groups_.size());
+	for(auto&& a : data_) {
+		library_from_id_[rg::index(groups_,a.id)] = rg::index(libraries_,a.library);
+	}		
+}
 
 template<typename InFiles>
 void ReadGroups::ParseHeaderText(InFiles &range) {
@@ -229,9 +221,9 @@ void ReadGroups::ParseSamples(InFile &file) {
 		// ids in the following format SAMPLE:LIBRARY.
 
 		const char *sm = samples.first[a];
-		ReadGroups val{sm};
+		ReadGroup val{sm};
 
-		const char *p = strchr(b, ':');
+		const char *p = strchr(sm, ':');
 		if(p == nullptr || *(p+1) == '\0') {
 			val.library = sm;
 			val.sample = sm;
