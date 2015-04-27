@@ -221,14 +221,13 @@ void ReadGroups::ParseSamples(InFile &file) {
 		// ids in the following format SAMPLE:LIBRARY.
 
 		const char *sm = samples.first[a];
-		ReadGroup val{sm};
+		ReadGroup val{sm,sm};
 
 		const char *p = strchr(sm, ':');
 		if(p == nullptr || *(p+1) == '\0') {
-			val.library = sm;
 			val.sample = sm;
 		} else {
-			val.library = p+1;
+			val.library[p-sm] = '\t';
 			val.sample.assign(sm,p);
 		}
 		data_.insert(std::move(val));

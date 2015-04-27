@@ -203,23 +203,36 @@ std::vector<std::pair<std::string,uint32_t>> parse_contigs(const bam_hdr_t *hdr)
 	return contigs;
 }
 
-/*
+
 // VCF header lacks a function to get sequence lengths
-// So we will we will hack our own based upon bcf_hdr_seqnames
-std::vector<std::pair<std::string,uint32_t>> parse_contigs(const bcf_hdr_t *hdr) {
+// So we will extract the contig lines from the input header
+std::vector<std::string> extract_contigs(const bcf_hdr_t *hdr) {
 	if(hdr == nullptr)
 		return {};
-	std::vector<std::pair<std::string,uint32_t>> contigs;
+	// Read text of header
+	int len;
+	std::unique_ptr<char[],void(*)(void*)> str{bcf_hdr_fmt_text(hdr, 0, &len),free};
+	if(!str)
+		return {};
+	std::vector<std::string> contigs;
 
-	vdict_t *d = (vdict_t*)h->dict[BCF_DT_CTG];
-	for (khint_t k=kh_begin(d); k<kh_end(d); k++) {
-		if ( !kh_exist(d,k) )
-			continue;
-		contigs.emplace_back(kh_key(d,k),kh_val(d,k).info[0]);
+	// parse ##contig lines
+	const char *text = str.get();
+	if(strncmp(text, "##contig=", 9) != 0)
+		text = strstr(text, "\n##contig=");
+	else
+		text = text-1;
+	const char *end;
+	for(; text != nullptr; text = strstr(end, "\n##contig=")) {	
+		for(end=text+10; *end != '\n' && *end != '\0'; ++end)
+			/*noop*/;
+		if(*end != '\n')
+			return contigs; // bad header, return what we have.
+		contigs.emplace_back(text+1,end);
 	}
+
 	return contigs;
 }
-*/
 
 // The main loop for dng-call application
 // argument_type arg holds the processed command line arguments
@@ -275,12 +288,13 @@ int Call::operator()(Call::argument_type &arg) {
 	// Model genotype likelihoods as a mixture of two dirichlet multinomials
 	// TODO: control these with parameters
 	genotype::DirichletMultinomialMixture genotype_likelihood(
-			{0.9,0.001,0.001,1.05}, {0.1,0.01,0.01,1.1});
+			{0.9,0.001,0.001,1.05}, {0.1,0.01,0.01,1.1} );
 
 	// Open input files
 	dng::ReadGroups rgs;
 	vector<hts::File> indata;
 	vector<hts::bam::File> bamdata;
+	vector<hts::bcf::File> bcfdata;
 	for(auto&& str : arg.input) {
 		indata.emplace_back(str.c_str(), "r");
 		if(indata.back().is_open())
@@ -311,15 +325,21 @@ int Call::operator()(Call::argument_type &arg) {
 		const bam_hdr_t *h = bamdata[0].header();
 
 		// Add contigs to header
-		for(auto&& contig : parse_contigs(h) ) {
+		for(auto&& contig : parse_contigs(h) )
 			vcfout.AddContig(contig.first.c_str(),contig.second);
-		}
 
 		// Add each genotype/sample column
 		rgs.ParseHeaderText(bamdata);
-
 	} else if(cat == variant_data) {
+		bcfdata.emplace_back(std::move(indata[0]));
+		// Read header from first file
+		const bcf_hdr_t *h = bcfdata[0].header();
 
+		// Add contigs to header
+		for(auto&& contig : extract_contigs(h) )
+			vcfout.AddHeaderMetadata(contig.c_str());
+		// Add each genotype/sample column
+		rgs.ParseSamples(bcfdata[0]);
 	} else {
 		throw runtime_error("unsupported file category.");
 	}
@@ -365,13 +385,14 @@ int Call::operator()(Call::argument_type &arg) {
 		return;
 	};
 
+	// Pileup data
+	std::vector<depth5_t> read_depths(rgs.libraries().size(),{0,0});
+
 	// Treat sequence_data and variant data separately
 	if(cat == sequence_data) {
-		// Preform pileup on data by passing a lambda-function to the mpileup () operator
-		std::vector<depth5_t> read_depths(rgs.libraries().size(),{0,0});
-		dng::MPileup mpileup(rgs.groups());
 		const bam_hdr_t *h = bamdata[0].header();
-		mpileup(bamdata, [&](const dng::MPileup::data_type &data, uint64_t loc) {
+		dng::BamPileup mpileup(rgs.groups());
+		mpileup(bamdata, [&](const dng::BamPileup::data_type &data, uint64_t loc) {
 
 			// Calculate target position and fetch sequence name
 			int target_id = location_to_target(loc);
@@ -403,116 +424,46 @@ int Call::operator()(Call::argument_type &arg) {
 			calculate(read_depths, h->target_name[target_id], position, ref_base);
 		});
 	} else if(cat == variant_data) {
+		const char* fname = bcfdata[0].name();
+		dng::pileup::vcf::VCFPileup vcfpileup;
+		vcfpileup(fname, [&](bcf_hdr_t *hdr, bcf1_t *rec) {
+			// Won't be able to access ref->d unless we unpack the record first
+			bcf_unpack(rec, BCF_UN_STR);
 
+			// get chrom, position, ref from their fields
+			const char *chrom = bcf_hdr_id2name(hdr, rec->rid);
+			int32_t position = rec->pos;
+			uint32_t n_alleles = rec->n_allele;
+			uint32_t n_samples = bcf_hdr_nsamples(hdr);
+			const char ref_base = *(rec->d.allele[0]);
+
+			// Read all the Allele Depths for every sample into ad array
+			int *ad = NULL;
+			int n_ad = 0;
+			int n_ad_array = 0;
+			n_ad = bcf_get_format_int32(hdr, rec, "AD", &ad, &n_ad_array);
+
+			// Create a map between the order of vcf alleles (REF+ALT) and their correct index in read_depths.counts[]
+			vector<size_t> a2i;
+			for(int a = 0; a < n_alleles; a++) {
+				char base = *(rec->d.allele[a]);
+				a2i.push_back(seq::char_index(base));
+			}
+
+			// Build the read_depths
+			read_depths.assign(n_samples,{0,0});
+			for(size_t sample_ndx = 0; sample_ndx < n_samples; sample_ndx++) {
+				for(size_t allele_ndx = 0; allele_ndx < n_alleles; allele_ndx++) {
+					int32_t depth = ad[n_alleles*sample_ndx+allele_ndx];
+					read_depths[sample_ndx].counts[a2i[allele_ndx]] = depth;
+				}
+			}
+
+			calculate(read_depths,chrom, position, ref_base);
+		});
 	} else {
 		throw runtime_error("unsupported file category.");
 	}
 
-/*=======
-	if(arg.vcf_input) {
-	        vcf_input = true;
-		vcf_fname = arg.input[0];
-		if(arg.input.size() > 1) {
-   		       // TODO: Check for multiple vcf files, or if mixing VCF and BAM 
-		}
-		  
-
-		// Construct read groups from the VCF data
-		rgs.Parse(vcf_fname.c_str());
-		parse_contigs(vcf_fname, contigs);
-	} else {  	
-		// Open Reference
-		if(!arg.fasta.empty()) {
-		        fai = fai_load(arg.fasta.c_str());
-			if(fai == nullptr)
-			        throw std::runtime_error("unable to open faidx-indexed reference file '"
-				       + arg.fasta + "'.");
-		}
-	
-		// If arg.files is specified, read input files from list
-		if(!arg.sam_files.empty()) {
-		  ParsedList list(arg.sam_files.c_str(), ParsedList::kFile);
-		  arg.input.clear(); // TODO: Throw error/warning if both are specified?
-		  for(std::size_t i=0; i < list.Size(); ++i)
-		    arg.input.emplace_back(list[i]);
-		}
-
-		// Open up the input sam files
-		
-		for(auto str : arg.input) {
-		  indata.emplace_back(str.c_str(), "r", arg.region.c_str(), arg.fasta.c_str(),
-				      arg.min_mapqual, arg.min_qlen);
-		}
-		
-		// Read the header form the first file
-		h = indata[0].header();
-		parse_contigs(h, contigs);
-		
-		// Construct read groups from the BAM file
-		rgs.Parse(indata);
-	}
->>>>>>> e4921627695c2e2575510dbc660cb9c1b0d79d93
-*/
-	
-
-	
-/*	if(arg.vcf_input) {
-	       vcfpileup(vcf_fname.c_str(), [&](bcf_hdr_t *hdr, bcf1_t *rec)
-	       {
-	       	      // Won't be able to access ref->d unless we unpack the record first
-		      bcf_unpack(rec, BCF_UN_STR);
-
-		      // get chrom, position, ref from their fields
-		      const char *chrom = bcf_hdr_id2name(hdr, rec->rid);
-		      int32_t position = rec->pos;
-		      uint32_t n_alleles = rec->n_allele;
-		      uint32_t n_samples = bcf_hdr_nsamples(hdr);
-		      const char ref_base = *(rec->d.allele[0]);
-
-		      // Read all the Allele Depths for every sample into ad array
-		      int *ad = NULL;
-		      int n_ad = 0;
-		      int n_ad_array = 0;
-		      n_ad = bcf_get_format_int32(hdr, rec, "AD", &ad, &n_ad_array);
-
-		      // Create a map between the order of vcf alleles (REF+ALT) and their correct index in read_depths.counts[]
-		      vector<size_t> a2i;
-		      for(int a = 0; a < n_alleles; a++) {
-       		            char base = *(rec->d.allele[a]);
-			    a2i.push_back(seq::char_index(base));
-		      }
-			      
-		      // Build the read_depths
-		      read_depths.assign(n_samples,{0,0});
-		      for(size_t sample_ndx = 0; sample_ndx < n_samples; sample_ndx++) {
-		             for(size_t allele_ndx = 0; allele_ndx < n_alleles; allele_ndx++) {
-			            int32_t depth = ad[n_alleles*sample_ndx+allele_ndx];
-				    read_depths[sample_ndx].counts[a2i[allele_ndx]] = depth;
-			     }
-		      }
-
-		      calculate(chrom, position, ref_base);
-	       });
-	} else { */
-	       // Begin Pileup Phase
- 
-/*<<<<<<< HEAD
-		// Calculate probabilities
-		double d = peeler.CalculateLogLikelihood(ref_index)+scale;
-		double p = peeler.CalculateMutProbability(ref_index);
-		
-		// Skip this site if it does not meet lower probability threshold
-		if(p < min_prob)
-			return;
-
-		vcf_add_record(vcfout, h->target_name[target_id], position, ref_base, d, p, read_depths);
-		return;
-	});
-		
-=======
-*/
-	//}
-		       
-//>>>>>>> e4921627695c2e2575510dbc660cb9c1b0d79d93	
 	return EXIT_SUCCESS;
 }
