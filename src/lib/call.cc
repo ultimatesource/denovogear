@@ -99,7 +99,7 @@ std::string vcf_timestamp() {
 
 template<typename VAL>
 std::string vcf_command_line_text(const char * arg, VAL val) {
-	return std::string("--") + arg + "=" + std::to_string(val);
+	return std::string("--") + arg + "=" + dng::util::to_pretty(val);
 }
 
 std::string vcf_command_line_text(const char * arg, std::string val) {
