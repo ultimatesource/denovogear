@@ -180,10 +180,6 @@ bool dng::Pedigree::Construct(const io::Pedigree& pedigree, const dng::ReadGroup
 	num_members_ = pedigree.member_count();
 	num_libraries_ = rgs.libraries().size();
 
-	//for(auto a : rgs.data()) {
-	//	cerr << a.id << '\t' << a.library << '\t' << a.sample << endl;
-	//}
-
 	Graph pedigree_graph(num_members_+num_libraries_);
 	graph_traits<Graph>::edge_iterator ei, ei_end;
 	graph_traits<Graph>::vertex_iterator vi, vi_end;

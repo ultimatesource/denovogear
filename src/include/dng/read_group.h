@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Reed A. Cartwright
+ * Copyright (c) 2014,2015 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -35,8 +35,9 @@
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/member.hpp>
 
-
 #include <unordered_set>
+
+#include <htslib/vcf.h>
 
 namespace dng {
 
@@ -79,15 +80,13 @@ public:
 	typedef detail::rg_t ReadGroup;
 	typedef detail::DataBase DataBase;
 
-	ReadGroups() { }
-	
+	// Parse a list of BAM/SAM files into readgroups
 	template<typename InFiles>
-	ReadGroups(InFiles &range) {
-		Parse(range);
-	}
+	void ParseHeaderText(InFiles &range);
 
+	// Parse a VCF file
 	template<typename InFiles>
-	void Parse(InFiles &range);
+	void ParseSamples(InFiles &range);
 	
 	inline const StrSet& groups() const { return groups_; }
 	inline const StrSet& libraries() const { return libraries_; }
@@ -107,6 +106,8 @@ protected:
 	StrSet samples_;
 	
 	std::vector<std::size_t> library_from_id_;
+
+	inline void ReloadData();
 };
 
 namespace rg {
@@ -116,11 +117,34 @@ inline std::size_t index(const ReadGroups::StrSet& set, const std::string& query
 }
 }
 
+inline void ReadGroups::ReloadData() {
+	// clear data vectors
+	groups_.clear();
+	libraries_.clear();
+	samples_.clear();
+
+	// construct data vectors
+	groups_.reserve(data_.size());
+	libraries_.reserve(data_.size());
+	samples_.reserve(data_.size());	
+	for(auto&& a : data_) {
+		groups_.insert(a.id);
+		libraries_.insert(a.library);
+		samples_.insert(a.sample);
+	}
+	
+	// connect groups to libraries and samples	
+	library_from_id_.resize(groups_.size());
+	for(auto&& a : data_) {
+		library_from_id_[rg::index(groups_,a.id)] = rg::index(libraries_,a.library);
+	}		
+}
+
 template<typename InFiles>
-void ReadGroups::Parse(InFiles &range) {
+void ReadGroups::ParseHeaderText(InFiles &range) {
 	// iterate through each file in the range
-	for(auto &f : range) {
-		// get header text and continue on failre
+	for(auto&& f : range) {
+		// get header text and continue on failure
 		const char *text = f.header()->text;
 		if(text == nullptr)
 			continue;
@@ -179,26 +203,38 @@ void ReadGroups::Parse(InFiles &range) {
 			data_.insert(std::move(val));
 		}
 	}
-	
-	// construct data vectors
-	groups_.reserve(data_.size());
-	libraries_.reserve(data_.size());
-	samples_.reserve(data_.size());	
-	for(auto &a : data_) {
-		groups_.insert(a.id);
-		libraries_.insert(a.library);
-		samples_.insert(a.sample);
-	}
-	
-	// connect groups to libraries and samples	
-	library_from_id_.resize(groups_.size());
-	for(auto &a : data_) {
-		library_from_id_[rg::index(groups_,a.id)] = rg::index(libraries_,a.library);
-
-	}
+	ReloadData();
 }
 
+/**
+ * Parses an VCF file into read groups, sample names and libraries
+ * fname - file path and name string for input vcf file
+ */
+template<typename InFile>
+void ReadGroups::ParseSamples(InFile &file) {
+	// Read through samples from the header
+	auto samples = file.samples();
+	for(int a = 0; a < samples.second; ++a) {
+		// Each sample column in a vcf file typically corresponds to an @RG SM: tag.
+		// However, we prefer to work with @RG LB: tags as our base data.
+		// In order to extract library information from VCF data, we support column
+		// ids in the following format SAMPLE:LIBRARY.
+
+		const char *sm = samples.first[a];
+		ReadGroup val{sm,sm};
+
+		const char *p = strchr(sm, ':');
+		if(p == nullptr || *(p+1) == '\0') {
+			val.sample = sm;
+		} else {
+			val.library[p-sm] = '\t';
+			val.sample.assign(sm,p);
+		}
+		data_.insert(std::move(val));
+	}
+	ReloadData();
 }
+ 
+} // namespace dng
 
 #endif
-

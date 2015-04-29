@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Reed A. Cartwright
+ * Copyright (c) 2014-2015 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -132,7 +132,7 @@ private:
 
 } // namespace detail
 
-class MPileup {
+class BamPileup {
 public:
 	typedef NodeList list_type;
 	typedef Node node_type;
@@ -145,11 +145,11 @@ public:
 	void operator()(InFiles &range, Func func);
 		
 	template<typename RG>
-	MPileup(const RG& rg) : pool_(4048), read_groups_(rg) {
+	BamPileup(const RG& rg) : pool_(4048), read_groups_(rg) {
 		boost::sort(read_groups_);
 	}
 	
-	MPileup() { }
+	BamPileup() { }
 	
 protected:
 	template<typename Scanners>
@@ -170,7 +170,7 @@ private:
 };
 
 template<typename InFiles, typename Func>
-void MPileup::operator()(InFiles &range, Func func) {
+void BamPileup::operator()(InFiles &range, Func func) {
 	using namespace std;
 	using namespace fileio;
 	
@@ -220,7 +220,7 @@ void MPileup::operator()(InFiles &range, Func func) {
 // current_pos
 
 template<typename Scanners>
-int MPileup::Advance(Scanners &range, data_type &data, uint64_t &target_loc,
+int BamPileup::Advance(Scanners &range, data_type &data, uint64_t &target_loc,
 	uint64_t &fast_forward_loc) {
 	using namespace std;
 	// enumerate through existing data set, updating location of reads and
@@ -286,8 +286,7 @@ int MPileup::Advance(Scanners &range, data_type &data, uint64_t &target_loc,
 }
 } //namespace pileup
 
-using pileup::MPileup;
+using pileup::BamPileup;
 } //namespace dng
 
 #endif //DNG_PILEUP_H
-

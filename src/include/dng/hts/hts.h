@@ -21,34 +21,13 @@
 #define CXX_HTS_HTS_H
 
 #include <htslib/hts.h>
-#include <htslib/hfile.h>
 
 namespace hts {
 
 class File {
 public:
-	File(const char *file, const char *mode) {
-		fp_ = hts_open(file, mode);
-	}
-	File(File&& other) {
-		fp_ = other.fp_;
-		other.fp_ = nullptr;
-	}
-	File(const File&) = delete;
-
-	virtual ~File() {
-		if(fp_ != nullptr)
-			hts_close(fp_);
-	}
-
-	File& operator=(File&& other) {
-		if(this == &other)
-			return *this;
-		fp_ = other.fp_;
-		other.fp_ = nullptr;
-		return *this;
-	}
-	File& operator=(const File&) = delete;
+	File(const char *file, const char *mode) :
+		fp_{hts_open(file,mode),hts_close} { }
 
 	int SetFaiFileName(const char* fn) {
 		return hts_set_fai_filename(handle(),fn);
@@ -57,13 +36,7 @@ public:
 		return hts_set_threads(handle(),n);
 	}
 
-	int Flush() {
-		if(is_write() && !is_cram() && !is_compressed())
-			return hflush(handle()->fp.hfile);
-		return 0;
-	}
-
-	bool is_open() const { return fp_ != nullptr; }
+	bool is_open() const { return (bool)fp_; }
 	bool is_bin() const { return handle()->is_bin; }
 	bool is_write() const { return handle()->is_write; }
 	bool is_cram() const { return handle()->is_cram; }
@@ -77,19 +50,23 @@ public:
 	htsFormat format() const {
 		return handle()->format;
 	}
+	std::string format_description() const {
+		std::unique_ptr<char[],void(*)(void*)> s{hts_format_description(&handle()->format),free};
+		return {s.get()};
+	}
 
 protected:
 	htsFile* handle() {
-		assert(fp_ != nullptr);
-		return fp_;
+		assert(fp_);
+		return fp_.get();
 	}
 	const htsFile* handle() const {
-		assert(fp_ != nullptr);
-		return fp_;
+		assert(fp_);
+		return fp_.get();
 	}
 
 private:
-	htsFile *fp_;     // the file handle	
+	std::unique_ptr<htsFile, int(*)(htsFile*)> fp_; // the file handle	
 };
 
 };
