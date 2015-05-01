@@ -1,1 +1,19 @@
-denovogear-code/.travis.yml
+language: cpp
+sudo: true
+compiler: 
+    - clang
+    - gcc
+before_install:
+    - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+    - sudo apt-get update -qq
+install:
+    - sudo apt-get install -qq gcc-4.8 g++-4.8 
+    - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.8 90
+before_script:
+    - mkdir build/new_cmake
+    - wget -qO- http://www.cmake.org/files/v3.1/cmake-3.1.0-Linux-x86_64.tar.gz | tar xz --strip-components 1 -C build/new_cmake/
+script:
+    - cd build
+    - ./new_cmake/bin/cmake -DBUILD_EXTERNAL_PROJECTS=1 ..
+    - make
+
