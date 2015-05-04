@@ -28,6 +28,7 @@
 #include <boost/spirit/include/qi_parse.hpp>
 #include <boost/spirit/include/qi_list.hpp>
 #include <boost/spirit/include/qi_char.hpp>
+#include <boost/spirit/include/karma.hpp>
 
 #include <boost/algorithm/string/predicate.hpp>
 
@@ -66,6 +67,15 @@ std::pair<std::vector<double>,bool> parse_double_list(const S& str, char sep=','
 	return {f, (r && b == e) };
 }
 
-}};
+template<typename T>
+std::string to_pretty(const T& value) {
+	namespace karma = boost::spirit::karma;
+	std::string str;
+	if(karma::generate(std::back_inserter(str), value))
+		return str;
+	return {};
+}
+
+}} // namespace dng::util
 
 #endif

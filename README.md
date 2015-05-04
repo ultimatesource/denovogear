@@ -1,60 +1,112 @@
-[![Build Status](https://travis-ci.org/gatoravi/DNG_dev.png?branch=master)](https://travis-ci.org/gatoravi/DNG_dev)
-
 Authors: Don Conrad, Avinash Ramu, Kael Dai, and Reed A. Cartwright.
 
 ## RELEASE NOTES
-v1.1
-Main program now called 'dng'  
-Added experimental 'dng call' module.  
-DeNovoGear now requires CMake 3.1+, Boost 1.47+, and Eigen 3+.  
 
-v1.0
-made changes to indel_mrate parameter  
-better indenting  
-mu_scale scales indel mutation rate linearly  
+### v1.1.1
 
-v0.5.4
-added GPL v3  
-updated output fields for indels, snps to be the same  
+* FEATURE: When building with cmake, users have the option to download and install dependencies.
+Just run `cmake -DBUILD_EXTERNAL_PROJECTS=1 ..`
+* FEATURE: `dng help` now fully implemented
+* FEATURE: more information added to `dng call` output
+* BUGFIX: When running `dng call` with HTSLIB 1.2.1, the following error message was being
+emitted: "FIXME: dirty header not synced".  This has been fixed.
+* BUGFIX: `dng call` now outputs correct 1-based site locations.
+* BUGFIX: a segfault was fixed in `dng dnm` and `dng phaser` caused by invalid commandline arguments
+* CHANGE: HTSLIB 1.2+ is now required.
+* Miscellaneous improvements to the build system
 
-v0.5.3
-removed 'X' allele in VCF op. VCF can be indexed by Tabix, IGVTools and used in Annovar.  
-added region based denovo calling on BCF files, invoked with --region flag  
-added vcf parser for denovo calling, invoked with --vcf flag  
+### v1.1
 
-v0.5.2
-Added read-depth, posterior-probability filters.  
-Output number of sites in the BCF and number of sites passing filters.  
-Modified paired caller output.  
+* Main program now called 'dng'
+* Added experimental 'dng call' module.
+* DeNovoGear now requires HTSLIB 1+, CMake 3.1+, Boost 1.47+, and Eigen 3+.
 
-v0.5.1
-Fixed bug in triallelic configuration.  
-Some trialleic denovo configurations were being called incorrectly.
+### v1.0
+
+* made changes to indel_mrate parameter
+* better indenting
+* mu_scale scales indel mutation rate linearly
+
+### v0.5.4
+
+* added GPL v3
+* updated output fields for indels, snps to be the same
+
+### v0.5.3
+
+* removed 'X' allele in VCF op. VCF can be indexed by Tabix, IGVTools and used in Annovar.
+* added region based denovo calling on BCF files, invoked with --region flag
+* added vcf parser for denovo calling, invoked with --vcf flag
+
+### v0.5.2
+
+* Added read-depth, posterior-probability filters.
+* Output number of sites in the BCF and number of sites passing filters.
+* Modified paired caller output.
+
+### v0.5.1
+
+* Fixed bug in triallelic configuration.
+* Some trialleic denovo configurations were being called incorrectly.
 
 ## DEPENDENCIES
 
 * Recent C++ compiler, supporting C++11 (eg. gcc 4.8.1+ or clang 3.3+)
 * CMake 3.1+ when compiling <http://www.cmake.org/download/#latest>
-* HTSlib <http://www.htslib.org/>
+* HTSlib 1.2+ <http://www.htslib.org/>
 * Eigen 3 <http://eigen.tuxfamily.org/>
 * Boost 1.47+ <http://www.boost.org/>
 
 Most Unix distributions contain package software that will install these dependencies for you.
+DNG contains code to [download and build missing dependencies](#build-missing-dependencies-as-needed).
 
-## DOWNLOAD
+## INSTALLATION
+
+### Download
+
 Source code and binaries are available at <https://github.com/denovogear/denovogear/releases>.
 
+### Compiling
 
-## COMPILING
 Compilation of DeNovoGear requires CMake.  Most Linux distributions allow you to install CMake using their package software.
 
-Compiling and Installing on Unix:
+#### Build on Unix from a Command Line Terminal:
 ```
     tar -xvzf denovogear*.tar.gz
     cd denovogear*/build
     cmake ..
     make
+```
+
+#### Optimized Build:
+```
+    tar -xvzf denovogear*.tar.gz
+    cd denovogear*/build
+    cmake -DCMAKE_BUILD_TYPE=Release ..
+    make
+```
+
+#### Build Missing Dependencies as Needed:
+```
+    tar -xvzf denovogear*.tar.gz
+    cd denovogear*/build
+    cmake -DBUILD_EXTERNAL_PROJECTS=1 ..
+    make
+```
+
+### Installation
+
+#### Global Install (requires root access):
+```
+    cd denovogear*/build
     sudo make install
+```
+
+#### Local Install:
+```
+    cd denovogear*/build
+    cmake -DCMAKE_INSTALL_PREFIX="${HOME}/dng"
+    make install
 ```
 
 ## RUNNING THE CODE
@@ -70,6 +122,7 @@ DeNovoGear takes in a PED file and a BCF file as input. The PED file describes t
         `samtools mpileup -gDf hg19.fa s1.bam s2.bam s3.bam | dng dnm auto --ped sample.ped --bcf -`
 
 #####  about sample.bcf:
+
 BCF files can be generated from the alignment using the samtools mpileup
 command. The command to generate a bcf file from sample.bam is:
 	`samtools mpileup -gDf reference.fa sample.bam > sample.bcf`
@@ -77,6 +130,7 @@ The -D option of the samtools mpileup command retains the per-sample read depth
 which is preferred by denovogear as it helps to filter out sites without a minimum number of reads(but note that DNG will work without per-sample RD information, in which case the RD tag encodes the average read depth information). The -g option computes genotype likelihoods and produces a compressed bcf output and the -f option is used to indicate the reference fasta file against which the alignment was built. A sample BCF file 'sample_CEU.bcf' is included in the distribution.
 
 #####  about sample.ped:
+
 The PED file contains information about the trios present in the BCF file.
 Please make sure that all the members of the trios specified in the PED file
 are present in the BCF file. The PED file can be used to specify a subset of
@@ -94,6 +148,7 @@ CEU	NA12878_vald-sorted.bam.bam	NA12891_vald-sorted.bam.bam	NA12892_vald-sorted.
 An example PED file, sample_CEU.ped, is included in the distribution directory.
 
 ##### about "snp_lookup.txt" and "indel_lookup.txt":
+
 These are tables with precomputed priors (and other useful numbers) for all possible
 trio configurations, under the null (no mutation present) and alternative (true de novo).
 The default tables are generated during each program run using a prior of
@@ -173,6 +228,7 @@ Denovogear has separate models for autosomes, X chromosome in male offspring and
         `dng dnm XD --ped sample.ped --vcf sample.X.vcf`
 
 ### PAIRED SAMPLE ANALYSIS
+
 DNG can be used to analyze paired samples for example to call somatic mutations between tumor/matched-normal pairs, the main difference in how to run the program is the way samples are specified in the PED file(see below),
 
 #### Usage:
@@ -190,6 +246,7 @@ About the arguments,
 A sample PED file sample_paired.ped for paired sample analysis is provided with the package.
 
 #### OUTPUT FORMAT for Paired Sample Analysis
+
 The output format is a single row for each putative paired denovo mutation(DNM), with the following fields
 
         1. Event type (POINT MUTATION or INDEL).
@@ -211,6 +268,7 @@ The output format is a single row for each putative paired denovo mutation(DNM),
 
 
 ### PHASER
+
 DNG can be used to obtain parental phasing information for Denovo Mutations where phase informative sites are present. This is done by looking at reads which cover both the denovo base and a phase informative positions. Phase informative positions are SNP positions that lie within a certain window from the denovo site, the default window size is 1000 bp but the window-size can be set by the user.
 	For each DNM, a list of phase informative sites from the genotypes file is obtained, these are the loci which lie within the phasing window. Also, these sites do not have a het/het GT configuration for the parents and where the child is het. The number of DNM and phasing  allele combinations seen in the read level data is output by the program. For the phasing sites, the inferred parental origin is displayed.
 For example if the base at the phasing site is T and the parental genotypes are P1:CC and p2:TC at this site, then the parent of origin of this base is p2. By looking at the base in the denovo position on this read it is possible to infer the parent of origin of the denovo mutation.
@@ -231,6 +289,7 @@ About the arguments,
 	4. 	"window" is an optional argument which is the maximum distance between the DNM and a phasing site. The default value is 1000.
 
 #### Output
+
 	DNM_pos 1:182974758     INHERITED G     VARIANT A
         HAP POS 182974328 p1: CC p2: TC Number of denovo-phasing pairs found: 0
         HAP POS 182974572 p1: CC p2: TC Number of denovo-phasing pairs found: 2
@@ -252,6 +311,7 @@ About the arguments,
 Please feel free to contact the authors about any concerns/comments.
 
 ###General options for TRIOs and Paired Sample Calling
+
 --snp_mrate:     Mutation rate prior for SNPs. [1e-8]
 --indel_mrate:   Mutation rate prior for INDELs. [1e-9]
 --pair_mrate:    Mutation rate prior for paired sample analysis. [1e-9]
@@ -268,7 +328,7 @@ Please feel free to contact the authors about any concerns/comments.
 
 Example: `dng call -p family.ped family.bam`
 
-Print Usage: `dng call --help`
+Print Usage: `dng help call`
 
 #### Pedigree File Format
 
@@ -288,7 +348,7 @@ Column 3: Father ID (0=unknown)
 
 Column 4: Mother ID (0=unknown)
 
-Column 5: Sex (1=male, 2=female, other=unknown)
+Column 5: Sex (1=male, 2=female, 0=unknown)
 
 Column 6: Sample IDs; a newick-formatted tree
 

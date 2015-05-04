@@ -125,65 +125,46 @@ protected:
 
 class File : public hts::File {
 public:
-	File(const char *file, const char *mode, const char *region=nullptr, const char *fasta=nullptr,
-		int min_mapQ = 0, int min_len = 0) : hts::File(file,mode),
-			hdr_(nullptr), iter_(nullptr), min_mapQ_(min_mapQ), min_len_(min_len) {
+	File(hts::File&& other, const char *region=nullptr, const char *fasta=nullptr,
+		int min_mapQ = 0, int min_len = 0) : hts::File(std::move(other)),
+			hdr_{nullptr,bam_hdr_destroy}, iter_{nullptr,hts_itr_destroy},
+			min_mapQ_(min_mapQ), min_len_(min_len) {
 		// TODO: handle different modes here???
 		// TODO: remove throws or move some of them to base class???
-	    if(!is_open())
-	    	throw std::runtime_error("unable to open file '" + std::string(file) + "'.");
+
+	    if(!is_open()) // Return early if the opening failed.  User must also check is_open to detect failure.
+	    	return;
+	    if(format().category != sequence_data)
+			throw std::runtime_error("file '" + std::string(name())
+				+ "' does not contain sequence data (BAM/SAM/CRAM).");
+
 	    SetFaiFileName(fasta);
-	    hdr_ = sam_hdr_read(handle());
-	    if(hdr_ == nullptr)
-	    	throw std::runtime_error("unable to read header in file '" + std::string(file) + "'.");
+	    hdr_.reset(sam_hdr_read(handle()));
+	    if(!hdr_)
+	    	throw std::runtime_error("unable to read header in file '" + std::string(name()) + "'.");
 	    if(region != nullptr && region[0] != '\0') {
-	    	hts_idx_t *idx = sam_index_load(handle(), file);
-	    	if(idx == nullptr)
-	    		throw std::runtime_error("unable to load index for '" + std::string(file) + "'.");
-	    	iter_ = sam_itr_querys(idx, hdr_, region);
-	    	hts_idx_destroy(idx);
-	    	if(iter_ == nullptr) {
-	    		throw std::runtime_error("unable to parse region '" + std::string(region) + "'.");
+	    	std::unique_ptr<hts_idx_t, void(*)(hts_idx_t*)> idx{
+	    		sam_index_load(handle(), name()),hts_idx_destroy};
+	    	if(!idx)
+	    		throw std::runtime_error("unable to load index for '" + std::string(name()) + "'.");
+	    	iter_.reset(sam_itr_querys(idx.get(), hdr_.get(), region));
+	    	
+	    	if(!iter_) {
+	    		throw std::runtime_error("unable to parse region '" + std::string(region) +
+	    			"in file '" + std::string(name()) + "'.");
 	    	}
 	    }
 	}
-	File(File&& other) : hts::File(std::move(other)), hdr_(other.hdr_),
-		iter_(other.iter_), min_mapQ_(other.min_mapQ_), min_len_(other.min_len_)
-	{
-		other.hdr_ = nullptr;
-		other.iter_ = nullptr;
 
+	File(const char *file, const char *mode, const char *region=nullptr, const char *fasta=nullptr,
+		int min_mapQ = 0, int min_len = 0) : File(hts::File(file,mode), region, fasta, min_mapQ, min_len) {
 	}
-	File(const File&) = delete;
-	
-	File& operator=(File&& other) {
-		if(this == &other) 
-			return *this;
-
-		hts::File::operator=(std::move(other));
-
-		if(iter_ != nullptr)
-			hts_itr_destroy(iter_);
-		iter_ = other.iter_;
-		other.iter_ = nullptr;
-
-		if(hdr_ != nullptr)
-			bam_hdr_destroy(hdr_);
-		hdr_ = other.hdr_;
-		other.hdr_ = nullptr;
-
-		min_mapQ_ = other.min_mapQ_;
-		min_len_  = other.min_len_;
-
-		return *this;
-	}
-	File& operator=(const File&) = delete;
 	
 	int Read(Alignment& a) {
 		int ret;
 		for(;;) {
-		    ret = (iter_) ? sam_itr_next(handle(), iter_, a.base())
-		                  : sam_read1(handle(), hdr_, a.base());
+		    ret = (iter_) ? sam_itr_next(handle(), iter_.get(), a.base())
+		                  : sam_read1(handle(), hdr_.get(), a.base());
 		    if (ret < 0)
 		    	break;
 		    if (a.is_any(BAM_FUNMAP | BAM_FSECONDARY | BAM_FQCFAIL | BAM_FDUP))
@@ -203,23 +184,16 @@ public:
 	int operator()(Alignment& a) { return Read(a); }
 
 	int Write(const bam1_t& b) {
-		return sam_write1(handle(), hdr_, &b);
-	}
-
-	// cleanup as needed
-	virtual ~File() {
-		if(iter_ != nullptr)
-			hts_itr_destroy(iter_);
-		if(hdr_ != nullptr)
-			bam_hdr_destroy(hdr_);
+		return sam_write1(handle(), hdr_.get(), &b);
 	}
 	
-	const bam_hdr_t * header() const { return hdr_; }
-	const hts_itr_t * iter() const { return iter_; }
+	const bam_hdr_t * header() const { return hdr_.get(); }
+	const hts_itr_t * iter() const { return iter_.get(); }
 	
 protected:
-	bam_hdr_t *hdr_;  // the file header
-	hts_itr_t *iter_; // NULL if a region not specified
+	std::unique_ptr<bam_hdr_t, void(*)(bam_hdr_t*)> hdr_; // the file header
+	std::unique_ptr<hts_itr_t, void(*)(hts_itr_t*)> iter_; // NULL if a region not specified
+
 	int min_mapQ_, min_len_; // mapQ filter; length filter
 };
 
