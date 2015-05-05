@@ -22,15 +22,17 @@
 
 #include <dng/graph.h>
 
-namespace dng { namespace newick {
+namespace dng {
+namespace newick {
 
 typedef dng::Graph tree_t;
 typedef boost::graph_traits<tree_t>::vertex_descriptor node_t;
 typedef boost::graph_traits<tree_t>::edge_descriptor branch_t;
 
-int parse(const std::string& text, node_t root, tree_t& tree);
+int parse(const std::string &text, node_t root, tree_t &tree);
 
-}};
+}
+};
 
 #endif // DNG_NEWICK_H
 

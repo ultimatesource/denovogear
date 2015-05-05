@@ -30,19 +30,23 @@
 //XM((bed), (b), "file containing a list of positions or regions", std::string, "")
 XM((fasta), (f), "faidx indexed reference sequence file", std::string, "")
 XM((min)(qlen), (l), "minimum query length", int, 0)
-XM((min)(prob), (m), "minimum probability for reporting a mutation", double, DL(0.1,"0.1"))
-XM((mu), , "the germline mutation rate", double, DL(1e-9,"1e-9"))
-XM((mu)(somatic), , "the somatic mutation rate", double, DL(0.0,"0"))
-XM((mu)(library), , "the library prep mutation rate", double, DL(0.0,"0"))
-XM((nuc)(freqs), , "nucleotide frequencies in ACGT order", std::string, "0.3,0.2,0.2,0.3")
+XM((min)(prob), (m), "minimum probability for reporting a mutation", double,
+   DL(0.1, "0.1"))
+XM((mu), , "the germline mutation rate", double, DL(1e-9, "1e-9"))
+XM((mu)(somatic), , "the somatic mutation rate", double, DL(0.0, "0"))
+XM((mu)(library), , "the library prep mutation rate", double, DL(0.0, "0"))
+XM((nuc)(freqs), , "nucleotide frequencies in ACGT order", std::string,
+   "0.3,0.2,0.2,0.3")
 XM((ped), (p), "the pedigree file", std::string, "")
 XM((min)(basequal), (q), "minimum base quality", int, 0)
 XM((min)(mapqual), (Q), "minimum mapping quality", int, 0)
 XM((region), (r), "chromosomal region", std::string, "")
-XM((ref)(weight), (R), "weight given to reference base for population prior", double, DL(1.0,"1"))
-XM((sam)(files), (s), "file containing a list of input filenames, one per line", std::string, "")
+XM((ref)(weight), (R), "weight given to reference base for population prior",
+   double, DL(1.0, "1"))
+XM((sam)(files), (s), "file containing a list of input filenames, one per line",
+   std::string, "")
 XM((theta), , "the population diversity", double, DL(0.001, "0.001"))
-XM((output), (o),"Output VCF/BCF file", std::string, "-")
+XM((output), (o), "Output VCF/BCF file", std::string, "-")
 
 /***************************************************************************
  *    cleanup                                                              *

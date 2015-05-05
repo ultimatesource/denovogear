@@ -22,44 +22,46 @@
 
 #include <htslib/hts.h>
 
-namespace dng { namespace seq {
+namespace dng {
+namespace seq {
 
 // convert a nucleotide character into a 4-bit representation
 inline uint8_t encode_base(uint8_t x) {
-	return seq_nt16_table[x]; // from htslib
+    return seq_nt16_table[x]; // from htslib
 }
 
 // convert a 4-bit nucleotide into a character
 inline char decode_base(unsigned char x) {
-	return seq_nt16_str[x&0xF]; // from htslib
+    return seq_nt16_str[x & 0xF]; // from htslib
 }
 
 // convert a 4-bit nucleotide into a index in [0-4]
 inline std::size_t base_index(uint8_t x) {
-	static const std::size_t table[] = {4,0,1,4,2,4,4,4,3,4,4,4,4,4,4,4};
-	return table[x&0xF];
+    static const std::size_t table[] = {4, 0, 1, 4, 2, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4};
+    return table[x & 0xF];
 }
 
 // convert a 4-bit nucleotide into a index in [0-4]
 inline std::size_t char_index(uint8_t x) {
-	return base_index(encode_base(x));
+    return base_index(encode_base(x));
 }
 
 
 // convert an index into a 4-bit nucleotide
 inline uint8_t indexed_base(std::size_t x) {
-	static const uint8_t table[] = {1,2,4,8,15,15,15,15};
-	return table[x&0x7];
+    static const uint8_t table[] = {1, 2, 4, 8, 15, 15, 15, 15};
+    return table[x & 0x7];
 }
 
 // convert an index into a 4-bit nucleotide
 inline char indexed_char(std::size_t x) {
-	static const char table[] = "ACGTNNNN";
-	return table[x&0x7];
+    static const char table[] = "ACGTNNNN";
+    return table[x & 0x7];
 }
 
 
-}} // namespace dng::seq
+}
+} // namespace dng::seq
 
 #endif
 

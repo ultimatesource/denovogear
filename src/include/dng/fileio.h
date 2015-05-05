@@ -35,40 +35,42 @@ namespace fileio {
 
 class ParsedList {
 public:
-	static const bool kFile = true;
-	static const bool kString = false;
-	
-	ParsedList(const char *str, bool is_file=false) {
-		list_ = hts_readlist(str, is_file ? 1 : 0, &length_);
-	}
-	
-	bool Empty() const {
-		return list_ == nullptr;
-	}
+    static const bool kFile = true;
+    static const bool kString = false;
 
-	char * operator[](std::size_t k) {
-		assert(k < length_); // check to see if k is valid
-		return list_[k];
-	}
-	
-	std::size_t Size() const {
-		return length_;
-	}	
-	
-	const char * operator[](std::size_t k) const {
-		assert(k < length_); // check to see if k is valid
-		return list_[k];
-	}
+    ParsedList(const char *str, bool is_file = false) {
+        list_ = hts_readlist(str, is_file ? 1 : 0, &length_);
+    }
 
-	virtual ~ParsedList() {
-		for(int i=0;i<length_;++i)
-			free(list_[i]);
-		if(length_ > 0)
-			free(list_);
-	}
+    bool Empty() const {
+        return list_ == nullptr;
+    }
+
+    char *operator[](std::size_t k) {
+        assert(k < length_); // check to see if k is valid
+        return list_[k];
+    }
+
+    std::size_t Size() const {
+        return length_;
+    }
+
+    const char *operator[](std::size_t k) const {
+        assert(k < length_); // check to see if k is valid
+        return list_[k];
+    }
+
+    virtual ~ParsedList() {
+        for(int i = 0; i < length_; ++i) {
+            free(list_[i]);
+        }
+        if(length_ > 0) {
+            free(list_);
+        }
+    }
 private:
-	char **list_;
-	int length_;
+    char **list_;
+    int length_;
 
 };
 

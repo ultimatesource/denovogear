@@ -18,4 +18,4 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-int mainPhaser( int argc, char* argv[]);
+int mainPhaser(int argc, char *argv[]);

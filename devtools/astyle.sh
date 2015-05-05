@@ -4,6 +4,6 @@
 
 dir="${BINDIR}/../src"
 
-astyle -r --options="${BINDIR}/astylerc" \
+exec astyle -r --options="${BINDIR}/astylerc" \
 	--exclude="${dir}/utils" --exclude="${dir}/contrib" \
     "${dir}/*.h"  "${dir}/*.xmh" "${dir}/*.cc" "${dir}/*.cpp" "${dir}/*.c"  

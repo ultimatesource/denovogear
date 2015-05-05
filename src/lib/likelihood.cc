@@ -23,77 +23,76 @@
 
 dng::genotype::DirichletMultinomialMixture
 ::DirichletMultinomialMixture(params_t model_a, params_t model_b) :
-	cache_(5), alphas_(5)
-{
-	double a,u,e,m,h;
-	
-	f1_ = log(model_a.pi); // - log(model_a.pi+model_b.pi);
-	f2_ = log(model_b.pi); // - log(model_a.pi+model_b.pi);
-	
-	// model a
-	a = (1.0-model_a.phi)/model_a.phi;
-	u = model_a.omega;
-	e = (model_a.epsilon*u)/3.0/(1.0-model_a.epsilon*(1.0-u));
-	
-	m = 1.0-3.0*e; // prob of a read that matches a homozygote
-	h = (1.0-2.0*e)/2.0; // prob of a read that matches a heterozygote	
-	for(int r=0;r<5;++r) {
-		for(int g=0;g<10;++g) {
-			double tmp[5] = {e,e,e,e,e};
-			if(nucleotides[g][0] == nucleotides[g][1]) {
-				tmp[nucleotides[g][0]] = m;
-			} else {
-				tmp[nucleotides[g][0]] = h;
-				tmp[nucleotides[g][1]] = h;
-			}
-			tmp[r] *= u;
-			tmp[4] = tmp[0] + tmp[1] + tmp[2] + tmp[3];
-			double aa = a/tmp[4];
-			for(int x=0;x<5;++x) {
-				alphas_[r][g][x][0] = aa*tmp[x];
-				alphas_[r][g][x][1] = lgamma(aa*tmp[x]);
-			}
-		}
-	}
+    cache_(5), alphas_(5) {
+    double a, u, e, m, h;
 
-	// model b
-	a = (1.0-model_b.phi)/model_b.phi;
-	u = model_b.omega;
-	e = (model_b.epsilon*u)/3.0/(1.0-model_b.epsilon*(1.0-u));
-	
-	m = 1.0-3.0*e; // prob of a read that matches a homozygote
-	h = (1.0-2.0*e)/2.0; // prob of a read that matches a heterozygote	
-	for(int r=0;r<5;++r) {
-		for(int g=0;g<10;++g) {
-			double tmp[5] = {e,e,e,e,e};
-			if(nucleotides[g][0] == nucleotides[g][1]) {
-				tmp[nucleotides[g][0]] = m;
-			} else {
-				tmp[nucleotides[g][0]] = h;
-				tmp[nucleotides[g][1]] = h;
-			}
-			tmp[r] *= u;
-			tmp[4] = tmp[0] + tmp[1] + tmp[2] + tmp[3];
-			double aa = a/tmp[4];
-			for(int x=0;x<5;++x) {
-				alphas_[r][g][x][2] = aa*tmp[x];
-				alphas_[r][g][x][3] = lgamma(aa*tmp[x]);
-			}
-		}
-	}
-	
-	// construct cache
-	for(int r=0;r<5;++r) {
-		for(int g=0;g<10;++g) {
-			for(int x=0;x<5;++x) {
-				double t1 = 0.0, t2 = 0.0;
-				for(int k=0;k<kCacheSize;++k) {
-					cache_[r][g][x][2*k] = t1;
-					cache_[r][g][x][2*k+1] = t2;
-					t1 += log(alphas_[r][g][x][0]+k);
-					t2 += log(alphas_[r][g][x][2]+k);
-				}
-			}
-		}
-	}
+    f1_ = log(model_a.pi); // - log(model_a.pi+model_b.pi);
+    f2_ = log(model_b.pi); // - log(model_a.pi+model_b.pi);
+
+    // model a
+    a = (1.0 - model_a.phi) / model_a.phi;
+    u = model_a.omega;
+    e = (model_a.epsilon * u) / 3.0 / (1.0 - model_a.epsilon * (1.0 - u));
+
+    m = 1.0 - 3.0 * e; // prob of a read that matches a homozygote
+    h = (1.0 - 2.0 * e) / 2.0; // prob of a read that matches a heterozygote
+    for(int r = 0; r < 5; ++r) {
+        for(int g = 0; g < 10; ++g) {
+            double tmp[5] = {e, e, e, e, e};
+            if(nucleotides[g][0] == nucleotides[g][1]) {
+                tmp[nucleotides[g][0]] = m;
+            } else {
+                tmp[nucleotides[g][0]] = h;
+                tmp[nucleotides[g][1]] = h;
+            }
+            tmp[r] *= u;
+            tmp[4] = tmp[0] + tmp[1] + tmp[2] + tmp[3];
+            double aa = a / tmp[4];
+            for(int x = 0; x < 5; ++x) {
+                alphas_[r][g][x][0] = aa * tmp[x];
+                alphas_[r][g][x][1] = lgamma(aa * tmp[x]);
+            }
+        }
+    }
+
+    // model b
+    a = (1.0 - model_b.phi) / model_b.phi;
+    u = model_b.omega;
+    e = (model_b.epsilon * u) / 3.0 / (1.0 - model_b.epsilon * (1.0 - u));
+
+    m = 1.0 - 3.0 * e; // prob of a read that matches a homozygote
+    h = (1.0 - 2.0 * e) / 2.0; // prob of a read that matches a heterozygote
+    for(int r = 0; r < 5; ++r) {
+        for(int g = 0; g < 10; ++g) {
+            double tmp[5] = {e, e, e, e, e};
+            if(nucleotides[g][0] == nucleotides[g][1]) {
+                tmp[nucleotides[g][0]] = m;
+            } else {
+                tmp[nucleotides[g][0]] = h;
+                tmp[nucleotides[g][1]] = h;
+            }
+            tmp[r] *= u;
+            tmp[4] = tmp[0] + tmp[1] + tmp[2] + tmp[3];
+            double aa = a / tmp[4];
+            for(int x = 0; x < 5; ++x) {
+                alphas_[r][g][x][2] = aa * tmp[x];
+                alphas_[r][g][x][3] = lgamma(aa * tmp[x]);
+            }
+        }
+    }
+
+    // construct cache
+    for(int r = 0; r < 5; ++r) {
+        for(int g = 0; g < 10; ++g) {
+            for(int x = 0; x < 5; ++x) {
+                double t1 = 0.0, t2 = 0.0;
+                for(int k = 0; k < kCacheSize; ++k) {
+                    cache_[r][g][x][2 * k] = t1;
+                    cache_[r][g][x][2 * k + 1] = t2;
+                    t1 += log(alphas_[r][g][x][0] + k);
+                    t2 += log(alphas_[r][g][x][2] + k);
+                }
+            }
+        }
+    }
 }
