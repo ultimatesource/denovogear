@@ -14,7 +14,6 @@ IF(NOT TEST_DATA_DIR)
     MESSAGE("Unable to find data for full package testing. Please set TEST_DATA_DIR")
   ENDIF(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/testdata)
 ENDIF(NOT TEST_DATA_DIR)
-SET(TEST_DATA_DIR /home/kdai1/workspace/testdata)
 
 
 ################################################################################
