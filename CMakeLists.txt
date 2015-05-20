@@ -48,6 +48,9 @@ SET(DNG_NAME "DeNovoGear")
 SET(DNG_NAME_FOR_PKG_FILE "denovogear")
 SET(DNG_URL "https://github.com/denovogear/denovogear")
 
+## Turn on unit and executable testing
+ENABLE_TESTING()
+
 ################################################################################
 # Version Information
 
@@ -160,6 +163,7 @@ INCLUDE(CPack)
 INSTALL(FILES README.md COPYING.txt DESTINATION ${CMAKE_DOC_DIR})
 
 ADD_SUBDIRECTORY(src)
+ADD_SUBDIRECTORY(test)
 
 ########### Add uninstall target ###############
 CONFIGURE_FILE(
