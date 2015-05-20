@@ -40,18 +40,22 @@ BOOST_INSTALL_PROPERTY(edge, family);
 BOOST_INSTALL_PROPERTY(vertex, group);
 }
 
-namespace dng { namespace graph {
+namespace dng {
+namespace graph {
 enum struct EdgeType : std::size_t {
-	Spousal, Meiotic, Mitotic, Library
+    Spousal, Meiotic, Mitotic, Library
 };
 
 typedef boost::property<boost::vertex_group_t, std::size_t> VertexGroupProp;
-typedef boost::property<boost::vertex_label_t, std::string, VertexGroupProp> VertexLabelProp;
+typedef boost::property<boost::vertex_label_t, std::string, VertexGroupProp>
+VertexLabelProp;
 typedef boost::property<boost::edge_family_t, std::size_t> EdgeFamilyProp;
-typedef boost::property<boost::edge_length_t, float, EdgeFamilyProp> EdgeLengthProp;
-typedef boost::property<boost::edge_type_t, EdgeType, EdgeLengthProp> EdgeTypeProp;
+typedef boost::property<boost::edge_length_t, float, EdgeFamilyProp>
+EdgeLengthProp;
+typedef boost::property<boost::edge_type_t, EdgeType, EdgeLengthProp>
+EdgeTypeProp;
 typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS,
-	VertexLabelProp, EdgeTypeProp> Graph;
+        VertexLabelProp, EdgeTypeProp> Graph;
 }
 
 using graph::Graph;

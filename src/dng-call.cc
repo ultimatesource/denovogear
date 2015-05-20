@@ -27,12 +27,12 @@
 
 typedef dng::CommandLineApp<dng::task::Call> CallApp;
 
-int main(int argc, char* argv[]) {
-	try {
-		return CallApp(argc, argv)();
-	} catch(std::exception &e) {
-		std::cerr << e.what() << std::endl;
-	}
-	return EXIT_FAILURE;
+int main(int argc, char *argv[]) {
+    try {
+        return CallApp(argc, argv)();
+    } catch(std::exception &e) {
+        std::cerr << e.what() << std::endl;
+    }
+    return EXIT_FAILURE;
 }
 

@@ -26,47 +26,47 @@ namespace hts {
 
 class File {
 public:
-	File(const char *file, const char *mode) :
-		fp_{hts_open(file,mode),hts_close} { }
+    File(const char *file, const char *mode) :
+        fp_{hts_open(file, mode), hts_close} { }
 
-	int SetFaiFileName(const char* fn) {
-		return hts_set_fai_filename(handle(),fn);
-	}
-	int SetThreads(int n) {
-		return hts_set_threads(handle(),n);
-	}
+    int SetFaiFileName(const char *fn) {
+        return hts_set_fai_filename(handle(), fn);
+    }
+    int SetThreads(int n) {
+        return hts_set_threads(handle(), n);
+    }
 
-	bool is_open() const { return (bool)fp_; }
-	bool is_bin() const { return handle()->is_bin; }
-	bool is_write() const { return handle()->is_write; }
-	bool is_cram() const { return handle()->is_cram; }
-	bool is_compressed() const {
-		return handle()->format.compression;
-	}
+    bool is_open() const { return (bool)fp_; }
+    bool is_bin() const { return handle()->is_bin; }
+    bool is_write() const { return handle()->is_write; }
+    bool is_cram() const { return handle()->is_cram; }
+    bool is_compressed() const {
+        return handle()->format.compression;
+    }
 
-	const char* name() const {
-		return handle()->fn;
-	}
-	htsFormat format() const {
-		return handle()->format;
-	}
-	std::string format_description() const {
-		std::unique_ptr<char[],void(*)(void*)> s{hts_format_description(&handle()->format),free};
-		return {s.get()};
-	}
+    const char *name() const {
+        return handle()->fn;
+    }
+    htsFormat format() const {
+        return handle()->format;
+    }
+    std::string format_description() const {
+        std::unique_ptr<char[], void(*)(void *)> s{hts_format_description(&handle()->format), free};
+        return {s.get()};
+    }
 
 protected:
-	htsFile* handle() {
-		assert(fp_);
-		return fp_.get();
-	}
-	const htsFile* handle() const {
-		assert(fp_);
-		return fp_.get();
-	}
+    htsFile *handle() {
+        assert(fp_);
+        return fp_.get();
+    }
+    const htsFile *handle() const {
+        assert(fp_);
+        return fp_.get();
+    }
 
 private:
-	std::unique_ptr<htsFile, int(*)(htsFile*)> fp_; // the file handle	
+    std::unique_ptr<htsFile, int(*)(htsFile *)> fp_; // the file handle
 };
 
 };

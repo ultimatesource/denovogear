@@ -1,0 +1,15 @@
+style=java
+indent=spaces=4
+attach-namespaces
+attach-classes
+attach-inlines
+attach-extern-c
+pad-oper
+unpad-paren
+align-pointer=name
+add-brackets
+keep-one-line-blocks
+keep-one-line-statements
+max-code-length=80
+lineend=linux
+preserve-date
