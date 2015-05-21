@@ -1,3 +1,7 @@
+# DeNovoGear
+
+[![Build Status](http://jenkins.scit.us/buildStatus/icon?job=DeNovoGear-GitHub)](http://jenkins.scit.us/job/DeNovoGear-GitHub/)
+
 Authors: Don Conrad, Avinash Ramu, Kael Dai, and Reed A. Cartwright.
 
 ## RELEASE NOTES
