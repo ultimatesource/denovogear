@@ -2,18 +2,6 @@ INCLUDE(CheckIncludeFile)
 INCLUDE(CheckFunctionExists)
 INCLUDE(CheckLibraryExists)
 
-IF(USE_STATIC_LIBS)
-  SET(Boost_USE_STATIC_LIBS ON)
-  SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-ENDIF(USE_STATIC_LIBS)
-
-SET(THREADS_PREFER_PTHREAD_FLAG ON)
-FIND_PACKAGE(Threads)
-
-FIND_PACKAGE(ZLIB REQUIRED)
-
-INCLUDE(ExternalDep)
-
 ################################################################################
 # Always make a full statement RPATH
 # See http://www.itk.org/Wiki/CMake_RPATH_handling

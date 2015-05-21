@@ -28,11 +28,33 @@ ELSE()
 ENDIF()
 SET(missing_ext_deps FALSE)
 
+IF(USE_STATIC_LIBS)
+  SET(Boost_USE_STATIC_LIBS ON)
+  SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+ENDIF(USE_STATIC_LIBS)
+
+################################################################################
+# THREADS
+#
+SET(THREADS_PREFER_PTHREAD_FLAG ON)
+FIND_PACKAGE(Threads)
+
+################################################################################
+# ZLIB
+#
+
+FIND_PACKAGE(ZLIB REQUIRED)
+
 ################################################################################
 # BOOST
 #
 
-FIND_PACKAGE(Boost 1.47.0 ${REQ} COMPONENTS program_options filesystem system)
+FIND_PACKAGE(Boost 1.47.0 ${REQ} COMPONENTS
+  program_options
+  filesystem
+  system
+  unit_test_framework
+)
 
 IF(BUILD_EXTERNAL_PROJECTS AND NOT Boost_FOUND)
   SET(boost_bootstrap "./bootstrap.sh")
@@ -47,6 +69,7 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT Boost_FOUND)
     --with-program_options
     --with-filesystem
     --with-system
+    --with-unit_test_framework
     #--with-graph
     --disable-icu
     --ignore-site-config
@@ -73,6 +96,7 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT Boost_FOUND)
     "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/boost/lib/libboost_program_options.a"
     "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/boost/lib/libboost_filesystem.a"
     "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/boost/lib/libboost_system.a"
+    "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/boost/lib/libboost_unit_test_framework.a"
     )
   SET(Boost_LIBRARY_DIRS "")
   SET(BOOST_EXT_TARGET boost)

@@ -1,6 +1,3 @@
-FIND_PACKAGE(Boost COMPONENTS unit_test_framework REQUIRED)
-FIND_PACKAGE(HTSLIB)
-
 ################################################################################
 # Determine the location of the executables/scripts and any data sets required for full package testing
 # TODO: Search for packages and data installed outside of denovogear directory, move to ../modules/
