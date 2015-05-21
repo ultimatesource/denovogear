@@ -19,17 +19,30 @@ include_directories(../src/include)
 include_directories(${Boost_INCLUDE_DIRS})
 include_directories(${EIGEN3_INCLUDE_DIR})
 include_directories(${EIGEN3_INCLUDE_DIR}/unsupported)
-add_definitions(-DBOOST_TEST_DYN_LINK)
+
+IF(NOT Boost_USE_STATIC_LIBS)
+  add_definitions(-DBOOST_TEST_DYN_LINK)
+ENDIF()
 
 # Make a test for each unit test file located in test/ dir
 file(GLOB_RECURSE TESTS test_*[cc|cpp])
 foreach(test ${TESTS})
   get_filename_component(testName ${test} NAME_WE)
-  add_executable(${testName} ${test})
+  add_executable(${testName} EXCLUDE_FROM_ALL ${test})
   set_target_properties(${testName} PROPERTIES CXX_STANDARD 11)
   set_target_properties(${testName} PROPERTIES CXX_STANDARD_REQUIRED ON)
-  target_link_libraries(${testName} ${Boost_LIBRARIES} ${HTSLIB_LIBRARIES})
-  add_test(${testName} ${testName})
+  target_link_libraries(${testName}
+    ${Boost_PROGRAM_OPTIONS_LIBRARY}
+    ${Boost_FILESYSTEM_LIBRARY}
+    ${Boost_SYSTEM_LIBRARY}
+    ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY}
+    ${HTSLIB_LIBRARIES}
+    Threads::Threads
+    ZLIB::ZLIB
+  )
+  add_test(${testName}_build "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target ${testName})
+  add_test(${testName}_run ${testName})
+  set_tests_properties(${testName}_run PROPERTIES DEPENDS ${testName}_build)
 endforeach(test)
 
 ################################################################################

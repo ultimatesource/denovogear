@@ -25,6 +25,10 @@ IF(NOT BUILD_EXTERNAL_PROJECTS)
 ELSE()
   SET(REQ )
   SET(QUI QUIET)
+  STRING(TOUPPER "${BUILD_EXTERNAL_PROJECTS}" build_external_projects_toupper)
+  IF(build_external_projects_toupper STREQUAL "FORCE")
+    SET(BUILD_EXTERNAL_PROJECTS_FORCED ON)
+  ENDIF()
 ENDIF()
 SET(missing_ext_deps FALSE)
 
@@ -49,12 +53,14 @@ FIND_PACKAGE(ZLIB REQUIRED)
 # BOOST
 #
 
-FIND_PACKAGE(Boost 1.47.0 ${REQ} COMPONENTS
-  program_options
-  filesystem
-  system
-  unit_test_framework
-)
+IF(NOT BUILD_EXTERNAL_PROJECTS_FORCED)
+  FIND_PACKAGE(Boost 1.47.0 ${REQ} COMPONENTS
+    program_options
+    filesystem
+    system
+    unit_test_framework
+  )
+ENDIF()
 
 IF(BUILD_EXTERNAL_PROJECTS AND NOT Boost_FOUND)
   SET(boost_bootstrap "./bootstrap.sh")
@@ -69,8 +75,7 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT Boost_FOUND)
     --with-program_options
     --with-filesystem
     --with-system
-    --with-unit_test_framework
-    #--with-graph
+    --with-test
     --disable-icu
     --ignore-site-config
     threading=multi
@@ -89,19 +94,24 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT Boost_FOUND)
     BUILD_COMMAND ${boost_build}
     INSTALL_COMMAND ""
   )
+  SET(boost_ext_libdir "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/boost/lib")
   SET(Boost_FOUND TRUE)
   SET(Boost_VERSION 1.57)
   SET(Boost_INCLUDE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/boost/include/")
-  SET(Boost_LIBRARIES 
-    "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/boost/lib/libboost_program_options.a"
-    "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/boost/lib/libboost_filesystem.a"
-    "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/boost/lib/libboost_system.a"
-    "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/boost/lib/libboost_unit_test_framework.a"
-    )
+
+  SET(Boost_LIBRARIES)
+  FOREACH(ext_boost_name PROGRAM_OPTIONS FILESYSTEM SYSTEM UNIT_TEST_FRAMEWORK)
+    STRING(TOLOWER "${ext_boost_name}" ext_boost_lowname)
+    SET(Boost_${ext_boost_name}_FOUND On)
+    SET(Boost_${ext_boost_name}_LIBRARY "${boost_ext_libdir}/libboost_${ext_boost_lowname}.a")
+    SET(Boost_LIBRARIES ${Boost_LIBRARIES} ${Boost_${ext_boost_name}_LIBRARY})
+  ENDFOREACH()
+
   SET(Boost_LIBRARY_DIRS "")
   SET(BOOST_EXT_TARGET boost)
   SET(Boost_USE_STATIC_LIBS TRUE)
   MESSAGE(STATUS "Building Boost ${Boost_VERSION} as external dependency")  
+  MESSAGE(STATUS "${Boost_LIBRARIES}")
 ENDIF()
 
 IF(Boost_FOUND)
@@ -119,7 +129,9 @@ ENDIF(Boost_FOUND)
 # EIGEN3
 #
 
-FIND_PACKAGE(Eigen3 ${QUI})
+IF(NOT BUILD_EXTERNAL_PROJECTS_FORCED)
+  FIND_PACKAGE(Eigen3 ${QUI})
+ENDIF()
 
 IF(BUILD_EXTERNAL_PROJECTS AND NOT EIGEN3_FOUND)
   ExternalProject_Add(eigen3
@@ -148,7 +160,9 @@ ENDIF(EIGEN3_FOUND)
 # HTSLIB
 #
 
-FIND_PACKAGE(HTSLIB 1.2 ${REQ} ${QUI})
+IF(NOT BUILD_EXTERNAL_PROJECTS_FORCED)
+  FIND_PACKAGE(HTSLIB 1.2 ${REQ} ${QUI})
+ENDIF()
 
 IF(BUILD_EXTERNAL_PROJECTS AND NOT HTSLIB_FOUND)
   ExternalProject_Add(htslib
