@@ -146,13 +146,13 @@ void vcf_add_header_text(hts::bcf::File &vcfout, Call::argument_type &arg) {
 void vcf_add_record(hts::bcf::File &vcfout, const char *chrom, int pos,
                     const char ref,
                     double ll, double pmut, const std::vector<dng::depth5_t> &read_depths) {
+    auto rec = vcfout.InitVariant();
+    rec.target(chrom);
+    rec.position(pos);
+    //rec.filter("PASS");
 
-    vcfout.SetID(chrom, pos, nullptr);
-    // vcfout.setQuality() - Need phred scalled measure of the site samples
-    vcfout.SetFilter("PASS"); // Currently all sites that make it this far pass the threshold
-
-    vcfout.UpdateInfo("LL", static_cast<float>(ll));
-    vcfout.UpdateInfo("PMUT", static_cast<float>(pmut));
+    rec.info("LL", static_cast<float>(ll));
+    rec.info("PMUT", static_cast<float>(pmut));
 
     // Based on all the samples determine what nucleotides show up and
     // the order they will appear in the REF and ALT field
@@ -176,7 +176,7 @@ void vcf_add_record(hts::bcf::File &vcfout, const char *chrom, int pos,
     }
 
     // Update REF, ALT fields
-    vcfout.SetAlleles(allele_order_str);
+    rec.alleles(allele_order_str);
 
     // Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
     std::vector<int32_t> gtcounts;
@@ -186,9 +186,9 @@ void vcf_add_record(hts::bcf::File &vcfout, const char *chrom, int pos,
             gtcounts.push_back(read_depths[sample].counts[allele_index]);
         }
     }
-    vcfout.UpdateSamples("AD", gtcounts);
+    rec.samples("AD", gtcounts);
 
-    vcfout.WriteRecord();
+    vcfout.WriteRecord(rec);
 }
 
 // Build a list of all of the possible contigs to add to the vcf header
