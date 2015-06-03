@@ -28,8 +28,8 @@
 #include <htslib/vcf.h>
 
 extern "C" {
-     // The htslib header does not match the library
-     void bcf_empty1(bcf1_t *v);
+    // The htslib header does not match the library
+    void bcf_empty1(bcf1_t *v);
 }
 
 namespace hts {
@@ -42,7 +42,7 @@ class File;
 class Variant : protected BareVariant {
 public:
     Variant() = default;
-    Variant(const File& file);
+    Variant(const File &file);
 
     ~Variant() {
         bcf_empty1(base());
@@ -68,14 +68,15 @@ public:
         bcf_update_id(hdr(), base(), str);
     }
     int filter(const char *str) {
-        if(str == nullptr)
+        if(str == nullptr) {
             return 0;
+        }
         int32_t fid = bcf_hdr_id2int(hdr(), BCF_DT_ID, str);
-        return bcf_add_filter(hdr(), base(), fid);        
+        return bcf_add_filter(hdr(), base(), fid);
     }
     int filter(const std::string &str) {
         int32_t fid = bcf_hdr_id2int(hdr(), BCF_DT_ID, str.c_str());
-        return bcf_add_filter(hdr(), base(), fid);        
+        return bcf_add_filter(hdr(), base(), fid);
     }
 
     /**
@@ -87,8 +88,9 @@ public:
         return bcf_update_alleles_str(hdr(), base(), str.c_str());
     }
     int alleles(const char *str) {
-        if(str == nullptr)
+        if(str == nullptr) {
             return 0;
+        }
         return bcf_update_alleles_str(hdr(), base(), str);
     }
 
@@ -150,7 +152,7 @@ protected:
 
     const bcf_hdr_t *hdr() {
         // check if the header pointer has not been initialized
-        assert(hdr_ == true); 
+        assert(hdr_ == true);
         return hdr_.get();
     }
 
@@ -178,8 +180,7 @@ public:
      * @mode: "w" = write VCF, "wb" = write BCF
      * @source: name of application writing the VCF file (optional)
      */
-    File(hts::File &&other) : hts::File(std::move(other))
-    {
+    File(hts::File &&other) : hts::File(std::move(other)) {
         if(!is_open()) { // nothing to do
             return;
         }
@@ -252,7 +253,7 @@ public:
     /** Creates the header field. Call only after adding all the sample fields */
     int WriteHeader() {
         // htslib requires NULL sample before it will write out all the other samples
-        bcf_hdr_add_sample(hdr(), nullptr); 
+        bcf_hdr_add_sample(hdr(), nullptr);
         return bcf_hdr_write(handle(), hdr());
     }
 
@@ -261,12 +262,12 @@ public:
     }
 
     const bcf_hdr_t *header() const { return hdr_.get(); }
- 
+
     /** Writes out the up-to-date info in the record and prepares for the next line */
     void WriteRecord(Variant &rec) {
         // Add line to the body of the VCF
         assert(rec.hdr() == hdr());
-        bcf_write(handle(), hdr(), &rec);        
+        bcf_write(handle(), hdr(), &rec);
     }
 protected:
     bcf_hdr_t *hdr() { return hdr_.get(); }
@@ -278,7 +279,7 @@ private:
     friend class Variant;
 };
 
-Variant::Variant(const File& file) : BareVariant(), hdr_{file.hdr_} {
+Variant::Variant(const File &file) : BareVariant(), hdr_{file.hdr_} {
     // NOOP
 }
 
