@@ -27,6 +27,11 @@
 #include <set>
 #include <htslib/vcf.h>
 
+extern "C" {
+     // The htslib header does not match the library
+     void bcf_empty1(bcf1_t *v);
+}
+
 namespace hts {
 namespace bcf {
 
@@ -36,12 +41,11 @@ class File;
 
 class Variant : protected BareVariant {
 public:
-    Variant(const File& file) : hdr_{file.hdr_} {
-        // NOOP
-    }
+    Variant() = default;
+    Variant(const File& file);
 
     ~Variant() {
-        bcf_empty(base());
+        bcf_empty1(base());
     }
 
     void Clear() {
@@ -57,25 +61,21 @@ public:
     // Setters
     void quality(float q) { qual = q; }
     void target(const char *chrom) {
-        if(chrom == nullptr) {
-            rid = -1;
-        } else {
-            rid = bcf_hdr_name2id(hdr(), chrom);
-        }
+        rid = (chrom != nullptr) ? bcf_hdr_name2id(hdr(), chrom) : -1;
     }
     void position(int32_t p) { pos = p; }
-    void id(const char *label) {
-        bcf_update_id(hdr(), base(), label);
+    void id(const char *str) {
+        bcf_update_id(hdr(), base(), str);
     }
     int filter(const char *str) {
-        if(filter == nullptr)
+        if(str == nullptr)
             return 0;
         int32_t fid = bcf_hdr_id2int(hdr(), BCF_DT_ID, str);
-        return bcf_update_filter(hdr(), base(), &fid, 1);        
+        return bcf_add_filter(hdr(), base(), fid);        
     }
     int filter(const std::string &str) {
         int32_t fid = bcf_hdr_id2int(hdr(), BCF_DT_ID, str.c_str());
-        return bcf_update_filter(hdr(), base(), &fid, 1);        
+        return bcf_add_filter(hdr(), base(), fid);        
     }
 
     /**
@@ -150,12 +150,12 @@ protected:
 
     const bcf_hdr_t *hdr() {
         // check if the header pointer has not been initialized
-        assert(hdr == true); 
+        assert(hdr_ == true); 
         return hdr_.get();
     }
 
 private:
-    std::shared_ptr<const bcf_hdr_t, void(*)(bcf_hdr_t *)> hdr_;
+    std::shared_ptr<const bcf_hdr_t> hdr_;
 
     friend class File;
 };
@@ -178,28 +178,23 @@ public:
      * @mode: "w" = write VCF, "wb" = write BCF
      * @source: name of application writing the VCF file (optional)
      */
-    File(hts::File &&other) : hts::File(std::move(other)),
-        hdr_{nullptr, bcf_hdr_destroy} {
-
+    File(hts::File &&other) : hts::File(std::move(other))
+    {
         if(!is_open()) { // nothing to do
             return;
         }
 
         if(is_write()) {
-            hdr_.reset(bcf_hdr_init("w"));
+            hdr_ = std::shared_ptr<bcf_hdr_t>(bcf_hdr_init("w"), bcf_hdr_destroy);
         } else {
             if(format().category != variant_data)
                 throw std::runtime_error("file '" + std::string(name())
                                          + "' does not contain variant data (BCF/VCF).");
-            hdr_.reset(bcf_hdr_read(handle()));
+            hdr_ = std::shared_ptr<bcf_hdr_t>(bcf_hdr_read(handle()), bcf_hdr_destroy);
         }
         if(!hdr_) {
             throw std::runtime_error("unable to access header in file '" + std::string(
                                          name()) + "'.");
-        }
-        rec_.reset(bcf_init1());
-        if(!rec_) {
-            throw std::runtime_error("unable to construct bcf record.");
         }
     }
 
@@ -277,10 +272,15 @@ protected:
     bcf_hdr_t *hdr() { return hdr_.get(); }
 
 private:
-    std::shared_ptr<bcf_hdr_t, void(*)(bcf_hdr_t *)> hdr_;
+    //std::shared_ptr<bcf_hdr_t, void(*)(bcf_hdr_t *)> hdr_;
+    std::shared_ptr<bcf_hdr_t> hdr_;
 
     friend class Variant;
 };
+
+Variant::Variant(const File& file) : BareVariant(), hdr_{file.hdr_} {
+    // NOOP
+}
 
 }
 } // namespace hts::bcf
