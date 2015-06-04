@@ -8,7 +8,7 @@ IF(NOT TEST_DATA_DIR)
   ELSEIF(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/../testdata)
     SET(TEST_DATA_DIR ${CMAKE_SOURCE_DIR}/../testdata)
   ELSE(NOT TEST_DATA_DIR)
-    MESSAGE("Unable to find data for full package testing. Please set TEST_DATA_DIR")
+    MESSAGE(STATUS "WARNING: Unable to find data for full package testing. Please set TEST_DATA_DIR.")
   ENDIF(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/testdata)
 ENDIF(NOT TEST_DATA_DIR)
 
@@ -47,8 +47,8 @@ endforeach(test)
 
 ################################################################################
 # Full executable tests
-IF(NOT IS_DIRECTORY "${TEST_DATA_DIR}")
-  MESSAGE("Could not find directory ${TEST_DATA_DIR}. Full Package tests will fail")
+IF(DEFINED TEST_DATA_DIR AND NOT IS_DIRECTORY "${TEST_DATA_DIR}")
+  MESSAGE(STATUS "WARNING: Could not find directory ${TEST_DATA_DIR}. Full Package tests will fail")
 ENDIF()
     
 ADD_TEST(Test_Help ${DNG_CALL_EXE})
