@@ -31,15 +31,21 @@ foreach(test ${TESTS})
   add_executable(${testName} EXCLUDE_FROM_ALL ${test})
   set_target_properties(${testName} PROPERTIES CXX_STANDARD 11)
   set_target_properties(${testName} PROPERTIES CXX_STANDARD_REQUIRED ON)
-  target_link_libraries(${testName}
-    ${Boost_PROGRAM_OPTIONS_LIBRARY}
-    ${Boost_FILESYSTEM_LIBRARY}
-    ${Boost_SYSTEM_LIBRARY}
-    ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY}
-    ${HTSLIB_LIBRARIES}
-    Threads::Threads
-    ZLIB::ZLIB
-  )
+  target_link_libraries(${testName} Threads::Threads)
+  IF(Boost_FOUND)
+    target_link_libraries(${testName}
+      ${Boost_PROGRAM_OPTIONS_LIBRARY}
+      ${Boost_FILESYSTEM_LIBRARY}
+      ${Boost_SYSTEM_LIBRARY}
+      ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY}
+    )
+  ENDIF(Boost_FOUND)
+  IF(HTSLIB_FOUND)
+    target_link_libraries(${testName} ${HTSLIB_LIBRARIES})
+  ENDIF(HTSLIB_FOUND)
+  IF(ZLIB_FOUND)
+    target_link_libraries(${testName} ZLIB::ZLIB)
+  ENDIF(ZLIB_FOUND)
   add_test(${testName}_build "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target ${testName})
   add_test(${testName}_run ${testName})
   set_tests_properties(${testName}_run PROPERTIES DEPENDS ${testName}_build)
