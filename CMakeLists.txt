@@ -20,7 +20,7 @@ SET(BUILD_EXTERNAL_PROJECTS OFF CACHE BOOL "Build external dependencies if they 
 
 PROJECT(DeNovoGear CXX C)
 
-# AppleClang doesn't know how to do these things
+# AppleClang doesn't know how to do these things until CMake 3.2
 IF("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang" AND
   "${CMAKE_VERSION}" VERSION_LESS 3.2)
   SET(CMAKE_CXX11_STANDARD_COMPILE_OPTION "-std=c++11")

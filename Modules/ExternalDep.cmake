@@ -1,6 +1,14 @@
 INCLUDE(ExternalProject)
 
+################################################################################
+# PRELIM STUFF
+#
+
 SET(EXT_PREFIX ext_deps)
+
+IF(NOT "${CMAKE_VERSION}" VERSION_LESS 3.2)
+  SET(use_byproducts true)
+ENDIF()
 
 SET(EXT_CFLAGS "${CMAKE_C_FLAGS}")
 SET(EXT_LDFLAGS "${CMAKE_STATIC_LINKER_FLAGS}")
@@ -37,9 +45,12 @@ IF(USE_STATIC_LIBS)
   SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 ENDIF(USE_STATIC_LIBS)
 
+ADD_CUSTOM_TARGET(ext_projects)
+
 ################################################################################
 # THREADS
 #
+
 SET(THREADS_PREFER_PTHREAD_FLAG ON)
 FIND_PACKAGE(Threads)
 
@@ -52,16 +63,6 @@ IF(NOT BUILD_EXTERNAL_PROJECTS_FORCED)
 ENDIF()
 
 IF(BUILD_EXTERNAL_PROJECTS AND NOT ZLIB_FOUND)
-  ExternalProject_add(ext_zlib
-    URL http://zlib.net/zlib-1.2.8.tar.gz
-    URL_MD5 44d667c142d7cda120332623eab69f40
-    PREFIX ext_deps/zlib
-    PATCH_COMMAND ""
-    UPDATE_COMMAND ""
-    CONFIGURE_COMMAND "env" "CC=${CMAKE_C_COMPILER}" "CFLAGS=${EXT_CFLAGS}" "LDFLAGS=${EXT_LDFLAGS}"
-      "./configure" "--prefix=<INSTALL_DIR>"
-    BUILD_IN_SOURCE true
-  )
   SET(ZLIB_FOUND TRUE)
   SET(ZLIB_INCLUDE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/zlib/include/")
   SET(ZLIB_LIBRARIES "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/zlib/lib/libz.a")
@@ -74,6 +75,24 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT ZLIB_FOUND)
     FILE(MAKE_DIRECTORY "${ZLIB_INCLUDE_DIRS}")
   endif()
   SET(ZLIB_VERSION_STRING "1.2.8")
+
+  IF(use_byproducts)
+    SET(byproducts BUILD_BYPRODUCTS ${ZLIB_LIBRARIES})
+  ENDIF()
+
+  ExternalProject_add(ext_zlib
+    URL http://zlib.net/zlib-1.2.8.tar.gz
+    URL_MD5 44d667c142d7cda120332623eab69f40
+    PREFIX ext_deps/zlib
+    PATCH_COMMAND ""
+    UPDATE_COMMAND ""
+    CONFIGURE_COMMAND "env" "CC=${CMAKE_C_COMPILER}" "CFLAGS=${EXT_CFLAGS}" "LDFLAGS=${EXT_LDFLAGS}"
+      "./configure" "--prefix=<INSTALL_DIR>"
+    BUILD_IN_SOURCE true
+    ${byproducts}
+  )
+  ADD_DEPENDENCIES(ext_projects ext_zlib)
+
   MESSAGE(STATUS "Building ZLIB ${ZLIB_VERSION_STRING} as external dependency")
 ENDIF()
 
@@ -95,6 +114,27 @@ IF(NOT BUILD_EXTERNAL_PROJECTS_FORCED)
 ENDIF()
 
 IF(BUILD_EXTERNAL_PROJECTS AND NOT Boost_FOUND)
+  SET(boost_ext_libdir "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/boost/lib")
+  SET(Boost_FOUND TRUE)
+  SET(Boost_VERSION 1.57)
+  SET(Boost_INCLUDE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/boost/include/")
+  FILE(MAKE_DIRECTORY "${Boost_INCLUDE_DIRS}")
+  SET(Boost_LIBRARY_DIRS "")
+  SET(BOOST_EXT_TARGET ext_boost)
+  SET(Boost_USE_STATIC_LIBS TRUE)
+
+  SET(Boost_LIBRARIES)
+  FOREACH(ext_boost_name PROGRAM_OPTIONS FILESYSTEM SYSTEM UNIT_TEST_FRAMEWORK)
+    STRING(TOLOWER "${ext_boost_name}" ext_boost_lowname)
+    SET(Boost_${ext_boost_name}_FOUND On)
+    SET(Boost_${ext_boost_name}_LIBRARY "${boost_ext_libdir}/libboost_${ext_boost_lowname}.a")
+    SET(Boost_LIBRARIES ${Boost_LIBRARIES} ${Boost_${ext_boost_name}_LIBRARY})
+  ENDFOREACH()
+
+  IF(use_byproducts)
+    SET(byproducts BUILD_BYPRODUCTS ${Boost_LIBRARIES})
+  ENDIF()
+
   SET(boost_bootstrap "./bootstrap.sh")
   IF(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
     LIST(APPEND boost_bootstrap --with-toolset=clang)
@@ -131,28 +171,10 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT Boost_FOUND)
     CONFIGURE_COMMAND ${boost_bootstrap}
     BUILD_COMMAND ${boost_build}
     INSTALL_COMMAND ""
+    ${byproducts}
   )
-  SET(boost_ext_libdir "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/boost/lib")
-  SET(Boost_FOUND TRUE)
-  SET(Boost_VERSION 1.57)
-  SET(Boost_INCLUDE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/boost/include/")
-  FILE(MAKE_DIRECTORY "${Boost_INCLUDE_DIRS}")
+  ADD_DEPENDENCIES(ext_projects ext_boost)
 
-  SET(Boost_LIBRARIES)
-  FOREACH(ext_boost_name PROGRAM_OPTIONS FILESYSTEM SYSTEM UNIT_TEST_FRAMEWORK)
-    STRING(TOLOWER "${ext_boost_name}" ext_boost_lowname)
-    SET(Boost_${ext_boost_name}_FOUND On)
-    SET(Boost_${ext_boost_name}_LIBRARY "${boost_ext_libdir}/libboost_${ext_boost_lowname}.a")
-    SET(Boost_LIBRARIES ${Boost_LIBRARIES} ${Boost_${ext_boost_name}_LIBRARY})
-  ENDFOREACH()
-  ADD_CUSTOM_COMMAND(OUTPUT ${Boost_PROGRAM_OPTIONS_LIBRARY}
-    COMMAND x
-    DEPENDS ext_boost
-  )
-
-  SET(Boost_LIBRARY_DIRS "")
-  SET(BOOST_EXT_TARGET ext_boost)
-  SET(Boost_USE_STATIC_LIBS TRUE)
   MESSAGE(STATUS "Building Boost ${Boost_VERSION} as external dependency")  
 ENDIF()
 
@@ -164,7 +186,7 @@ IF(Boost_FOUND)
         INTERFACE_INCLUDE_DIRECTORIES "${Boost_INCLUDE_DIRS}"
         IMPORTED_LOCATION "${Boost_${ext_boost_name}_LIBRARY}"
       )
-      IF(BOOST_EXT_TARGET)
+      if(BOOST_EXT_TARGET)
         ADD_DEPENDENCIES(Boost::${ext_boost_name} ext_boost)
       endif()
     endif()  
@@ -188,6 +210,17 @@ IF(NOT BUILD_EXTERNAL_PROJECTS_FORCED)
 ENDIF()
 
 IF(BUILD_EXTERNAL_PROJECTS AND NOT EIGEN3_FOUND)
+  SET(EIGEN3_FOUND TRUE)
+  SET(EIGEN3_VERSION 3.2.4)
+  SET(EIGEN3_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/eigen3/include/eigen3/")
+  if(NOT TARGET EIGEN3::EIGEN3)
+    add_library(EIGEN3::EIGEN3 INTERFACE IMPORTED)
+    set_target_properties(EIGEN3::EIGEN3 PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES "${EIGEN3_INCLUDE_DIR};${EIGEN3_INCLUDE_DIR}/unsupported"
+    )
+    FILE(MAKE_DIRECTORY "${EIGEN3_INCLUDE_DIR}/unsupported")
+  endif()  
+
   ExternalProject_Add(ext_eigen3
     PREFIX "${EXT_PREFIX}/eigen3"
     URL http://bitbucket.org/eigen/eigen/get/3.2.4.tar.bz2
@@ -196,17 +229,8 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT EIGEN3_FOUND)
      "-DCMAKE_CXX_COMPILER:filepath=${CMAKE_CXX_COMPILER}"
      "-DCMAKE_C_COMPILER:filepath=${CMAKE_C_COMPILER}"
   )
-  SET(EIGEN3_FOUND TRUE)
-  SET(EIGEN3_VERSION 3.2.4)
-  SET(EIGEN3_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/eigen3/include/eigen3/")
-  if(NOT TARGET EIGEN3::EIGEN3)
-    add_library(EIGEN3::EIGEN3 UNKNOWN IMPORTED)
-    set_target_properties(EIGEN3::EIGEN3 PROPERTIES
-      INTERFACE_INCLUDE_DIRECTORIES "${EIGEN3_INCLUDE_DIR};${EIGEN3_INCLUDE_DIR}/unsupported"
-    )
-    ADD_DEPENDENCIES(EIGEN3::EIGEN3 ext_eigen3)
-    FILE(MAKE_DIRECTORY "${EIGEN3_INCLUDE_DIR}/unsupported")
-  endif()  
+  ADD_DEPENDENCIES(ext_projects ext_eigen3)
+
   MESSAGE(STATUS "Building Eigen3 ${EIGEN3_VERSION} as external dependency")
 ENDIF()
 
@@ -223,24 +247,10 @@ IF(NOT BUILD_EXTERNAL_PROJECTS_FORCED)
 ENDIF()
 
 IF(BUILD_EXTERNAL_PROJECTS AND NOT HTSLIB_FOUND)
-  GET_FILENAME_COMPONENT(zlib_lib_dir ${ZLIB_LIBRARIES} DIRECTORY)
-  ExternalProject_Add(ext_htslib
-    PREFIX "${EXT_PREFIX}/htslib"
-    URL https://github.com/samtools/htslib/releases/download/1.2.1/htslib-1.2.1.tar.bz2
-    URL_MD5 88eec909855abd98032bc2f9c3e83271
-    PATCH_COMMAND ""
-    UPDATE_COMMAND ""
-    CONFIGURE_COMMAND "./configure" "--prefix=<INSTALL_DIR>"
-      "CC=${CMAKE_C_COMPILER}"
-      "CFLAGS=${EXT_CFLAGS} -I${ZLIB_INCLUDE_DIRS}"
-      "LDFLAGS=${EXT_LDFLAGS} -L${zlib_lib_dir}"
-    BUILD_IN_SOURCE true
-  )
-
   SET(HTSLIB_FOUND true)
   SET(HTSLIB_VERSION 1.2.1)
-  SET(HTSLIB_LIBRARIES "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/htslib/lib/libhts.a")
   SET(HTSLIB_INCLUDE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/htslib/include/")
+  SET(HTSLIB_LIBRARIES "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/htslib/lib/libhts.a") 
   if(NOT TARGET HTSLIB::HTSLIB)
     add_library(HTSLIB::HTSLIB UNKNOWN IMPORTED)
     set_target_properties(HTSLIB::HTSLIB PROPERTIES
@@ -252,9 +262,31 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT HTSLIB_FOUND)
     FILE(MAKE_DIRECTORY "${HTSLIB_INCLUDE_DIRS}")
   endif()
 
+  IF(use_byproducts)
+    SET(byproducts BUILD_BYPRODUCTS ${HTSLIB_LIBRARIES})
+  ENDIF()  
+
+  GET_FILENAME_COMPONENT(zlib_lib_dir ${ZLIB_LIBRARIES} DIRECTORY)
+
+  ExternalProject_Add(ext_htslib
+    PREFIX "${EXT_PREFIX}/htslib"
+    URL https://github.com/samtools/htslib/releases/download/1.2.1/htslib-1.2.1.tar.bz2
+    URL_MD5 88eec909855abd98032bc2f9c3e83271
+    PATCH_COMMAND ""
+    UPDATE_COMMAND ""
+    CONFIGURE_COMMAND "./configure" "--prefix=<INSTALL_DIR>"
+      "CC=${CMAKE_C_COMPILER}"
+      "CFLAGS=${EXT_CFLAGS} -I${ZLIB_INCLUDE_DIRS}"
+      "LDFLAGS=${EXT_LDFLAGS} -L${zlib_lib_dir}"
+    BUILD_IN_SOURCE true
+    ${byproducts}
+  )
+  ADD_DEPENDENCIES(ext_projects ext_htslib)
+
   IF(ZLIB_FOUND)
     ADD_DEPENDENCIES(ext_htslib ZLIB::ZLIB)
   ENDIF(ZLIB_FOUND)
+
   MESSAGE(STATUS "Building HTSLIB ${HTSLIB_VERSION} as external dependency")
 ENDIF()
 

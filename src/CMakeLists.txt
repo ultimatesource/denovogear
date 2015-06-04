@@ -88,11 +88,12 @@ TARGET_LINK_LIBRARIES(dng-phaser ZLIB::ZLIB)
 TARGET_LINK_LIBRARIES(dng-call
   Boost::PROGRAM_OPTIONS Boost::FILESYSTEM Boost::SYSTEM
 )
-TARGET_LINK_LIBRARIES(dng-call
-  EIGEN3::EIGEN3
-  HTSLIB::HTSLIB
-  Threads::Threads
-)
+TARGET_LINK_LIBRARIES(dng-call HTSLIB::HTSLIB Threads::Threads)
+
+TARGET_LINK_LIBRARIES(dng-call EIGEN3::EIGEN3)
+IF(TARGET ext_eigen3)
+  ADD_DEPENDENCIES(dng-call ext_eigen3)
+ENDIF()
 
 ################################################################################
 # Install
