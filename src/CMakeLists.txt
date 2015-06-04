@@ -90,8 +90,8 @@ TARGET_LINK_LIBRARIES(dng-call
   ${Boost_FILESYSTEM_LIBRARY}
   ${Boost_SYSTEM_LIBRARY}
 )
-TARGET_LINK_LIBRARIES(dng-call ${HTSLIB_LIBRARIES} Threads::Threads ZLIB::ZLIB)
-SET(dng_call_ext ${HTSLIB_EXT_TARGET} ${EIGEN3_EXT_TARGET} ${BOOST_EXT_TARGET})
+TARGET_LINK_LIBRARIES(dng-call HTSLIB::HTSLIB Threads::Threads)
+SET(dng_call_ext ${EIGEN3_EXT_TARGET} ${BOOST_EXT_TARGET})
 IF(dng_call_ext)
   ADD_DEPENDENCIES(dng-call ${dng_call_ext})
 ENDIF()
