@@ -99,9 +99,14 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT Boost_FOUND)
   SET(boost_bootstrap "./bootstrap.sh")
   IF(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
     LIST(APPEND boost_bootstrap --with-toolset=clang)
+    SET(boost_toolset "toolset=clang-${CMAKE_CXX_COMPILER_VERSION}")
   ELSEIF(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     LIST(APPEND boost_bootstrap --with-toolset=gcc)
-  endif()
+    SET(boost_toolset "toolset=gcc-${CMAKE_CXX_COMPILER_VERSION}")
+  ELSEIF(CMAKE_CXX_COMPILER_ID STREQUAL "INTEL")
+    LIST(APPEND boost_bootstrap --with-toolset=intel)
+    SET(boost_toolset "toolset=intel-${CMAKE_CXX_COMPILER_VERSION}")
+  ENDIF()
 
   SET(boost_build "./b2" install
     --prefix=<INSTALL_DIR>
@@ -115,6 +120,7 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT Boost_FOUND)
     link=static
     runtime-link=shared
     cxxflags=-std=c++11
+    ${boost_toolset}
     ${boost_variant}
   )
 
