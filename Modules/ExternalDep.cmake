@@ -136,6 +136,7 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT Boost_FOUND)
   SET(Boost_FOUND TRUE)
   SET(Boost_VERSION 1.57)
   SET(Boost_INCLUDE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/boost/include/")
+  FILE(MAKE_DIRECTORY "${Boost_INCLUDE_DIRS}")
 
   SET(Boost_LIBRARIES)
   FOREACH(ext_boost_name PROGRAM_OPTIONS FILESYSTEM SYSTEM UNIT_TEST_FRAMEWORK)
@@ -144,6 +145,10 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT Boost_FOUND)
     SET(Boost_${ext_boost_name}_LIBRARY "${boost_ext_libdir}/libboost_${ext_boost_lowname}.a")
     SET(Boost_LIBRARIES ${Boost_LIBRARIES} ${Boost_${ext_boost_name}_LIBRARY})
   ENDFOREACH()
+  ADD_CUSTOM_COMMAND(OUTPUT ${Boost_PROGRAM_OPTIONS_LIBRARY}
+    COMMAND x
+    DEPENDS ext_boost
+  )
 
   SET(Boost_LIBRARY_DIRS "")
   SET(BOOST_EXT_TARGET ext_boost)
@@ -152,6 +157,18 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT Boost_FOUND)
 ENDIF()
 
 IF(Boost_FOUND)
+  FOREACH(ext_boost_name PROGRAM_OPTIONS FILESYSTEM SYSTEM UNIT_TEST_FRAMEWORK)
+    if(Boost_${ext_boost_name}_FOUND AND NOT TARGET Boost::${ext_boost_name})
+      add_library(Boost::${ext_boost_name} UNKNOWN IMPORTED)
+      set_target_properties(Boost::${ext_boost_name} PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${Boost_INCLUDE_DIRS}"
+        IMPORTED_LOCATION "${Boost_${ext_boost_name}_LIBRARY}"
+      )
+      IF(BOOST_EXT_TARGET)
+        ADD_DEPENDENCIES(Boost::${ext_boost_name} ext_boost)
+      endif()
+    endif()  
+  ENDFOREACH()
   ADD_DEFINITIONS(-DBOOST_ALL_NO_LIB -DBOOST_PROGRAM_OPTIONS_NO_LIB)
   INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
   LINK_DIRECTORIES(${Boost_LIBRARY_DIRS})

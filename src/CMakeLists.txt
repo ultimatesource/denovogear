@@ -86,19 +86,13 @@ TARGET_LINK_LIBRARIES(dng-phaser newmat dngutils)
 TARGET_LINK_LIBRARIES(dng-phaser ZLIB::ZLIB)
 
 TARGET_LINK_LIBRARIES(dng-call
-  ${Boost_PROGRAM_OPTIONS_LIBRARY}
-  ${Boost_FILESYSTEM_LIBRARY}
-  ${Boost_SYSTEM_LIBRARY}
+  Boost::PROGRAM_OPTIONS Boost::FILESYSTEM Boost::SYSTEM
 )
 TARGET_LINK_LIBRARIES(dng-call
   EIGEN3::EIGEN3
   HTSLIB::HTSLIB
   Threads::Threads
 )
-SET(dng_call_ext ${BOOST_EXT_TARGET})
-IF(dng_call_ext)
-  ADD_DEPENDENCIES(dng-call ${dng_call_ext})
-ENDIF()
 
 ################################################################################
 # Install
