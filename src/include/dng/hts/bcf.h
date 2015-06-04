@@ -152,7 +152,7 @@ protected:
 
     const bcf_hdr_t *hdr() {
         // check if the header pointer has not been initialized
-        assert(hdr_ == true);
+        assert(hdr_);
         return hdr_.get();
     }
 
