@@ -77,10 +77,9 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT ZLIB_FOUND)
   MESSAGE(STATUS "Building ZLIB ${ZLIB_VERSION_STRING} as external dependency")
 ENDIF()
 
-IF(ZLIB_FOUND)
-ELSE()
+IF(NOT ZLIB_FOUND)
   SET(missing_ext_deps TRUE)
-ENDIF(ZLIB_FOUND)
+ENDIF()
 
 ################################################################################
 # BOOST
@@ -183,16 +182,20 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT EIGEN3_FOUND)
   SET(EIGEN3_FOUND TRUE)
   SET(EIGEN3_VERSION 3.2.4)
   SET(EIGEN3_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/eigen3/include/eigen3/")
-  SET(EIGEN3_EXT_TARGET ext_eigen3)
+  if(NOT TARGET EIGEN3::EIGEN3)
+    add_library(EIGEN3::EIGEN3 UNKNOWN IMPORTED)
+    set_target_properties(EIGEN3::EIGEN3 PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES "${EIGEN3_INCLUDE_DIR};${EIGEN3_INCLUDE_DIR}/unsupported"
+    )
+    ADD_DEPENDENCIES(EIGEN3::EIGEN3 ext_eigen3)
+    FILE(MAKE_DIRECTORY "${EIGEN3_INCLUDE_DIR}/unsupported")
+  endif()  
   MESSAGE(STATUS "Building Eigen3 ${EIGEN3_VERSION} as external dependency")
 ENDIF()
 
-IF(EIGEN3_FOUND)
-  INCLUDE_DIRECTORIES(${EIGEN3_INCLUDE_DIR})
-  INCLUDE_DIRECTORIES(${EIGEN3_INCLUDE_DIR}/unsupported)
-ELSE()
+IF(NOT EIGEN3_FOUND)
   SET(missing_ext_deps TRUE)
-ENDIF(EIGEN3_FOUND)
+ENDIF()
 
 ################################################################################
 # HTSLIB
@@ -238,10 +241,9 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT HTSLIB_FOUND)
   MESSAGE(STATUS "Building HTSLIB ${HTSLIB_VERSION} as external dependency")
 ENDIF()
 
-IF(HTSLIB_FOUND)
-ELSE()
+IF(NOT HTSLIB_FOUND)
   SET(missing_ext_deps TRUE)
-ENDIF(HTSLIB_FOUND)
+ENDIF()
 
 ################################################################################
 # Help Message
