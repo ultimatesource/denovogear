@@ -6,3 +6,4 @@ ADD_LIBRARY(dngutils
 	bam_pileup.c bam_index.c faidx.c razf.c index.c
 )
 SET_TARGET_PROPERTIES(dngutils PROPERTIES LINKER_LANGUAGE C)
+TARGET_LINK_LIBRARIES(dngutils ZLIB::ZLIB)
