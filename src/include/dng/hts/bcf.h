@@ -27,8 +27,140 @@
 #include <set>
 #include <htslib/vcf.h>
 
+extern "C" {
+    // The htslib header does not match the library
+    void bcf_empty1(bcf1_t *v);
+}
+
 namespace hts {
 namespace bcf {
+
+typedef bcf1_t BareVariant;
+
+class File;
+
+class Variant : protected BareVariant {
+public:
+    Variant() = default;
+    Variant(const File &file);
+
+    ~Variant() {
+        bcf_empty1(base());
+    }
+
+    void Clear() {
+        bcf_clear(base());
+    }
+
+    // Getters
+    int32_t target_id() const { return rid; }
+    int32_t position() const { return pos; }
+    int32_t ref_length() const { return rlen; }
+    float quality() const { return qual; }
+
+    // Setters
+    void quality(float q) { qual = q; }
+    void target(const char *chrom) {
+        rid = (chrom != nullptr) ? bcf_hdr_name2id(hdr(), chrom) : -1;
+    }
+    void position(int32_t p) { pos = p; }
+    void id(const char *str) {
+        bcf_update_id(hdr(), base(), str);
+    }
+    int filter(const char *str) {
+        if(str == nullptr) {
+            return 0;
+        }
+        int32_t fid = bcf_hdr_id2int(hdr(), BCF_DT_ID, str);
+        return bcf_add_filter(hdr(), base(), fid);
+    }
+    int filter(const std::string &str) {
+        int32_t fid = bcf_hdr_id2int(hdr(), BCF_DT_ID, str.c_str());
+        return bcf_add_filter(hdr(), base(), fid);
+    }
+
+    /**
+     * alleles() - Set the REF and ALT fields in the current record
+     * @str: A comma separated list of all the alleles that show up in the sample.
+     *       the first element is the REF value.
+     */
+    int alleles(const std::string &str) {
+        return bcf_update_alleles_str(hdr(), base(), str.c_str());
+    }
+    int alleles(const char *str) {
+        if(str == nullptr) {
+            return 0;
+        }
+        return bcf_update_alleles_str(hdr(), base(), str);
+    }
+
+    /**
+     * info() - Add another key=Value pair to the INFO field
+     * @key: must be defined in the Header or won't be added.
+     * @value: if set to NULL then previous set key-value pairs will be removed.
+     *
+     * TODO: Add a vector<> version of flat, ints, and strings.
+     */
+    int info(const char *key, float value) {
+        assert(key != nullptr);
+        return bcf_update_info_float(hdr(), base(), key, &value, 1);
+    }
+    int info(const char *key, int32_t value) {
+        assert(key != nullptr);
+        return bcf_update_info_int32(hdr(), base(), key, &value, 1);
+    }
+    int info(const char *key, const std::string &value) {
+        assert(key != nullptr);
+        return bcf_update_info_string(hdr(), base(), key, value.c_str());
+    }
+    int info(const char *key, const char *value) {
+        assert(key != nullptr);
+        return bcf_update_info_string(hdr(), base(), key, value);
+    }
+
+    /**
+     * samples() - Add a key to the FORMAT field and update each sample column
+     *                  with the corresponding key values.
+     * @name: the tag name that appears in FORMAT field. Must be defined in the header
+     * @data: A list of values that will populate the sample/genotype fields. The vector
+     *        should be a multiple of the number sample columns.
+     */
+    int samples(const char *name, const std::vector<float> &data) {
+        assert(name != nullptr);
+        return bcf_update_format_float(hdr(), base(), name, &data[0], data.size());
+    }
+    int samples(const char *name, const std::vector<int32_t> &data) {
+        assert(name != nullptr);
+        return bcf_update_format_int32(hdr(), base(), name, &data[0], data.size());
+    }
+    int samples(const char *name, const std::vector<const char *> &data) {
+        assert(name != nullptr);
+        return bcf_update_format_string(hdr(), base(), name,
+                                        const_cast<const char **>(&data[0]), data.size());
+    }
+    int samples(const char *name, const std::vector<std::string> &data) {
+        std::vector<const char *> v(data.size());
+        for(decltype(data.size()) u = 0; u < data.size(); ++u) {
+            v[u] = data[u].c_str();
+        }
+        return samples(name, v);
+    }
+
+protected:
+    BareVariant *base() {return static_cast<BareVariant *>(this);}
+    const BareVariant *base() const {return static_cast<const BareVariant *>(this);}
+
+    const bcf_hdr_t *hdr() {
+        // check if the header pointer has not been initialized
+        assert(hdr_);
+        return hdr_.get();
+    }
+
+private:
+    std::shared_ptr<const bcf_hdr_t> hdr_;
+
+    friend class File;
+};
 
 /**
  * File - Class for writing VCF/BCF files to the output, either stdout or to a file
@@ -48,32 +180,30 @@ public:
      * @mode: "w" = write VCF, "wb" = write BCF
      * @source: name of application writing the VCF file (optional)
      */
-    File(hts::File &&other) : hts::File(std::move(other)),
-        hdr_{nullptr, bcf_hdr_destroy}, rec_{nullptr, bcf_destroy} {
-
+    File(hts::File &&other) : hts::File(std::move(other)) {
         if(!is_open()) { // nothing to do
             return;
         }
 
         if(is_write()) {
-            hdr_.reset(bcf_hdr_init("w"));
+            hdr_ = std::shared_ptr<bcf_hdr_t>(bcf_hdr_init("w"), bcf_hdr_destroy);
         } else {
             if(format().category != variant_data)
                 throw std::runtime_error("file '" + std::string(name())
                                          + "' does not contain variant data (BCF/VCF).");
-            hdr_.reset(bcf_hdr_read(handle()));
+            hdr_ = std::shared_ptr<bcf_hdr_t>(bcf_hdr_read(handle()), bcf_hdr_destroy);
         }
         if(!hdr_) {
             throw std::runtime_error("unable to access header in file '" + std::string(
                                          name()) + "'.");
         }
-        rec_.reset(bcf_init1());
-        if(!rec_) {
-            throw std::runtime_error("unable to construct bcf record.");
-        }
     }
 
     File(const char *file, const char *mode) : File(hts::File(file, mode)) {
+    }
+
+    Variant InitVariant() const {
+        return Variant{*this};
     }
 
     /** Use this version to add a new INFO/FILTER/FORMAT string to the header */
@@ -122,8 +252,8 @@ public:
 
     /** Creates the header field. Call only after adding all the sample fields */
     int WriteHeader() {
-        bcf_hdr_add_sample(hdr(),
-                           nullptr); // htslib requires NULL sample before it will write out all the other samples
+        // htslib requires NULL sample before it will write out all the other samples
+        bcf_hdr_add_sample(hdr(), nullptr);
         return bcf_hdr_write(handle(), hdr());
     }
 
@@ -133,115 +263,18 @@ public:
 
     const bcf_hdr_t *header() const { return hdr_.get(); }
 
-    //TODO: Split off rec into its own wrapper.
-
-    /**
-     * SetID() - Sets the CHROM, POS, and ID fields in the VCF record.
-     * chrom is required field. If id is NULL then ID value will default to "."
-     */
-    void SetID(const char *chrom, int pos, const char *id = nullptr) {
-        // CHROM
-        if(chrom == nullptr) {
-            return;    // should display some error?
-        }
-        rec_->rid = bcf_hdr_name2id(hdr(), chrom);
-
-        // POS
-        rec_->pos = pos;
-
-        // ID
-        if(id != nullptr) {
-            bcf_update_id(hdr(), rec_.get(), id);
-        }
-    }
-
-    void SetQuality(int quality) {
-        rec_->qual = quality;
-    }
-
-
-    int SetFilter(const char *filter) {
-        if(filter == nullptr) {
-            return 0;
-        }
-        int32_t fid = bcf_hdr_id2int(hdr(), BCF_DT_ID, filter);
-        return bcf_update_filter(hdr(), rec_.get(), &fid, 1);
-    }
-
-    /**
-     * SetAlleles() - Set the REF and ALT fields in the current record
-     * @str: A comma separated list of all the alleles that show up in the sample.
-     *       the first element is the REF value.
-     */
-    int SetAlleles(const std::string &str) {
-        if(str.empty()) {
-            return 0;
-        }
-        return bcf_update_alleles_str(hdr(), rec_.get(), str.c_str());
-    }
-
-
-    /**
-     * UpdateInfoField() - Add another key=Value pair to the INFO field
-     * @key: must be defined in the Header or won't be added.
-     * @value: if set to NULL then previous set key-value pairs will be removed.
-     *
-     * TODO: Add a vector<> version of flat, ints, and strings.
-     */
-    int UpdateInfo(const char *key, float value) {
-        return bcf_update_info_float(hdr(), rec_.get(), key, &value, 1);
-    }
-
-    int UpdateInfo(const char *key, int32_t value) {
-        return bcf_update_info_int32(hdr(), rec_.get(), key, &value, 1);
-    }
-
-    int UpdateInfo(const char *key, std::string &value) {
-        return bcf_update_info_string(hdr(), rec_.get(), key, value.c_str());
-    }
-
-
-    /**
-     * UpdateSample() - Add a key to the FORMAT field and update each sample column
-     *                  with the corresponding key values.
-     * @name: the tag name that appears in FORMAT field. Must be defined in the header
-     * @data: A list of values that will populate the sample/genotype fields. The vector
-     *        should be a multiple of the number sample columns.
-     */
-    int UpdateSamples(const char *name, const std::vector<float> &data) {
-        assert(name != nullptr);
-        return bcf_update_format_float(hdr(), rec_.get(), name, &data[0], data.size());
-    }
-    int UpdateSamples(const char *name, const std::vector<int32_t> &data) {
-        assert(name != nullptr);
-        return bcf_update_format_int32(hdr(), rec_.get(), name, &data[0], data.size());
-    }
-    int UpdateSamples(const char *name, const std::vector<const char *> &data) {
-        assert(name != nullptr);
-        return bcf_update_format_string(hdr(), rec_.get(), name,
-                                        const_cast<const char **>(&data[0]), data.size());
-    }
-    int UpdateSamples(const char *name, const std::vector<std::string> &data) {
-        std::vector<const char *> v(data.size());
-        for(decltype(data.size()) u = 0; u < data.size(); ++u) {
-            v[u] = data[u].c_str();
-        }
-        return UpdateSamples(name, v);
-    }
-
     /** Writes out the up-to-date info in the record and prepares for the next line */
-    void WriteRecord() {
+    void WriteRecord(Variant &rec) {
         // Add line to the body of the VCF
-        bcf_write1(handle(), hdr(), rec_.get());
-        // reset the record for the next line
-        bcf_clear(rec_.get());
+        assert(rec.hdr() == hdr());
+        bcf_write(handle(), hdr(), &rec);
     }
 protected:
     bcf_hdr_t *hdr() { return hdr_.get(); }
 
 private:
-    std::unique_ptr<bcf_hdr_t, void(*)(bcf_hdr_t *)> hdr_;
-    std::unique_ptr<bcf1_t, void(*)(bcf1_t *)> rec_;
+    //std::shared_ptr<bcf_hdr_t, void(*)(bcf_hdr_t *)> hdr_;
+    std::shared_ptr<bcf_hdr_t> hdr_;
 
 public:
     // Indicates type of mutation in VCF record
@@ -251,7 +284,12 @@ public:
     static const uint16_t INDEL = VCF_INDEL;
     static const uint16_t OTHER = VCF_OTHER;
 
+    friend class Variant;
 };
+
+Variant::Variant(const File &file) : BareVariant(), hdr_{file.hdr_} {
+    // NOOP
+}
 
 }
 } // namespace hts::bcf

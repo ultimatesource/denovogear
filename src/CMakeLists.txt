@@ -2,18 +2,6 @@ INCLUDE(CheckIncludeFile)
 INCLUDE(CheckFunctionExists)
 INCLUDE(CheckLibraryExists)
 
-IF(USE_STATIC_LIBS)
-  SET(Boost_USE_STATIC_LIBS ON)
-  SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-ENDIF(USE_STATIC_LIBS)
-
-SET(THREADS_PREFER_PTHREAD_FLAG ON)
-FIND_PACKAGE(Threads)
-
-FIND_PACKAGE(ZLIB REQUIRED)
-
-INCLUDE(ExternalDep)
-
 ################################################################################
 # Always make a full statement RPATH
 # See http://www.itk.org/Wiki/CMake_RPATH_handling
@@ -107,11 +95,14 @@ TARGET_LINK_LIBRARIES(dng-phaser ZLIB::ZLIB)
 TARGET_LINK_LIBRARIES(dng-phaser ${Boost_LIBRARIES})
 TARGET_LINK_LIBRARIES(dng-phaser ${HTSLIB_LIBRARIES})
 
-TARGET_LINK_LIBRARIES(dng-call ${Boost_LIBRARIES})
-TARGET_LINK_LIBRARIES(dng-call ${HTSLIB_LIBRARIES} Threads::Threads ZLIB::ZLIB)
-SET(dng_call_ext ${HTSLIB_EXT_TARGET} ${EIGEN3_EXT_TARGET} ${BOOST_EXT_TARGET})
-IF(dng_call_ext)
-  ADD_DEPENDENCIES(dng-call ${dng_call_ext})
+TARGET_LINK_LIBRARIES(dng-call
+  Boost::PROGRAM_OPTIONS Boost::FILESYSTEM Boost::SYSTEM
+)
+TARGET_LINK_LIBRARIES(dng-call HTSLIB::HTSLIB Threads::Threads)
+
+TARGET_LINK_LIBRARIES(dng-call EIGEN3::EIGEN3)
+IF(TARGET ext_eigen3)
+  ADD_DEPENDENCIES(dng-call ext_eigen3)
 ENDIF()
 
 ################################################################################

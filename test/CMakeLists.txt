@@ -1,6 +1,3 @@
-FIND_PACKAGE(Boost COMPONENTS unit_test_framework REQUIRED)
-FIND_PACKAGE(HTSLIB)
-
 ################################################################################
 # Determine the location of the executables/scripts and any data sets required for full package testing
 # TODO: Search for packages and data installed outside of denovogear directory, move to ../modules/
@@ -11,11 +8,10 @@ IF(NOT TEST_DATA_DIR)
   ELSEIF(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/../testdata)
     SET(TEST_DATA_DIR ${CMAKE_SOURCE_DIR}/../testdata)
   ELSE(NOT TEST_DATA_DIR)
-    MESSAGE("Unable to find data for full package testing. Please set TEST_DATA_DIR")
+    MESSAGE(STATUS "WARNING: Unable to find data for full package testing. Please set TEST_DATA_DIR.")
   ENDIF(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/testdata)
 ENDIF(NOT TEST_DATA_DIR)
 
-SET(DNG_DNM_EXE ${CMAKE_BINARY_DIR}/src/dng-dnm)
 
 ################################################################################
 # Compile unit tests
@@ -23,23 +19,42 @@ include_directories(../src/include)
 include_directories(${Boost_INCLUDE_DIRS})
 include_directories(${EIGEN3_INCLUDE_DIR})
 include_directories(${EIGEN3_INCLUDE_DIR}/unsupported)
-add_definitions(-DBOOST_TEST_DYN_LINK)
+
+IF(NOT Boost_USE_STATIC_LIBS)
+  add_definitions(-DBOOST_TEST_DYN_LINK)
+ENDIF()
 
 # Make a test for each unit test file located in test/ dir
 file(GLOB_RECURSE TESTS test_*[cc|cpp])
 foreach(test ${TESTS})
   get_filename_component(testName ${test} NAME_WE)
-  add_executable(${testName} ${test})
+  add_executable(${testName} EXCLUDE_FROM_ALL ${test})
   set_target_properties(${testName} PROPERTIES CXX_STANDARD 11)
   set_target_properties(${testName} PROPERTIES CXX_STANDARD_REQUIRED ON)
-  target_link_libraries(${testName} ${Boost_LIBRARIES} ${HTSLIB_LIBRARIES})
-  add_test(${testName} ${testName})
+  target_link_libraries(${testName} Threads::Threads)
+  IF(Boost_FOUND)
+    target_link_libraries(${testName}
+      ${Boost_PROGRAM_OPTIONS_LIBRARY}
+      ${Boost_FILESYSTEM_LIBRARY}
+      ${Boost_SYSTEM_LIBRARY}
+      ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY}
+    )
+  ENDIF(Boost_FOUND)
+  IF(HTSLIB_FOUND)
+    target_link_libraries(${testName} ${HTSLIB_LIBRARIES})
+  ENDIF(HTSLIB_FOUND)
+  IF(ZLIB_FOUND)
+    target_link_libraries(${testName} ZLIB::ZLIB)
+  ENDIF(ZLIB_FOUND)
+  add_test(${testName}_build "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target ${testName})
+  add_test(${testName}_run ${testName})
+  set_tests_properties(${testName}_run PROPERTIES DEPENDS ${testName}_build)
 endforeach(test)
 
 ################################################################################
 # Full executable tests
-IF(NOT IS_DIRECTORY "${TEST_DATA_DIR}")
-  MESSAGE("Could not find directory ${TEST_DATA_DIR}. Full Package tests will fail")
+IF(DEFINED TEST_DATA_DIR AND NOT IS_DIRECTORY "${TEST_DATA_DIR}")
+  MESSAGE(STATUS "WARNING: Could not find directory ${TEST_DATA_DIR}. Full Package tests will fail")
 ENDIF()
     
 ADD_TEST(Test_Help ${DNG_CALL_EXE})
@@ -55,7 +70,6 @@ SET_TESTS_PROPERTIES(FullTest_Sample5.3_VCF PROPERTIES
   PASS_REGULAR_EXPRESSION "57,0,0"
   PASS_REGULAR_EXPRESSION "76,1,0")
 
-
 ADD_TEST(FullTest_SampleCEU_DNM ${DNG_DNM_EXE} auto --ped ${TEST_DATA_DIR}/sample_CEU/sample_CEU.ped --bcf ${TEST_DATA_DIR}/sample_CEU/sample_CEU.vcf --snp_mrate 2e-10 --indel_mrate 1e-11)
 SET_TESTS_PROPERTIES(FullTest_SampleCEU_DNM PROPERTIES
   PASS_REGULAR_EXPRESSION "First mrate: 1 last: 1"
@@ -68,6 +82,3 @@ SET_TESTS_PROPERTIES(FullTest_SampleCEU_DNM PROPERTIES
   PASS_REGULAR_EXPRESSION "maxlike_null: 3.95324e-12"
   PASS_REGULAR_EXPRESSION "pp_null: 0.0195898")
 #DENOVO-SNP CHILD_ID: NA12878_vald-sorted.bam.bam chr: 2 pos: 214668360 ref: G alt: A maxlike_null: 3.95324e-12 pp_null: 0.0195898 tgt_null(child/mom/dad): GG/GG/GG snpcode: 1 code: 6 maxlike_dnm: 1.98602e-10 pp_dnm: 0.98041 tgt_dnm(child/mom/dad): AG/GG/GG lookup: 4 flag: 0 READ_DEPTH child: 48 dad: 76 mom: 34 MAPPING_QUALITY child: 59 dad: 59 mom: 59
-
-
-
