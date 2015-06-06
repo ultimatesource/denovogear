@@ -42,6 +42,7 @@ class File;
 class Variant : protected BareVariant {
 public:
     Variant() = default;
+
     Variant(const File &file);
 
     ~Variant() {
@@ -287,9 +288,13 @@ public:
     friend class Variant;
 };
 
-Variant::Variant(const File &file) : BareVariant(), hdr_{file.hdr_} {
-    // NOOP
+
+// NOTE: Need inline (or put into cpp file) otherwise will have clash when multiple source files
+// call bcf.h.
+inline Variant::Variant(const File &file) : BareVariant(), hdr_{file.hdr_} {
+  // NOOP
 }
+
 
 }
 } // namespace hts::bcf

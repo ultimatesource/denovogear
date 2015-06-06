@@ -17,7 +17,6 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
 */
-
 #include <vector>
 #include <iostream>
 #include <fstream>
@@ -25,11 +24,9 @@
 #include "parser.h"
 #include "lookup.h"
 
-#ifndef NEWMAT_H
-#define NEWMAT_H
 #include "newmatap.h"
 #include "newmatio.h"
-#endif
+
 
 using namespace std;
 
@@ -110,38 +107,40 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
         cout << endl;
 
 	if(!vcfout.empty()) {
-	  vcfout[0].SetID(ref_name, coor, nullptr);
-	  vcfout[0].SetAlleles(std::string(1, tumor.ref_base) + "," + alt); 
-	  vcfout[0].SetQuality(0);
-	  vcfout[0].SetFilter("PASS");
+	  auto rec = vcfout[0].InitVariant();
+	  rec.target(ref_name);
+	  rec.position(coor);
+	  rec.alleles(std::string(1, tumor.ref_base) + "," + alt); 
+	  rec.quality(0);
+	  rec.filter("PASS");
 #ifndef NEWVCFOUT
 	  // Old vcf output format
-	  vcfout[0].UpdateInfo("RD_NORMAL", normal.depth);
-	  vcfout[0].UpdateInfo("MQ_NORMAL", normal.rms_mapQ);
-	  vcfout[0].UpdateSamples("NULL_CONFIG(normal/tumor)", std::vector<std::string>{tgtPair[i - 1][j - 1]});
-	  vcfout[0].UpdateSamples("pair_null_code", std::vector<float>{lookupPair.snpcode(i,j)});
-	  vcfout[0].UpdateSamples("PP_NULL", std::vector<float>{pp_null});
-	  vcfout[0].UpdateSamples("DNM_CONFIG(tumor/normal)", std::vector<std::string>{tgtPair[k - 1][l - 1]});
-	  vcfout[0].UpdateSamples("pair_denovo_code", std::vector<float>{lookupPair.snpcode(k,l)});
-	  vcfout[0].UpdateSamples("PP_DNM", std::vector<float>{pp_denovo});
-	  vcfout[0].UpdateSamples("RD_T", std::vector<int32_t>{tumor.depth});
-	  vcfout[0].UpdateSamples("MQ_T", std::vector<int32_t>{tumor.rms_mapQ});
+	  rec.info("RD_NORMAL", normal.depth);
+	  rec.info("MQ_NORMAL", normal.rms_mapQ);
+	  rec.samples("NULL_CONFIG(normal/tumor)", std::vector<std::string>{tgtPair[i - 1][j - 1]});
+	  rec.samples("pair_null_code", std::vector<float>{static_cast<float>(lookupPair.snpcode(i,j))});
+	  rec.samples("PP_NULL", std::vector<float>{static_cast<float>(pp_null)});
+	  rec.samples("DNM_CONFIG(tumor/normal)", std::vector<std::string>{tgtPair[k - 1][l - 1]});
+	  rec.samples("pair_denovo_code", std::vector<float>{static_cast<float>(lookupPair.snpcode(k,l))});
+	  rec.samples("PP_DNM", std::vector<float>{static_cast<float>(pp_denovo)});
+	  rec.samples("RD_T", std::vector<int32_t>{tumor.depth});
+	  rec.samples("MQ_T", std::vector<int32_t>{tumor.rms_mapQ});
 #else
 	  
 	  // Newer, more accurate VCF output format
-	  vcfout[0].UpdateInfo("pair_null_code", static_cast<float>(lookupPair.snpcode(i,j)));
-	  vcfout[0].UpdateInfo("pair_denovo_code", static_cast<float>(lookupPair.snpcode(k,l)));
-	  vcfout[0].UpdateInfo("PP_NULL", static_cast<float>(pp_null));
-	  vcfout[0].UpdateInfo("PP_DNM", static_cast<float>(pp_denovo));
-	  vcfout[0].UpdateSamples("RD", std::vector<int32_t>{tumor.depth, normal.depth});
-	  vcfout[0].UpdateSamples("MQ", std::vector<int32_t>{tumor.rms_mapQ, normal.rms_mapQ});
+	  rec.info("pair_null_code", static_cast<float>(lookupPair.snpcode(i,j)));
+	  rec.info("pair_denovo_code", static_cast<float>(lookupPair.snpcode(k,l)));
+	  rec.info("PP_NULL", static_cast<float>(pp_null));
+	  rec.info("PP_DNM", static_cast<float>(pp_denovo));
+	  rec.samples("RD", std::vector<int32_t>{tumor.depth, normal.depth});
+	  rec.samples("MQ", std::vector<int32_t>{tumor.rms_mapQ, normal.rms_mapQ});
 	  std::vector<std::string> configs;
 	  boost::split(configs, tgt[i-1][j-1], boost::is_any_of("/"));
-	  vcfout[0].UpdateSamples("NULL_CONFIG", configs);
+	  rec.samples("NULL_CONFIG", configs);
 	  boost::split(configs, tgt[k-1][l-1], boost::is_any_of("/"));
-	  vcfout[0].UpdateSamples("DNM_CONFIG", configs);  
+	  rec.samples("DNM_CONFIG", configs);  
 #endif
-	  vcfout[0].WriteRecord();
+	  vcfout[0].WriteRecord(rec);
 	}
 
 	/*

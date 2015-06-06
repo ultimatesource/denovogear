@@ -18,6 +18,9 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifndef MAKE_LOOKUP_H
+#define MAKE_LOOKUP_H
+
 #include <vector>
 using namespace std;
 
@@ -63,3 +66,5 @@ void makeXDSNPLookup(double SNPMrate, double PolyRate,
 // Indel Lookup for the XD model
 void makeXDIndelLookup(double PolyRate,
                        vector<vector<string > > &tgt, lookup_indel_t &lookupIndel);
+
+#endif

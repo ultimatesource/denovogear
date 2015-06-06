@@ -165,38 +165,40 @@ void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
 
 
 	if(!vcfout.empty()) {
-	  vcfout[0].SetID(ref_name, coor, nullptr);
-	  vcfout[0].SetAlleles(std::string(mom->ref_base) + "," + alt); 
-	  vcfout[0].SetQuality(0);
-	  vcfout[0].SetFilter("PASS");
+	  auto rec = vcfout[0].InitVariant();
+	  rec.target(ref_name);
+	  rec.position(coor);
+	  rec.alleles(std::string(mom->ref_base) + "," + alt); 
+	  rec.quality(0);
+	  rec.filter("PASS");
 #ifndef NEWVCFOUT
 	  // Old vcf output format
-	  vcfout[0].UpdateInfo("RD_MOM", mom->depth);
-	  vcfout[0].UpdateInfo("RD_DAD", dad->depth);
-	  vcfout[0].UpdateInfo("MQ_MOM", mom->rms_mapQ);
-	  vcfout[0].UpdateInfo("MQ_DAD", dad->rms_mapQ);
-	  vcfout[0].UpdateInfo("INDELcode", static_cast<float>(lookupIndel.snpcode(i,j)));
-	  vcfout[0].UpdateSamples("NULL_CONFIG(child/mom/dad)", std::vector<std::string>{tgtIndel[i - 1][j - 1]});
-	  vcfout[0].UpdateSamples("PP_NULL", std::vector<float>{pp_null});
-	  vcfout[0].UpdateSamples("DNM_CONFIG(child/mom/dad)", std::vector<std::string>{tgtIndel[k - 1][l - 1]});
-	  vcfout[0].UpdateSamples("PP_DNM", std::vector<float>{pp_denovo});
-	  vcfout[0].UpdateSamples("RD", std::vector<int32_t>{child->depth});
-	  vcfout[0].UpdateSamples("MQ", std::vector<int32_t>{child->rms_mapQ});
+	  rec.info("RD_MOM", mom->depth);
+	  rec.info("RD_DAD", dad->depth);
+	  rec.info("MQ_MOM", mom->rms_mapQ);
+	  rec.info("MQ_DAD", dad->rms_mapQ);
+	  rec.info("INDELcode", static_cast<float>(lookupIndel.snpcode(i,j)));
+	  rec.samples("NULL_CONFIG(child/mom/dad)", std::vector<std::string>{tgtIndel[i - 1][j - 1]});
+	  rec.samples("PP_NULL", std::vector<float>{static_cast<float>(pp_null)});
+	  rec.samples("DNM_CONFIG(child/mom/dad)", std::vector<std::string>{tgtIndel[k - 1][l - 1]});
+	  rec.samples("PP_DNM", std::vector<float>{static_cast<float>(pp_denovo)});
+	  rec.samples("RD", std::vector<int32_t>{child->depth});
+	  rec.samples("MQ", std::vector<int32_t>{child->rms_mapQ});
 #else
 	  
 	  // Newer, more accurate VCF output format
-	  vcffile.UpdateInfo("INDELcode", static_cast<float>(lookupIndel.snpcode(i,j)));
-	  vcffile.UpdateInfo("PP_NULL", static_cast<float>(pp_null));
-	  vcffile.UpdateInfo("PP_DNM", static_cast<float>(pp_denovo));
-	  vcffile.UpdateSamples("RD", std::vector<int32_t>{child->depth, mom->depth, dad->depth});
-	  vcffile.UpdateSamples("MQ", std::vector<int32_t>{child->rms_mapQ, mom->rms_mapQ, dad->rms_mapQ});
+	  rec.info("INDELcode", static_cast<float>(lookupIndel.snpcode(i,j)));
+	  rec.info("PP_NULL", static_cast<float>(pp_null));
+	  rec.info("PP_DNM", static_cast<float>(pp_denovo));
+	  rec.samples("RD", std::vector<int32_t>{child->depth, mom->depth, dad->depth});
+	  rec.samples("MQ", std::vector<int32_t>{child->rms_mapQ, mom->rms_mapQ, dad->rms_mapQ});
 	  std::vector<std::string> configs;
 	  boost::split(configs, tgtIndel[i-1][j-1], boost::is_any_of("/"));
-	  vcffile.UpdateSamples("NULL_CONFIG", configs);
+	  rec.samples("NULL_CONFIG", configs);
 	  boost::split(configs, tgtIndel[k-1][l-1], boost::is_any_of("/"));
-	  vcffile.UpdateSamples("DNM_CONFIG", configs);  
+	  rec.samples("DNM_CONFIG", configs);  
 #endif
-	  vcfout[0].WriteRecord();
+	  vcfout[0].WriteRecord(rec);
 	}
 
 	/*

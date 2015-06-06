@@ -18,13 +18,14 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef CXX_PARSER_H_
-#define CXX_PARSER_H_
+#pragma once
+#ifndef OLD_PARSER_H_
+#define OLD_PARSER_H_
 
 #include <vector>
 #include "pedParser.h"
 #include <dng/hts/bcf.h>
-#include "htslib/vcf.h"
+//#include "htslib/vcf.h"
 
 // TODO: qcall_t, pair_t, and indel_t can be merged. Use struct inheritance.
 // TODO: Create namespace
