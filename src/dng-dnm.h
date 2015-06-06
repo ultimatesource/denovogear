@@ -240,7 +240,7 @@ int callMakePairedLookup(lookup_table_t &tgtPair, lookup_pair_t &lookupPair) {
     return 0;
 }
 
-void writeVCFHeader(hts::bcf::File &vcfout, std::string &bcf_file, std::string &ped_file, std::string &sample) {
+void writeVCFHeader(hts::bcf::File &vcfout, std::string &bcf_file, std::string &ped_file, std::vector<std::string> &samples) {
 
   vcfout.AddHeaderMetadata("##fileformat=VCFv4.1");
   vcfout.AddHeaderMetadata("##source=", PACKAGE_STRING);
@@ -253,6 +253,9 @@ void writeVCFHeader(hts::bcf::File &vcfout, std::string &bcf_file, std::string &
   vcfout.AddHeaderMetadata("##mutation_rate_paired=", pair_mrate);
   vcfout.AddHeaderMetadata("##mutation_rate_polymorphism=", poly_rate);
   vcfout.AddHeaderMetadata("##mutation_rate_indel_scaling_constant=", mu_scale);
+
+#ifndef NEWVCFOUT
+  // Old format, doesn't work well with htslib
   vcfout.AddHeaderMetadata("##INFO=<ID=RD_MOM,Number=1,Type=Integer,Description=\"Read depth for MOM\">");
   vcfout.AddHeaderMetadata("##INFO=<ID=RD_DAD,Number=1,Type=Integer,Description=\"Read depth for DAD\">");
   vcfout.AddHeaderMetadata("##INFO=<ID=RD_NORMAL,Number=1,Type=Integer,Description=\"Read depth for Normal sample in Paired Sample Analysis\">");
@@ -273,7 +276,15 @@ void writeVCFHeader(hts::bcf::File &vcfout, std::string &bcf_file, std::string &
   vcfout.AddHeaderMetadata("##FORMAT=<ID=MQ,Number=1,Type=Integer,Description=\"Mapping quality of the child\">");
   vcfout.AddHeaderMetadata("##FORMAT=<ID=RD_T,Number=1,Type=Integer,Description=\"Read Depth of the tumor sample\">");
   vcfout.AddHeaderMetadata("##FORMAT=<ID=MQ_T,Number=1,Type=Integer,Description=\"Mapping quality of the normal sample\">");
-
+  vcfout.AddSample(samples[0].c_str());
+#else
+  // Newer header, produces more standarized VCF output
+  vcfout.AddHeaderMetadata("##FORMAT=<ID=RD,Number=1,Type=Integer,Description=\"Read Depth\">");
+  vcfout.AddHeaderMetadata("##FORMAT=<ID=MQ,Number=1,Type=Integer,Description=\"Mapping quality\">");
+  for(std::string sample : samples)
+    vcfout.AddSample(sample.c_str());
+#endif
+  vcfout.WriteHeader();
 }
 
 

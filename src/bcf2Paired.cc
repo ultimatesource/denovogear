@@ -26,19 +26,24 @@
 #include <math.h>
 
 #include "parser.h"
-//#include "prob1.h"
-//#include "kstring.h"
+
+
+// NOTE: Both bcf2Paired.cc and bcf2Qcall.cc were using a lot of redundant code. To make code
+//       managable I move much of into parser.h. 
+// TODO: Run more tests with PAIR SNPs and Indels. If working then delete the commented sectionb below
+// TODO: Most of the functionality in bcf2paired() and bcf_2qcall() can be merged together 
+
+/**************************************************************************************
+#include "prob1.h"
+#include "kstring.h"
 #include "time.h"
-//#include "kseq.h"
+#include "kseq.h"
 
 
 #define MIN_READ_DEPTH 10
 #define MIN_READ_DEPTH_INDEL 10
 #define MIN_MAPQ 40
 
-typedef std::vector<std::vector<int>> sample_vals_int;
-
-// TODO: Can't see a difference between this and bcf2Paired.writeToSNPObject
 void writeToSNPObject(pair_t *tumor, bcf1_t *rec, bcf_hdr_t *hdr, int *g, int d,
                       int mq, int &flag, int i, int i0) {
   
@@ -80,7 +85,7 @@ void writeToSNPObject(pair_t *tumor, bcf1_t *rec, bcf_hdr_t *hdr, int *g, int d,
 static int8_t nt4_table[256] = {
     4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
     4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
-    4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4 /*'-'*/, 4, 4,
+    4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
     4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
     4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, -1, 4,
     4, 4, 4, 4,  3, 4, 4, 4, -1, 4, 4, 4,  4, 4, 4, 4,
@@ -115,6 +120,7 @@ static int read_I16(bcf1_t *rec, bcf_hdr_t *hdr, std::vector<int> &anno) {
   return 0;
 
 }
+**************************************************************************************/
 
 // TODO: Merge first part of code with bcf2QCall.bcf_2qcall()
 // Convert BCF to PairedSample - for each line iterate through samples and look for particular pair
@@ -243,7 +249,7 @@ int bcf2Paired(bcf_hdr_t *hdr, bcf1_t *rec, Pair pair1, pair_t *tumor,
       if(strcmp(pair1.tumorID, sample_ids[i].c_str()) == 0) {
 	found_pair--;
 	if(is_indel == 0) {   // Write to Moms SNP object
-	  writeToSNPObject(tumor, rec, hdr, g, d, mq, flag, i, i0);
+	  writeToSNPObject(tumor, hdr, rec, g, d, mq, flag, i, i0);
 	}
       }
 
@@ -251,7 +257,7 @@ int bcf2Paired(bcf_hdr_t *hdr, bcf1_t *rec, Pair pair1, pair_t *tumor,
       if(strcmp(pair1.normalID, sample_ids[i].c_str()) == 0) {
 	found_pair--;
 	if(is_indel == 0) {   // Write to Moms SNP object
-	  writeToSNPObject(normal, rec, hdr, g, d, mq, flag, i, i0);
+	  writeToSNPObject(normal, hdr, rec, g, d, mq, flag, i, i0);
 	}
       }
 

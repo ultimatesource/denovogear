@@ -109,6 +109,41 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
         cout << " dnm_snpcode: " << lookupPair.snpcode(k, l);
         cout << endl;
 
+	if(!vcfout.empty()) {
+	  vcfout[0].SetID(ref_name, coor, nullptr);
+	  vcfout[0].SetAlleles(std::string(1, tumor.ref_base) + "," + alt); 
+	  vcfout[0].SetQuality(0);
+	  vcfout[0].SetFilter("PASS");
+#ifndef NEWVCFOUT
+	  // Old vcf output format
+	  vcfout[0].UpdateInfo("RD_NORMAL", normal.depth);
+	  vcfout[0].UpdateInfo("MQ_NORMAL", normal.rms_mapQ);
+	  vcfout[0].UpdateSamples("NULL_CONFIG(normal/tumor)", std::vector<std::string>{tgtPair[i - 1][j - 1]});
+	  vcfout[0].UpdateSamples("pair_null_code", std::vector<float>{lookupPair.snpcode(i,j)});
+	  vcfout[0].UpdateSamples("PP_NULL", std::vector<float>{pp_null});
+	  vcfout[0].UpdateSamples("DNM_CONFIG(tumor/normal)", std::vector<std::string>{tgtPair[k - 1][l - 1]});
+	  vcfout[0].UpdateSamples("pair_denovo_code", std::vector<float>{lookupPair.snpcode(k,l)});
+	  vcfout[0].UpdateSamples("PP_DNM", std::vector<float>{pp_denovo});
+	  vcfout[0].UpdateSamples("RD_T", std::vector<int32_t>{tumor.depth});
+	  vcfout[0].UpdateSamples("MQ_T", std::vector<int32_t>{tumor.rms_mapQ});
+#else
+	  
+	  // Newer, more accurate VCF output format
+	  vcfout[0].UpdateInfo("pair_null_code", static_cast<float>(lookupPair.snpcode(i,j)));
+	  vcfout[0].UpdateInfo("pair_denovo_code", static_cast<float>(lookupPair.snpcode(k,l)));
+	  vcfout[0].UpdateInfo("PP_NULL", static_cast<float>(pp_null));
+	  vcfout[0].UpdateInfo("PP_DNM", static_cast<float>(pp_denovo));
+	  vcfout[0].UpdateSamples("RD", std::vector<int32_t>{tumor.depth, normal.depth});
+	  vcfout[0].UpdateSamples("MQ", std::vector<int32_t>{tumor.rms_mapQ, normal.rms_mapQ});
+	  std::vector<std::string> configs;
+	  boost::split(configs, tgt[i-1][j-1], boost::is_any_of("/"));
+	  vcfout[0].UpdateSamples("NULL_CONFIG", configs);
+	  boost::split(configs, tgt[k-1][l-1], boost::is_any_of("/"));
+	  vcfout[0].UpdateSamples("DNM_CONFIG", configs);  
+#endif
+	  vcfout[0].WriteRecord();
+	}
+
 	/*
         if(op_vcf_f != "EMPTY") {
             fo_vcf << ref_name << "\t";

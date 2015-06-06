@@ -185,6 +185,46 @@ void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag,
              << " mom: " << mom.rms_mapQ;
         cout << endl;
 
+	if(!vcfout.empty()) {
+	  vcfout[0].SetID(ref_name, coor, nullptr);
+	  vcfout[0].SetAlleles(std::string(1, mom.ref_base) + "," + alt); 
+	  vcfout[0].SetQuality(0);
+	  vcfout[0].SetFilter("PASS");
+#ifndef NEWVCFOUT
+	  // Old vcf output format
+	  vcfout[0].UpdateInfo("RD_MOM", mom.depth);
+	  vcfout[0].UpdateInfo("RD_DAD", dad.depth);
+	  vcfout[0].UpdateInfo("MQ_MOM", mom.rms_mapQ);
+	  vcfout[0].UpdateInfo("MQ_DAD", dad.rms_mapQ);
+	  vcfout[0].UpdateInfo("SNPcode", static_cast<float>(lookup.snpcode(i,j)));
+	  vcfout[0].UpdateInfo("code", static_cast<float>(lookup.code(i,j)));
+	  vcfout[0].UpdateSamples("NULL_CONFIG(child/mom/dad)", std::vector<std::string>{tgt[i - 1][j - 1]});
+	  vcfout[0].UpdateSamples("PP_NULL", std::vector<float>{pp_null});
+	  vcfout[0].UpdateSamples("ML_NULL", std::vector<float>{maxlike_null});
+	  vcfout[0].UpdateSamples("DNM_CONFIG(child/mom/dad)", std::vector<std::string>{tgt[k - 1][l - 1]});
+	  vcfout[0].UpdateSamples("PP_DNM", std::vector<float>{pp_denovo});
+	  vcfout[0].UpdateSamples("ML_DNM", std::vector<float>{maxlike_denovo});
+	  vcfout[0].UpdateSamples("RD", std::vector<int32_t>{child.depth});
+	  vcfout[0].UpdateSamples("MQ", std::vector<int32_t>{child.rms_mapQ});
+#else
+	  
+	  // Newer, more accurate VCF output format
+	  vcfout[0].UpdateInfo("SNPcode", static_cast<float>(lookup.snpcode(i,j)));
+	  vcfout[0].UpdateInfo("code", static_cast<float>(lookup.code(i,j)));
+	  vcfout[0].UpdateInfo("PP_NULL", static_cast<float>(pp_null));
+	  vcfout[0].UpdateInfo("ML_NULL", static_cast<float>(maxlike_null));
+	  vcfout[0].UpdateInfo("PP_DNM", static_cast<float>(pp_denovo));
+	  vcfout[0].UpdateInfo("ML_DNM", static_cast<float>(maxlike_denovo));
+	  vcfout[0].UpdateSamples("RD", std::vector<int32_t>{child.depth, mom.depth, dad.depth});
+	  vcfout[0].UpdateSamples("MQ", std::vector<int32_t>{child.rms_mapQ, mom.rms_mapQ, dad.rms_mapQ});
+	  std::vector<std::string> configs;
+	  boost::split(configs, tgt[i-1][j-1], boost::is_any_of("/"));
+	  vcfout[0].UpdateSamples("NULL_CONFIG", configs);
+	  boost::split(configs, tgt[k-1][l-1], boost::is_any_of("/"));
+	  vcfout[0].UpdateSamples("DNM_CONFIG", configs);  
+#endif
+	  vcfout[0].WriteRecord();
+	}
 	/*
         if(op_vcf_f != "EMPTY") {
             fo_vcf << ref_name << "\t";

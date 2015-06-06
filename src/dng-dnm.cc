@@ -45,6 +45,7 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
   lookup_table_t tgtPair;
   callMakePairedLookup(tgtPair, lookupPair);
 
+  // TODO: Use Reed's PED parser
   // Iterate each position of BCF file
   Trio *trios;
   Pair *pairs;
@@ -52,21 +53,21 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
   parse_ped(arg.ped, &trios, &pairs, trio_count, pair_count);
 
   //create output vcf -- assumes theres only one trio/pair
-  std::string sample;
+  std::vector<std::string> samples;
   if(trio_count > 0) {
-    sample = trios[0].cID;
-  } else {
-    sample = pairs[0].tumorID;
+    samples.push_back(trios[0].cID);
+    samples.push_back(trios[0].mID);
+    samples.push_back(trios[0].fID);
+  } 
+  else {
+    samples.push_back(pairs[0].tumorID);
+    samples.push_back(pairs[0].normalID);
   }
    
   std::vector<hts::bcf::File> output_vcf;
-  //hts::bcf::File vcf_out(arg.vcf.c_str(), "w");
-  //hts::bcf::File vcf_out("-", "w");
   if(!arg.vcf.empty()) {
     output_vcf.emplace_back(arg.vcf.c_str(), "w");
-    //if(op_vcf_f != "EMPTY") {
-    //writeVCFHeader(vcf_out, arg.bcf, arg.ped, sample);
-    writeVCFHeader(output_vcf[0], arg.bcf, arg.ped, sample);
+    writeVCFHeader(output_vcf[0], arg.bcf, arg.ped, samples);
   }
 
   qcall_t mom_snp, dad_snp, child_snp;

@@ -18,32 +18,14 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <string.h>
-#include <stdlib.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <errno.h>
+#include <string>
+#include <vector>
 #include <math.h>
 
-
 #include "parser.h"
-/*
-#include "prob1.h"
-#include "kstring.h"
-#include "time.h"
-#include "kseq.h"
-*/
-
 #include "htslib/vcf.h"
 
-
-#define MIN_READ_DEPTH 10
-#define MIN_READ_DEPTH_INDEL 10
-#define MIN_MAPQ 40
-
-typedef std::vector<std::vector<int>> sample_vals_int;
-
-void writeToSNPObject(qcall_t *mom_snp, const bcf_hdr_t *hdr, bcf1_t *rec, int *g, int d,
+void writeToSNPObject(snp_object_t *mom_snp, const bcf_hdr_t *hdr, bcf1_t *rec, int *g, int d,
                       int mq, int &flag, int i, int i0) {
 
   strcpy(mom_snp->chr, bcf_hdr_id2name(hdr, rec->rid)); // copy chrom
@@ -87,85 +69,47 @@ void writeToSNPObject(qcall_t *mom_snp, const bcf_hdr_t *hdr, bcf1_t *rec, int *
     
 }
 
-
-// TODO: Is there any difference between this and the function above? Just merge
+// TODO: Looking at the code the only diff I can find between writeToIndelObject and 
+// writeToSNPObject is the size of lk[] and ref_base (char vs char*). Should consider
+// merging the two functions.
 void writeToIndelObject(indel_t *mom_indel, const bcf_hdr_t *hdr, bcf1_t *rec, int *g,
                         int d, int mq, int &flag, int i, int i0) {
 
-  /*
-    uint8_t *likl = static_cast<uint8_t *>(static_cast<uint8_t *>
-                                           (b->gi[i0].data) + i * b->gi[i0].len);
-    strcpy(mom_indel->chr, h->ns[b->tid]);
-    mom_indel->pos = b->pos + 1;
-    strcpy(mom_indel->ref_base, b->ref);
-    strcpy(mom_indel->alt, b->alt);
+  strcpy(mom_indel->chr, bcf_hdr_id2name(hdr, rec->rid)); // copy chrom
+  mom_indel->pos = rec->pos + 1; // vcf posistion is stored in 0 based
+  char **alleles = rec->d.allele;
+  uint32_t n_alleles = rec->n_allele;
+  strcpy(mom_indel->ref_base, alleles[0]); // REF
+  std::string alt_str;
+  for(int a = 1; a < n_alleles; a++) {
+    if(a != 1) 
+      alt_str += ",";
+    alt_str += std::string(alleles[a]);
+  }
+  strcpy(mom_indel->alt, alt_str.c_str()); // ALT
+  mom_indel->rms_mapQ = mq;
+  int *res_array = NULL;
+  int n_res_array = 0;
+  int n_res = bcf_get_format_int32(hdr, rec, "DP", &res_array, &n_res_array);
+  if(n_res == 3) {
+    mom_indel->depth = res_array[i];
+  }
+  else {
     mom_indel->depth = d;
-    mom_indel->rms_mapQ = mq;
-    strcpy(mom_indel->id, h->sns[i]);
-    //printf("\nsample: %s, pos %d ",h->sns[i], b->pos+1 );
-    for(int l1 = 0; l1 < b->n_gi; ++l1) {  //CHECK IF PER SAMPLE DEPTH AVAILABLE
-        if(b->gi[l1].fmt == bcf_str2int("DP", 2)) {
-            mom_indel->depth = ((uint16_t *)b->gi[l1].data)[i];
-            //printf("\ndepth1 %d depth2: %d depth3: %d length: %d\n",((uint16_t*)b->gi[l1].data)[0], ((uint16_t*)b->gi[l1].data)[1], ((uint16_t*)b->gi[l1].data)[2], b->gi[l1].len);
-        }
-    }
-    for(int j = 0; j < 3; ++j) { // R/R, R/A and A/A
-        mom_indel->lk[j] = likl[j];
-    }
-    if(mom_indel->rms_mapQ < MIN_MAPQ || mom_indel->depth < MIN_READ_DEPTH) {
-        flag = 1;
-    }
-    //printf("\nINDEL mom position: %d id: %s depth: %d lik: %d, %d, %d", b->pos+1,  mom_indel->id, d,  likl[0], likl[1], likl[2]);
-    */
-}
+  }
 
+  // Get PL liklihoods
+  for(int j = 0; j < 3; j++)
+    mom_indel->lk[j] = g[j];
 
-// Need both N and X to represent all alleles (X for the old VCF version, after v4.1 use N)
-// TODO: turn into switch statement - a table lookup for only 5 values is boosting speed and make the code less managable
-static int8_t nt4_table[256] = {
-    4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
-    4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
-    4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4 /*'-'*/, 4, 4,
-    4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
-    4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, -1, 4,
-    4, 4, 4, 4,  3, 4, 4, 4, -1, 4, 4, 4,  4, 4, 4, 4,
-    4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, -1, 4,
-    4, 4, 4, 4,  3, 4, 4, 4, -1, 4, 4, 4,  4, 4, 4, 4,
-    4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
-    4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
-    4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
-    4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
-    4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
-    4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
-    4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
-    4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4
-};
-
-
-// Check that "I16" value exists in INFO field
-static int read_I16(bcf1_t *rec, const bcf_hdr_t *hdr, std::vector<int> &anno)
-{
-  std::vector<int> i16vals;
-  //vcf.GetInfoValues("I16", i16vals);
-  int *dst = NULL;
-  int n_dst = 0;
-  int array_size = bcf_get_info_int32(hdr, rec, "I16", &dst, &n_dst);
-
-  if(array_size == 0)
-    return -1;
-  if(array_size < 16)
-    return -2;
-
-  //TODO: Should reset array?
-  for(int a = 0; a < array_size; a++)
-    anno.push_back(dst[a]);      
-  return 0;
+  flag = mom_indel->rms_mapQ < MIN_MAPQ || mom_indel->depth < MIN_READ_DEPTH;
 
 }
 
 
 // Convert BCF to Qcall format - for each line iterate through samples and look for particular trio
 // Parsing code adapted from BCFtools code
+// TODO: Merge function with bcf2Paired.bcf2Paired()
 int bcf_2qcall(const bcf_hdr_t *hdr, bcf1_t *rec, Trio t, qcall_t *mom_snp,
                qcall_t *dad_snp, qcall_t *child_snp, indel_t *mom_indel, indel_t *dad_indel,
                indel_t *child_indel, int &flag) {
