@@ -17,6 +17,9 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
 */
+#ifndef PED_PARSER_H_
+#define PED_PARSER_H_
+
 
 #include <iostream>
 #include <stdio.h>
@@ -45,3 +48,5 @@ typedef struct  {
 
 void parse_ped(std::string ped_file, Trio **t, Pair **p, int &trio_count,
                int &pair_count);
+
+#endif

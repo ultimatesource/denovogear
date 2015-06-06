@@ -18,6 +18,9 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifndef LOOKUP_H_
+#define LOOKUP_H_
+
 #include <math.h>
 #define WANT_STREAM       // include iostream and iomanipulators
 #include "newmatap.h"
@@ -61,3 +64,5 @@ typedef struct {
     Matrix denovo; /*code for identifying de novo events + mutation rate*/
     Matrix norm; /*code for identifying de novo events + mutation rate*/
 } lookup_pair_t;
+
+#endif

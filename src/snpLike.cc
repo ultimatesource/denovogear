@@ -34,7 +34,7 @@ using namespace std;
 // Calculate DNM and Null PP
 void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag,
                    vector<vector<string > > &tgt, lookup_snp_t &lookup,
-                   string op_vcf_f, ofstream &fo_vcf, double pp_cutoff, int RD_cutoff,
+                   std::vector<hts::bcf::File> &vcfout, double pp_cutoff, int RD_cutoff,
                    int &n_site_pass) {
     // Filter low read depths ( < 10 )
     if(child.depth < RD_cutoff || mom.depth < RD_cutoff || dad.depth < RD_cutoff) {
@@ -185,6 +185,7 @@ void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag,
              << " mom: " << mom.rms_mapQ;
         cout << endl;
 
+	/*
         if(op_vcf_f != "EMPTY") {
             fo_vcf << ref_name << "\t";
             fo_vcf << coor << "\t";
@@ -204,6 +205,7 @@ void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag,
                    << child.depth << ":" << child.rms_mapQ;
             fo_vcf << "\n";
         }
+	*/
     }
 
 }

@@ -243,6 +243,14 @@ private:
     std::unique_ptr<bcf_hdr_t, void(*)(bcf_hdr_t *)> hdr_;
     std::unique_ptr<bcf1_t, void(*)(bcf1_t *)> rec_;
 
+public:
+    // Indicates type of mutation in VCF record
+    static const uint16_t REF = VCF_REF;
+    static const uint16_t SNP = VCF_SNP;
+    static const uint16_t MNP = VCF_MNP;
+    static const uint16_t INDEL = VCF_INDEL;
+    static const uint16_t OTHER = VCF_OTHER;
+
 };
 
 }

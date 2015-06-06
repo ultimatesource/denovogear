@@ -26,38 +26,54 @@
 #include <math.h>
 
 #include "parser.h"
-#include "prob1.h"
-#include "kstring.h"
+//#include "prob1.h"
+//#include "kstring.h"
 #include "time.h"
-#include "kseq.h"
+//#include "kseq.h"
 
 
 #define MIN_READ_DEPTH 10
 #define MIN_READ_DEPTH_INDEL 10
 #define MIN_MAPQ 40
 
+typedef std::vector<std::vector<int>> sample_vals_int;
 
-void writeToSNPObject(pair_t *tumor, bcf1_t *b, bcf_hdr_t *h, int *g, int d,
+// TODO: Can't see a difference between this and bcf2Paired.writeToSNPObject
+void writeToSNPObject(pair_t *tumor, bcf1_t *rec, bcf_hdr_t *hdr, int *g, int d,
                       int mq, int &flag, int i, int i0) {
-    strcpy(tumor->chr, h->ns[b->tid]);
-    tumor->pos = b->pos + 1;
-    tumor->ref_base = *b->ref;
-    strcpy(tumor->alt, b->alt);
+  
+  strcpy(tumor->chr, bcf_hdr_id2name(hdr, rec->rid));
+  tumor->pos = rec->pos + 1;
+ 
+  char **alleles = rec->d.allele;
+  uint32_t n_alleles = bcf_hdr_nsamples(hdr);
+  tumor->ref_base = alleles[0][0];
+
+  std::string alt_str;
+  for(int a = 1; a < n_alleles; a++) {
+    if(a != 1)
+      alt_str += ",";
+    alt_str += std::string(alleles[a]);
+  }
+  strcpy(tumor->alt, alt_str.c_str());
+
+  tumor->rms_mapQ = mq;
+
+  int *res_array = NULL;
+  int n_res_array = 0;
+  int n_res = bcf_get_format_int32(hdr, rec, "DP", &res_array, &n_res_array);
+  if(n_res == 3) {
+    tumor->depth = res_array[i];
+  }
+  else {
     tumor->depth = d;
-    tumor->rms_mapQ = mq;
-    strcpy(tumor->id, h->sns[i]);
-    for(int l1 = 0; l1 < b->n_gi; ++l1) {  //CHECK IF PER SAMPLE DEPTH AVAILABLE
-        if(b->gi[l1].fmt == bcf_str2int("DP", 2)) {
-            tumor->depth = ((uint16_t *)b->gi[l1].data)[i];
-            //printf("\ndepth1 %d depth2: %d depth3: %d length: %d\n",((uint16_t*)b->gi[l1].data)[0], ((uint16_t*)b->gi[l1].data)[1], ((uint16_t*)b->gi[l1].data)[2], b->gi[l1].len);
-        }
-    }
-    for(int j = 0; j < 10; ++j) {
-        tumor->lk[j] = g[j];
-    }
-    if(tumor->rms_mapQ < MIN_MAPQ || tumor->depth < MIN_READ_DEPTH) {
-        flag = 1;
-    }
+  }
+
+  for(int j = 0; j < 10; j++)
+    tumor->lk[j] = g[j];
+
+  flag = tumor->rms_mapQ < MIN_MAPQ || tumor->depth < MIN_READ_DEPTH;
+
 }
 
 
@@ -66,9 +82,9 @@ static int8_t nt4_table[256] = {
     4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
     4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4 /*'-'*/, 4, 4,
     4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
-    4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, 4, 4,
+    4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, -1, 4,
     4, 4, 4, 4,  3, 4, 4, 4, -1, 4, 4, 4,  4, 4, 4, 4,
-    4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, 4, 4,
+    4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, -1, 4,
     4, 4, 4, 4,  3, 4, 4, 4, -1, 4, 4, 4,  4, 4, 4, 4,
     4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
     4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
@@ -80,101 +96,167 @@ static int8_t nt4_table[256] = {
     4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4
 };
 
-static int read_I16(bcf1_t *b, int anno[16]) {
-    char *p;
-    int i;
-    if((p = strstr(b->info, "I16=")) == 0) { return -1; }
-    p += 4;
-    for(i = 0; i < 16; ++i) {
-        anno[i] = strtol(p, &p, 10);
-        if(anno[i] == 0 && (errno == EINVAL || errno == ERANGE)) { return -2; }
-        ++p;
-    }
-    return 0;
+static int read_I16(bcf1_t *rec, bcf_hdr_t *hdr, std::vector<int> &anno) {
+
+  // Check that "I16" value exists in INFO field
+  std::vector<int> i16vals;
+  int *dst = NULL;
+  int n_dst = 0;
+  int array_size = bcf_get_info_int32(hdr, rec, "I16", &dst, &n_dst);
+
+  if(array_size == 0)
+    return -1;
+  if(array_size < 16)
+    return -2;
+
+  //TODO: Should reset array
+  for(int a = 0; a < array_size; a++)
+    anno.push_back(dst[a]);      
+  return 0;
+
 }
 
+// TODO: Merge first part of code with bcf2QCall.bcf_2qcall()
 // Convert BCF to PairedSample - for each line iterate through samples and look for particular pair
-int bcf2Paired(bcf_hdr_t *h, bcf1_t *b, Pair pair1, pair_t *tumor,
+int bcf2Paired(bcf_hdr_t *hdr, bcf1_t *rec, Pair pair1, pair_t *tumor,
                pair_t *normal, int &flag) {
-    int a[4], k, g[10], l, map[4], k1, l1, j, i, i0, anno[16], dp, mq, d_rest,
+  int a[4], k, g[10], l, map[4], k1, l1, j, i, i0, /*anno[16],*/ dp, mq, d_rest,
         is_indel = 0;
     int found_pair = 2;// found_pair becomes zero when both samples are found.
-    char *s;
-    if(bcf_is_indel(b)) {
-        is_indel = 1;
-    }
+    //char *s;
+
+
+    // Check if record is INDEL
+    is_indel = bcf_get_variant_types(rec) == hts::bcf::File::INDEL;
+    
+
+    char **alleles = rec->d.allele;
+    uint32_t n_alleles = rec->n_allele;
+    //TODO: conditional was empty, should we remove or implement?
+    /*
     if(b->ref[1] != 0 || b->n_alleles > 4) {  // ref is not a single base ***
         //printf("\nposition %d ref not a single base", b->pos+1);
         //indel = 1;
         //return 10;
     }
-    for(i = 0; i < b->n_gi; ++i)
-        if(b->gi[i].fmt == bcf_str2int("PL", 2)) { break; }
-    if(i == b->n_gi) { return -6; }  // no PL ***
-    if(read_I16(b, anno) != 0) { d_rest = 0; }  // no I16; FIXME: can be improved ***
-    d_rest = dp = anno[0] + anno[1] + anno[2] + anno[3];
-    //if (dp == 0) return -8; // depth is zero ***
-    mq = (int)(sqrt((double)(anno[9] + anno[11]) / dp) + .499);
-    i0 = i;
-    a[0] = nt4_table[(int)b->ref[0]];
-    if(a[0] > 3) {  // ref is not A/C/G/T ***
-        return 10;
+    */
+
+    // Make sure the PL fields (phred-scaled genotype likihoods) exists
+    sample_vals_int pl_fields;
+    int *res_array = NULL;
+    int n_res_array = 0;
+    int n_res = bcf_get_format_int32(hdr, rec, "PL", &res_array, &n_res_array);
+    if(n_res == 0)
+      return -6;
+    else {
+      pl_fields.resize(n_alleles);
+      int sample_len = n_res/bcf_hdr_nsamples(hdr);
+      for(int a = 0; a < n_res; a++) {
+	int sample_index = a/sample_len;
+	pl_fields[sample_index].push_back(res_array[a]);
+      }
     }
+
+    // get I16 values from INFO field
+    std::vector<int> anno;
+    if(read_I16(rec, hdr, anno) != 0) {
+      d_rest = 0;
+    }
+    else {
+      d_rest = dp = anno[0] + anno[1] + anno[2] + anno[3];
+    }
+
+    // Calculate map quality
+    mq = (int)(sqrt((double)(anno[9] + anno[11]) / dp) + .499);
+
+    // Check that REF is a valid base
+    a[0] = nt4_table[(int)alleles[0][0]];
+    if(a[0] > 3)
+      return 10;
+
+    // Check that ALT alleles exists
+    if(rec->n_allele < 2)
+      return -11;
+
+    // Map the alternative alleles
+    int s;
     a[1] = a[2] = a[3] = -2; // -1 has a special meaning
-    if(b->alt[0] == 0) { return -11; }  // no alternate allele ***
     map[0] = map[1] = map[2] = map[3] = -2;
     map[a[0]] = 0;
-    for(k = 0, s = b->alt, k1 = -1; k < 3 && *s; ++k, s += 2) {
-        if(s[1] != ','
-                && s[1] != 0)  {  // ALT is not single base *** // LINES WITH BOTH SNP, INDEL ??
-            //printf("\nposition %d alt not a single base", b->pos+1);
-            //indel =1 ;
-            //return 10;
-        }
-        a[k + 1] = nt4_table[(int) * s];
-        if(a[k + 1] >= 0) { map[a[k + 1]] = k + 1; }
-        else { k1 = k + 1; }
-        if(s[1] == 0) { break; }
+    for(k = 0, s = 1, k1 = -1; k < 3 && s < rec->n_allele; ++k, s++) {
+
+      //TODO: conditional block mpty in original code, implement or remove
+      /*
+      // skip sites with multiple indel allele
+      if(strlen(alleles[s]) > 1) {
+	indel = 1;
+	return 10;
+      }
+      */
+      
+      // BUG: Implement conditional above or allow sites with multiple indel alleles
+      a[k + 1] = nt4_table[(int)alleles[s][0]];
+      if(a[k + 1] >= 0) { 
+	map[a[k + 1]] = k + 1; 
+      }
+      else { 
+	k1 = k + 1; 
+      }
     }
+
     for(k = 0; k < 4; ++k)
-        if(map[k] < 0) { map[k] = k1; }
+      if(map[k] < 0) { map[k] = k1; }
 
+    std::vector<std::string> sample_ids;
+    for(int a = 0; a < bcf_hdr_nsamples(hdr); a++)
+      sample_ids.push_back(std::string(hdr->samples[a]));
 
-    for(i = 0; i < h->n_smpl; ++i) {	//Iterate through all samples
-        int d;
-        uint8_t *p = static_cast<uint8_t *>(static_cast<uint8_t *>
-                                            (b->gi[i0].data) + i * b->gi[i0].len);
-        for(j = 0; j < b->gi[i0].len; ++j)
-            if(p[j]) { break; }
-        d = (int)((double)d_rest / (h->n_smpl - i) + .499);
-        if(d == 0) { d = 1; }
-        if(j == b->gi[i0].len) { d = 0; }
-        d_rest -= d;
-        for(k = j = 0; k < 4; ++k) {
-            for(l = k; l < 4; ++l) {
-                int t, x = map[k], y = map[l];
-                if(x > y) { t = x, x = y, y = t; }  // swap
-                g[j++] = p[y * (y + 1) / 2 + x];
-            }
-        }
+    // Iterate through each sample, and for each sample map the values
+    // in the PL field into g[], and estimate the depth    
+    for(i = 0; i < bcf_hdr_nsamples(hdr); i++) {
+      // Go to the first non-zero value in the PL field
+      for(j = 0; j < pl_fields[i].size() && pl_fields[i][j]; j++);
+      
+      // Estimate the depth using I16 fields 1 to 4, divided by num of samples
+      int d = (int)((double)d_rest / (bcf_hdr_nsamples(hdr) - i) + .4999);
+      if(d == 0) {
+	d = 1;
+      }
+      if(j == pl_fields[i].size()) {
+	d = 0;
+      }
+      d_rest -= d;
 
-        //found Tumor
-        if(strcmp(pair1.tumorID, h->sns[i]) == 0) {
-            found_pair--;
-            if(is_indel == 0) {   // Write to Moms SNP object
-                writeToSNPObject(tumor, b, h, g, d, mq, flag, i, i0);
-            }
-        }
+      for(k = j = 0; k < 4; k++) {
+	for(l = k; l < 4; l++) { //AA,AC,AG,AT,CC,CG,CT,GG,GT,TT
+	  int t, x = map[k], y = map[l];
+	  if(x > y) {
+	    t = x;
+	    x = y;
+	    y = t;
+	  }
+	  g[j++] = pl_fields[i][y*(y+1)/2 + x];
+	}
+      }
+    
+      //found Tumor
+      if(strcmp(pair1.tumorID, sample_ids[i].c_str()) == 0) {
+	found_pair--;
+	if(is_indel == 0) {   // Write to Moms SNP object
+	  writeToSNPObject(tumor, rec, hdr, g, d, mq, flag, i, i0);
+	}
+      }
 
         //found Normal
-        if(strcmp(pair1.normalID, h->sns[i]) == 0) {
-            found_pair--;
-            if(is_indel == 0) {   // Write to Moms SNP object
-                writeToSNPObject(normal, b, h, g, d, mq, flag, i, i0);
-            }
-        }
+      if(strcmp(pair1.normalID, sample_ids[i].c_str()) == 0) {
+	found_pair--;
+	if(is_indel == 0) {   // Write to Moms SNP object
+	  writeToSNPObject(normal, rec, hdr, g, d, mq, flag, i, i0);
+	}
+      }
 
     }
+    
 
     //found entire pair, return
     if(found_pair == 0) {

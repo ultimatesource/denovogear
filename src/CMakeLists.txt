@@ -29,10 +29,10 @@ ENDIF("${is_system_dir}" STREQUAL "-1")
 ################################################################################
 
 ADD_SUBDIRECTORY(contrib/newmat)
-ADD_SUBDIRECTORY(utils)
+#ADD_SUBDIRECTORY(utils)
 
 INCLUDE_DIRECTORIES(BEFORE
-	"${CMAKE_CURRENT_SOURCE_DIR}/utils"
+#	"${CMAKE_CURRENT_SOURCE_DIR}/utils"
 	"${CMAKE_CURRENT_SOURCE_DIR}/contrib/newmat"
 )
 
@@ -46,6 +46,9 @@ ADD_EXECUTABLE(dng-dnm
   pedParser.cc
   bcf2Qcall.cc bcf2Paired.cc
 )
+SET_PROPERTY(TARGET dng-dnm PROPERTY CXX_STANDARD 11)
+SET_PROPERTY(TARGET dng-dnm PROPERTY CXX_STANDARD_REQUIRED ON)
+
 
 ADD_EXECUTABLE(dng-phaser
   dng-phaser.cc
@@ -54,6 +57,9 @@ ADD_EXECUTABLE(dng-phaser
   pedParser.cc
   bcf2Qcall.cc bcf2Paired.cc
 )
+SET_PROPERTY(TARGET dng-phaser PROPERTY CXX_STANDARD 11)
+SET_PROPERTY(TARGET dng-phaser PROPERTY CXX_STANDARD_REQUIRED ON)
+
 
 ADD_EXECUTABLE(dng-call
   dng-call.cc
@@ -91,11 +97,15 @@ IF(USE_STATIC_FLAG)
   SET_TARGET_PROPERTIES(dng-call   PROPERTIES LINK_SEARCH_END_STATIC On)
 ENDIF(USE_STATIC_FLAG)
 
-TARGET_LINK_LIBRARIES(dng-dnm newmat dngutils)
+TARGET_LINK_LIBRARIES(dng-dnm newmat)# dngutils)
 TARGET_LINK_LIBRARIES(dng-dnm ZLIB::ZLIB)
+TARGET_LINK_LIBRARIES(dng-dnm ${Boost_LIBRARIES})
+TARGET_LINK_LIBRARIES(dng-dnm ${HTSLIB_LIBRARIES})
 
-TARGET_LINK_LIBRARIES(dng-phaser newmat dngutils)
+TARGET_LINK_LIBRARIES(dng-phaser newmat)# dngutils)
 TARGET_LINK_LIBRARIES(dng-phaser ZLIB::ZLIB)
+TARGET_LINK_LIBRARIES(dng-phaser ${Boost_LIBRARIES})
+TARGET_LINK_LIBRARIES(dng-phaser ${HTSLIB_LIBRARIES})
 
 TARGET_LINK_LIBRARIES(dng-call ${Boost_LIBRARIES})
 TARGET_LINK_LIBRARIES(dng-call ${HTSLIB_LIBRARIES} Threads::Threads ZLIB::ZLIB)

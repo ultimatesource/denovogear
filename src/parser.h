@@ -21,14 +21,19 @@
 #ifndef PARSER_H_
 #define PARSER_H_
 
-#include "bcf.h"
+//#include "bcf.h"
 
-#ifndef PED_PARSER_H
-#define PED_PARSER_H
+//#ifndef PED_PARSER_H
+//#define PED_PARSER_H
 #include "pedParser.h"
-#endif
+//#endif
+
+
+#include <dng/hts/bcf.h>
 
 #define MAX_QCALL_LINE 2048
+
+// TODO: It looks like there is only 1 unique struct here. Merge
 
 // Store SNP info
 typedef struct { //New struct for Q calls
@@ -70,7 +75,8 @@ typedef struct { //New struct for Q calls
     char id[ID_LENGTH]; /* string for sample ID */
 } pair_t;
 
-int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t *mom,
+int bcf_2qcall(const bcf_hdr_t *h, bcf1_t *rec, Trio t, qcall_t *mom_snp,
+//int bcf_2qcall(bcf_hdr_t *h, bcf1_t *b, Trio t, qcall_t *mom,
                qcall_t *dad, qcall_t *child, indel_t *mom_indel,
                indel_t *dad_indel, indel_t *child_indel, int &flag); // BCF to QCALL
 

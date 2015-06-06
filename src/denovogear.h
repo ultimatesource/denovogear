@@ -18,13 +18,16 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifndef DENOVOGEAR_H_
+#define DENOVOGEAR_H_
+
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <math.h>
-#include "bcf.h"
-#include "bgzf.h"
+//#include "bcf.h"
+//#include "bgzf.h"
 #include "parser.h"
 #include "makeLookup.h"
 
@@ -47,18 +50,35 @@ using namespace RBD_LIBRARIES;
 // Calculate SNP DNM PP
 void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag,
                    vector<vector<string > > &tgt, lookup_snp_t &lookup,
-                   string op_vcf_f, ofstream &fo_vcf, double pp_cutoff, int RD_cutoff,
+                   vector<hts::bcf::File> &vcfout, double pp_cutoff, int RD_cutoff,
                    int &n_site_pass);
 
 // Calculate INDEL DNM PP
 void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
                      vector<vector<string > > &tgtIndel,
                      lookup_indel_t &lookupIndel, double mu_scale,
-                     string op_vcf_f, ofstream &fo_vcf, double pp_cutoff,
+                     vector<hts::bcf::File> &vcfout, double pp_cutoff,
                      int RD_cutoff, int &n_site_pass, double user_indel_mrate);
 
 // Calculate Pair PP
 void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
-               lookup_pair_t &lookupPair, int flag, string op_vcf_f, ofstream &fo_vcf,
+               lookup_pair_t &lookupPair, int flag, vector<hts::bcf::File> &vcfout,
                double pp_cutoff, int RD_cutoff, int &n_site_pass);
+
+
+/*
+// Calculate INDEL DNM PP
+void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
+                     vector<vector<string > > &tgtIndel,
+                     lookup_indel_t &lookupIndel, double mu_scale,
+                     hts::bcf::File &vcfout, double pp_cutoff,
+                     int RD_cutoff, int &n_site_pass, double user_indel_mrate);
+
+// Calculate Pair PP
+void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
+               lookup_pair_t &lookupPair, int flag,f, ofstream &fo_vcf,
+               double pp_cutoff, int RD_cutoff, int &n_site_pass);
+*/
+
+#endif
 

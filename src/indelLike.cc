@@ -43,7 +43,7 @@ using namespace std;
 void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
                      vector<vector<string > > &tgtIndel,
                      lookup_indel_t &lookupIndel, double mu_scale,
-                     string op_vcf_f, ofstream &fo_vcf, double pp_cutoff,
+                     vector<hts::bcf::File> &vcfout, double pp_cutoff,
                      int RD_cutoff, int &n_site_pass, double user_indel_mrate) {
     // Read depth filter
     if(child->depth < RD_cutoff ||
@@ -163,6 +163,7 @@ void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
              dad->rms_mapQ << " mom: " << mom->rms_mapQ;
         cout << endl;
 
+	/*
         if(op_vcf_f != "EMPTY") {
             fo_vcf << ref_name << "\t";
             fo_vcf << coor << "\t";
@@ -180,5 +181,6 @@ void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
                    ":" << child->rms_mapQ;
             fo_vcf << "\n";
         }
+	*/
     }
 }

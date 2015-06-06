@@ -35,7 +35,7 @@ using namespace std;
 
 // Calculate Pair PP
 void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
-               lookup_pair_t &lookupPair, int flag, string op_vcf_f, ofstream &fo_vcf,
+               lookup_pair_t &lookupPair, int flag, vector<hts::bcf::File> &vcfout,
                double pp_cutoff, int RD_cutoff, int &n_site_pass) {
     // Filter low read depths
     if(tumor.depth < RD_cutoff || normal.depth < RD_cutoff) {
@@ -109,6 +109,7 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
         cout << " dnm_snpcode: " << lookupPair.snpcode(k, l);
         cout << endl;
 
+	/*
         if(op_vcf_f != "EMPTY") {
             fo_vcf << ref_name << "\t";
             fo_vcf << coor << "\t";
@@ -126,5 +127,6 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
                     l) << ":" << pp_denovo << ":" << tumor.depth << ":" << tumor.rms_mapQ;
             fo_vcf << "\n";
         }
+	*/
     }
 }

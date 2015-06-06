@@ -271,6 +271,7 @@ int processReads(char *reads_file, long dnm_pos, long hap_pos, string gt1,
 // Call samtools to get the reads from the bam file
 void getReadsFromBAM(char *bam_f, string chr1, long dnm_pos, long hap_pos,
                      char *temp_file) {
+  /*
     long interval = hap_pos - dnm_pos;
     if(interval < 0) {
         interval = -interval;
@@ -296,6 +297,7 @@ void getReadsFromBAM(char *bam_f, string chr1, long dnm_pos, long hap_pos,
     int argc1 = sizeof(argv1) / sizeof(char *);
     main_samview(argc1 - 1, argv1 + 1);
     return;
+  */
 }
 
 // Main
