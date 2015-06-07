@@ -9,8 +9,10 @@
 #include <dng/hts/extra.h>
 #include <dng/app.h>
 #include <dng/task/dnm.h>
+#include "htslib/synced_bcf_reader.h"
 
 using namespace dng::task;
+
 
 int DNM::operator()(std::string &model, DNM::argument_type &arg) {
   //int callDenovoFromBCF(std::string ped_file, std::string bcf_file, std::string op_vcf_f, 
@@ -101,11 +103,37 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
   int indel_total_count = 0, indel_pass_count = 0;
   int pair_total_count = 0, pair_pass_count = 0;
   
-  bcf1_t *rec = bcf_init1();
-  htsFile *fp = vcf_input.handle();
-  const bcf_hdr_t *hdr = vcf_input.header();
+  const bcf_hdr_t *hdr = vcf_input.header();  
+  bcf_srs_t *rec_reader = bcf_sr_init(); // used for iterating each rec in BCF/VCF
 
-  while(bcf_read1(fp, hdr, rec) >= 0) {
+  // Open region if specified
+  if(!arg.region.empty()) {
+    int ret = bcf_sr_set_regions(rec_reader, arg.region.c_str(), 0);
+    if(ret == -1)
+      throw std::runtime_error("no records in the query region " + arg.region);
+  }
+
+  // Initialize the record reader to iterate through the BCF/VCF input
+  int ret = bcf_sr_add_reader(rec_reader, arg.bcf.c_str());
+  if(ret == 0) {
+    int errnum = rec_reader->errnum;
+    switch(errnum){
+    case not_bgzf:
+      throw std::runtime_error("Input file type does not allow for region searchs. Exiting!");
+      break;
+    case idx_load_failed:
+      throw std::runtime_error("Unable to load query region, no index. Exiting!");
+      break;
+    case file_type_error:
+      throw std::runtime_error("Could not load filetype. Exiting!");
+      break;
+    default:
+	throw std::runtime_error("Could not load input sequence file into htslib. Exiting!");
+    };
+  }
+
+  while(bcf_sr_next_line(rec_reader)) {
+    bcf1_t *rec = bcf_sr_get_line(rec_reader, 0);
     int j = 0;
     int flag = 0;
     

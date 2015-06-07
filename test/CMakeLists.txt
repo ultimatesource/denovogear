@@ -1,6 +1,8 @@
 ################################################################################
 # Determine the location of the executables/scripts and any data sets required for full package testing
 # TODO: Search for packages and data installed outside of denovogear directory, move to ../modules/
+SET(DNG_DNM_EXE ${CMAKE_BINARY_DIR}/src/dng-dnm)
+SET(DNG_PHASER_EXE ${CMAKE_BINARY_DIR}/src/dng-phaser)
 SET(DNG_CALL_EXE ${CMAKE_BINARY_DIR}/src/dng-call)
 IF(NOT TEST_DATA_DIR)
   IF(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/testdata)
