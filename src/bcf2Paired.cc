@@ -124,7 +124,7 @@ static int read_I16(bcf1_t *rec, bcf_hdr_t *hdr, std::vector<int> &anno) {
 
 // TODO: Merge first part of code with bcf2QCall.bcf_2qcall()
 // Convert BCF to PairedSample - for each line iterate through samples and look for particular pair
-int bcf2Paired(bcf_hdr_t *hdr, bcf1_t *rec, Pair pair1, pair_t *tumor,
+int bcf2Paired(const bcf_hdr_t *hdr, bcf1_t *rec, Pair pair1, pair_t *tumor,
                pair_t *normal, int &flag) {
   int a[4], k, g[10], l, map[4], k1, l1, j, i, i0, /*anno[16],*/ dp, mq, d_rest,
         is_indel = 0;

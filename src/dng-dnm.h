@@ -6,8 +6,8 @@
 #include <vector>
 #include <stdlib.h>
 #include <getopt.h>
-#include <memory> // Needs to be put in dng/hts/hts.h
-#include <assert.h> // Needs to be put in dng/hts/hts.h
+#include <memory> 
+#include <assert.h> 
 
 #include <dng/hts/bcf.h>
 

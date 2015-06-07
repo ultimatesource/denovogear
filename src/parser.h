@@ -140,7 +140,7 @@ int bcf_2qcall(const bcf_hdr_t *h, bcf1_t *rec, Trio t, qcall_t *mom_snp,
                qcall_t *dad, qcall_t *child, indel_t *mom_indel,
                indel_t *dad_indel, indel_t *child_indel, int &flag); // BCF to QCALL
 
-int bcf2Paired(bcf_hdr_t *h, bcf1_t *b, Pair p, pair_t *tumor, pair_t *normal,
+int bcf2Paired(const bcf_hdr_t *h, bcf1_t *b, Pair p, pair_t *tumor, pair_t *normal,
                int &flag);
 
                     

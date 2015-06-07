@@ -23,7 +23,6 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
   if(arg.bcf.empty() || arg.ped.empty())
     throw std::runtime_error("ERROR ! Please specify both the PED file and BCF file ! Exiting!");
 
-
   snp_mrate = arg.snp_mrate;
   indel_mrate = arg.indel_mrate;
   poly_rate = arg.poly_rate;
@@ -75,34 +74,14 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
   qcall_t mom_snp, dad_snp, child_snp;
   indel_t mom_indel, dad_indel, child_indel;
   pair_t tumor, normal;
-  bcf_hdr_t *hout, *hin;
-  int tid, begin, end;
+  //bcf_hdr_t *hout, *hin;
+  //int tid, begin, end;
 
-  // Parse region
-  hts::bcf::File vcf_input(arg.bcf.c_str(), "r");
-  if(!arg.region.empty()) {
-    tid = begin = end = -1;
-    /*
-    if(bcf_parse_region(str2id, region.c_str(), &tid, &begin, &end) >= 0) {
-      bcf_idx_t *idx;
-      idx = bcf_idx_load(bcf_file.c_str());
-      if(idx) {
-	uint64_t off;
-	off = bcf_idx_query(idx, tid, begin);
-	if(off == 0) {
-	  fprintf(stderr, "[%s] no records in the query region.\n", __func__);
-	  return 1; // FIXME: a lot of memory leaks...
-	}
-	bgzf_seek(bp->fp, off, SEEK_SET);
-	bcf_idx_destroy(idx);
-      }
-    }
-    */
-  }
   int snp_total_count = 0, snp_pass_count = 0;
   int indel_total_count = 0, indel_pass_count = 0;
   int pair_total_count = 0, pair_pass_count = 0;
   
+  hts::bcf::File vcf_input(arg.bcf.c_str(), "r"); // using hts::bcf::File so that both VCF and BCF can be read
   const bcf_hdr_t *hdr = vcf_input.header();  
   bcf_srs_t *rec_reader = bcf_sr_init(); // used for iterating each rec in BCF/VCF
 
@@ -164,7 +143,7 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
       // PROCESS  PAIRS
       if(model == "auto") { // paired sample model not developed for XS, XD yet
 	for(j = 0; j < pair_count; j++) {
-	  int is_indel = bcf2Paired(hout, rec, pairs[j], &tumor, &normal, flag);
+	  int is_indel = bcf2Paired(hdr, rec, pairs[j], &tumor, &normal, flag);
 	  if(is_indel == 0) {
 	    pair_total_count++;
 	    pair_like(tumor, normal, tgtPair, lookupPair, flag, output_vcf,
