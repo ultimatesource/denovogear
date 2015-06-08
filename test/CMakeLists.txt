@@ -75,16 +75,23 @@ SET_TESTS_PROPERTIES(FullTest_Sample5.3_VCF PROPERTIES
 
 ADD_TEST(FullTest_SampleCEU_DNM ${DNG_DNM_EXE} auto --ped ${TEST_DATA_DIR}/sample_CEU/sample_CEU.ped --bcf ${TEST_DATA_DIR}/sample_CEU/sample_CEU.vcf --snp_mrate 2e-10 --indel_mrate 1e-11)
 SET_TESTS_PROPERTIES(FullTest_SampleCEU_DNM PROPERTIES
-  PASS_REGULAR_EXPRESSION "First mrate: 1 last: 1"
-  PASS_REGULAR_EXPRESSION "First code: 6 last: 6"
-  PASS_REGULAR_EXPRESSION "First tref: 0\.0002388 last: 0\.99301"
-  PASS_REGULAR_EXPRESSION "First prior: 0\.05 last: 0\.114"
-  PASS_REGULAR_EXPRESSION "Total number of SNP sites interrogated: 36"
-  PASS_REGULAR_EXPRESSION "pos: 214668360"
-  PASS_REGULAR_EXPRESSION "Total number of SNP sites passing read-depth filters: 36"
-  PASS_REGULAR_EXPRESSION "maxlike_null: 3.95324e-12"
-  PASS_REGULAR_EXPRESSION "pp_null: 0.0195898")
-#DENOVO-SNP CHILD_ID: NA12878_vald-sorted.bam.bam chr: 2 pos: 214668360 ref: G alt: A maxlike_null: 3.95324e-12 pp_null: 0.0195898 tgt_null(child/mom/dad): GG/GG/GG snpcode: 1 code: 6 maxlike_dnm: 1.98602e-10 pp_dnm: 0.98041 tgt_dnm(child/mom/dad): AG/GG/GG lookup: 4 flag: 0 READ_DEPTH child: 48 dad: 76 mom: 34 MAPPING_QUALITY child: 59 dad: 59 mom: 59
+  PASS_REGULAR_EXPRESSION "DENOVO-SNP CHILD_ID: NA12878_vald-sorted\.bam\.bam" 
+  PASS_REGULAR_EXPRESSION "chr: 2"
+  PASS_REGULAR_EXPRESSION "pos: 214668360" 
+  PASS_REGULAR_EXPRESSION "ref: G"
+  PASS_REGULAR_EXPRESSION "alt: A"
+  PASS_REGULAR_EXPRESSION "maxlike_null: 3\.95324e-12" 
+  PASS_REGULAR_EXPRESSION "pp_null: 0\.0195898"
+  PASS_REGULAR_EXPRESSION "tgt_null\(child\/mom\/dad\): GG\/GG\/GG" 
+  PASS_REGULAR_EXPRESSION "snpcode: 1" 
+  PASS_REGULAR_EXPRESSION "code: 6"
+  PASS_REGULAR_EXPRESSION "maxlike_dnm: 1\.98602e-10" 
+  PASS_REGULAR_EXPRESSION "pp_dnm: 0\.98041"
+  PASS_REGULAR_EXPRESSION "tgt_dnm\(child\/mom\/dad\): AG\/GG\/GG" 
+  PASS_REGULAR_EXPRESSION "lookup: 4" 
+  PASS_REGULAR_EXPRESSION "flag: 0"
+  PASS_REGULAR_EXPRESSION "READ_DEPTH child: 48 dad: 76 mom: 34"
+  PASS_REGULAR_EXPRESSION "MAPPING_QUALITY child: 59 dad: 59 mom: 59")
 
 ADD_TEST(FullTest_SamplePaired_DNM ${DNG_DNM_EXE} auto --ped ${TEST_DATA_DIR}/sample_CEU/sample_paired.ped --bcf ${TEST_DATA_DIR}/sample_CEU/sample_CEU.vcf)
 SET_TESTS_PROPERTIES(FullTest_SamplePaired_DNM PROPERTIES
