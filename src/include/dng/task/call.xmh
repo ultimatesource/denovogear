@@ -29,17 +29,20 @@
 
 //XM((bed), (b), "file containing a list of positions or regions", std::string, "")
 XM((fasta), (f), "faidx indexed reference sequence file", std::string, "")
+XM((gamma), , "genotype likelihood parameters",
+   std::vector<std::string>, DL(std::vector<std::string>({"0.98,0.0005,0.0005,1.04", "0.02,0.075,0.005,1.18"}),
+                                "see docs"))
 XM((min)(qlen), (l), "minimum query length", int, 0)
 XM((min)(prob), (m), "minimum probability for reporting a mutation", double,
-   DL(0.1, "0.1"))
-XM((mu), , "the germline mutation rate", double, DL(1e-9, "1e-9"))
-XM((mu)(somatic), , "the somatic mutation rate", double, DL(0.0, "0"))
-XM((mu)(library), , "the library prep mutation rate", double, DL(0.0, "0"))
+   DL(0.01, "0.01"))
+XM((mu), , "the germline mutation rate", double, DL(1e-8, "1e-8"))
+XM((mu)(somatic), , "the somatic mutation rate", double, DL(1e-8, "1e-8"))
+XM((mu)(library), , "the library prep mutation rate", double, DL(1e-8, "1e-8"))
 XM((nuc)(freqs), , "nucleotide frequencies in ACGT order", std::string,
    "0.3,0.2,0.2,0.3")
 XM((ped), (p), "the pedigree file", std::string, "")
-XM((min)(basequal), (q), "minimum base quality", int, 0)
-XM((min)(mapqual), (Q), "minimum mapping quality", int, 0)
+XM((min)(basequal), (Q), "minimum base quality", int, 13)
+XM((min)(mapqual), (q), "minimum mapping quality", int, 0)
 XM((region), (r), "chromosomal region", std::string, "")
 XM((ref)(weight), (R), "weight given to reference base for population prior",
    double, DL(1.0, "1"))

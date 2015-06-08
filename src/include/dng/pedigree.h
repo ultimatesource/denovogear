@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Reed A. Cartwright
+ * Copyright (c) 2014-2015 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -29,213 +29,113 @@
 #include <dng/io/ped.h>
 #include <dng/newick.h>
 #include <dng/read_group.h>
+#include <dng/peeling.h>
 
 namespace dng {
 
 class Pedigree {
 public:
-    struct params_t {
-        //params_t() : theta{0.001}, mu{1e-9}, ref_weight{0.0}, nuc_freq{0.25,0.25,0.25,0.25}
-        //	{ }
-        double theta;
-        double mu;
-        double mu_somatic;
-        double mu_pcr;
-        double ref_weight;
-        std::array<double, 4> nuc_freq;
+
+    enum class TransitionType {
+        Founder, Germline, Somatic, Library
+    };
+    struct transition_t {
+        TransitionType type;
+        std::size_t parent1;
+        std::size_t parent2;
+        double length1;
+        double length2;
     };
 
-    bool Initialize(params_t p);
+    bool Construct(const io::Pedigree &pedigree, dng::ReadGroups &rgs,
+                   double mu, double mu_somatic, double mu_library);
 
-    bool Construct(const io::Pedigree &pedigree, const dng::ReadGroups &rgs);
-
-    double LogPeelAll(const TransitionVector &mat, int ref) {
-        // Copy genotype Priors
-        // TODO: use a different prior based on reference
-        std::fill(upper_.begin(), upper_.begin() + num_members_, genotype_prior_[ref]);
-
-        // Peel pedigree one family at a time
-        for(std::size_t i = 0; i < peeling_op_.size(); ++i)
-            //peeling_op_[i](this, family_members_[i]);
-        {
-            (this->*peeling_op_[i])(family_members_[i], mat);
+    double PeelForwards(peel::workspace_t &work,
+                        const TransitionVector &mat) const {
+        if(work.dirty_lower) {
+            work.CleanupFast();
         }
-
+        // Peel pedigree one family at a time
+        for(std::size_t i = 0; i < peeling_functions_.size(); ++i) {
+            (*peeling_functions_[i])(work, family_members_[i], mat);
+        }
         // Sum over roots
         double ret = 0.0;
         for(auto r : roots_) {
-            ret += log((lower_[r] * upper_[r]).sum());
+            ret += log((work.lower[r] * work.upper[r]).sum());
         }
         return ret;
     }
 
-    double CalculateLogLikelihood(int ref) {
-        return LogPeelAll(full_transition_matrices_, ref);
+    double PeelBackwards(peel::workspace_t &work,
+                         const TransitionVector &mat) const {
+        double ret = 0.0;
+        // Divide by the log-likelihood
+        for(auto r : roots_) {
+            double sum = (work.lower[r] * work.upper[r]).sum();
+            ret += log(sum);
+            sum = sqrt(sum);
+            work.lower[r] /= sum;
+            work.upper[r] /= sum;
+        }
+
+        for(std::size_t i = peeling_reverse_functions_.size(); i > 0; --i) {
+            (*peeling_reverse_functions_[i - 1])(work, family_members_[i - 1], mat);
+        }
+        work.dirty_lower = true;
+        return ret;
     }
 
-    double CalculateMutProbability(int ref) {
-        double bottom = LogPeelAll(full_transition_matrices_, ref);
-        double top = LogPeelAll(nomut_transition_matrices_, ref);
-#ifdef NDEBUG
-        //NOTE: fast math may disable the trick below to avoid negative zero.
-        //      Use abs to work around it.
-        return std::abs(std::expm1(top - bottom));
-#else
-        // Avoid -0, but if something goes wrong still return negative probabilities
-        return 0.0 - std::expm1(top - bottom);
-#endif
+    peel::workspace_t CreateWorkspace() const {
+        peel::workspace_t work;
+        work.Resize(num_nodes_);
+        work.founder_nodes = std::make_pair(first_founder_, first_nonfounder_);
+        work.germline_nodes = std::make_pair(first_founder_, first_somatic_);
+        work.somatic_nodes = std::make_pair(first_somatic_, first_library_);
+        work.library_nodes = std::make_pair(first_library_, num_nodes_);
+        return work;
     }
+
+    void PrintMachine(std::ostream &os);
+    void PrintTable(std::ostream &os);
+    void PrintStates(std::ostream &os, double scale = 0.0);
+
+    std::vector<std::string> BCFHeaderLines() const;
+
+    const std::vector<transition_t> &transitions() const { return transitions_; }
+
+    const std::vector<std::string> &labels() const { return labels_; }
+
+    size_t num_nodes() const { return num_nodes_; }
+    std::pair<size_t, size_t> library_nodes() const { return {first_library_, num_nodes_}; }
 
 protected:
-    typedef std::vector<size_t> family_members_t;
-    typedef std::vector<size_t> peeling_matrices_t;
+    // node structure:
+    // founder germline, non-founder germline, somatic, library
+    std::size_t num_nodes_;        // total number of nodes
+    std::size_t first_founder_;    // start of founder germline
+    std::size_t first_nonfounder_; // start of non-founder germline
+    std::size_t first_somatic_;    // start of somatic nodes
+    std::size_t first_library_;    // start of libraries
 
-    std::vector<family_members_t> family_members_;
-    std::size_t num_members_, num_libraries_, num_nodes_;
     std::vector<std::size_t> roots_;
 
-    TransitionMatrix mitosis_, pcr_;
-    TransitionMatrix meiosis_, meiosis_nomut_;
-    TransitionVector full_transition_matrices_;
-    TransitionVector nomut_transition_matrices_;
+    // Pedigree Structure
+    std::vector<std::string> labels_;
+    std::vector<transition_t> transitions_;
 
-    GenotypeArray genotype_prior_[5]; // Holds P(G | theta)
-    PairedGenotypeArray buffer_;
+    // The original, simplified peeling operations
+    std::vector<decltype(peel::op::NUM)> peeling_ops_;
+    // The modified, "faster" operations
+    std::vector<decltype(peel::op::NUM)> peeling_functions_ops_;
+    // Array of functions that will be called to perform the peeling
+    std::vector<peel::function_t> peeling_functions_;
+    std::vector<peel::function_t> peeling_reverse_functions_;
 
-    IndividualBuffer upper_; // Holds P(Data & G=g)
-    IndividualBuffer lower_; // Holds P(Data | G=g)
+    // The arguments to a peeling operation
+    std::vector<peel::family_members_t> family_members_;
 
-public:
-    decltype(lower_)::reference library_lower(std::size_t k) {
-        return lower_[num_members_ + k];
-    }
-
-    std::size_t size() const { return num_nodes_; }
-
-protected:
-    void PeelUp(const family_members_t &family_members,
-                const TransitionVector &mat) {
-        lower_[family_members[0]] = (mat[family_members[1]] *
-                                     lower_[family_members[1]].matrix()).array();
-    }
-
-    void PeelUp2(const family_members_t &family_members,
-                 const TransitionVector &mat) {
-        lower_[family_members[0]] *= (mat[family_members[1]] *
-                                      lower_[family_members[1]].matrix()).array();
-    }
-
-    void PeelDown(const family_members_t &family_members,
-                  const TransitionVector &mat) {
-        upper_[family_members[1]].matrix() = mat[family_members[1]].transpose() *
-                                             (upper_[family_members[0]] * lower_[family_members[0]]).matrix();
-    }
-
-    void PeelToFather(const family_members_t &family_members,
-                      const TransitionVector &mat) {
-        // Sum over children
-        buffer_ = (mat[family_members[2]] * lower_[family_members[2]].matrix()).array();
-        for(std::size_t i = 3; i < family_members.size(); i++) {
-            buffer_ *= (mat[family_members[i]] *
-                        lower_[family_members[i]].matrix()).array();
-        }
-        // Include Mom
-        buffer_.resize(10, 10);
-        lower_[family_members[0]] = (buffer_.matrix() *
-                                     (upper_[family_members[1]] * lower_[family_members[1]]).matrix()).array();
-        buffer_.resize(100, 1);
-
-        //Eigen::Map<Matrix10d, Eigen::Aligned> mat(buffer_.data());
-        //lower_[family_members[0]] = (mat *
-        //	(upper_[family_members[1]]*lower_[family_members[1]]).matrix()).array();
-    }
-
-    void PeelToFather2(const family_members_t &family_members,
-                       const TransitionVector &mat) {
-        // Sum over children
-        buffer_ = (mat[family_members[2]] * lower_[family_members[2]].matrix()).array();
-        for(std::size_t i = 3; i < family_members.size(); i++) {
-            buffer_ *= (mat[family_members[i]] *
-                        lower_[family_members[i]].matrix()).array();
-        }
-        // Include Mom
-        buffer_.resize(10, 10);
-        lower_[family_members[0]] *= (buffer_.matrix() *
-                                      (upper_[family_members[1]] * lower_[family_members[1]]).matrix()).array();
-        buffer_.resize(100, 1);
-    }
-
-    void PeelToMother(const family_members_t &family_members,
-                      const TransitionVector &mat) {
-        // Sum over children
-        buffer_ = (mat[family_members[2]] * lower_[family_members[2]].matrix()).array();
-        for(std::size_t i = 3; i < family_members.size(); i++) {
-            buffer_ *= (mat[family_members[i]] *
-                        lower_[family_members[i]].matrix()).array();
-        }
-        // Include Dad
-        buffer_.resize(10, 10);
-        lower_[family_members[1]] = (buffer_.matrix().transpose() *
-                                     (upper_[family_members[0]] * lower_[family_members[0]]).matrix()).array();
-        buffer_.resize(100, 1);
-
-        //Eigen::Map<RowMatrix10d, Eigen::Aligned> mat(buffer_.data());
-        //lower_[family_members[1]] = (mat *
-        //	(upper_[family_members[0]]*lower_[family_members[0]]).matrix()).array();
-    }
-
-    void PeelToMother2(const family_members_t &family_members,
-                       const TransitionVector &mat) {
-        // Sum over children
-        buffer_ = (mat[family_members[2]] * lower_[family_members[2]].matrix()).array();
-        for(std::size_t i = 3; i < family_members.size(); i++) {
-            buffer_ *= (mat[family_members[i]] *
-                        lower_[family_members[i]].matrix()).array();
-        }
-        // Include Dad
-        buffer_.resize(10, 10);
-        lower_[family_members[1]] *= (buffer_.matrix().transpose() *
-                                      (upper_[family_members[0]] * lower_[family_members[0]]).matrix()).array();
-        buffer_.resize(100, 1);
-    }
-
-    void PeelToChild(const family_members_t &family_members,
-                     const TransitionVector &mat) {
-        assert(family_members.size() == 3);
-        // Parents
-        buffer_ = kroneckerProduct(
-                      (lower_[family_members[0]] * upper_[family_members[0]]).matrix(),
-                      (lower_[family_members[1]] * upper_[family_members[1]]).matrix()
-                  ).array();
-
-        upper_[family_members[2]].matrix() = mat[family_members[2]].transpose() *
-                                             buffer_.matrix();
-    }
-    void PeelToChild2(const family_members_t &family_members,
-                      const TransitionVector &mat) {
-        assert(family_members.size() >= 4);
-        buffer_ = (mat[family_members[3]] * lower_[family_members[3]].matrix()).array();
-        // Sum over children
-        for(std::size_t i = 4; i < family_members.size(); i++) {
-            buffer_ *= (mat[family_members[i]] *
-                        lower_[family_members[i]].matrix()).array();
-        }
-        // Parents
-        buffer_ *= kroneckerProduct(
-                       (lower_[family_members[0]] * upper_[family_members[0]]).matrix(),
-                       (lower_[family_members[1]] * upper_[family_members[1]]).matrix()
-                   ).array();
-
-        upper_[family_members[2]].matrix() = mat[family_members[2]].transpose() *
-                                             buffer_.matrix();
-    }
-
-    //typedef decltype(std::mem_fn(&Pedigree::PeelUp)) PeelOp;
-    typedef decltype(&Pedigree::PeelUp) PeelOp;
-
-    typedef Pedigree Op;
-
-    std::vector<PeelOp> peeling_op_;
+    void ConstructPeelingMachine();
 };
 
 }; // namespace dng

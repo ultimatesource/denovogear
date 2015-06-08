@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Reed A. Cartwright
+ * Copyright (c) 2014-2015 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -92,9 +92,9 @@ public:
     // Parse a string-like object into a pedigree
     // Insert additional founders such that every child either is a
     //     founder or has both parents in the tree.
-    // Sort the indiviuals starting with the founders, and then working
+    // Sort the individuals starting with the founders, and then working
     //     the way down.
-    // TODO: maybe we can just keep pointers to the deliminators in memory
+    // TODO: maybe we can just keep pointers to the delimiters in memory
     // TODO: add comment support
     // TODO: warnings for rows that don't have enough elements?
     // TODO: gender checking
@@ -152,7 +152,7 @@ public:
             // If one parent is known and the other is unknown, fix it.
             // Use a \t to ensure no collision
             if(ndad == 0 && nmom != 0) {
-                string par_name = "\tdng:dad_of_" + string_table[k][1];
+                string par_name = "unknown_dad_of_" + string_table[k][1];
                 string_table[k][2] = par_name;
                 ndad = string_table.size();
                 string_table.push_back({string_table[k][0], par_name,
@@ -161,7 +161,7 @@ public:
                 child_names.emplace(par_name, ndad);
                 children.emplace_back();
             } else if(nmom == 0 && ndad != 0) {
-                string par_name = "\tdng:mom_of_" + string_table[k][1];
+                string par_name = "unknown_mom_of_" + string_table[k][1];
                 string_table[k][3] = par_name;
                 nmom = string_table.size();
                 string_table.push_back({string_table[k][0], par_name,
@@ -175,6 +175,7 @@ public:
             children[ndad].push_back(k);
             children[nmom].push_back(k);
         }
+
         // Add a dummy 0-th pedigree member to handle unknown individuals.
         // Use a breadth-first search starting at 0 to order pedigree
         names_.clear();
@@ -198,11 +199,18 @@ public:
         }
         // Construct table in the order of names_
         table_.clear();
+        table_.emplace_back(Member{0, 0, 0, 0, Gender::Unknown, ""});
         for(auto && name : names_) {
             auto nrow = child_names[name];
+            auto child = id(string_table[nrow][1]);
+
+
+            if(child == 0) {
+                continue;
+            }
             table_.emplace_back(Member{
                 0,
-                id(string_table[nrow][1]),
+                child,
                 id(string_table[nrow][2]),
                 id(string_table[nrow][3]),
                 ParseGender(string_table[nrow][4]),

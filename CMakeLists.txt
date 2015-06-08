@@ -15,6 +15,7 @@ SET(USE_STATIC_LIBS OFF CACHE BOOL "Link against static libraries.")
 SET(USE_STATIC_FLAG OFF CACHE BOOL "Use -static flag to create completely static binaries.")
 SET(BUILD_EXTERNAL_PROJECTS OFF CACHE BOOL "Build external dependencies if they are not found.")
 SET(DEVEL_MODE OFF CACHE BOOL "Enable developer mode.")
+SET(EXTRA_DEFS CACHE STRING "Extra Compiler Definations")
 
 ################################################################################
 # Init Project
@@ -51,6 +52,13 @@ SET(DNG_URL "https://github.com/denovogear/denovogear")
 
 IF(DEVEL_MODE)
   ADD_DEFINITIONS(-DDNG_DEVEL)
+ENDIF()
+
+IF(EXTRA_DEFS)
+  SEPARATE_ARGUMENTS(deflist UNIX_COMMAND "${EXTRA_DEFS}")
+  FOREACH(def IN LISTS deflist)
+    ADD_DEFINITIONS(-D${def})
+  ENDFOREACH()
 ENDIF()
 
 ## Turn on unit and executable testing

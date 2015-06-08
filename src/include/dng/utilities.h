@@ -22,6 +22,7 @@
 #define DNG_UTILITIES_H
 
 #include <tuple>
+#include <cmath>
 
 #include <boost/spirit/include/support_ascii.hpp>
 #include <boost/spirit/include/qi_real.hpp>
@@ -79,6 +80,17 @@ std::string to_pretty(const T &value) {
         return str;
     }
     return {};
+}
+
+inline double phred(double p) {
+    // Use an if to prevent -0.0
+    return (p == 1.0) ? 0.0 : -10.0 * std::log10(p);
+}
+
+template<typename T>
+inline T lphred(double p, T m = std::numeric_limits<T>::max()) {
+    double q = std::round(phred(p));
+    return (q > m) ? m : static_cast<T>(q);
 }
 
 }

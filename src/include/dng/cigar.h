@@ -53,7 +53,7 @@ inline std::size_t target_length(cigar_t cigar) {
 
 
 // Position in query is result/2.
-// Result&0x1 == 1 if query contants a gap at target position.
+// Result&0x1 == 1 if query contains a gap at target position.
 
 inline uint64_t query_pos(uint64_t q) { return q / 2; }
 inline uint64_t query_del(uint64_t q) { return q & 1; }
