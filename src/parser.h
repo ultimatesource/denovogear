@@ -127,6 +127,21 @@ static int read_I16(bcf1_t *rec, const bcf_hdr_t *hdr, std::vector<int> &anno)
 }
 
 
+/**
+ * Used by the [pair/snp/indel]Like.cc functions to make alt allele string printable. 
+ * Removes the N/X allele (X is the pre-BCFv2.2 version of IUPAC N).
+ */
+inline void formatAltAlleles(std::string &alt) {
+  size_t start = alt.find(",X");
+  if(start == std::string::npos)
+    start = alt.find(",N");
+
+  if(start != std::string::npos) {
+    alt.replace(start, 2, "");
+  }
+}
+
+
 void writeToSNPObject(snp_object_t *mom_snp, const bcf_hdr_t *hdr, bcf1_t *rec, int *g, int d,
                       int mq, int &flag, int i, int i0);
 

@@ -86,10 +86,11 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
 
         //remove ",X" from alt, helps with VCF op.
         string alt = tumor.alt;
-        size_t start = alt.find(",X");
-        if(start != std::string::npos) {
-            alt.replace(start, 2, "");
-        }
+	formatAltAlleles(alt);
+        //size_t start = alt.find(",X");
+        //if(start != std::string::npos) {
+        //    alt.replace(start, 2, "");
+        //}
 
         cout << "DENOVO-PAIR-SNP TUMOR_ID: " << tumor.id << " NORMAL_ID: " << normal.id;
         cout << " chr: " << ref_name << " pos: " << coor << " ref: " << tumor.ref_base

@@ -55,6 +55,7 @@ endforeach(test)
 
 ################################################################################
 # Full executable tests
+# TODO: Currently can check dng found mutation, but not for false positives. Need stricter way to check output.
 IF(DEFINED TEST_DATA_DIR AND NOT IS_DIRECTORY "${TEST_DATA_DIR}")
   MESSAGE(STATUS "WARNING: Could not find directory ${TEST_DATA_DIR}. Full Package tests will fail")
 ENDIF()
@@ -84,3 +85,26 @@ SET_TESTS_PROPERTIES(FullTest_SampleCEU_DNM PROPERTIES
   PASS_REGULAR_EXPRESSION "maxlike_null: 3.95324e-12"
   PASS_REGULAR_EXPRESSION "pp_null: 0.0195898")
 #DENOVO-SNP CHILD_ID: NA12878_vald-sorted.bam.bam chr: 2 pos: 214668360 ref: G alt: A maxlike_null: 3.95324e-12 pp_null: 0.0195898 tgt_null(child/mom/dad): GG/GG/GG snpcode: 1 code: 6 maxlike_dnm: 1.98602e-10 pp_dnm: 0.98041 tgt_dnm(child/mom/dad): AG/GG/GG lookup: 4 flag: 0 READ_DEPTH child: 48 dad: 76 mom: 34 MAPPING_QUALITY child: 59 dad: 59 mom: 59
+
+ADD_TEST(FullTest_SamplePaired_DNM ${DNG_DNM_EXE} auto --ped ${TEST_DATA_DIR}/sample_CEU/sample_paired.ped --bcf ${TEST_DATA_DIR}/sample_CEU/sample_CEU.vcf)
+SET_TESTS_PROPERTIES(FullTest_SamplePaired_DNM PROPERTIES
+   PASS_REGULAR_EXPRESSION "TUMOR_ID") 
+#  PASS_REGULAR_EXPRESSION "TUMOR_ID: NA12878_vald\-sorted\.bam\.bam") 
+#  PASS_REGULAR_EXPRESSION "NORMAL_ID: NA12891_vald-sorted\.bam\.bam")
+
+#  PASS_REGULAR_EXPRESSION "chr: 2" 
+#  PASS_REGULAR_EXPRESSION "pos: 214668360" 
+#  PASS_REGULAR_EXPRESSION "ref: G" 
+#  PASS_REGULAR_EXPRESSION "alt: A" 
+#  PASS_REGULAR_EXPRESSION "maxlike_null: 3.98107e-12" 
+#  PASS_REGULAR_EXPRESSION "pp_null: 0.00396529" 
+#  PASS_REGULAR_EXPRESSION "tgt_null(normal/tumor): GG/GG" 
+#  PASS_REGULAR_EXPRESSION "maxlike_dnm: 1e-09" 
+#  PASS_REGULAR_EXPRESSION "pp_dnm: 0.996035" 
+#  PASS_REGULAR_EXPRESSION "tgt_dnm(normal/tumor): GG/AG" 
+#  PASS_REGULAR_EXPRESSION "READ_DEPTH tumor: 48" 
+#  PASS_REGULAR_EXPRESSION "normal: 76" 
+#  PASS_REGULAR_EXPRESSION "tumor: 59" 
+#  PASS_REGULAR_EXPRESSION "normal: 59"
+#  PASS_REGULAR_EXPRESSION "null_snpcode: 1" 
+#  PASS_REGULAR_EXPRESSION "dnm_snpcode: 2")

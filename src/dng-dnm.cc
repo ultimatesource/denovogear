@@ -115,7 +115,6 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
     bcf1_t *rec = bcf_sr_get_line(rec_reader, 0);
     int j = 0;
     int flag = 0;
-    
     for(j = 0; j < trio_count; j++) {
       bcf_unpack(rec, BCF_UN_STR);
       int is_indel = bcf_2qcall(hdr, rec, trios[j], 
@@ -139,22 +138,22 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
 	printf("\n BCF PARSING ERROR - Trios!  %d\n Exiting !\n", is_indel);
 	exit(1);
       }
-      
-      // PROCESS  PAIRS
-      if(model == "auto") { // paired sample model not developed for XS, XD yet
-	for(j = 0; j < pair_count; j++) {
-	  int is_indel = bcf2Paired(hdr, rec, pairs[j], &tumor, &normal, flag);
-	  if(is_indel == 0) {
-	    pair_total_count++;
-	    pair_like(tumor, normal, tgtPair, lookupPair, flag, output_vcf,
-	    	      PP_cutoff, RD_cutoff, pair_pass_count);
-	  } else if(is_indel < 0) {
-	    printf("\n BCF PARSING ERROR - Paired Sample!  %d\n Exiting !\n", is_indel);
-	    exit(1);
-	  }
-	}
-      }     
     }
+      
+    // PROCESS  PAIRS
+    if(model == "auto") { // paired sample model not developed for XS, XD yet
+      for(j = 0; j < pair_count; j++) {
+	int is_indel = bcf2Paired(hdr, rec, pairs[j], &tumor, &normal, flag);
+	if(is_indel == 0) {
+	  pair_total_count++;
+	  pair_like(tumor, normal, tgtPair, lookupPair, flag, output_vcf,
+		    PP_cutoff, RD_cutoff, pair_pass_count);
+	} else if(is_indel < 0) {
+	  printf("\n BCF PARSING ERROR - Paired Sample!  %d\n Exiting !\n", is_indel);
+	  exit(1);
+	}
+      }
+    }     
   }
 
   cerr << endl << "Total number of SNP sites interrogated: " << snp_total_count;

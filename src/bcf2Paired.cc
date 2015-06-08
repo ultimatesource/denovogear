@@ -134,7 +134,7 @@ int bcf2Paired(const bcf_hdr_t *hdr, bcf1_t *rec, Pair pair1, pair_t *tumor,
 
     // Check if record is INDEL
     is_indel = bcf_get_variant_types(rec) == hts::bcf::File::INDEL;
-    
+  
 
     char **alleles = rec->d.allele;
     uint32_t n_alleles = rec->n_allele;
@@ -155,13 +155,16 @@ int bcf2Paired(const bcf_hdr_t *hdr, bcf1_t *rec, Pair pair1, pair_t *tumor,
     if(n_res == 0)
       return -6;
     else {
-      pl_fields.resize(n_alleles);
+      pl_fields.resize(bcf_hdr_nsamples(hdr));
       int sample_len = n_res/bcf_hdr_nsamples(hdr);
       for(int a = 0; a < n_res; a++) {
 	int sample_index = a/sample_len;
 	pl_fields[sample_index].push_back(res_array[a]);
       }
     }
+
+
+
 
     // get I16 values from INFO field
     std::vector<int> anno;
