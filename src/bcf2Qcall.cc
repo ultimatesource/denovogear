@@ -48,6 +48,7 @@ void writeToSNPObject(snp_object_t *mom_snp, const bcf_hdr_t *hdr, bcf1_t *rec, 
   strcpy(mom_snp->alt, alt_str.c_str()); // ALT
 
   mom_snp->rms_mapQ = mq;
+  strcpy(mom_snp->id, hdr->samples[i]); // TODO: Just pass in from calling fnc
 
   // Get "DP" field for each sample if it exits. Otherwise use depth estimated
   // from I16 fields 9 and 11

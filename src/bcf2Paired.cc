@@ -248,6 +248,8 @@ int bcf2Paired(const bcf_hdr_t *hdr, bcf1_t *rec, Pair pair1, pair_t *tumor,
 	}
       }
     
+      //std::cout << "sample_id = " << sample_ids[i] << std::endl;
+
       //found Tumor
       if(strcmp(pair1.tumorID, sample_ids[i].c_str()) == 0) {
 	found_pair--;
