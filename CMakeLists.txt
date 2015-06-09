@@ -14,6 +14,7 @@ SET_PROPERTY(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS ON)
 SET(USE_STATIC_LIBS OFF CACHE BOOL "Link against static libraries.")
 SET(USE_STATIC_FLAG OFF CACHE BOOL "Use -static flag to create completely static binaries.")
 SET(BUILD_EXTERNAL_PROJECTS OFF CACHE BOOL "Build external dependencies if they are not found.")
+SET(DEVEL_MODE OFF CACHE BOOL "Enable developer mode.")
 
 ################################################################################
 # Init Project
@@ -47,6 +48,10 @@ ENDIF()
 SET(DNG_NAME "DeNovoGear")
 SET(DNG_NAME_FOR_PKG_FILE "denovogear")
 SET(DNG_URL "https://github.com/denovogear/denovogear")
+
+IF(DEVEL_MODE)
+  ADD_DEFINITIONS(-DDNG_DEVEL)
+ENDIF()
 
 ## Turn on unit and executable testing
 ENABLE_TESTING()
