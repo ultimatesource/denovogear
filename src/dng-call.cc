@@ -26,7 +26,6 @@
 #   include <boost/timer/timer.hpp>
 #endif
 
-
 // http://www.boost.org/development/requirements.html
 // http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml
 
@@ -43,4 +42,3 @@ int main(int argc, char *argv[]) {
     }
     return EXIT_FAILURE;
 }
-
