@@ -58,12 +58,13 @@ endforeach(test)
 # Full executable tests
 
 # Check if using download source pacakge or running code from git
-IF(NOT DEFINED DNG_VERSION_COMMIT)
-  SET(DATA_PACKAGE "${DNG_VERSION_MAJOR}.${DNG_VERSION_MINOR}.tar.gz")
+IF(NOT DEFINED DNG_VERSION_COMMIT OR DNG_VERSION_COMMIT STREQUAL "unknown")
+  SET(DATA_PACKAGE "v${DNG_VERSION_MAJOR}.${DNG_VERSION_MINOR}")
   IF(DEFINED DNG_VERSION_PATCH)
     SET(DATA_PACKAGE "${DATA_PACKAGE}.${DNG_VERSION_PATCH}")
   ENDIF()
-  SET(DOWNLOAD_URL "URL https://github.com/kaeldai/testdata/archive/${DATA_PACKAGE}")
+  SET(DATA_PACKAGE "${DATA_PACKAGE}.tar.gz")
+  SET(DOWNLOAD_URL "https://github.com/kaeldai/testdata/archive/${DATA_PACKAGE}")
 ENDIF()
 
 IF(IMPORT_TEST_DATA_FORCED)
