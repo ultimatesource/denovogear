@@ -57,7 +57,7 @@ endforeach(test)
 ################################################################################
 # Full executable tests
 
-# Check if using download source pacakge or running code from git
+# Check if using download source pacakge or running latest code inside a git repository
 IF(NOT DEFINED DNG_VERSION_COMMIT OR DNG_VERSION_COMMIT STREQUAL "unknown")
   SET(DATA_PACKAGE "v${DNG_VERSION_MAJOR}.${DNG_VERSION_MINOR}")
   IF(DEFINED DNG_VERSION_PATCH)
@@ -67,43 +67,40 @@ IF(NOT DEFINED DNG_VERSION_COMMIT OR DNG_VERSION_COMMIT STREQUAL "unknown")
   SET(DOWNLOAD_URL "https://github.com/kaeldai/testdata/archive/${DATA_PACKAGE}")
 ENDIF()
 
-IF(IMPORT_TEST_DATA_FORCED)
-  SET(IMPORT_TEST_DATA 1)
+IF(NOT DEFINED TEST_DATA_DIR)
+  # set test data download directory if not already set
+  SET(TEST_DATA_DIR "${CMAKE_SOURCE_DIR}/testdata")
 ENDIF()
 
-IF(IMPORT_TEST_DATA)
-  IF(DEFINED TEST_DATA_DIR AND IS_DIRECTORY "${TEST_DATA_DIR}" AND NOT DEFINED IMPORT_TEST_DATA_FORCED)
-    MESSAGE(STATUS "Test data directory \"${TEST_DATA_DIR}\" already exits. Skipping download.")
-  ELSE()
-    SET(TEST_DATA_DIR "${CMAKE_SOURCE_DIR}/testdata")
-    IF(DEFINED DOWNLOAD_URL)
-      # if user testing code from package then get the corresponding archived tests.
-      ExternalProject_Add(testdata
-	PREFIX "testdata"
-	DOWNLOAD_DIR "${TEST_DATA_DIR}"
-	URL "https://github.com/kaeldai/testdata/archive/${DATA_PACKAGE}"
-	SOURCE_DIR "${TEST_DATA_DIR}"
-	CONFIGURE_COMMAND ""
-	BUILD_COMMAND ""
-	INSTALL_COMMAND "")
-    ELSE()
-      # if code was downloaded directly from github, then grab the lastest tests
-      ExternalProject_Add(testdata
-	PREFIX "testdata"
-	DOWNLOAD_DIR "${TEST_DATA_DIR}"
-	GIT_REPOSITORY "https://github.com/kaeldai/testdata.git"
-	SOURCE_DIR "${TEST_DATA_DIR}"
-	CONFIGURE_COMMAND ""
-	BUILD_COMMAND ""
-	INSTALL_COMMAND "")
-    ENDIF()
-  ENDIF()
+IF(DEFINED DOWNLOAD_URL)
+  # if user testing code from package then get the corresponding archived tests.
+  ExternalProject_Add(testdata
+    DEPENDS dng-phaser dng-dnm dng-call
+    PREFIX "testdata"
+    EXCLUDE_FROM_ALL 1
+    DOWNLOAD_DIR "${TEST_DATA_DIR}"
+    URL "https://github.com/kaeldai/testdata/archive/${DATA_PACKAGE}"
+    SOURCE_DIR "${TEST_DATA_DIR}"
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND ""
+    INSTALL_COMMAND "")
+ELSE()
+  # if code was downloaded directly from github, then grab the lastest tests
+  ExternalProject_Add(testdata
+    DEPENDS dng-phaser dng-dnm dng-call
+    PREFIX "testdata"
+    EXCLUDE_FROM_ALL TRUE
+    DOWNLOAD_DIR "${TEST_DATA_DIR}"
+    GIT_REPOSITORY "https://github.com/kaeldai/testdata.git"
+    SOURCE_DIR "${TEST_DATA_DIR}"
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND ""
+    INSTALL_COMMAND "")
 ENDIF()
 
 IF(NOT DEFINED TEST_DATA_DIR OR (DEFINED TEST_DATA_DIR AND NOT IS_DIRECTORY "${TEST_DATA_DIR}"))
-  MESSAGE(STATUS "WARNING: Could not find directory ${TEST_DATA_DIR}. Skipping full Package tests.")
-  MESSAGE(STATUS "         Please rerun cmake with IMPORT_TEST_DATA (cmake -DIMPORT_TEST_DATA=1 ..)")
-  RETURN()
+  MESSAGE(STATUS "WARNING: Could not find directory ${TEST_DATA_DIR}. Full package tests will fail.")
+  MESSAGE(STATUS "         Please run \'cmake testdata\' before running \'make test\'")
 ENDIF()
     
 ADD_TEST(Test_Help ${DNG_CALL_EXE})
@@ -177,57 +174,3 @@ SET_TESTS_PROPERTIES(FullTest_Sample_Phaser PROPERTIES
   PASS_REGULAR_EXPRESSION "Base at DNM position: G Base at phasing position: G	 INFERRED PARENT OF ORIGIN for DNM: p2 SUPPORTING READ COUNT: 1"
 )
 
-add_custom_target(filedown
-  COMMAND "${CMAKE_COMMAND}" -DPROJDIR="${CMAKE_SOURCE_DIR}" -P ${CMAKE_SOURCE_DIR}/test/downloadtests.cmake
-#  COMMAND "git" clone "https://github.com/kaeldai/testdata.git" "${CMAKE_SOURCE_DIR}/testdata"
-)
-
-#execute_process(
-#  COMMAND "git" clone "https://github.com/kaeldai/testdata.git" "testdata"
-#  WORKING_DIRECTORY "/home/kdai1/Desktop/denovogear_working/denovogear"
-#  RESULT_VARIABLE err_code
-#)
-#message("${err_code}")
-
-
-#ExternalProject_Add(testdata1
-#  DEPENDS filedown
-#  PREFIX "blah"
-#  URL http://github.com/kaeldai/testdata/archive/0.01.tar.gz
-#  DOWNLOAD_DIR "testdataaaa"
-#  #GIT_REPOSITORY https://github.com/kaeldai/testdata.git
-#  SOURCE_DIR "${CMAKE_SOURCE_DIR}/testdata"
-#  CONFIGURE_COMMAND ""
-#  BUILD_COMMAND ""
-#  INSTALL_COMMAND ""
-#  #STEP_TARGETS download_data
-#  #STEP_TARGETS download inst
-#)
-#add_dependencies(filedown testdata)
-
-#ExternalProject_Add_StepTargets(testdata d)
-
-#INCLUDE(ExternalData)
-#ExternalData_Expand_Arguments(
-#  fulltests
-#  DATA{datadir}
-#)
-#SET(ExternalData_URL_TEMPLATES "${CMAKE_SOURCE_DIR}/testdata" "https://github.com/kaeldai/testdata/releases/tag/0.01.tar.gz")
-#SET(ExternalData_OBJECT_STORES "${CMAKE_SOURCE_DIR}")
-
-#ExternalData_Expand_Arguments(fulltests DATA{testdir} output)
-#EXTERNALDATA_ADD_TEST(FullTest_EXT 
-#  NAME Phaser1
-#  COMMAND ${DNG_PHASER_EXE} --dnm DATA{testdir}/sample_Phaser/sample_phasing_dnm_f --pgt ${TEST_DATA_DIR}/sample_Phaser/sample_phasing_GTs_f --bam ${TEST_DATA_DIR}/sample_Phaser/test1.bam
-#)
-#ExternalData_Add_Target(fulltests)
-#SET_TESTS_PROPERTIES(FullTest_EXT PROPERTIES
-#  PASS_REGULAR_EXPRESSION "DNM_pos 1:75884343	INHERITED T	VARIANT C"
-#  PASS_REGULAR_EXPRESSION "HAP POS 75884200 p1: AT p2: AC"
-#  PASS_REGULAR_EXPRESSION "Base at DNM position: A Base at phasing position: A	 INFERRED PARENT OF ORIGIN for DNM: N/A SUPPORTING READ COUNT: 1"
-#  PASS_REGULAR_EXPRESSION "Base at DNM position: G Base at phasing position: C	 INFERRED PARENT OF ORIGIN for DNM: p1 SUPPORTING READ COUNT: 1"
-#  PASS_REGULAR_EXPRESSION "DNM_pos 1:110583335	INHERITED G	VARIANT A"
-#  PASS_REGULAR_EXPRESSION "DNM_pos 1:182974758	INHERITED G	VARIANT A"
-#  PASS_REGULAR_EXPRESSION "HAP POS 182974760 p1: GT p2: CA"
-#  PASS_REGULAR_EXPRESSION "Base at DNM position: G Base at phasing position: G	 INFERRED PARENT OF ORIGIN for DNM: p2 SUPPORTING READ COUNT: 1"
-#)
