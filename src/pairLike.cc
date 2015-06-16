@@ -23,12 +23,15 @@
 #include <string.h>
 #include "parser.h"
 #include "lookup.h"
-
-#include "newmatap.h"
-#include "newmatio.h"
+//#include "newmatap.h"
+//#include "newmatio.h"
+#include <Eigen/KroneckerProduct>
 
 
 using namespace std;
+
+typedef double Real;
+typedef Eigen::MatrixXd Matrix;
 
 // Calculate Pair PP
 void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
@@ -39,7 +42,7 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
         return;
     }
     n_site_pass += 1;
-    Real a[10];
+    //Real a[10];
     Real maxlike_null, maxlike_denovo, pp_null, pp_denovo, denom;
     Matrix N(1, 10);
     Matrix T(10, 1);
@@ -53,28 +56,35 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
 
     //Load Likelihood matrices L(D|Gt) and L(D|Gn)
     for(j = 0; j != 10; ++j) {
-        a[j] = pow(10, -normal.lk[j] / 10.);
+      N(0,j) = pow(10, -normal.lk[j] / 10.);
+      //a[j] = pow(10, -normal.lk[j] / 10.);
     }
-    N << a;
+    //N << a;
 
     for(j = 0; j != 10; ++j) {
-        a[j] = pow(10, -tumor.lk[j] / 10.);
+      T(j,0) = pow(10, -tumor.lk[j] / 10.);
+      //a[j] = pow(10, -tumor.lk[j] / 10.);
     }
-    T << a;
+    //T << a;
 
-    P = KP(N, T); // 10 * 10
+    P = kroneckerProduct(N, T);
+    //P = KP(N, T); // 10 * 10
     // Combine transmission probs L(Gc | Gm, Gf)
-    DN = SP(P, lookupPair.priors); // 10 * 10
+    DN = P.cwiseProduct(lookupPair.priors);
+    //DN = SP(P, lookupPair.priors); // 10 * 10
 
 
     // Find max likelihood of null configuration
-    PP = SP(DN, lookupPair.norm);   //zeroes out configurations with mendelian error
-    maxlike_null = PP.maximum2(i, j);
+    PP = DN.cwiseProduct(lookupPair.norm);
+    maxlike_null = PP.maxCoeff(&i, &j);
+    //PP = SP(DN, lookupPair.norm);   //zeroes out configurations with mendelian error
+    //maxlike_null = PP.maximum2(i, j);
 
     // Find max likelihood of de novo trio configuration
-    PP = SP(DN,
-            lookupPair.denovo);   //zeroes out configurations with mendelian inheritance
-    maxlike_denovo = PP.maximum2(k, l);
+    PP = DN.cwiseProduct(lookupPair.denovo);
+    maxlike_denovo = PP.maxCoeff(&k, &l);
+    //PP = SP(DN, lookupPair.denovo);   //zeroes out configurations with mendelian inheritance
+    //maxlike_denovo = PP.maximum2(k, l);
 
     denom = DN.sum();
 

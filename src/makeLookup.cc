@@ -67,12 +67,11 @@ int g_khit = 0;
 //void setSNPLines(ofstream& fout, vector<vector<string > > & tgt,
 //float lines[][1000]) -- OLD
 void setSNPLines(vector<vector<string > > &tgt,
-                 float lines[][1000], int is_X) {
+                 double lines[][1000], int is_X) {
     static int snp_index = 0, k = 0, l = 0;
     if(is_X == 1) {  // XS
 #ifdef LOOKUP_ENABLED
-        fout_XSsnp << g_n_u_alleles << " " << g_inf << " " << g_t_prob << " " << g_gts
-                   << " ";
+        fout_XSsnp << g_n_u_alleles << " " << g_inf << " " << g_t_prob << " " << g_gts << " ";
         fout_XSsnp << g_kDenovorate << " " << g_dflag << " " << g_nflag;
         for(int i = 0; i < 4; i++) {
             fout_XSsnp << " " << g_priors[i];
@@ -81,8 +80,7 @@ void setSNPLines(vector<vector<string > > &tgt,
 #endif
     } else if(is_X == 2) { // XD
 #ifdef LOOKUP_ENABLED
-        fout_XDsnp << g_n_u_alleles << " " << g_inf << " " << g_t_prob << " " << g_gts
-                   << " ";
+        fout_XDsnp << g_n_u_alleles << " " << g_inf << " " << g_t_prob << " " << g_gts << " ";
         fout_XDsnp << g_kDenovorate << " " << g_dflag << " " << g_nflag;
         for(int i = 0; i < 4; i++) {
             fout_XDsnp << " " << g_priors[i];
@@ -122,7 +120,7 @@ void setSNPLines(vector<vector<string > > &tgt,
 //void setIndelLines(ofstream& fout, vector<vector<string > > & tgt,
 //float lines[][27]) - OLD
 void setIndelLines(vector<vector<string > > &tgt,
-                   float lines[][27], int is_X) {
+                   double lines[][27], int is_X) {
     static int indel_index = 0, k = 0, l = 0;
 
     if(is_X == 1) {  // XS
@@ -335,7 +333,8 @@ void makeIndelLookup(double PolyRate,
     int X = 0;
     g_PolyRate = PolyRate;
 
-    float lines[7][27];
+    double lines[7][27];
+    //float lines[7][27];
     string seq1[] = { "R", "R", "D" };
     string seq2[] = { "R", "D", "D" };
 
@@ -343,8 +342,7 @@ void makeIndelLookup(double PolyRate,
     lookupIndel.snpcode.resize(9, 3);
     lookupIndel.code.resize(9, 3);
     lookupIndel.tp.resize(9, 3);
-    lookupIndel.mrate.resize(9,
-                             3); // Now Indel mrate is calculated based on length of indel dynamically
+    lookupIndel.mrate.resize(9, 3); // Now Indel mrate is calculated based on length of indel dynamically
     lookupIndel.hit.resize(9, 3);
     lookupIndel.denovo.resize(9, 3);
     lookupIndel.norm.resize(9, 3);
@@ -514,6 +512,26 @@ void makeIndelLookup(double PolyRate,
     fout_indel.close();
 #endif
 
+    lookupIndel.snpcode = Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor> >(lines[0]);
+    lookupIndel.code = Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor> >(lines[1]);
+    lookupIndel.tp = Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor> >(lines[2]);
+    lookupIndel.hit = Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor> >(lines[3]);
+    lookupIndel.denovo = Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor> >(lines[4]);
+    lookupIndel.norm = Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor> >(lines[5]);
+    lookupIndel.priors = Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor> >(lines[6]);
+
+    /*
+    lookupIndel.priors.resize(9, 3);
+    lookupIndel.snpcode.resize(9, 3);
+    lookupIndel.code.resize(9, 3);
+    lookupIndel.tp.resize(9, 3);
+    lookupIndel.mrate.resize(9, 3); // Now Indel mrate is calculated based on length of indel dynamically
+    lookupIndel.hit.resize(9, 3);
+    lookupIndel.denovo.resize(9, 3);
+    lookupIndel.norm.resize(9, 3);
+    */
+
+    /*
     lookupIndel.snpcode << lines[0];
     lookupIndel.code << lines[1];
     lookupIndel.tp << lines[2];
@@ -521,6 +539,7 @@ void makeIndelLookup(double PolyRate,
     lookupIndel.denovo << lines[4];
     lookupIndel.norm << lines[5];
     lookupIndel.priors << lines[6];
+    */
 
 }
 
@@ -535,11 +554,13 @@ void makeSNPLookup(double SNPMrate, double PolyRate,
     g_Mrate = SNPMrate;
     g_PolyRate = PolyRate;
 
-    float lines[10][1000];
+    //float lines[10][1000];
+    double lines[10][1000];
     string seq1[] = { "A", "A", "A", "A", "C", "C", "C", "G", "G", "T" };
     string seq2[] = { "A", "C", "G", "T", "C", "G", "T", "G", "T", "T" };
 
 
+    
     lookup.aref.resize(100, 10);
     lookup.cref.resize(100, 10);
     lookup.gref.resize(100, 10);
@@ -809,6 +830,31 @@ void makeSNPLookup(double SNPMrate, double PolyRate,
     fout_snp.close();
 #endif
 
+    lookup.snpcode = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[0]);
+    lookup.code = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[1]);
+    lookup.tp = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[2]);
+    lookup.mrate = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[3]);
+    lookup.denovo = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[4]);
+    lookup.norm = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[5]);
+    lookup.aref = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[6]);
+    lookup.cref = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[7]);
+    lookup.gref = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[8]);
+    lookup.tref = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[9]);
+    
+    /*
+    lookup.aref.resize(100, 10);
+    lookup.cref.resize(100, 10);
+    lookup.gref.resize(100, 10);
+    lookup.tref.resize(100, 10);
+    lookup.snpcode.resize(100, 10);
+    lookup.code.resize(100, 10);
+    lookup.tp.resize(100, 10);
+    lookup.mrate.resize(100, 10);
+    lookup.denovo.resize(100, 10);
+    lookup.norm.resize(100, 10);
+    */
+
+    /*
     lookup.snpcode << lines[0];
     lookup.code << lines[1];
     lookup.tp << lines[2];
@@ -819,6 +865,7 @@ void makeSNPLookup(double SNPMrate, double PolyRate,
     lookup.cref << lines[7];
     lookup.gref << lines[8];
     lookup.tref << lines[9];
+    */
 }
 
 // Create SNP lookup for XS
@@ -832,7 +879,8 @@ void makeXSSNPLookup(double SNPMrate, double PolyRate,
     g_Mrate = SNPMrate;
     g_PolyRate = PolyRate;
 
-    float lines[10][1000];
+    //float lines[10][1000];
+    double lines[10][1000];
     string seq1[] = { "A", "A", "A", "A", "C", "C", "C", "G", "G", "T" };
     string seq2[] = { "A", "C", "G", "T", "C", "G", "T", "G", "T", "T" };
 
@@ -1072,6 +1120,32 @@ void makeXSSNPLookup(double SNPMrate, double PolyRate,
     fout_XSsnp.close();
 #endif
 
+    lookup.snpcode = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[0]);
+    lookup.code = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[1]);
+    lookup.tp = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[2]);
+    lookup.mrate = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[3]);
+    lookup.denovo = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[4]);
+    lookup.norm = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[5]);
+    lookup.aref = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[6]);
+    lookup.cref = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[7]);
+    lookup.gref = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[8]);
+    lookup.tref = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[9]);
+
+
+    /*
+    lookup.aref.resize(100, 10);
+    lookup.cref.resize(100, 10);
+    lookup.gref.resize(100, 10);
+    lookup.tref.resize(100, 10);
+    lookup.snpcode.resize(100, 10);
+    lookup.code.resize(100, 10);
+    lookup.tp.resize(100, 10);
+    lookup.mrate.resize(100, 10);
+    lookup.denovo.resize(100, 10);
+    lookup.norm.resize(100, 10);
+    */
+
+    /*
     lookup.snpcode << lines[0];
     lookup.code << lines[1];
     lookup.tp << lines[2];
@@ -1082,6 +1156,7 @@ void makeXSSNPLookup(double SNPMrate, double PolyRate,
     lookup.cref << lines[7];
     lookup.gref << lines[8];
     lookup.tref << lines[9];
+    */
 }
 
 void makeXSIndelLookup(double PolyRate,
@@ -1093,7 +1168,8 @@ void makeXSIndelLookup(double PolyRate,
     int X = 1;
     g_PolyRate = PolyRate;
 
-    float lines[7][27];
+    //float lines[7][27];
+    double lines[7][27];
     string seq1[] = { "R", "R", "D" };
     string seq2[] = { "R", "D", "D" };
 
@@ -1281,6 +1357,26 @@ void makeXSIndelLookup(double PolyRate,
     fout_XSindel.close();
 #endif
 
+    lookupIndel.snpcode = Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor> >(lines[0]);
+    lookupIndel.code = Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor> >(lines[1]);
+    lookupIndel.tp = Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor> >(lines[2]);
+    lookupIndel.hit = Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor> >(lines[3]);
+    lookupIndel.denovo = Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor> >(lines[4]);
+    lookupIndel.norm = Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor> >(lines[5]);
+    lookupIndel.priors = Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor> >(lines[6]);
+
+    /*
+    lookupIndel.priors.resize(9, 3);
+    lookupIndel.snpcode.resize(9, 3);
+    lookupIndel.code.resize(9, 3);
+    lookupIndel.tp.resize(9, 3);
+    lookupIndel.mrate.resize(9,3); // Now Indel mrate is calculated based on length of indel dynamically
+    lookupIndel.hit.resize(9, 3);
+    lookupIndel.denovo.resize(9, 3);
+    lookupIndel.norm.resize(9, 3);
+    */
+
+    /*
     lookupIndel.snpcode << lines[0];
     lookupIndel.code << lines[1];
     lookupIndel.tp << lines[2];
@@ -1288,7 +1384,7 @@ void makeXSIndelLookup(double PolyRate,
     lookupIndel.denovo << lines[4];
     lookupIndel.norm << lines[5];
     lookupIndel.priors << lines[6];
-
+    */
 }
 
 void makeXDSNPLookup(double SNPMrate, double PolyRate,
@@ -1301,7 +1397,8 @@ void makeXDSNPLookup(double SNPMrate, double PolyRate,
     g_Mrate = SNPMrate;
     g_PolyRate = PolyRate;
 
-    float lines[10][1000];
+    //float lines[10][1000];
+    double lines[10][1000];
     string seq1[] = { "A", "A", "A", "A", "C", "C", "C", "G", "G", "T" };
     string seq2[] = { "A", "C", "G", "T", "C", "G", "T", "G", "T", "T" };
 
@@ -1580,6 +1677,34 @@ void makeXDSNPLookup(double SNPMrate, double PolyRate,
     fout_XDsnp.close();
 #endif
 
+    
+    //Eigen::Map<Eigen::Matrix<double, 9, 3> >(lines[0]);
+
+    lookup.snpcode = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[0]);
+    lookup.code = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[1]);
+    lookup.tp = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[2]);
+    lookup.mrate = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[3]);
+    lookup.denovo = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[4]);
+    lookup.norm = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[5]);
+    lookup.aref = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[6]);
+    lookup.cref = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[7]);
+    lookup.gref = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[8]);
+    lookup.tref = Eigen::Map<Eigen::Matrix<double, 100, 10, Eigen::RowMajor> >(lines[9]);
+
+    /*
+    lookup.aref.resize(100, 10);
+    lookup.cref.resize(100, 10);
+    lookup.gref.resize(100, 10);
+    lookup.tref.resize(100, 10);
+    lookup.snpcode.resize(100, 10);
+    lookup.code.resize(100, 10);
+    lookup.tp.resize(100, 10);
+    lookup.mrate.resize(100, 10);
+    lookup.denovo.resize(100, 10);
+    lookup.norm.resize(100, 10);
+    */
+
+    /*
     lookup.snpcode << lines[0];
     lookup.code << lines[1];
     lookup.tp << lines[2];
@@ -1590,10 +1715,11 @@ void makeXDSNPLookup(double SNPMrate, double PolyRate,
     lookup.cref << lines[7];
     lookup.gref << lines[8];
     lookup.tref << lines[9];
+    */
 }
 
 
-void makeXDIndelLookup(double PolyRate,
+void makeXDIndelLookup(double PolyRate, 
                        vector<vector<string > > &tgt, lookup_indel_t &lookupIndel) {
 #ifdef LOOKUP_ENABLED
     fout_XDindel.precision(10);
@@ -1602,7 +1728,8 @@ void makeXDIndelLookup(double PolyRate,
     int X = 2;
     g_PolyRate = PolyRate;
 
-    float lines[7][27];
+    //float lines[7][27];
+    double lines[7][27];
     string seq1[] = { "R", "R", "D" };
     string seq2[] = { "R", "D", "D" };
 
@@ -1816,6 +1943,25 @@ void makeXDIndelLookup(double PolyRate,
     fout_XDindel.close();
 #endif
 
+    lookupIndel.snpcode = Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor> >(lines[0]);
+    lookupIndel.code = Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor> >(lines[1]);
+    lookupIndel.tp = Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor> >(lines[2]);
+    lookupIndel.hit = Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor> >(lines[3]);
+    lookupIndel.denovo = Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor> >(lines[4]);
+    lookupIndel.norm = Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor> >(lines[5]);
+    lookupIndel.priors = Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor> >(lines[6]);
+
+    /*
+    lookupIndel.priors.resize(9, 3);
+    lookupIndel.snpcode.resize(9, 3);
+    lookupIndel.code.resize(9, 3);
+    lookupIndel.tp.resize(9, 3);
+    lookupIndel.mrate.resize(9, 3); // Now Indel mrate is calculated based on length of indel dynamically
+    lookupIndel.hit.resize(9, 3);
+    lookupIndel.denovo.resize(9, 3);
+    lookupIndel.norm.resize(9, 3);
+    */
+    /*
     lookupIndel.snpcode << lines[0];
     lookupIndel.code << lines[1];
     lookupIndel.tp << lines[2];
@@ -1823,12 +1969,12 @@ void makeXDIndelLookup(double PolyRate,
     lookupIndel.denovo << lines[4];
     lookupIndel.norm << lines[5];
     lookupIndel.priors << lines[6];
+    */
 }
 
 
 // Lookup table for paired samples
-void makePairedLookup(double pairMrate, vector<vector<string > > &tgt,
-                      lookup_pair_t &lookup) {
+void makePairedLookup(double pairMrate, vector<vector<string > > &tgt, lookup_pair_t &lookup) {
 #ifdef LOOKUP_ENABLED
     fout_pair.precision(10);
 #endif
@@ -1918,8 +2064,21 @@ void makePairedLookup(double pairMrate, vector<vector<string > > &tgt,
     fout_pair.close();
 #endif
 
+    lookup.snpcode = Eigen::Map<Eigen::Matrix<double, 10, 10, Eigen::RowMajor> >(codes);
+    lookup.denovo = Eigen::Map<Eigen::Matrix<double, 10, 10, Eigen::RowMajor> >(d_flag);
+    lookup.norm = Eigen::Map<Eigen::Matrix<double, 10, 10, Eigen::RowMajor> >(n_flag);
+    lookup.priors = Eigen::Map<Eigen::Matrix<double, 10, 10, Eigen::RowMajor> >(priors);
+
+    /*
+    lookup.priors.resize(10, 10);
+    lookup.denovo.resize(10, 10);
+    lookup.norm.resize(10, 10);
+    lookup.snpcode.resize(10, 10);
+    */
+    /*
     lookup.snpcode << codes;
     lookup.denovo << d_flag;
     lookup.norm << n_flag;
     lookup.priors << priors;
+    */
 }

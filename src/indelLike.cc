@@ -24,8 +24,9 @@
 #include <string.h>
 #include "parser.h"
 #include "lookup.h"
-#include "newmatap.h"
-#include "newmatio.h"
+//#include "newmatap.h"
+//#include "newmatio.h"
+#include <Eigen/KroneckerProduct>
 
 #define MIN_READ_DEPTH_INDEL 10
 
@@ -38,6 +39,9 @@ const float DELETION_INTERCEPT = -21.9313;
 
 
 using namespace std;
+
+typedef double Real;
+typedef Eigen::MatrixXd Matrix;
 
 // Calculate DNM and Null PP
 void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
@@ -52,7 +56,7 @@ void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
     }
 
     n_site_pass += 1;
-    Real a[3];
+    //Real a[3];
     Real maxlike_null, maxlike_denovo, pp_null, pp_denovo, denom;
     Matrix M(1, 3);
     Matrix C(3, 1);
@@ -70,7 +74,7 @@ void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
 
     // this is the case where child has more than 1 indel alt allele, ignore for now
     if(strstr(child->alt, ",") != 0) {
-        return;
+      return;
     }
 
     bool is_insertion = false; // insertion/deletion event
@@ -107,30 +111,53 @@ void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
     }
 
     //Load likelihood vectors
-    for(j = 0; j != 3; ++j) { a[j] = pow(10, -mom->lk[j] / 10.); }
-    M << a;
-    for(j = 0; j != 3; ++j) { a[j] = pow(10, -dad->lk[j] / 10.); }
-    D << a;
-    for(j = 0; j != 3; ++j) { a[j] = pow(10, -child->lk[j] / 10.); }
-    C << a;
+    for(j = 0; j != 3; ++j) { 
+      M(0,j) = pow(10, -mom->lk[j] / 10.);
+      //a[j] = pow(10, -mom->lk[j] / 10.); 
+    }
+    //M << a;
+    
+    for(j = 0; j != 3; ++j) { 
+      D(j,0) = pow(10, -dad->lk[j] / 10.); 
+      //a[j] = pow(10, -dad->lk[j] / 10.); 
+    }
+    //D << a;
+    
+    for(j = 0; j != 3; ++j) { 
+      D(j,0) = pow(10, -child->lk[j] / 10.);
+      //a[j] = pow(10, -child->lk[j] / 10.); 
+    }
+    //C << a;
 
-    P = KP(M, D);
-    F = KP(P, C);
+
+    P = kroneckerProduct(M, D);
+    F = kroneckerProduct(P, C);
+    //P = KP(M, D);
+    //F = KP(P, C);
+
     // combine with transmission probs
-    T = SP(F, lookupIndel.tp);
+    T = F.cwiseProduct(lookupIndel.tp);
+    //T = SP(F, lookupIndel.tp);
+
     // combine with priors
-    L = SP(T, lookupIndel.priors);
+    L = T.cwiseProduct(lookupIndel.priors);
+    //L = SP(T, lookupIndel.priors);
+
     // combine with mutation rate
-    DN = SP(L, lookupIndel.mrate);
+    DN = L.cwiseProduct(lookupIndel.mrate);
+    //DN = SP(L, lookupIndel.mrate);
 
     // Find max likelihood of null configuration
-    PP = SP(DN, lookupIndel.norm);  //zeroes out configurations with mendelian error
-    maxlike_null = PP.maximum2(i, j);
+    PP = DN.cwiseProduct(lookupIndel.norm);
+    maxlike_null = PP.maxCoeff(&i, &j);
+    //PP = SP(DN, lookupIndel.norm);  //zeroes out configurations with mendelian error
+    //maxlike_null = PP.maximum2(i, j);
 
     //Find max likelihood of de novo trio configuration
-    PP = SP(DN,
-            lookupIndel.denovo);  //zeroes out configurations with mendelian inheritance
-    maxlike_denovo = PP.maximum2(k, l);
+    PP = DN.cwiseProduct(lookupIndel.denovo);
+    maxlike_denovo = PP.maxCoeff(&k, &l);
+    //PP = SP(DN, lookupIndel.denovo);  //zeroes out configurations with mendelian inheritance
+    //maxlike_denovo = PP.maximum2(k, l);
 
     //make proper posterior probs
     denom = DN.sum();

@@ -31,9 +31,10 @@
 #include "parser.h"
 #include "makeLookup.h"
 
+// TODO: What is WANT_STREAM? Does it have something to do with newmat?
 #define WANT_STREAM       // include iostream and iomanipulators
-#include "newmatap.h"
-#include "newmatio.h"
+//#include "newmatap.h"
+//#include "newmatio.h"
 
 using namespace std;
 
