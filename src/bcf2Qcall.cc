@@ -127,7 +127,7 @@ int bcf_2qcall(const bcf_hdr_t *hdr, bcf1_t *rec, Trio t, qcall_t *mom_snp,
 
   // Make sure reference and alt alleles are only single-bases
   if(strlen(alleles[0]) > 1 || n_alleles > 4) {
-    return 10;
+    //return 10;
   }
   
   // Make sure the PL fields (phred-scaled genotype likihoods) exists, then
