@@ -18,4 +18,9 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifndef PHASER_H
+#define PHASER_H
+
 int mainPhaser(int argc, char *argv[]);
+
+#endif

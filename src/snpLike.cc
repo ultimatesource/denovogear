@@ -25,24 +25,34 @@
 #include "parser.h"
 #include "lookup.h"
 #include <string.h>
-#include "newmatap.h"
-#include "newmatio.h"
+#include <Eigen/KroneckerProduct>
+#include <iomanip>
 
 using namespace std;
 
 
+// Added for testing purposes. Remove if someone think's it's ugly.
+inline void printMatrix(Matrix &m) {
+  std::cout << std::scientific;
+  for(int a = 0; a < m.rows(); a++) {
+    for(int b = 0; b < m.cols(); b++) {
+      std::cout << std::setprecision(6) << m(a,b) << "  ";
+    }
+    std::cout << std::endl;
+  }
+}
+
 // Calculate DNM and Null PP
-void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag,
-                   vector<vector<string > > &tgt, lookup_snp_t &lookup,
-                   string op_vcf_f, ofstream &fo_vcf, double pp_cutoff, int RD_cutoff,
-                   int &n_site_pass) {
+void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag, vector<vector<string > > &tgt, lookup_snp_t &lookup, 
+		   std::vector<hts::bcf::File> &vcfout, double pp_cutoff, int RD_cutoff, int &n_site_pass) {
+
     // Filter low read depths ( < 10 )
     if(child.depth < RD_cutoff || mom.depth < RD_cutoff || dad.depth < RD_cutoff) {
         return;
     }
     n_site_pass += 1;
-    Real a[10];
     Real maxlike_null, maxlike_denovo, pp_null, pp_denovo, denom;
+        
     Matrix M(1, 10);
     Matrix C(10, 1);
     Matrix D(10, 1);
@@ -58,31 +68,83 @@ void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag,
     strcpy(ref_name, child.chr); // Name of the reference sequence
 
     //Load Likelihood matrices L(D|Gm), L(D|Gd) and L(D|Gc)
-    for(j = 0; j != 10; ++j)	{
-#ifdef DEBUG_ENABLED
-        cout << "\n" << " mom lik " << mom.lk[j] << " " << pow(10, -mom.lk[j] / 10);
-        cout << " dad lik " << dad.lk[j] << " " << pow(10, -dad.lk[j] / 10);
-        cout << " child lik " << child.lk[j] << " " << pow(10, -child.lk[j] / 10);
-#endif
-        a[j] = pow(10, -mom.lk[j] / 10.0);
+    //std::cout << "M =";
+    for(size_t a = 0; a < 10; a++) {
+      M(0,a) = pow(10, -mom.lk[a] / 10.0);
+      //a[j] = pow(10, -mom.lk[a] / 10.0);
+      //std::cout << " " << a[j]
     }
-    M << a;
+    //M << a;
 
-    for(j = 0; j != 10; ++j) {
-        a[j] = pow(10, -dad.lk[j] / 10.0);
+    
+    for(size_t a = 0; a < 10; a++) {
+      D(a,0) = pow(10, -dad.lk[a] / 10.0);
+      //a[j] = pow(10, -dad.lk[j] / 10.0);
     }
-    D << a;
+    //D << a;
 
-    for(j = 0; j != 10; ++j) {
-        a[j] = pow(10, -child.lk[j] / 10.0);
+    for(size_t a = 0; a < 10; a++) {
+      C(a,0) = pow(10, -child.lk[a] / 10.0);
+      //a[j] = pow(10, -child.lk[j] / 10.0);
     }
-    C << a;
+    //C << a;
 
-    P = KP(M, D); // 10 * 10
-    F = KP(P, C); // 100 * 10
+    // Take the Kronecker products
+    P = kroneckerProduct(M, D);
+    F = kroneckerProduct(P, C);
+    //P = KP(M, D); // 10 * 10
+    //F = KP(P, C); // 100 * 10
 
     // Combine transmission probs L(Gc | Gm, Gf)
-    T = SP(F, lookup.tp); //100 * 10
+    // Take the entry wise (aka Schur) product of the two matricies
+    T = F.cwiseProduct(lookup.tp);
+    //T = SP(F, lookup.tp); //100 * 10
+
+    // Combine prior L(Gm, Gf)
+    switch(mom.ref_base) {
+    case 'A':
+      L = T.cwiseProduct(lookup.aref);
+      //L = SP(T, lookup.aref); 
+      break;
+    case 'C':
+      L = T.cwiseProduct(lookup.cref);
+      //L = SP(T, lookup.cref); 
+      break;
+    case 'G':
+      L = T.cwiseProduct(lookup.gref);
+      //L = SP(T, lookup.gref); 
+      break;
+    case 'T':
+      L = T.cwiseProduct(lookup.tref);
+      //L = SP(T, lookup.tref); 
+      break;
+      
+    default: L = T; break;
+    }
+
+    //std::cout << "L = " << std::endl << L << std::endl;
+
+    DN = L.cwiseProduct(lookup.mrate);
+    //DN = SP(L, lookup.mrate);
+
+    // Find max likelihood of null configuration
+    
+    PP = DN.cwiseProduct(lookup.norm);
+    //PP = SP(DN, lookup.norm); //zeroes out configurations with mendelian error
+    maxlike_null = PP.maxCoeff(&i, &j);
+    
+    //maxlike_null = PP.maximum2(i, j);
+
+
+    // Find max likelihood of de novo trio configuration
+    PP = DN.cwiseProduct(lookup.denovo);
+    //PP = SP(DN, lookup.denovo); //zeroes out configurations with mendelian inheritance
+    maxlike_denovo = PP.maxCoeff(&k, &l);
+    //maxlike_denovo = PP.maximum2(k, l);
+
+    denom = DN.sum();
+
+
 #ifdef DEBUG_ENABLED
     cout << "\n\nMOM\n\n";
     cout << setw(10) << setprecision(10) << M;
@@ -96,26 +158,6 @@ void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag,
     cout << setw(10) << setprecision(10) << F;
     cout << "\n\nT = L(Gc, Gm, Gd) * L(Gc | Gm, Gf)\n\n";
     cout << setw(10) << setprecision(10) << T;
-#endif
-
-    // Combine prior L(Gm, Gf)
-    switch(mom.ref_base) {
-    case 'A':
-        L = SP(T, lookup.aref); break;
-
-    case 'C':
-        L = SP(T, lookup.cref); break;
-
-    case 'G':
-        L = SP(T, lookup.gref); break;
-
-    case 'T':
-        L = SP(T, lookup.tref); break;
-
-    default: L = T; break;
-    }
-
-#ifdef DEBUG_ENABLED
     cout << "\n\nlookup.mrate\n\n";
     cout << setw(10) << setprecision(10) << lookup.mrate;
     cout << "\n\nlookup.norm\n\n";
@@ -124,36 +166,14 @@ void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag,
     cout << setw(10) << setprecision(10) << lookup.denovo;
     cout << "\n\nL = L(Gc, Gm, Gd) * L(Gc | Gm, Gf) * L(Gm, Gf)\n\n";
     cout << setw(10) << setprecision(10) << L;
-#endif
-
-    DN = SP(L, lookup.mrate);
-
-    // Find max likelihood of null configuration
-    PP = SP(DN, lookup.norm); //zeroes out configurations with mendelian error
-    maxlike_null = PP.maximum2(i, j);
-
-#ifdef DEBUG_ENABLED
     cout << "\n\nDN\n\n";
     cout << setw(10) << setprecision(20) << DN;
     cout << "\n\nPP normal\n\n";
     cout << setw(10) << setprecision(20) << PP;
-#endif
-
-    // Find max likelihood of de novo trio configuration
-    PP = SP(DN,
-            lookup.denovo); //zeroes out configurations with mendelian inheritance
-    maxlike_denovo = PP.maximum2(k, l);
-
-#ifdef DEBUG_ENABLED
     cout << "\n\nPP denovo\n\n";
     cout << setw(10) << setprecision(20) << PP;
-#endif
-
-    denom = DN.sum();
-
-#ifdef DEBUG_ENABLED
-    cout << "\nmax_normal i " << i << " j " << j << " GT " << tgt[i - 1][j - 1];
-    cout << "\nmax_denovo k " << k << " l " << l << " GT " << tgt[k - 1][l - 1];;
+    cout << "\nmax_normal i " << i << " j " << j << " GT " << tgt[i][j];
+    cout << "\nmax_denovo k " << k << " l " << l << " GT " << tgt[k][l];;
     cout << "\nDenom is " << denom;
 #endif
 
@@ -161,8 +181,30 @@ void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag,
     pp_null = 1 - pp_denovo; //null posterior probability
 
     // Check for PP cutoff
+    
+    /*
+    std::cout << "ref base = " << mom.ref_base << std::endl;
+    //std::cout << "M = " << M << std::endl;
+    //std::cout << "P ----- " << std::endl; printMatrix(P);  std::cout << "------- " << std::endl;
+    //std::cout << "F ----- " << std::endl; printMatrix(F); std::cout << "------- " << std::endl; //
+    //std::cout << "lookup.tp ----- " << std::endl; printMatrix(lookup.tp); std::cout << "------- " << std::endl;
+    //std::cout << "lookup.norm ----- " << std::endl; printMatrix(lookup.norm); std::cout << "------- " << std::endl; //    
+    //std::cout << "T ----- " << std::endl; printMatrix(T); std::cout << "------- " << std::endl; //
+    //std::cout << "lookup.aref ----- " << std::endl; printMatrix(lookup.aref); std::cout << "------- " << std::endl; //
+    std::cout << "PP ----- " << std::endl; printMatrix(PP); std::cout << "------- " << std::endl; //
+   
+    std::cout << "F(" << k << "," << l << ") = " << F(k,l) << std::endl;
+    std::cout << "L(" << k << "," << l << ") = " << L(k,l) << std::endl;
+    std::cout << "DN(" << k << "," << l << ") = " << DN(k,l) << std::endl;
+    std::cout << "maxlike_denovo " << maxlike_denovo << "(" << k << "," << l <<")" << std::endl;
+    std::cout << "PP_[" << PP.rows() << "x" << PP.cols() << "]" << "\t(" << k << "," << l << ") = " << PP(k,l) << std::endl;
+    std::cout << "pp_denovo = " << pp_denovo << " (" << maxlike_denovo << "/" << denom << ") " << std::endl;
+    std::cout << "tgt[" << i << "," << j << "] = " << tgt[i][j] << std::endl;
+    std::cout << "tgt[" << k << "," << l << "] = " << tgt[k][l] << std::endl;
+    std::cout << std::endl;
+    */
     if(pp_denovo > pp_cutoff) {
-
+      
         //remove ",X" from alt, helps with VCF op.
         string alt = mom.alt;
         size_t start = alt.find(",X");
@@ -174,10 +216,10 @@ void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag,
         cout << " chr: " << ref_name << " pos: " << coor << " ref: " << mom.ref_base <<
              " alt: " << alt;
         cout << " maxlike_null: " << maxlike_null << " pp_null: " << pp_null <<
-             " tgt_null(child/mom/dad): " << tgt[i - 1][j - 1];
+             " tgt_null(child/mom/dad): " << tgt[i][j];
         cout << " snpcode: " << lookup.snpcode(i, j) << " code: " << lookup.code(i, j);
         cout << " maxlike_dnm: " << maxlike_denovo << " pp_dnm: " << pp_denovo;
-        cout << " tgt_dnm(child/mom/dad): " << tgt[k - 1][l - 1] << " lookup: " <<
+        cout << " tgt_dnm(child/mom/dad): " << tgt[k][l] << " lookup: " <<
              lookup.code(k, l) << " flag: " << flag;
         cout << " READ_DEPTH child: " << child.depth << " dad: " << dad.depth <<
              " mom: " << mom.depth;
@@ -185,25 +227,49 @@ void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag,
              << " mom: " << mom.rms_mapQ;
         cout << endl;
 
-        if(op_vcf_f != "EMPTY") {
-            fo_vcf << ref_name << "\t";
-            fo_vcf << coor << "\t";
-            fo_vcf << ".\t"; // Don't know the rsID
-            fo_vcf << mom.ref_base << "\t";
-            fo_vcf << alt << "\t";
-            fo_vcf << "0\t"; // Quality of the Call
-            fo_vcf << "PASS\t"; // passed the read depth filter
-            fo_vcf << "RD_MOM=" << mom.depth << ";RD_DAD=" << dad.depth;
-            fo_vcf << ";MQ_MOM=" << mom.rms_mapQ << ";MQ_DAD=" << dad.rms_mapQ;
-            fo_vcf << ";SNPcode=" << lookup.snpcode(i, j) << ";code=" << lookup.code(i,
-                    j) << ";\t";
-            fo_vcf << "NULL_CONFIG(child/mom/dad):PP_NULL:ML_NULL:DNM_CONFIG(child/mom/dad):PP_DNM:ML_DNM:RD:MQ\t";
-            fo_vcf << tgt[i - 1][j - 1] << ":" << pp_null << ":";
-            fo_vcf << maxlike_null << ":";
-            fo_vcf << tgt[k - 1][l - 1] << ":" << pp_denovo << ":" << maxlike_denovo << ":"
-                   << child.depth << ":" << child.rms_mapQ;
-            fo_vcf << "\n";
-        }
-    }
+	if(!vcfout.empty()) {
+	  auto rec = vcfout[0].InitVariant();
+	  rec.target(ref_name);
+	  rec.position(coor);
+	  rec.alleles(std::string(1, mom.ref_base) + "," + alt); 
+	  rec.quality(0);
+	  rec.filter("PASS");
+#ifndef NEWVCFOUT
+	  // Old vcf output format
+	  rec.info("RD_MOM", mom.depth);
+	  rec.info("RD_DAD", dad.depth);
+	  rec.info("MQ_MOM", mom.rms_mapQ);
+	  rec.info("MQ_DAD", dad.rms_mapQ);
+	  rec.info("SNPcode", static_cast<float>(lookup.snpcode(i,j)));
+	  rec.info("code", static_cast<float>(lookup.code(i,j)));
+	  rec.samples("NULL_CONFIG(child/mom/dad)", std::vector<std::string>{tgt[i][j]});
+	  rec.samples("PP_NULL", std::vector<float>{static_cast<float>(pp_null)});
+	  rec.samples("ML_NULL", std::vector<float>{static_cast<float>(maxlike_null)});
+	  rec.samples("DNM_CONFIG(child/mom/dad)", std::vector<std::string>{tgt[k][l]});
+	  rec.samples("PP_DNM", std::vector<float>{static_cast<float>(pp_denovo)});
+	  rec.samples("ML_DNM", std::vector<float>{static_cast<float>(maxlike_denovo)});
+	  rec.samples("RD", std::vector<int32_t>{child.depth});
+	  rec.samples("MQ", std::vector<int32_t>{child.rms_mapQ});
+#else
+	  
+	  // Newer, more accurate VCF output format
+	  rec.info("SNPcode", static_cast<float>(lookup.snpcode(i,j)));
+	  rec.info("code", static_cast<float>(lookup.code(i,j)));
+	  rec.info("PP_NULL", static_cast<float>(pp_null));
+	  rec.info("ML_NULL", static_cast<float>(maxlike_null));
+	  rec.info("PP_DNM", static_cast<float>(static_cast<float>(pp_denovo)));
+	  rec.info("ML_DNM", static_cast<float>(static_cast<float>(maxlike_denovo)));
+	  rec.samples("RD", std::vector<int32_t>{child.depth, mom.depth, dad.depth});
+	  rec.samples("MQ", std::vector<int32_t>{child.rms_mapQ, mom.rms_mapQ, dad.rms_mapQ});
+	  std::vector<std::string> configs;
+	  boost::split(configs, tgt[i][j], boost::is_any_of("/"));
+	  rec.samples("NULL_CONFIG", configs);
+	  boost::split(configs, tgt[k][l], boost::is_any_of("/"));
+	  rec.samples("DNM_CONFIG", configs);  
+#endif
+	  vcfout[0].WriteRecord(rec);
+	  }
+    
+     }
 
 }

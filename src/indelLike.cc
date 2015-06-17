@@ -23,9 +23,10 @@
 #include <fstream>
 #include <string.h>
 #include "parser.h"
+//#include "newmatap.h"
+//#include "newmatio.h"
+#include <Eigen/KroneckerProduct>
 #include "lookup.h"
-#include "newmatap.h"
-#include "newmatio.h"
 
 #define MIN_READ_DEPTH_INDEL 10
 
@@ -36,14 +37,12 @@ const float DELETION_SLOPE = -0.2856;
 const float DELETION_INTERCEPT = -21.9313;
 
 
-
 using namespace std;
 
 // Calculate DNM and Null PP
 void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
-                     vector<vector<string > > &tgtIndel,
-                     lookup_indel_t &lookupIndel, double mu_scale,
-                     string op_vcf_f, ofstream &fo_vcf, double pp_cutoff,
+                     lookup_table_t &tgtIndel, lookup_indel_t &lookupIndel, 
+		     double mu_scale, vector<hts::bcf::File> &vcfout, double pp_cutoff,
                      int RD_cutoff, int &n_site_pass, double user_indel_mrate) {
     // Read depth filter
     if(child->depth < RD_cutoff ||
@@ -52,7 +51,7 @@ void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
     }
 
     n_site_pass += 1;
-    Real a[3];
+    //Real a[3];
     Real maxlike_null, maxlike_denovo, pp_null, pp_denovo, denom;
     Matrix M(1, 3);
     Matrix C(3, 1);
@@ -70,7 +69,7 @@ void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
 
     // this is the case where child has more than 1 indel alt allele, ignore for now
     if(strstr(child->alt, ",") != 0) {
-        return;
+      return;
     }
 
     bool is_insertion = false; // insertion/deletion event
@@ -107,30 +106,53 @@ void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
     }
 
     //Load likelihood vectors
-    for(j = 0; j != 3; ++j) { a[j] = pow(10, -mom->lk[j] / 10.); }
-    M << a;
-    for(j = 0; j != 3; ++j) { a[j] = pow(10, -dad->lk[j] / 10.); }
-    D << a;
-    for(j = 0; j != 3; ++j) { a[j] = pow(10, -child->lk[j] / 10.); }
-    C << a;
+    for(j = 0; j != 3; ++j) { 
+      M(0,j) = pow(10, -mom->lk[j] / 10.);
+      //a[j] = pow(10, -mom->lk[j] / 10.); 
+    }
+    //M << a;
+    
+    for(j = 0; j != 3; ++j) { 
+      D(j,0) = pow(10, -dad->lk[j] / 10.); 
+      //a[j] = pow(10, -dad->lk[j] / 10.); 
+    }
+    //D << a;
+    
+    for(j = 0; j != 3; ++j) { 
+      D(j,0) = pow(10, -child->lk[j] / 10.);
+      //a[j] = pow(10, -child->lk[j] / 10.); 
+    }
+    //C << a;
 
-    P = KP(M, D);
-    F = KP(P, C);
+
+    P = kroneckerProduct(M, D);
+    F = kroneckerProduct(P, C);
+    //P = KP(M, D);
+    //F = KP(P, C);
+
     // combine with transmission probs
-    T = SP(F, lookupIndel.tp);
+    T = F.cwiseProduct(lookupIndel.tp);
+    //T = SP(F, lookupIndel.tp);
+
     // combine with priors
-    L = SP(T, lookupIndel.priors);
+    L = T.cwiseProduct(lookupIndel.priors);
+    //L = SP(T, lookupIndel.priors);
+
     // combine with mutation rate
-    DN = SP(L, lookupIndel.mrate);
+    DN = L.cwiseProduct(lookupIndel.mrate);
+    //DN = SP(L, lookupIndel.mrate);
 
     // Find max likelihood of null configuration
-    PP = SP(DN, lookupIndel.norm);  //zeroes out configurations with mendelian error
-    maxlike_null = PP.maximum2(i, j);
+    PP = DN.cwiseProduct(lookupIndel.norm);
+    maxlike_null = PP.maxCoeff(&i, &j);
+    //PP = SP(DN, lookupIndel.norm);  //zeroes out configurations with mendelian error
+    //maxlike_null = PP.maximum2(i, j);
 
     //Find max likelihood of de novo trio configuration
-    PP = SP(DN,
-            lookupIndel.denovo);  //zeroes out configurations with mendelian inheritance
-    maxlike_denovo = PP.maximum2(k, l);
+    PP = DN.cwiseProduct(lookupIndel.denovo);
+    maxlike_denovo = PP.maxCoeff(&k, &l);
+    //PP = SP(DN, lookupIndel.denovo);  //zeroes out configurations with mendelian inheritance
+    //maxlike_denovo = PP.maximum2(k, l);
 
     //make proper posterior probs
     denom = DN.sum();
@@ -163,6 +185,45 @@ void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
              dad->rms_mapQ << " mom: " << mom->rms_mapQ;
         cout << endl;
 
+
+	if(!vcfout.empty()) {
+	  auto rec = vcfout[0].InitVariant();
+	  rec.target(ref_name);
+	  rec.position(coor);
+	  rec.alleles(std::string(mom->ref_base) + "," + alt); 
+	  rec.quality(0);
+	  rec.filter("PASS");
+#ifndef NEWVCFOUT
+	  // Old vcf output format
+	  rec.info("RD_MOM", mom->depth);
+	  rec.info("RD_DAD", dad->depth);
+	  rec.info("MQ_MOM", mom->rms_mapQ);
+	  rec.info("MQ_DAD", dad->rms_mapQ);
+	  rec.info("INDELcode", static_cast<float>(lookupIndel.snpcode(i,j)));
+	  rec.samples("NULL_CONFIG(child/mom/dad)", std::vector<std::string>{tgtIndel[i - 1][j - 1]});
+	  rec.samples("PP_NULL", std::vector<float>{static_cast<float>(pp_null)});
+	  rec.samples("DNM_CONFIG(child/mom/dad)", std::vector<std::string>{tgtIndel[k - 1][l - 1]});
+	  rec.samples("PP_DNM", std::vector<float>{static_cast<float>(pp_denovo)});
+	  rec.samples("RD", std::vector<int32_t>{child->depth});
+	  rec.samples("MQ", std::vector<int32_t>{child->rms_mapQ});
+#else
+	  
+	  // Newer, more accurate VCF output format
+	  rec.info("INDELcode", static_cast<float>(lookupIndel.snpcode(i,j)));
+	  rec.info("PP_NULL", static_cast<float>(pp_null));
+	  rec.info("PP_DNM", static_cast<float>(pp_denovo));
+	  rec.samples("RD", std::vector<int32_t>{child->depth, mom->depth, dad->depth});
+	  rec.samples("MQ", std::vector<int32_t>{child->rms_mapQ, mom->rms_mapQ, dad->rms_mapQ});
+	  std::vector<std::string> configs;
+	  boost::split(configs, tgtIndel[i-1][j-1], boost::is_any_of("/"));
+	  rec.samples("NULL_CONFIG", configs);
+	  boost::split(configs, tgtIndel[k-1][l-1], boost::is_any_of("/"));
+	  rec.samples("DNM_CONFIG", configs);  
+#endif
+	  vcfout[0].WriteRecord(rec);
+	}
+
+	/*
         if(op_vcf_f != "EMPTY") {
             fo_vcf << ref_name << "\t";
             fo_vcf << coor << "\t";
@@ -180,5 +241,6 @@ void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
                    ":" << child->rms_mapQ;
             fo_vcf << "\n";
         }
+	*/
     }
 }

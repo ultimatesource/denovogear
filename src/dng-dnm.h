@@ -1,18 +1,22 @@
-#include "denovogear.h"
-#include "pedParser.h"
+#ifndef DNG_DNM_H_
+#define DNG_DNM_H_
 
 #include <iostream>
 #include <string>
 #include <vector>
+#include <stdlib.h>
+#include <getopt.h>
+#include <memory> 
+#include <assert.h> 
 
-#include <dng/hts/extra.h>
-#include <dng/app.h>
-#include <dng/task/dnm.h>
-#include "htslib/synced_bcf_reader.h"
+#include <dng/hts/bcf.h>
 
-using namespace std;
-using namespace dng::task;
+#include "version.h"
+#include "lookup.h"
+#include "makeLookup.h"
 
+
+/*
 int RD_cutoff = 10; // cutoff for the read depth filter
 double PP_cutoff = 0.0001; // posterior probability cutoff
 
@@ -21,9 +25,157 @@ double snp_mrate = 1e-8; // snp mutation prior
 double poly_rate = 1e-3; // polymorphism rate - used in prior calculations
 double pair_mrate = 1e-9; // mutation prior for paired samples
 double mu_scale = 1.0; // scaling factor for indel priors
+*/
 
 
+//int callDenovoFromBCF(std::string ped_file, std::string bcf_file, std::string op_vcf_f, 
+//		      std::string model, bool is_vcf, std::string region);
 
+/*
+void usage() {
+  std::cerr << "\nUsage:\n";
+    std::cerr << "Autosomes:\n";
+    std::cerr << "\tdng dnm auto --bcf bcf_f --ped ped_f [OR] dng dnm auto --vcf vcf_f --ped ped_f\n";
+    std::cerr << "X chromosome in male offspring:\n";
+    std::cerr << "\tdng dnm XS --bcf bcf_f --ped ped_f [OR] dng dnm XS --vcf vcf_f --ped ped_f\n";
+    std::cerr << "X chromosome in female offspring:\n";
+    std::cerr << "\tdng dnm XD --bcf bcf_f --ped ped_f [OR] dng dnm XD --vcf vcf_f --ped ped_f\n";
+    //cerr<<"Phaser:\n";
+    //cerr<<"\tdng phaser --dnm dnm_f --pgt pgt_f --bam bam_f --window INT[1000]\n";
+    std::cerr << "\nInput:\n";
+    std::cerr << "DNM:\n";
+    std::cerr << "--ped:\t Ped file to describe relationship between the samples.\n";
+    std::cerr << "--bcf:\t BCF file, contains per-sample read depths and genotype likelihoods.\n";
+    std::cerr << "--vcf:\t VCF file, contains per-sample read depths and genotype likelihoods.\n";
+    std::cerr << "Phaser:\n";
+    std::cerr << "--dnm: Tab delimited list of denovo mutations to be phased, format: chr pos inherited_base denovo_base.[example: 1 2000 A C]\n";
+    std::cerr << "--pgt: Tab delimited genotypes of child and parents at SNP sites near denovo sites, format: chr pos GT_child GT_parent1 GT_parent2.[example: 1 2000 AC AC AA]\n";
+    std::cerr << "--bam: alignment file (.bam) of the child.\n";
+    std::cerr << "--window: optional argument which is the maximum distance between the DNM and a phasing site. The default value is 1000.\n";
+    std::cerr << "\nOutput:\n";
+    std::cerr << "--output_vcf:\t vcf file to write the output to.\n";
+    std::cerr << "\nParameters:\n";
+    std::cerr << "--snp_mrate:\t Mutation rate prior for SNPs. [1e-8]\n";
+    std::cerr << "--indel_mrate:\t Mutation rate prior for INDELs. [1e-9]\n";
+    std::cerr << "--pair_mrate:\t Mutation rate prior for paired sample analysis. [1e-9]\n";
+    std::cerr << "--indel_mu_scale:\t Scaling factor for indel mutation rate. [1]\n";
+    std::cerr << "--pp_cutoff:\t Posterior probability threshold. [0.0001]\n";
+    std::cerr << "--rd_cutoff:\t Read depth filter, sites where either one of the sample have read depth less than this threshold are filtered out. [10]\n";
+    std::cerr << "--region:\t Region of the BCF file to perform denovo calling. [string of the form \"chr:start-end\"]\n";
+    std::cerr << std::endl;
+    exit(1);
+}
+*/
+
+/*
+int mainDNG(int argc, char *argv[]) {
+  std::string model;
+  if(argc > 1) {
+    model = argv[1];
+  } else {
+    usage();
+  }
+  std::string ped_f = "EMPTY"; // ped file
+  std::string bcf_f = "EMPTY"; // bcf/vcf file
+  std::string op_vcf_f = "EMPTY"; // vcf output -- optional
+  bool is_vcf = false;
+  std::string region = "NULL";
+  // Read in Command Line arguments
+    while(1) {
+        int option_index = 0;
+        static struct option long_options[] = {
+            {"ped", 1, 0, 0},
+            {"bcf", 1, 0, 1},
+            {"snp_mrate", 1, 0, 2},
+            {"indel_mrate", 1, 0, 3},
+            {"poly_rate", 1, 0, 4},
+            {"pair_mrate", 1, 0, 5},
+            {"indel_mu_scale", 1, 0, 6},
+            {"output_vcf", 1, 0, 7},
+            {"pp_cutoff", 1, 0, 8},
+            {"rd_cutoff", 1, 0, 9},
+            {"h", 1, 0, 10},
+            {"vcf", 1, 0, 11},
+            {"region", 1, 0, 12},
+            {0, 0, 0, 0}
+        };
+        int c = getopt_long(argc - 1, argv + 1, "", long_options, &option_index);
+        if(c == -1) {
+            break;
+        }
+        switch(c) {
+        case 0:
+            ped_f = optarg;
+            break;
+        case 1:
+            bcf_f = optarg;
+            break;
+        case 2:
+            snp_mrate = atof(optarg);
+	    std::cerr << "\nSNP mutation rate: " << snp_mrate;
+            break;
+        case 3:
+            indel_mrate = atof(optarg);
+	    std::cerr << "\nindel mutation rate: " << indel_mrate;
+            break;
+        case 4:
+            poly_rate = atof(optarg);
+	    std::cerr << "\npolymorphism rate: " << poly_rate;
+            break;
+        case 5:
+            pair_mrate = atof(optarg);
+	    std::cerr << "\npaired-sample mutation rate: " << pair_mrate;
+            break;
+        case 6:
+            mu_scale = atof(optarg);
+	    std::cerr << "\nindel mutation rate scaling factor: " << mu_scale;
+            break;
+        case 7:
+            op_vcf_f = optarg;
+	    std::cerr << "\noutput vcf file: " << op_vcf_f;
+            break;
+        case 8:
+            PP_cutoff = atof(optarg);
+	    std::cerr << "\nposterior probability cutoff: " << PP_cutoff;
+            break;
+        case 9:
+            RD_cutoff = atoi(optarg);
+	    std::cerr << "\nread depth filter: " << RD_cutoff;
+            break;
+        case 10:
+            usage();
+            break;
+        case 11:
+            bcf_f = optarg;
+            is_vcf = true;
+            break;
+        case 12:
+            region = optarg;
+            break;
+        default:
+            usage();
+        }
+    }
+
+    if((bcf_f == "EMPTY") || (ped_f == "EMPTY")) {
+      std::cerr << "ERROR ! Please specify both the PED file and BCF file !"
+             "Exiting!\n";
+      //usage();
+    }
+
+    // Create lookup table and read ped, BCF files. Separate for autosomes, X in males and X in females.
+    if(model ==  "auto" || model == "XS" || model == "XD") {
+        callDenovoFromBCF(ped_f, bcf_f, op_vcf_f, model, is_vcf, region);
+    } else {
+        usage();
+    }
+
+    std::cerr << "\nDone !" << std::endl;
+    exit(0);
+}
+*/
+
+/*
 int callMakeSNPLookup(lookup_table_t &tgtSNP, lookup_snp_t &lookupSNP, std::string model) {
   std::vector<string> tmp;
     for(int l = 0; l < 10; l++) {
@@ -136,225 +288,6 @@ void writeVCFHeader(hts::bcf::File &vcfout, std::string &bcf_file, std::string &
 #endif
   vcfout.WriteHeader();
 }
-
-
-
-int DNM::operator()(std::string &model, DNM::argument_type &arg) {
-  if(model != "auto" && model != "XS" && model != "XD")
-    throw std::runtime_error("Invalid model option " + model + ". Use auto, XS, or XD.");
-  
-  if(arg.bcf.empty() || arg.ped.empty())
-    throw std::runtime_error("ERROR ! Please specify both the PED file and BCF file ! Exiting!");
-
-  snp_mrate = arg.snp_mrate;
-  indel_mrate = arg.indel_mrate;
-  poly_rate = arg.poly_rate;
-  pair_mrate = arg.pair_mrate;
-  mu_scale = arg.mu_scale;
-  PP_cutoff = arg.pp_cutoff;
-  RD_cutoff = arg.rd_cutoff;
-
-  // Create SNP lookup
-  lookup_snp_t lookupSNP;
-  lookup_table_t tgtSNP;
-  callMakeSNPLookup(tgtSNP, lookupSNP, model);
-
-  // Create INDEL lookup
-  lookup_indel_t lookupIndel;
-  lookup_table_t tgtIndel;
-  callMakeINDELLookup(tgtIndel, lookupIndel, model);
-
-  // Create paired lookup
-  lookup_pair_t lookupPair;
-  lookup_table_t tgtPair;
-  callMakePairedLookup(tgtPair, lookupPair);
-
-  // TODO: Use Reed's PED parser
-  // Iterate each position of BCF file
-  Trio *trios;
-  Pair *pairs;
-  int trio_count = 0, pair_count = 0;
-  parse_ped(arg.ped, &trios, &pairs, trio_count, pair_count);
-
-  //create output vcf -- assumes theres only one trio/pair
-  std::vector<std::string> samples;
-  if(trio_count > 0) {
-    samples.push_back(trios[0].cID);
-    samples.push_back(trios[0].mID);
-    samples.push_back(trios[0].fID);
-  } 
-  else {
-    samples.push_back(pairs[0].tumorID);
-    samples.push_back(pairs[0].normalID);
-  }
-   
-  std::vector<hts::bcf::File> output_vcf;
-  if(!arg.vcf.empty()) {
-    output_vcf.emplace_back(arg.vcf.c_str(), "w");
-    writeVCFHeader(output_vcf[0], arg.bcf, arg.ped, samples);
-  }
-
-  qcall_t mom_snp, dad_snp, child_snp;
-  indel_t mom_indel, dad_indel, child_indel;
-  pair_t tumor, normal;
-  //bcf_hdr_t *hout, *hin;
-  //int tid, begin, end;
-
-  int snp_total_count = 0, snp_pass_count = 0;
-  int indel_total_count = 0, indel_pass_count = 0;
-  int pair_total_count = 0, pair_pass_count = 0;
-  
-  hts::bcf::File vcf_input(arg.bcf.c_str(), "r"); // using hts::bcf::File so that both VCF and BCF can be read
-  const bcf_hdr_t *hdr = vcf_input.header();  
-  bcf_srs_t *rec_reader = bcf_sr_init(); // used for iterating each rec in BCF/VCF
-
-  // Open region if specified
-  if(!arg.region.empty()) {
-    int ret = bcf_sr_set_regions(rec_reader, arg.region.c_str(), 0);
-    if(ret == -1)
-      throw std::runtime_error("no records in the query region " + arg.region);
-  }
-
-  // Initialize the record reader to iterate through the BCF/VCF input
-  int ret = bcf_sr_add_reader(rec_reader, arg.bcf.c_str());
-  if(ret == 0) {
-    int errnum = rec_reader->errnum;
-    switch(errnum){
-    case not_bgzf:
-      throw std::runtime_error("Input file type does not allow for region searchs. Exiting!");
-      break;
-    case idx_load_failed:
-      throw std::runtime_error("Unable to load query region, no index. Exiting!");
-      break;
-    case file_type_error:
-      throw std::runtime_error("Could not load filetype. Exiting!");
-      break;
-    default:
-	throw std::runtime_error("Could not load input sequence file into htslib. Exiting!");
-    };
-  }
-
-  while(bcf_sr_next_line(rec_reader)) {
-    bcf1_t *rec = bcf_sr_get_line(rec_reader, 0);
-    int j = 0;
-    int flag = 0;
-    for(j = 0; j < trio_count; j++) {
-      bcf_unpack(rec, BCF_UN_STR);
-      int is_indel = bcf_2qcall(hdr, rec, trios[j], 
-				&mom_snp, &dad_snp, &child_snp,
-				&mom_indel, &dad_indel, &child_indel,
-				flag);
-
-      if(is_indel == 0) {
-	snp_total_count++;
-	trio_like_snp(child_snp, mom_snp, dad_snp, flag,
-		      tgtSNP, lookupSNP, output_vcf,//vcf_out,
-		      PP_cutoff, RD_cutoff, snp_pass_count);
-      } else if(is_indel == 1) {
-	
-	indel_total_count++;
-	trio_like_indel(&child_indel, &mom_indel, &dad_indel, flag,
-			tgtIndel, lookupIndel, mu_scale, output_vcf,
-			PP_cutoff, RD_cutoff, indel_pass_count, indel_mrate);
-	
-      } else if(is_indel < 0) {
-	printf("\n BCF PARSING ERROR - Trios!  %d\n Exiting !\n", is_indel);
-	exit(1);
-      }
-    }
-      
-    // PROCESS  PAIRS
-    if(model == "auto") { // paired sample model not developed for XS, XD yet
-      for(j = 0; j < pair_count; j++) {
-	int is_indel = bcf2Paired(hdr, rec, pairs[j], &tumor, &normal, flag);
-	if(is_indel == 0) {
-	  pair_total_count++;
-	  pair_like(tumor, normal, tgtPair, lookupPair, flag, output_vcf,
-		    PP_cutoff, RD_cutoff, pair_pass_count);
-	} else if(is_indel < 0) {
-	  printf("\n BCF PARSING ERROR - Paired Sample!  %d\n Exiting !\n", is_indel);
-	  exit(1);
-	}
-      }
-    }     
-  }
-
-  cerr << endl << "Total number of SNP sites interrogated: " << snp_total_count;
-  cerr << endl << "Total number of SNP sites passing read-depth filters: " <<
-    snp_pass_count;
-  cerr << endl << "Total number of INDEL sites interrogated: " <<
-    indel_total_count;
-  cerr << endl << "Total number of INDEL sites passing read-depth filters: " <<
-    indel_pass_count;
-  cerr << endl << "Total number of Paired sample sites interrogated: " <<
-    pair_total_count;
-  cerr << endl <<
-    "Total number of Paired sample sites passing read-depth filters: " <<
-    pair_pass_count;
-
-  std::cerr << std::endl << "Done !" << std::endl;
-  exit(0);
-}
-
-
-
-/****************************************************************************************
-int DNM::operator()(std::string &model, DNM::argument_type &arg) {
-  std::cout << "HERE with " << model << std::endl;
-}
 */
 
-typedef dng::CommandLineApp<dng::task::DNM> App;
-
-class DNGApp : App {
-public:
-  std::string model;
-  
-  DNGApp(int argc, char *argv[]) : App(argc, argv)
-  {
-    if(argc > 1)
-      model = argv[1];
-  }
-
-  int operator()() 
-  {
-        using namespace std;
-        if(arg.version) {
-            return CmdVersion();
-        }
-        if(arg.help || arg.input.empty()) {
-            return CmdHelp();
-        }
-        return task_(model, arg);
-  }
-
-protected:
-  virtual int CmdHelp() const {
-    string usage_name(arg.run_name);
-    if(usage_name.substr(0, 4) == "dng-") {
-      usage_name[3] = ' ';
-    }
-    cerr << "Usage:" << std::endl
-	 << "Autosomes:" << std::endl
-	 << "\tdng dnm auto --bcf bcf_f --ped ped_f [OR] dng dnm auto --vcf vcf_f --ped ped_f\n"
-	 << "X chromosome in male offspring:\n"
-	 << "\tdng dnm XS --bcf bcf_f --ped ped_f [OR] dng dnm XS --vcf vcf_f --ped ped_f\n"
-	 << "X chromosome in female offspring:\n"
-	 << "\tdng dnm XD --bcf bcf_f --ped ped_f [OR] dng dnm XD --vcf vcf_f --ped ped_f\n"
-	 << endl;
-    cerr << ext_desc_ << endl;
-    return EXIT_SUCCESS;    
-  }
-
-};
-
-int main(int argc, char *argv[]) {
-  try {
-    return DNGApp(argc, argv)();
-    //return CallApp(argc, argv)();
-  } catch(std::exception &e) {
-    std::cerr << e.what() << std::endl;
-  }
-
-  return EXIT_FAILURE;
-}
+#endif

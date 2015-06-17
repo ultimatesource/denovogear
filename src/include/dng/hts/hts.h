@@ -21,6 +21,8 @@
 #define CXX_HTS_HTS_H
 
 #include <htslib/hts.h>
+#include <memory>
+#include <assert.h>
 
 namespace hts {
 
@@ -55,7 +57,8 @@ public:
         return {s.get()};
     }
 
-protected:
+// Changed to public so that dng-dnm and dng-call can iterate through each record
+//protected:
     htsFile *handle() {
         assert(fp_);
         return fp_.get();

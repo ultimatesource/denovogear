@@ -1,6 +1,9 @@
+
 ################################################################################
 # Determine the location of the executables/scripts and any data sets required for full package testing
 # TODO: Search for packages and data installed outside of denovogear directory, move to ../modules/
+SET(DNG_DNM_EXE ${CMAKE_BINARY_DIR}/src/dng-dnm)
+SET(DNG_PHASER_EXE ${CMAKE_BINARY_DIR}/src/dng-phaser)
 SET(DNG_CALL_EXE ${CMAKE_BINARY_DIR}/src/dng-call)
 SET(DNG_DNM_EXE ${CMAKE_BINARY_DIR}/src/dng-dnm)
 SET(DNG_PHASER_EXE ${CMAKE_BINARY_DIR}/src/dng-phaser)
@@ -103,24 +106,31 @@ IF(NOT DEFINED TEST_DATA_DIR OR (DEFINED TEST_DATA_DIR AND NOT IS_DIRECTORY "${T
   MESSAGE(STATUS "         Please run \'cmake testdata\' before running \'make test\'")
 ENDIF()
     
-ADD_TEST(Test_Help ${DNG_CALL_EXE})
-SET_TESTS_PROPERTIES(Test_Help PROPERTIES PASS_REGULAR_EXPRESSION "Usage:")
+ADD_TEST(CALL_Help ${DNG_CALL_EXE})
+SET_TESTS_PROPERTIES(CALL_Help PROPERTIES PASS_REGULAR_EXPRESSION "Usage:")
 
-ADD_TEST(FullTest_Sample5.3_BAM ${DNG_CALL_EXE} -f ${TEST_DATA_DIR}/sample_5_3/sample-5.3_ref.fasta.gz -p ${TEST_DATA_DIR}/sample_5_3/ceu.ped -m 0.001 ${TEST_DATA_DIR}/sample_5_3/test1.bam)
-SET_TESTS_PROPERTIES(FullTest_Sample5.3_BAM PROPERTIES 
+ADD_TEST(CALL_Sample5.3_BAM ${DNG_CALL_EXE} -f ${TEST_DATA_DIR}/sample_5_3/sample-5.3_ref.fasta.gz -p ${TEST_DATA_DIR}/sample_5_3/ceu.ped -m 0.001 ${TEST_DATA_DIR}/sample_5_3/test1.bam)
+SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM PROPERTIES PASS_REGULAR_EXPRESSION "^.*(126385924)")
+SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM PROPERTIES 
   PASS_REGULAR_EXPRESSION "^.*(126385924)"
 )
-  
-ADD_TEST(FullTest_Sample5.3_VCF ${DNG_CALL_EXE} -p ${TEST_DATA_DIR}/sample_5_3/ceu.ped -m 0.001 ${TEST_DATA_DIR}/sample_5_3/test1.vcf)
-SET_TESTS_PROPERTIES(FullTest_Sample5.3_VCF PROPERTIES 
+
+ADD_TEST(CALL_Sample5.3_VCF ${DNG_CALL_EXE} -p ${TEST_DATA_DIR}/sample_5_3/ceu.ped -m 0.001 ${TEST_DATA_DIR}/sample_5_3/test1.vcf)
+SET_TESTS_PROPERTIES(CALL_Sample5.3_VCF PROPERTIES 
   PASS_REGULAR_EXPRESSION "LL=-74\.68" 
   PASS_REGULAR_EXPRESSION "25,29,1"
   PASS_REGULAR_EXPRESSION "57,0,0"
   PASS_REGULAR_EXPRESSION "76,1,0"
 )
 
-ADD_TEST(FullTest_SampleCEU_DNM ${DNG_DNM_EXE} auto --ped ${TEST_DATA_DIR}/sample_CEU/sample_CEU.ped --bcf ${TEST_DATA_DIR}/sample_CEU/sample_CEU.bcf --snp_mrate 2e-10 --indel_mrate 1e-11)
-SET_TESTS_PROPERTIES(FullTest_SampleCEU_DNM PROPERTIES
+ADD_TEST(DNM_Help ${DNG_DNM_EXE} --h)
+SET_TESTS_PROPERTIES(DNM_Help PROPERTIES PASS_REGULAR_EXPRESSION "Usage:")
+
+ADD_TEST(DNM_InputErr ${DNG_DNM_EXE} auto)
+SET_TESTS_PROPERTIES(DNM_InputErr PROPERTIES PASS_REGULAR_EXPRESSION "ERROR ! Please specify both the PED file and BCF file")
+
+ADD_TEST(DNM_SampleCEU ${DNG_DNM_EXE} auto --ped ${TEST_DATA_DIR}/sample_CEU/sample_CEU.ped --bcf ${TEST_DATA_DIR}/sample_CEU/sample_CEU.vcf --snp_mrate 2e-10 --indel_mrate 1e-11)
+SET_TESTS_PROPERTIES(DNM_SampleCEU PROPERTIES
   PASS_REGULAR_EXPRESSION "DENOVO-SNP CHILD_ID: NA12878_vald-sorted\.bam\.bam" 
   PASS_REGULAR_EXPRESSION "chr: 2"
   PASS_REGULAR_EXPRESSION "pos: 214668360" 
@@ -137,11 +147,11 @@ SET_TESTS_PROPERTIES(FullTest_SampleCEU_DNM PROPERTIES
   PASS_REGULAR_EXPRESSION "lookup: 4" 
   PASS_REGULAR_EXPRESSION "flag: 0"
   PASS_REGULAR_EXPRESSION "READ_DEPTH child: 48 dad: 76 mom: 34"
-#  PASS_REGULAR_EXPRESSION "MAPPING_QUALITY child: 59 dad: 59 mom: 59"
+  PASS_REGULAR_EXPRESSION "MAPPING_QUALITY child: 59 dad: 59 mom: 59"
 )
 
-ADD_TEST(FullTest_SamplePaired_DNM ${DNG_DNM_EXE} auto --ped ${TEST_DATA_DIR}/sample_CEU/sample_paired.ped --bcf ${TEST_DATA_DIR}/sample_CEU/sample_CEU.bcf)
-SET_TESTS_PROPERTIES(FullTest_SamplePaired_DNM PROPERTIES
+ADD_TEST(DNM_SamplePaired ${DNG_DNM_EXE} auto --ped ${TEST_DATA_DIR}/sample_CEU/sample_paired.ped --bcf ${TEST_DATA_DIR}/sample_CEU/sample_CEU.vcf)
+SET_TESTS_PROPERTIES(DNM_SamplePaired PROPERTIES
   PASS_REGULAR_EXPRESSION "TUMOR_ID: NA12878_vald-sorted\.bam\.bam"
   PASS_REGULAR_EXPRESSION "NORMAL_ID: NA12891_vald-sorted\.bam\.bam"
   PASS_REGULAR_EXPRESSION "chr: 2"
@@ -162,8 +172,16 @@ SET_TESTS_PROPERTIES(FullTest_SamplePaired_DNM PROPERTIES
   PASS_REGULAR_EXPRESSION "dnm_snpcode: 2"
 )
 
-ADD_TEST(FullTest_Sample_Phaser ${DNG_PHASER_EXE} --dnm ${TEST_DATA_DIR}/sample_Phaser/sample_phasing_dnm_f --pgt ${TEST_DATA_DIR}/sample_Phaser/sample_phasing_GTs_f --bam ${TEST_DATA_DIR}/sample_Phaser/test1.bam)
-SET_TESTS_PROPERTIES(FullTest_Sample_Phaser PROPERTIES
+# Test the help command 
+ADD_TEST(Phaser_Help ${DNG_PHASER_EXE} --h)
+SET_TESTS_PROPERTIES(Phaser_Help PROPERTIES PASS_REGULAR_EXPRESSION "Usage:")
+
+# Test for input error message
+ADD_TEST(Phaser_InputErr ${DNG_PHASER_EXE})
+SET_TESTS_PROPERTIES(Phaser_InputErr PROPERTIES PASS_REGULAR_EXPRESSION "INPUT ERROR!")
+
+ADD_TEST(Phaser_Sample ${DNG_PHASER_EXE} --dnm ${TEST_DATA_DIR}/sample_Phaser/sample_phasing_dnm_f --pgt ${TEST_DATA_DIR}/sample_Phaser/sample_phasing_GTs_f --bam ${TEST_DATA_DIR}/sample_Phaser/test1.bam)
+SET_TESTS_PROPERTIES(Phaser_Sample PROPERTIES
   PASS_REGULAR_EXPRESSION "DNM_pos 1:75884343	INHERITED T	VARIANT C"
   PASS_REGULAR_EXPRESSION "HAP POS 75884200 p1: AT p2: AC"
   PASS_REGULAR_EXPRESSION "Base at DNM position: A Base at phasing position: A	 INFERRED PARENT OF ORIGIN for DNM: N/A SUPPORTING READ COUNT: 1"
@@ -173,4 +191,3 @@ SET_TESTS_PROPERTIES(FullTest_Sample_Phaser PROPERTIES
   PASS_REGULAR_EXPRESSION "HAP POS 182974760 p1: GT p2: CA"
   PASS_REGULAR_EXPRESSION "Base at DNM position: G Base at phasing position: G	 INFERRED PARENT OF ORIGIN for DNM: p2 SUPPORTING READ COUNT: 1"
 )
-

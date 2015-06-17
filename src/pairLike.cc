@@ -17,32 +17,32 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
 */
-
 #include <vector>
 #include <iostream>
 #include <fstream>
 #include <string.h>
 #include "parser.h"
 #include "lookup.h"
+//#include "newmatap.h"
+//#include "newmatio.h"
+#include <Eigen/KroneckerProduct>
 
-#ifndef NEWMAT_H
-#define NEWMAT_H
-#include "newmatap.h"
-#include "newmatio.h"
-#endif
 
 using namespace std;
 
+//typedef double Real;
+//typedef Eigen::MatrixXd Matrix;
+
 // Calculate Pair PP
 void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
-               lookup_pair_t &lookupPair, int flag, string op_vcf_f, ofstream &fo_vcf,
+               lookup_pair_t &lookupPair, int flag, vector<hts::bcf::File> &vcfout,
                double pp_cutoff, int RD_cutoff, int &n_site_pass) {
     // Filter low read depths
     if(tumor.depth < RD_cutoff || normal.depth < RD_cutoff) {
         return;
     }
     n_site_pass += 1;
-    Real a[10];
+    //Real a[10];
     Real maxlike_null, maxlike_denovo, pp_null, pp_denovo, denom;
     Matrix N(1, 10);
     Matrix T(10, 1);
@@ -56,28 +56,35 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
 
     //Load Likelihood matrices L(D|Gt) and L(D|Gn)
     for(j = 0; j != 10; ++j) {
-        a[j] = pow(10, -normal.lk[j] / 10.);
+      N(0,j) = pow(10, -normal.lk[j] / 10.);
+      //a[j] = pow(10, -normal.lk[j] / 10.);
     }
-    N << a;
+    //N << a;
 
     for(j = 0; j != 10; ++j) {
-        a[j] = pow(10, -tumor.lk[j] / 10.);
+      T(j,0) = pow(10, -tumor.lk[j] / 10.);
+      //a[j] = pow(10, -tumor.lk[j] / 10.);
     }
-    T << a;
+    //T << a;
 
-    P = KP(N, T); // 10 * 10
+    P = kroneckerProduct(N, T);
+    //P = KP(N, T); // 10 * 10
     // Combine transmission probs L(Gc | Gm, Gf)
-    DN = SP(P, lookupPair.priors); // 10 * 10
+    DN = P.cwiseProduct(lookupPair.priors);
+    //DN = SP(P, lookupPair.priors); // 10 * 10
 
 
     // Find max likelihood of null configuration
-    PP = SP(DN, lookupPair.norm);   //zeroes out configurations with mendelian error
-    maxlike_null = PP.maximum2(i, j);
+    PP = DN.cwiseProduct(lookupPair.norm);
+    maxlike_null = PP.maxCoeff(&i, &j);
+    //PP = SP(DN, lookupPair.norm);   //zeroes out configurations with mendelian error
+    //maxlike_null = PP.maximum2(i, j);
 
     // Find max likelihood of de novo trio configuration
-    PP = SP(DN,
-            lookupPair.denovo);   //zeroes out configurations with mendelian inheritance
-    maxlike_denovo = PP.maximum2(k, l);
+    PP = DN.cwiseProduct(lookupPair.denovo);
+    maxlike_denovo = PP.maxCoeff(&k, &l);
+    //PP = SP(DN, lookupPair.denovo);   //zeroes out configurations with mendelian inheritance
+    //maxlike_denovo = PP.maximum2(k, l);
 
     denom = DN.sum();
 
@@ -89,10 +96,11 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
 
         //remove ",X" from alt, helps with VCF op.
         string alt = tumor.alt;
-        size_t start = alt.find(",X");
-        if(start != std::string::npos) {
-            alt.replace(start, 2, "");
-        }
+	formatAltAlleles(alt);
+        //size_t start = alt.find(",X");
+        //if(start != std::string::npos) {
+        //    alt.replace(start, 2, "");
+        //}
 
         cout << "DENOVO-PAIR-SNP TUMOR_ID: " << tumor.id << " NORMAL_ID: " << normal.id;
         cout << " chr: " << ref_name << " pos: " << coor << " ref: " << tumor.ref_base
@@ -109,6 +117,44 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
         cout << " dnm_snpcode: " << lookupPair.snpcode(k, l);
         cout << endl;
 
+	if(!vcfout.empty()) {
+	  auto rec = vcfout[0].InitVariant();
+	  rec.target(ref_name);
+	  rec.position(coor);
+	  rec.alleles(std::string(1, tumor.ref_base) + "," + alt); 
+	  rec.quality(0);
+	  rec.filter("PASS");
+#ifndef NEWVCFOUT
+	  // Old vcf output format
+	  rec.info("RD_NORMAL", normal.depth);
+	  rec.info("MQ_NORMAL", normal.rms_mapQ);
+	  rec.samples("NULL_CONFIG(normal/tumor)", std::vector<std::string>{tgtPair[i - 1][j - 1]});
+	  rec.samples("pair_null_code", std::vector<float>{static_cast<float>(lookupPair.snpcode(i,j))});
+	  rec.samples("PP_NULL", std::vector<float>{static_cast<float>(pp_null)});
+	  rec.samples("DNM_CONFIG(tumor/normal)", std::vector<std::string>{tgtPair[k - 1][l - 1]});
+	  rec.samples("pair_denovo_code", std::vector<float>{static_cast<float>(lookupPair.snpcode(k,l))});
+	  rec.samples("PP_DNM", std::vector<float>{static_cast<float>(pp_denovo)});
+	  rec.samples("RD_T", std::vector<int32_t>{tumor.depth});
+	  rec.samples("MQ_T", std::vector<int32_t>{tumor.rms_mapQ});
+#else
+	  
+	  // Newer, more accurate VCF output format
+	  rec.info("pair_null_code", static_cast<float>(lookupPair.snpcode(i,j)));
+	  rec.info("pair_denovo_code", static_cast<float>(lookupPair.snpcode(k,l)));
+	  rec.info("PP_NULL", static_cast<float>(pp_null));
+	  rec.info("PP_DNM", static_cast<float>(pp_denovo));
+	  rec.samples("RD", std::vector<int32_t>{tumor.depth, normal.depth});
+	  rec.samples("MQ", std::vector<int32_t>{tumor.rms_mapQ, normal.rms_mapQ});
+	  std::vector<std::string> configs;
+	  boost::split(configs, tgt[i-1][j-1], boost::is_any_of("/"));
+	  rec.samples("NULL_CONFIG", configs);
+	  boost::split(configs, tgt[k-1][l-1], boost::is_any_of("/"));
+	  rec.samples("DNM_CONFIG", configs);  
+#endif
+	  vcfout[0].WriteRecord(rec);
+	}
+
+	/*
         if(op_vcf_f != "EMPTY") {
             fo_vcf << ref_name << "\t";
             fo_vcf << coor << "\t";
@@ -126,5 +172,6 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
                     l) << ":" << pp_denovo << ":" << tumor.depth << ":" << tumor.rms_mapQ;
             fo_vcf << "\n";
         }
+	*/
     }
 }

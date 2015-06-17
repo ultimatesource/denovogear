@@ -42,6 +42,7 @@ class File;
 class Variant : protected BareVariant {
 public:
     Variant() = default;
+
     Variant(const File &file);
 
     ~Variant() {
@@ -276,12 +277,24 @@ private:
     //std::shared_ptr<bcf_hdr_t, void(*)(bcf_hdr_t *)> hdr_;
     std::shared_ptr<bcf_hdr_t> hdr_;
 
+public:
+    // Indicates type of mutation in VCF record
+    static const uint16_t REF = VCF_REF;
+    static const uint16_t SNP = VCF_SNP;
+    static const uint16_t MNP = VCF_MNP;
+    static const uint16_t INDEL = VCF_INDEL;
+    static const uint16_t OTHER = VCF_OTHER;
+
     friend class Variant;
 };
 
-Variant::Variant(const File &file) : BareVariant(), hdr_{file.hdr_} {
-    // NOOP
+
+// NOTE: Need inline (or put into cpp file) otherwise will have clash when multiple source files
+// call bcf.h.
+inline Variant::Variant(const File &file) : BareVariant(), hdr_{file.hdr_} {
+  // NOOP
 }
+
 
 }
 } // namespace hts::bcf

@@ -1,0 +1,47 @@
+/*
+ * Copyright (c) 2014 Reed A. Cartwright
+ * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
+ *
+ * This file is part of DeNovoGear.
+ *
+ * DeNovoGear is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation; either version 3 of the License, or (at your option) any later
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "../detail/xm.h"
+
+/***************************************************************************
+ *    X-Macro List                                                         *
+ *                                                                         *
+ * Defines options for dng-dnm                                             *
+ *                                                                         *
+ * XM((long)(name), (shortname), "description", typename, defaultvalue)    *
+ ***************************************************************************/
+
+XM((ped), (p), "Ped file to describe relationship between the samples", std::string, "")
+XM((bcf), (b), "BCF file, contains per-sample read depths and genotype likelihoods", std::string, "")
+XM((vcf), (v), "VCF file, contains per-sample read depths and genotype likelihoods", std::string, "")
+XM((snp_mrate), (s), "Mutation rate prior for SNPs", double, DL(1e-8, "1e-8"))
+XM((indel_mrate), (i), "Mutation rate prior for INDELs", double, DL(1e-9, "1e-9"))
+XM((pair_mrate), (P), "Mutation rate prior for paired sample analysis", double, DL(1e-9, "1e-9"))
+XM((indel_mu_scale), (i), "Scaling factor for indel mutation rate", double, DL(1.0, "1.0"))
+XM((pp_cutoff), (c), "Posterior probability threshold", double, DL(0.0001, "0.0001"))
+XM((rd_cutoff), (R), "Read depth filter, sites where either one of the sample have read depth less than this threshold are filtered out", int, 10)
+XM((region), (r), "Region of the BCF file to perform denovo calling. [string of the form \"chr:start-end\"", std::string, "")
+XM((poly_rate), (o), "Polymorphsim rate - used in prior calculations", double, DL(1e-3, "1e-3"))
+XM((mu_scale), (m), "Scaling factor for indel priors", double, DL(1.0, "1.0"))
+
+/***************************************************************************
+ *    cleanup                                                              *
+ ***************************************************************************/
+#include "../detail/xm.h"
+
