@@ -22,12 +22,19 @@
 #include <dng/app.h>
 #include <dng/task/call.h>
 
+#ifdef DNG_DEVEL
+#   include <boost/timer/timer.hpp>
+#endif
+
 // http://www.boost.org/development/requirements.html
 // http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml
 
 typedef dng::CommandLineApp<dng::task::Call> CallApp;
 
 int main(int argc, char *argv[]) {
+#ifdef DNG_DEVEL
+    boost::timer::auto_cpu_timer tmr(std::cerr);
+#endif
     try {
         return CallApp(argc, argv)();
     } catch(std::exception &e) {
@@ -35,4 +42,3 @@ int main(int argc, char *argv[]) {
     }
     return EXIT_FAILURE;
 }
-

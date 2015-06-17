@@ -1,7 +1,3 @@
-#ADD_CUSTOM_TARGET(testdata
-#  COMMAND "ENABLE_TESTING()"
-#)
-
 
 ################################################################################
 # Determine the location of the executables/scripts and any data sets required for full package testing
@@ -9,15 +5,18 @@
 SET(DNG_DNM_EXE ${CMAKE_BINARY_DIR}/src/dng-dnm)
 SET(DNG_PHASER_EXE ${CMAKE_BINARY_DIR}/src/dng-phaser)
 SET(DNG_CALL_EXE ${CMAKE_BINARY_DIR}/src/dng-call)
+SET(DNG_DNM_EXE ${CMAKE_BINARY_DIR}/src/dng-dnm)
+SET(DNG_PHASER_EXE ${CMAKE_BINARY_DIR}/src/dng-phaser)
 IF(NOT TEST_DATA_DIR)
   IF(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/testdata)
     SET(TEST_DATA_DIR ${CMAKE_SOURCE_DIR}/testdata)
   ELSEIF(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/../testdata)
     SET(TEST_DATA_DIR ${CMAKE_SOURCE_DIR}/../testdata)
-  ELSE(NOT TEST_DATA_DIR)
-    MESSAGE(STATUS "WARNING: Unable to find data for full package testing. Please set TEST_DATA_DIR.")
+#  ELSE(NOT TEST_DATA_DIR)
+#    MESSAGE(STATUS "WARNING: Unable to find data for full package testing. Please set TEST_DATA_DIR.")
   ENDIF(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/testdata)
 ENDIF(NOT TEST_DATA_DIR)
+
 
 
 ################################################################################
@@ -60,9 +59,51 @@ endforeach(test)
 
 ################################################################################
 # Full executable tests
-# TODO: Currently can check dng found mutation, but not for false positives. Need stricter way to check output.
-IF(DEFINED TEST_DATA_DIR AND NOT IS_DIRECTORY "${TEST_DATA_DIR}")
-  MESSAGE(STATUS "WARNING: Could not find directory ${TEST_DATA_DIR}. Full Package tests will fail")
+
+# Check if using download source pacakge or running latest code inside a git repository
+IF(NOT DEFINED DNG_VERSION_COMMIT OR DNG_VERSION_COMMIT STREQUAL "unknown")
+  SET(DATA_PACKAGE "v${DNG_VERSION_MAJOR}.${DNG_VERSION_MINOR}")
+  IF(DEFINED DNG_VERSION_PATCH)
+    SET(DATA_PACKAGE "${DATA_PACKAGE}.${DNG_VERSION_PATCH}")
+  ENDIF()
+  SET(DATA_PACKAGE "${DATA_PACKAGE}.tar.gz")
+  SET(DOWNLOAD_URL "https://github.com/kaeldai/testdata/archive/${DATA_PACKAGE}")
+ENDIF()
+
+IF(NOT DEFINED TEST_DATA_DIR)
+  # set test data download directory if not already set
+  SET(TEST_DATA_DIR "${CMAKE_SOURCE_DIR}/testdata")
+ENDIF()
+
+IF(DEFINED DOWNLOAD_URL)
+  # if user testing code from package then get the corresponding archived tests.
+  ExternalProject_Add(testdata
+    DEPENDS dng-phaser dng-dnm dng-call
+    PREFIX "testdata"
+    EXCLUDE_FROM_ALL 1
+    DOWNLOAD_DIR "${TEST_DATA_DIR}"
+    URL "https://github.com/kaeldai/testdata/archive/${DATA_PACKAGE}"
+    SOURCE_DIR "${TEST_DATA_DIR}"
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND ""
+    INSTALL_COMMAND "")
+ELSE()
+  # if code was downloaded directly from github, then grab the lastest tests
+  ExternalProject_Add(testdata
+    DEPENDS dng-phaser dng-dnm dng-call
+    PREFIX "testdata"
+    EXCLUDE_FROM_ALL TRUE
+    DOWNLOAD_DIR "${TEST_DATA_DIR}"
+    GIT_REPOSITORY "https://github.com/kaeldai/testdata.git"
+    SOURCE_DIR "${TEST_DATA_DIR}"
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND ""
+    INSTALL_COMMAND "")
+ENDIF()
+
+IF(NOT DEFINED TEST_DATA_DIR OR (DEFINED TEST_DATA_DIR AND NOT IS_DIRECTORY "${TEST_DATA_DIR}"))
+  MESSAGE(STATUS "WARNING: Could not find directory ${TEST_DATA_DIR}. Full package tests will fail.")
+  MESSAGE(STATUS "         Please run \'cmake testdata\' before running \'make test\'")
 ENDIF()
     
 ADD_TEST(CALL_Help ${DNG_CALL_EXE})
@@ -70,13 +111,17 @@ SET_TESTS_PROPERTIES(CALL_Help PROPERTIES PASS_REGULAR_EXPRESSION "Usage:")
 
 ADD_TEST(CALL_Sample5.3_BAM ${DNG_CALL_EXE} -f ${TEST_DATA_DIR}/sample_5_3/sample-5.3_ref.fasta.gz -p ${TEST_DATA_DIR}/sample_5_3/ceu.ped -m 0.001 ${TEST_DATA_DIR}/sample_5_3/test1.bam)
 SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM PROPERTIES PASS_REGULAR_EXPRESSION "^.*(126385924)")
+SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM PROPERTIES 
+  PASS_REGULAR_EXPRESSION "^.*(126385924)"
+)
 
 ADD_TEST(CALL_Sample5.3_VCF ${DNG_CALL_EXE} -p ${TEST_DATA_DIR}/sample_5_3/ceu.ped -m 0.001 ${TEST_DATA_DIR}/sample_5_3/test1.vcf)
 SET_TESTS_PROPERTIES(CALL_Sample5.3_VCF PROPERTIES 
   PASS_REGULAR_EXPRESSION "LL=-74\.68" 
   PASS_REGULAR_EXPRESSION "25,29,1"
   PASS_REGULAR_EXPRESSION "57,0,0"
-  PASS_REGULAR_EXPRESSION "76,1,0")
+  PASS_REGULAR_EXPRESSION "76,1,0"
+)
 
 ADD_TEST(DNM_Help ${DNG_DNM_EXE} --h)
 SET_TESTS_PROPERTIES(DNM_Help PROPERTIES PASS_REGULAR_EXPRESSION "Usage:")
@@ -102,7 +147,8 @@ SET_TESTS_PROPERTIES(DNM_SampleCEU PROPERTIES
   PASS_REGULAR_EXPRESSION "lookup: 4" 
   PASS_REGULAR_EXPRESSION "flag: 0"
   PASS_REGULAR_EXPRESSION "READ_DEPTH child: 48 dad: 76 mom: 34"
-  PASS_REGULAR_EXPRESSION "MAPPING_QUALITY child: 59 dad: 59 mom: 59")
+  PASS_REGULAR_EXPRESSION "MAPPING_QUALITY child: 59 dad: 59 mom: 59"
+)
 
 ADD_TEST(DNM_SamplePaired ${DNG_DNM_EXE} auto --ped ${TEST_DATA_DIR}/sample_CEU/sample_paired.ped --bcf ${TEST_DATA_DIR}/sample_CEU/sample_CEU.vcf)
 SET_TESTS_PROPERTIES(DNM_SamplePaired PROPERTIES
@@ -126,7 +172,6 @@ SET_TESTS_PROPERTIES(DNM_SamplePaired PROPERTIES
   PASS_REGULAR_EXPRESSION "dnm_snpcode: 2"
 )
 
-
 # Test the help command 
 ADD_TEST(Phaser_Help ${DNG_PHASER_EXE} --h)
 SET_TESTS_PROPERTIES(Phaser_Help PROPERTIES PASS_REGULAR_EXPRESSION "Usage:")
@@ -146,5 +191,3 @@ SET_TESTS_PROPERTIES(Phaser_Sample PROPERTIES
   PASS_REGULAR_EXPRESSION "HAP POS 182974760 p1: GT p2: CA"
   PASS_REGULAR_EXPRESSION "Base at DNM position: G Base at phasing position: G	 INFERRED PARENT OF ORIGIN for DNM: p2 SUPPORTING READ COUNT: 1"
 )
-
-

@@ -105,11 +105,15 @@ ENDIF()
 #
 
 IF(NOT BUILD_EXTERNAL_PROJECTS_FORCED)
+  IF(DEVEL_MODE)
+    SET(boost_devel timer)
+  ENDIF()
   FIND_PACKAGE(Boost 1.47.0 ${REQ} COMPONENTS
     program_options
     filesystem
     system
     unit_test_framework
+    ${boost_devel}
   )
 ENDIF()
 
@@ -124,7 +128,7 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT Boost_FOUND)
   SET(Boost_USE_STATIC_LIBS TRUE)
 
   SET(Boost_LIBRARIES)
-  FOREACH(ext_boost_name PROGRAM_OPTIONS FILESYSTEM SYSTEM UNIT_TEST_FRAMEWORK)
+  FOREACH(ext_boost_name PROGRAM_OPTIONS FILESYSTEM SYSTEM UNIT_TEST_FRAMEWORK TIMER)
     STRING(TOLOWER "${ext_boost_name}" ext_boost_lowname)
     SET(Boost_${ext_boost_name}_FOUND On)
     SET(Boost_${ext_boost_name}_LIBRARY "${boost_ext_libdir}/libboost_${ext_boost_lowname}.a")
@@ -153,6 +157,7 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT Boost_FOUND)
     --with-filesystem
     --with-system
     --with-test
+    --with-timer
     --disable-icu
     --ignore-site-config
     threading=multi
@@ -179,7 +184,7 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT Boost_FOUND)
 ENDIF()
 
 IF(Boost_FOUND)
-  FOREACH(ext_boost_name PROGRAM_OPTIONS FILESYSTEM SYSTEM UNIT_TEST_FRAMEWORK)
+  FOREACH(ext_boost_name PROGRAM_OPTIONS FILESYSTEM SYSTEM TIMER UNIT_TEST_FRAMEWORK)
     if(Boost_${ext_boost_name}_FOUND AND NOT TARGET Boost::${ext_boost_name})
       add_library(Boost::${ext_boost_name} UNKNOWN IMPORTED)
       set_target_properties(Boost::${ext_boost_name} PROPERTIES
