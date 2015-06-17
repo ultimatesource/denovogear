@@ -30,11 +30,9 @@
 
 using namespace std;
 
-// TODO: Move all the definitions of Real into a single header
-typedef double Real;
-typedef Eigen::MatrixXd Matrix;
 
-void printMatrix(Matrix &m) {
+// Added for testing purposes. Remove if someone think's it's ugly.
+inline void printMatrix(Matrix &m) {
   std::cout << std::scientific;
   for(int a = 0; a < m.rows(); a++) {
     for(int b = 0; b < m.cols(); b++) {
@@ -45,7 +43,6 @@ void printMatrix(Matrix &m) {
 }
 
 // Calculate DNM and Null PP
-// TODO: tgt object is already typedefed
 void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag, vector<vector<string > > &tgt, lookup_snp_t &lookup, 
 		   std::vector<hts::bcf::File> &vcfout, double pp_cutoff, int RD_cutoff, int &n_site_pass) {
 
@@ -54,7 +51,6 @@ void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag, vector<vec
         return;
     }
     n_site_pass += 1;
-    //Real a[10];
     Real maxlike_null, maxlike_denovo, pp_null, pp_denovo, denom;
         
     Matrix M(1, 10);

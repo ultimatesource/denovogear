@@ -30,47 +30,52 @@
 
 #define MIN_READ_DEPTH_SNP 10
 
-//typedef Eigen::MatrixXd Matrix;
+typedef double Real;
+typedef Eigen::Matrix<Real, 100, 10> SNPMatrix;
+typedef Eigen::Matrix<Real, 9, 3> IndelMatrix;
+typedef Eigen::Matrix<Real, 10, 10> PairMatrix;
+// TODO: A hack to save time. Should replace Dynamic size with appropiate sizes. Used in the *Like.cc methods.
+typedef Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic> Matrix;
 
-using namespace std;
+typedef Eigen::Map<Eigen::Matrix<Real, 100, 10, Eigen::RowMajor> > mapSNPMatrix;
+typedef Eigen::Map<Eigen::Matrix<Real, 9, 3, Eigen::RowMajor> > mapIndelMatrix;
+typedef Eigen::Map<Eigen::Matrix<Real, 10, 10, Eigen::RowMajor> > mapPairMatrix;
+
+typedef std::vector<std::vector<std::string> > lookup_table_t;
 
 // SNP Lookup Table
 typedef struct {
-  //TODO: Remove Dynamic sizing, set as 100x10, and get ride 
-  //      of resizing operation in makeLookup.cc
-  Eigen::MatrixXd aref; /*priors for "A" reference allele */
-  Eigen::MatrixXd cref; /*priors for "C" reference allele */
-  Eigen::MatrixXd gref; /*priors for "G" reference allele */
-  Eigen::MatrixXd tref; /*priors for "T" reference allele */
-  
-  Eigen::MatrixXd snpcode; /*code for identifying a biallelic locus */
-  //Eigen::MatrixXd snpcode; /*code for identifying a biallelic locus */
-  
-  Eigen::MatrixXd tp; /*code for identifying a biallelic locus */
-  Eigen::MatrixXd code; /*code for identifying a biallelic locus */
-  Eigen::MatrixXd mrate; /*mutation probability*/
-  Eigen::MatrixXd denovo; /*code for identifying de novo events + mutation rate*/
-  Eigen::MatrixXd norm; /*code for identifying de novo events + mutation rate*/
+  SNPMatrix aref; /*priors for "A" reference allele */
+  SNPMatrix cref; /*priors for "C" reference allele */
+  SNPMatrix gref; /*priors for "G" reference allele */
+  SNPMatrix tref; /*priors for "T" reference allele */
+  SNPMatrix snpcode; /*code for identifying a biallelic locus */
+  SNPMatrix tp; /*code for identifying a biallelic locus */
+  SNPMatrix code; /*code for identifying a biallelic locus */
+  SNPMatrix mrate; /*mutation probability*/
+  SNPMatrix denovo; /*code for identifying de novo events + mutation rate*/
+  SNPMatrix norm; /*code for identifying de novo events + mutation rate*/
 } lookup_snp_t;
 
 // Indel Lookup Table
+// TODO: mrate is not always being filled out in makeLookups.cc. Investigate
 typedef struct {
-  Eigen::MatrixXd priors; /*priors for Indel */
-  Eigen::MatrixXd snpcode; /*code for identifying a biallelic locus */
-  Eigen::MatrixXd tp; /*code for identifying a biallelic locus */
-  Eigen::MatrixXd code; /*code for identifying a biallelic locus */
-  Eigen::MatrixXd mrate; /*mutation probability*/
-  Eigen::MatrixXd denovo; /*code for identifying de novo events + mutation rate*/
-  Eigen::MatrixXd norm; /*code for identifying de novo events + mutation rate*/
-  Eigen::MatrixXd hit; /* multiplication factor for indel mu */
+  IndelMatrix priors; /*priors for Indel */
+  IndelMatrix snpcode; /*code for identifying a biallelic locus */
+  IndelMatrix tp; /*code for identifying a biallelic locus */
+  IndelMatrix code; /*code for identifying a biallelic locus */
+  IndelMatrix mrate; /*mutation probability*/
+  IndelMatrix denovo; /*code for identifying de novo events + mutation rate*/
+  IndelMatrix norm; /*code for identifying de novo events + mutation rate*/
+  IndelMatrix hit; /* multiplication factor for indel mu */
 } lookup_indel_t;
 
 // Paired-sample Lookup Table
 typedef struct {
-  Eigen::MatrixXd snpcode; /*code for identifying a biallelic locus */
-  Eigen::MatrixXd priors; /*priors */
-  Eigen::MatrixXd denovo; /*code for identifying de novo events + mutation rate*/
-  Eigen::MatrixXd norm; /*code for identifying de novo events + mutation rate*/
+  PairMatrix snpcode; /*code for identifying a biallelic locus */
+  PairMatrix priors; /*priors */
+  PairMatrix denovo; /*code for identifying de novo events + mutation rate*/
+  PairMatrix norm; /*code for identifying de novo events + mutation rate*/
 } lookup_pair_t;
 
 #endif

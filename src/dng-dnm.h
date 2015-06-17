@@ -16,6 +16,7 @@
 #include "makeLookup.h"
 
 
+/*
 int RD_cutoff = 10; // cutoff for the read depth filter
 double PP_cutoff = 0.0001; // posterior probability cutoff
 
@@ -24,11 +25,11 @@ double snp_mrate = 1e-8; // snp mutation prior
 double poly_rate = 1e-3; // polymorphism rate - used in prior calculations
 double pair_mrate = 1e-9; // mutation prior for paired samples
 double mu_scale = 1.0; // scaling factor for indel priors
+*/
 
-typedef std::vector<std::vector<std::string> > lookup_table_t;
 
-int callDenovoFromBCF(std::string ped_file, std::string bcf_file, std::string op_vcf_f, 
-		      std::string model, bool is_vcf, std::string region);
+//int callDenovoFromBCF(std::string ped_file, std::string bcf_file, std::string op_vcf_f, 
+//		      std::string model, bool is_vcf, std::string region);
 
 /*
 void usage() {
@@ -174,6 +175,7 @@ int mainDNG(int argc, char *argv[]) {
 }
 */
 
+/*
 int callMakeSNPLookup(lookup_table_t &tgtSNP, lookup_snp_t &lookupSNP, std::string model) {
   std::vector<string> tmp;
     for(int l = 0; l < 10; l++) {
@@ -286,6 +288,6 @@ void writeVCFHeader(hts::bcf::File &vcfout, std::string &bcf_file, std::string &
 #endif
   vcfout.WriteHeader();
 }
-
+*/
 
 #endif

@@ -30,8 +30,8 @@
 
 using namespace std;
 
-typedef double Real;
-typedef Eigen::MatrixXd Matrix;
+//typedef double Real;
+//typedef Eigen::MatrixXd Matrix;
 
 // Calculate Pair PP
 void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,

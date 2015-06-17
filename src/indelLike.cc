@@ -23,10 +23,10 @@
 #include <fstream>
 #include <string.h>
 #include "parser.h"
-#include "lookup.h"
 //#include "newmatap.h"
 //#include "newmatio.h"
 #include <Eigen/KroneckerProduct>
+#include "lookup.h"
 
 #define MIN_READ_DEPTH_INDEL 10
 
@@ -37,17 +37,12 @@ const float DELETION_SLOPE = -0.2856;
 const float DELETION_INTERCEPT = -21.9313;
 
 
-
 using namespace std;
-
-typedef double Real;
-typedef Eigen::MatrixXd Matrix;
 
 // Calculate DNM and Null PP
 void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
-                     vector<vector<string > > &tgtIndel,
-                     lookup_indel_t &lookupIndel, double mu_scale,
-                     vector<hts::bcf::File> &vcfout, double pp_cutoff,
+                     lookup_table_t &tgtIndel, lookup_indel_t &lookupIndel, 
+		     double mu_scale, vector<hts::bcf::File> &vcfout, double pp_cutoff,
                      int RD_cutoff, int &n_site_pass, double user_indel_mrate) {
     // Read depth filter
     if(child->depth < RD_cutoff ||
