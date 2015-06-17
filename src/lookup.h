@@ -30,13 +30,18 @@
 
 #define MIN_READ_DEPTH_SNP 10
 
+// The old code was mixing floats and doubles when setting and processing matrices. Found it caused problems 
+// when max/min was called on matrices (*Like.cc) - had multiple maxs/mins due to roundoff.
 typedef double Real;
+
+// Matrices for parameters
 typedef Eigen::Matrix<Real, 100, 10> SNPMatrix;
 typedef Eigen::Matrix<Real, 9, 3> IndelMatrix;
 typedef Eigen::Matrix<Real, 10, 10> PairMatrix;
 // TODO: A hack to save time. Should replace Dynamic size with appropiate sizes. Used in the *Like.cc methods.
 typedef Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic> Matrix;
 
+// Used to convert array to Eigen matrices in makeLookup.cc
 typedef Eigen::Map<Eigen::Matrix<Real, 100, 10, Eigen::RowMajor> > mapSNPMatrix;
 typedef Eigen::Map<Eigen::Matrix<Real, 9, 3, Eigen::RowMajor> > mapIndelMatrix;
 typedef Eigen::Map<Eigen::Matrix<Real, 10, 10, Eigen::RowMajor> > mapPairMatrix;

@@ -117,9 +117,10 @@ SET_TESTS_PROPERTIES(FullTest_SamplePaired_DNM PROPERTIES
   PASS_REGULAR_EXPRESSION "tumor: 59" 
   PASS_REGULAR_EXPRESSION "normal: 59"
   PASS_REGULAR_EXPRESSION "null_snpcode: 1" 
-  PASS_REGULAR_EXPRESSION "dnm_snpcode: 2")
+  PASS_REGULAR_EXPRESSION "dnm_snpcode: 2"
+)
 
-ADD_TEST(FullTest_Sample_Phaser ${DNG_PHASER_EXE} ${TEST_DATA_DIR}/sample_Phaser/sample_phasing_dnm_f --pgt ${TEST_DATA_DIR}/sample_Phaser/sample_phasing_GTs_f --bam ${TEST_DATA_DIR}/sample_Phaser/test1.bam)
+ADD_TEST(FullTest_Sample_Phaser ${DNG_PHASER_EXE} --dnm ${TEST_DATA_DIR}/sample_Phaser/sample_phasing_dnm_f --pgt ${TEST_DATA_DIR}/sample_Phaser/sample_phasing_GTs_f --bam ${TEST_DATA_DIR}/sample_Phaser/test1.bam)
 SET_TESTS_PROPERTIES(FullTest_Sample_Phaser PROPERTIES
   PASS_REGULAR_EXPRESSION "DNM_pos 1:75884343	INHERITED T	VARIANT C"
   PASS_REGULAR_EXPRESSION "HAP POS 75884200 p1: AT p2: AC"
@@ -128,7 +129,7 @@ SET_TESTS_PROPERTIES(FullTest_Sample_Phaser PROPERTIES
   PASS_REGULAR_EXPRESSION "DNM_pos 1:110583335	INHERITED G	VARIANT A"
   PASS_REGULAR_EXPRESSION "DNM_pos 1:182974758	INHERITED G	VARIANT A"
   PASS_REGULAR_EXPRESSION "HAP POS 182974760 p1: GT p2: CA"
-  PASS_REGULAR_EXPRESSION "Base at DNM position: G Base at phasing position: G	 INFERRED PARENT OF ORIGIN for DNM: p2 SUPPORTING READ COUNT: 1")
+  PASS_REGULAR_EXPRESSION "Base at DNM position: G Base at phasing position: G	 INFERRED PARENT OF ORIGIN for DNM: p2 SUPPORTING READ COUNT: 1"
+)
 
-#INCLUDE(ExternalData)
-#ExternalData_Add_Test(FullTest_Sample_Phaser1 ${DNG_PHASER_EXE} ${TEST_DATA_DIR}/sample_Phaser/sample_phasing_dnm_f --pgt ${TEST_DATA_DIR}/sample_Phaser/sample_phasing_GTs_f --bam ${TEST_DATA_DIR}/sample_Phaser/test1.bam)
+
