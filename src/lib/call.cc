@@ -154,18 +154,25 @@ void vcf_add_record(hts::bcf::File &vcfout, const char *chrom, int pos,
     rec.info("LL", static_cast<float>(ll));
     rec.info("PMUT", static_cast<float>(pmut));
 
-    // Based on all the samples determine what nucleotides show up and
-    // the order they will appear in the REF and ALT field
-    std::vector<uint16_t>
-    allele_order; // List of nucleotides as they appear in the REF and ALT fields
-    std::string allele_order_str; // alt_order in string format, used for SetAlleles
+    // Determine what nucleotides show up and the order they will appear in the REF and ALT field
+    // TODO: write tests that make sure REF="N" is properly handled
+    //      (1) N should be included in AD only if REF="N"
+    //      (2) N in AD should always be 0
+    // TODO: sort ALT by total depth across samples
+
+    // List of nucleotides as they appear in the REF and ALT fields
+    std::vector<uint16_t> allele_order;
+    // alt_order in string format, used for SetAlleles
+    std::string allele_order_str; 
 
     std::size_t ref_index = seq::char_index(ref);
+    // If the reference is N, include N's
+    std::size_t ref_max = (ref_index == 4) ? 5 : 4;
     allele_order.push_back(ref_index);
     allele_order_str = ref;
-    for(std::size_t index = 1; index < 4; index++) {
+    for(std::size_t index = 1; index < ref_max; index++) {
         // iterate through the three remaining NTs, if the NT exists in one of the sample add it to alt_order
-        int alt_allele_index = (ref_index + index) % 4;
+        int alt_allele_index = (ref_index + index) % ref_max;
         for(std::size_t sample = 0; sample < read_depths.size(); sample++) {
             if(read_depths[sample].counts[alt_allele_index] != 0) {
                 allele_order.push_back(alt_allele_index);
@@ -180,10 +187,12 @@ void vcf_add_record(hts::bcf::File &vcfout, const char *chrom, int pos,
 
     // Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
     std::vector<int32_t> gtcounts;
+    gtcounts.reserve(read_depths.size()*allele_order.size());
     for(std::size_t sample = 0; sample < read_depths.size(); sample++) {
         for(std::size_t nt = 0; nt < allele_order.size(); nt++) {
             size_t allele_index = allele_order[nt];
-            gtcounts.push_back(read_depths[sample].counts[allele_index]);
+            gtcounts.push_back( (ref_index == 4 && nt == 0) ? 0 :
+                read_depths[sample].counts[allele_index]);
         }
     }
     rec.samples("AD", gtcounts);
