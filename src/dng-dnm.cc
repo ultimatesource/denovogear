@@ -304,13 +304,13 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
 }
 */
 
-typedef dng::CommandLineApp<dng::task::DNM> CallApp;
+typedef dng::CommandLineApp<dng::task::DNM> App;
 
-class DNGApp : CallApp {
+class DNGApp : App {
 public:
   std::string model;
   
-  DNGApp(int argc, char *argv[]) : CallApp(argc, argv)
+  DNGApp(int argc, char *argv[]) : App(argc, argv)
   {
     if(argc > 1)
       model = argv[1];

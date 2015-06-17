@@ -18,8 +18,8 @@
  */
 
 #pragma once
-#ifndef DNG_APP_DNM_H
-#define DNG_APP_DNM_H
+#ifndef DNG_APP_PHASER_H
+#define DNG_APP_PHASER_H
 
 #include <dng/task.h>
 
@@ -28,12 +28,12 @@ namespace po = boost::program_options;
 
 namespace dng {
 namespace task {
-namespace dnm {
+namespace phaser {
 
 // use X-Macros to specify argument variables
 struct arg_t : public task::arg_t {
 #define XM(lname, sname, desc, type, def) type JS(_,lname) ;
-#	include "dnm.xmh"
+#	include "phaser.xmh"
 #undef XM
 };
 
@@ -43,7 +43,7 @@ inline void add_app_args(po::options_description &desc, arg_t &arg) {
 	XS(lname) IFD(sname, "," BOOST_PP_STRINGIZE sname), \
 	po::value< type >(&arg.XV(lname))->default_value(def), \
 	desc )
-#	include "dnm.xmh"
+#	include "phaser.xmh"
 #undef XM
     ;
 }
@@ -53,9 +53,9 @@ inline void add_app_args(po::options_description &desc, arg_t &arg) {
 
 
 
-class DNM : public Task<dnm::arg_t> {
+class Phaser : public Task<phaser::arg_t> {
 public:
-  int operator()(std::string &model, argument_type &arg);
+  int operator()(argument_type &arg);
 };
 
 }

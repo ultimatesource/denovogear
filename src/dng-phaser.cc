@@ -49,9 +49,12 @@
 #include <htslib/sam.h>
 #include <htslib/hts.h>
 #include <dng/hts/bam.h>
-
+#include <dng/app.h>
+#include <dng/task/phaser.h>
 
 using namespace std;
+using namespace dng::task;
+
 const int g_kFileNameLength = 500;
 
 extern "C" { // from utils/sam_view.c
@@ -96,7 +99,7 @@ inline char indexed_char(std::size_t x) {
 
 
 // Extract CIGAR from reads, expand reads and get the denovo and hap base
-int processReads(char *bam_f, std::string &chr1, long dnm_pos, long hap_pos, string &gt1, string &gt2, char variant_base) {
+int processReads(const char *bam_f, std::string &chr1, long dnm_pos, long hap_pos, string &gt1, string &gt2, char variant_base) {
 
   map<string, char> read_dnm, read_hap;// the key is the query name, the char is the base. paired reads have the same query name.
   map<string, int> pair_count;  
@@ -384,11 +387,13 @@ void getReadsFromBAM(char *bam_f, string chr1, long dnm_pos, long hap_pos,  char
   }
 
   // Main
-  int main(int argc, char *argv[]) {
-    cerr << PACKAGE_STRING << " --- SNV Phaser" << std::endl;
-    char DNM_f[g_kFileNameLength] = "EMPTY",
-      parentGT_f[g_kFileNameLength] = "EMPTY", bam_f[g_kFileNameLength] = "EMPTY";
-    long window = 1000; // default window size is 1000
+int Phaser::operator()(Phaser::argument_type &arg) {
+  //int main(int argc, char *argv[]) {
+  std::cerr << PACKAGE_STRING << " --- SNV Phaser" << std::endl;
+  /*
+  char DNM_f[g_kFileNameLength] = "EMPTY",
+    parentGT_f[g_kFileNameLength] = "EMPTY", bam_f[g_kFileNameLength] = "EMPTY";
+  long window = 1000; // default window size is 1000
 
     // Read in Command Line arguments
     while(1) {
@@ -433,7 +438,20 @@ void getReadsFromBAM(char *bam_f, string chr1, long dnm_pos, long hap_pos,  char
 	return EXIT_FAILURE;
       }
     }
+  */
 
+  if(arg.dnm.empty() || arg.pgt.empty() || arg.bam.empty()) {
+    throw std::runtime_error("INPUT ERROR! Please specify the list of DNMs, list of Parental GTs and the BAM file!"
+			     "\nFor example:\n\tdng phaser --dnm dnm1.txt --pgt pgt1.txt --bam bam1.bam"
+			     "\nExiting!");
+  }
+
+  const char *DNM_f = arg.dnm.c_str();
+  const char *parentGT_f = arg.pgt.c_str();
+  const char *bam_f = arg.bam.c_str();
+  long window = arg.window;
+
+  /*
     if(!strcmp(DNM_f, "EMPTY") || !strcmp(parentGT_f, "EMPTY")
        || !strcmp(bam_f, "EMPTY")) {
       cout << "INPUT ERROR! Please specify the list of DNMs, list of Parental GTs and the BAM file!"
@@ -441,6 +459,7 @@ void getReadsFromBAM(char *bam_f, string chr1, long dnm_pos, long hap_pos,  char
 	"\nExiting!\n";
       exit(1);
     }
+  */
 
     cout << "\nList of DNMs: " << DNM_f << ", List of parental GTs: " << parentGT_f
          << endl;
@@ -563,3 +582,53 @@ void getReadsFromBAM(char *bam_f, string chr1, long dnm_pos, long hap_pos,  char
     cout << "\n";
     exit(0);
   }
+
+
+typedef dng::CommandLineApp<dng::task::Phaser> App;
+
+class PhaserApp : App {
+public:
+  
+  PhaserApp(int argc, char *argv[]) : App(argc, argv){}
+
+  int operator()() 
+  {
+    using namespace std;
+    if(arg.version) {
+      return CmdVersion();
+    }
+    if(arg.help) {
+      return CmdHelp();
+    }
+    return task_(arg);
+  }
+
+protected:
+  int CmdHelp() const {
+    string usage_name(arg.run_name);
+    if(usage_name.substr(0, 4) == "dng-") {
+      usage_name[3] = ' ';
+    }
+    cerr << "Usage:\n"
+	 << "  dng phaser [options]\n\n"
+	 << "Options:\n"
+	 << "  --dnm filename: File with list of DNMs to be phased\n"
+	 << "  --pgt filename: File with parental genotypes for phasing sites\n"
+	 << "  --bam filename: bam file\n"
+	 << "  --window size: size of window for phasing sites (> insert size)\n"
+	 << endl;
+    return EXIT_SUCCESS;
+  }
+};
+
+
+int main(int argc, char *argv[]) {
+  try {
+    return PhaserApp(argc, argv)();
+  }
+  catch(std::exception &e) {
+    std::cerr << e.what() << std::endl;
+  }
+  
+  return EXIT_FAILURE;
+}
