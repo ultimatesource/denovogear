@@ -55,7 +55,7 @@ inline void add_app_args(po::options_description &desc, arg_t &arg) {
 
 class DNM : public Task<dnm::arg_t> {
 public:
-  int operator()(std::string &model, argument_type &arg);
+    int operator()(std::string &model, argument_type &arg);
 };
 
 }

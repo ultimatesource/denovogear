@@ -163,7 +163,7 @@ void vcf_add_record(hts::bcf::File &vcfout, const char *chrom, int pos,
     // List of nucleotides as they appear in the REF and ALT fields
     std::vector<uint16_t> allele_order;
     // alt_order in string format, used for SetAlleles
-    std::string allele_order_str; 
+    std::string allele_order_str;
 
     std::size_t ref_index = seq::char_index(ref);
     // If the reference is N, include N's
@@ -191,8 +191,8 @@ void vcf_add_record(hts::bcf::File &vcfout, const char *chrom, int pos,
     for(std::size_t sample = 0; sample < read_depths.size(); sample++) {
         for(std::size_t nt = 0; nt < allele_order.size(); nt++) {
             size_t allele_index = allele_order[nt];
-            gtcounts.push_back( (ref_index == 4 && nt == 0) ? 0 :
-                read_depths[sample].counts[allele_index]);
+            gtcounts.push_back((ref_index == 4 && nt == 0) ? 0 :
+                               read_depths[sample].counts[allele_index]);
         }
     }
     rec.samples("AD", gtcounts);

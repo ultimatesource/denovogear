@@ -31,8 +31,8 @@ void getIndelPriors(std::string g_gts1, int n_uniqa);
 void getSNPPriors(std::string g_gts1, int n_uniqa);
 
 // Lookup for paired sample analysis
-void makePairedLookup(double pairMrate, lookup_table_t &tgt, 
-		      lookup_pair_t &lookup);
+void makePairedLookup(double pairMrate, lookup_table_t &tgt,
+                      lookup_pair_t &lookup);
 
 void setIndelLines(lookup_table_t &tgt, float lines[][27]);
 

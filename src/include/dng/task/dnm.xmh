@@ -27,17 +27,31 @@
  * XM((long)(name), (shortname), "description", typename, defaultvalue)    *
  ***************************************************************************/
 
-XM((ped), (p), "Ped file to describe relationship between the samples", std::string, "")
-XM((bcf), (b), "BCF file, contains per-sample read depths and genotype likelihoods", std::string, "")
-XM((vcf), (v), "VCF file, contains per-sample read depths and genotype likelihoods", std::string, "")
+XM((ped), (p), "Ped file to describe relationship between the samples",
+   std::string, "")
+XM((bcf), (b),
+   "BCF file, contains per-sample read depths and genotype likelihoods",
+   std::string, "")
+XM((vcf), (v),
+   "VCF file, contains per-sample read depths and genotype likelihoods",
+   std::string, "")
 XM((snp_mrate), (s), "Mutation rate prior for SNPs", double, DL(1e-8, "1e-8"))
-XM((indel_mrate), (i), "Mutation rate prior for INDELs", double, DL(1e-9, "1e-9"))
-XM((pair_mrate), (P), "Mutation rate prior for paired sample analysis", double, DL(1e-9, "1e-9"))
-XM((indel_mu_scale), (i), "Scaling factor for indel mutation rate", double, DL(1.0, "1.0"))
-XM((pp_cutoff), (c), "Posterior probability threshold", double, DL(0.0001, "0.0001"))
-XM((rd_cutoff), (R), "Read depth filter, sites where either one of the sample have read depth less than this threshold are filtered out", int, 10)
-XM((region), (r), "Region of the BCF file to perform denovo calling. [string of the form \"chr:start-end\"", std::string, "")
-XM((poly_rate), (o), "Polymorphsim rate - used in prior calculations", double, DL(1e-3, "1e-3"))
+XM((indel_mrate), (i), "Mutation rate prior for INDELs", double, DL(1e-9,
+        "1e-9"))
+XM((pair_mrate), (P), "Mutation rate prior for paired sample analysis", double,
+   DL(1e-9, "1e-9"))
+XM((indel_mu_scale), (i), "Scaling factor for indel mutation rate", double,
+   DL(1.0, "1.0"))
+XM((pp_cutoff), (c), "Posterior probability threshold", double, DL(0.0001,
+        "0.0001"))
+XM((rd_cutoff), (R),
+   "Read depth filter, sites where either one of the sample have read depth less than this threshold are filtered out",
+   int, 10)
+XM((region), (r),
+   "Region of the BCF file to perform denovo calling. [string of the form \"chr:start-end\"",
+   std::string, "")
+XM((poly_rate), (o), "Polymorphsim rate - used in prior calculations", double,
+   DL(1e-3, "1e-3"))
 XM((mu_scale), (m), "Scaling factor for indel priors", double, DL(1.0, "1.0"))
 
 /***************************************************************************

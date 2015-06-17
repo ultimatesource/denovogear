@@ -29,9 +29,9 @@
 
 
 // NOTE: Both bcf2Paired.cc and bcf2Qcall.cc were using a lot of redundant code. To make code
-//       managable I move much of into parser.h. 
+//       managable I move much of into parser.h.
 // TODO: Run more tests with PAIR SNPs and Indels. If working then delete the commented sectionb below
-// TODO: Most of the functionality in bcf2paired() and bcf_2qcall() can be merged together 
+// TODO: Most of the functionality in bcf2paired() and bcf_2qcall() can be merged together
 
 /**************************************************************************************
 #include "prob1.h"
@@ -46,10 +46,10 @@
 
 void writeToSNPObject(pair_t *tumor, bcf1_t *rec, bcf_hdr_t *hdr, int *g, int d,
                       int mq, int &flag, int i, int i0) {
-  
+
   strcpy(tumor->chr, bcf_hdr_id2name(hdr, rec->rid));
   tumor->pos = rec->pos + 1;
- 
+
   char **alleles = rec->d.allele;
   uint32_t n_alleles = bcf_hdr_nsamples(hdr);
   tumor->ref_base = alleles[0][0];
@@ -116,7 +116,7 @@ static int read_I16(bcf1_t *rec, bcf_hdr_t *hdr, std::vector<int> &anno) {
 
   //TODO: Should reset array
   for(int a = 0; a < array_size; a++)
-    anno.push_back(dst[a]);      
+    anno.push_back(dst[a]);
   return 0;
 
 }
@@ -126,7 +126,7 @@ static int read_I16(bcf1_t *rec, bcf_hdr_t *hdr, std::vector<int> &anno) {
 // Convert BCF to PairedSample - for each line iterate through samples and look for particular pair
 int bcf2Paired(const bcf_hdr_t *hdr, bcf1_t *rec, Pair pair1, pair_t *tumor,
                pair_t *normal, int &flag) {
-  int a[4], k, g[10], l, map[4], k1, l1, j, i, i0, /*anno[16],*/ dp, mq, d_rest,
+    int a[4], k, g[10], l, map[4], k1, l1, j, i, i0, /*anno[16],*/ dp, mq, d_rest,
         is_indel = 0;
     int found_pair = 2;// found_pair becomes zero when both samples are found.
     //char *s;
@@ -134,7 +134,7 @@ int bcf2Paired(const bcf_hdr_t *hdr, bcf1_t *rec, Pair pair1, pair_t *tumor,
 
     // Check if record is INDEL
     is_indel = bcf_get_variant_types(rec) == hts::bcf::File::INDEL;
-  
+
 
     char **alleles = rec->d.allele;
     uint32_t n_alleles = rec->n_allele;
@@ -152,15 +152,15 @@ int bcf2Paired(const bcf_hdr_t *hdr, bcf1_t *rec, Pair pair1, pair_t *tumor,
     int *res_array = NULL;
     int n_res_array = 0;
     int n_res = bcf_get_format_int32(hdr, rec, "PL", &res_array, &n_res_array);
-    if(n_res == 0)
-      return -6;
-    else {
-      pl_fields.resize(bcf_hdr_nsamples(hdr));
-      int sample_len = n_res/bcf_hdr_nsamples(hdr);
-      for(int a = 0; a < n_res; a++) {
-	int sample_index = a/sample_len;
-	pl_fields[sample_index].push_back(res_array[a]);
-      }
+    if(n_res == 0) {
+        return -6;
+    } else {
+        pl_fields.resize(bcf_hdr_nsamples(hdr));
+        int sample_len = n_res / bcf_hdr_nsamples(hdr);
+        for(int a = 0; a < n_res; a++) {
+            int sample_index = a / sample_len;
+            pl_fields[sample_index].push_back(res_array[a]);
+        }
     }
 
 
@@ -169,10 +169,9 @@ int bcf2Paired(const bcf_hdr_t *hdr, bcf1_t *rec, Pair pair1, pair_t *tumor,
     // get I16 values from INFO field
     std::vector<int> anno;
     if(read_I16(rec, hdr, anno) != 0) {
-      d_rest = 0;
-    }
-    else {
-      d_rest = dp = anno[0] + anno[1] + anno[2] + anno[3];
+        d_rest = 0;
+    } else {
+        d_rest = dp = anno[0] + anno[1] + anno[2] + anno[3];
     }
 
     // Calculate map quality
@@ -180,12 +179,14 @@ int bcf2Paired(const bcf_hdr_t *hdr, bcf1_t *rec, Pair pair1, pair_t *tumor,
 
     // Check that REF is a valid base
     a[0] = nt4_table[(int)alleles[0][0]];
-    if(a[0] > 3)
-      return 10;
+    if(a[0] > 3) {
+        return 10;
+    }
 
     // Check that ALT alleles exists
-    if(rec->n_allele < 2)
-      return -11;
+    if(rec->n_allele < 2) {
+        return -11;
+    }
 
     // Map the alternative alleles
     int s;
@@ -194,80 +195,80 @@ int bcf2Paired(const bcf_hdr_t *hdr, bcf1_t *rec, Pair pair1, pair_t *tumor,
     map[a[0]] = 0;
     for(k = 0, s = 1, k1 = -1; k < 3 && s < rec->n_allele; ++k, s++) {
 
-      //TODO: conditional block mpty in original code, implement or remove
-      /*
-      // skip sites with multiple indel allele
-      if(strlen(alleles[s]) > 1) {
-	indel = 1;
-	return 10;
-      }
-      */
-      
-      // BUG: Implement conditional above or allow sites with multiple indel alleles
-      a[k + 1] = nt4_table[(int)alleles[s][0]];
-      if(a[k + 1] >= 0) { 
-	map[a[k + 1]] = k + 1; 
-      }
-      else { 
-	k1 = k + 1; 
-      }
+        //TODO: conditional block mpty in original code, implement or remove
+        /*
+        // skip sites with multiple indel allele
+        if(strlen(alleles[s]) > 1) {
+        indel = 1;
+        return 10;
+             }
+             */
+
+        // BUG: Implement conditional above or allow sites with multiple indel alleles
+        a[k + 1] = nt4_table[(int)alleles[s][0]];
+        if(a[k + 1] >= 0) {
+            map[a[k + 1]] = k + 1;
+        } else {
+            k1 = k + 1;
+        }
     }
 
     for(k = 0; k < 4; ++k)
-      if(map[k] < 0) { map[k] = k1; }
+        if(map[k] < 0) { map[k] = k1; }
 
     std::vector<std::string> sample_ids;
-    for(int a = 0; a < bcf_hdr_nsamples(hdr); a++)
-      sample_ids.push_back(std::string(hdr->samples[a]));
+    for(int a = 0; a < bcf_hdr_nsamples(hdr); a++) {
+        sample_ids.push_back(std::string(hdr->samples[a]));
+    }
 
     // Iterate through each sample, and for each sample map the values
-    // in the PL field into g[], and estimate the depth    
+    // in the PL field into g[], and estimate the depth
     for(i = 0; i < bcf_hdr_nsamples(hdr); i++) {
-      // Go to the first non-zero value in the PL field
-      for(j = 0; j < pl_fields[i].size() && pl_fields[i][j]; j++);
-      
-      // Estimate the depth using I16 fields 1 to 4, divided by num of samples
-      int d = (int)((double)d_rest / (bcf_hdr_nsamples(hdr) - i) + .4999);
-      if(d == 0) {
-	d = 1;
-      }
-      if(j == pl_fields[i].size()) {
-	d = 0;
-      }
-      d_rest -= d;
+        // Go to the first non-zero value in the PL field
+        for(j = 0; j < pl_fields[i].size() && pl_fields[i][j]; j++);
 
-      for(k = j = 0; k < 4; k++) {
-	for(l = k; l < 4; l++) { //AA,AC,AG,AT,CC,CG,CT,GG,GT,TT
-	  int t, x = map[k], y = map[l];
-	  if(x > y) {
-	    t = x;
-	    x = y;
-	    y = t;
-	  }
-	  g[j++] = pl_fields[i][y*(y+1)/2 + x];
-	}
-      }
-    
-      //std::cout << "sample_id = " << sample_ids[i] << std::endl;
+        // Estimate the depth using I16 fields 1 to 4, divided by num of samples
+        int d = (int)((double)d_rest / (bcf_hdr_nsamples(hdr) - i) + .4999);
+        if(d == 0) {
+            d = 1;
+        }
+        if(j == pl_fields[i].size()) {
+            d = 0;
+        }
+        d_rest -= d;
 
-      //found Tumor
-      if(strcmp(pair1.tumorID, sample_ids[i].c_str()) == 0) {
-	found_pair--;
-	if(is_indel == 0) {   // Write to Moms SNP object
-	  writeToSNPObject(tumor, hdr, rec, g, d, mq, flag, i, i0);
-	}
-      }
+        for(k = j = 0; k < 4; k++) {
+            for(l = k; l < 4; l++) { //AA,AC,AG,AT,CC,CG,CT,GG,GT,TT
+                int t, x = map[k], y = map[l];
+                if(x > y) {
+                    t = x;
+                    x = y;
+                    y = t;
+                }
+                g[j++] = pl_fields[i][y * (y + 1) / 2 + x];
+            }
+        }
+
+        //std::cout << "sample_id = " << sample_ids[i] << std::endl;
+
+        //found Tumor
+        if(strcmp(pair1.tumorID, sample_ids[i].c_str()) == 0) {
+            found_pair--;
+            if(is_indel == 0) {   // Write to Moms SNP object
+                writeToSNPObject(tumor, hdr, rec, g, d, mq, flag, i, i0);
+            }
+        }
 
         //found Normal
-      if(strcmp(pair1.normalID, sample_ids[i].c_str()) == 0) {
-	found_pair--;
-	if(is_indel == 0) {   // Write to Moms SNP object
-	  writeToSNPObject(normal, hdr, rec, g, d, mq, flag, i, i0);
-	}
-      }
+        if(strcmp(pair1.normalID, sample_ids[i].c_str()) == 0) {
+            found_pair--;
+            if(is_indel == 0) {   // Write to Moms SNP object
+                writeToSNPObject(normal, hdr, rec, g, d, mq, flag, i, i0);
+            }
+        }
 
     }
-    
+
 
     //found entire pair, return
     if(found_pair == 0) {

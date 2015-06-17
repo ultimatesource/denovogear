@@ -33,18 +33,20 @@ using namespace std;
 
 // Added for testing purposes. Remove if someone think's it's ugly.
 inline void printMatrix(Matrix &m) {
-  std::cout << std::scientific;
-  for(int a = 0; a < m.rows(); a++) {
-    for(int b = 0; b < m.cols(); b++) {
-      std::cout << std::setprecision(6) << m(a,b) << "  ";
+    std::cout << std::scientific;
+    for(int a = 0; a < m.rows(); a++) {
+        for(int b = 0; b < m.cols(); b++) {
+            std::cout << std::setprecision(6) << m(a, b) << "  ";
+        }
+        std::cout << std::endl;
     }
-    std::cout << std::endl;
-  }
 }
 
 // Calculate DNM and Null PP
-void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag, vector<vector<string > > &tgt, lookup_snp_t &lookup, 
-		   std::vector<hts::bcf::File> &vcfout, double pp_cutoff, int RD_cutoff, int &n_site_pass) {
+void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag,
+                   vector<vector<string > > &tgt, lookup_snp_t &lookup,
+                   std::vector<hts::bcf::File> &vcfout, double pp_cutoff, int RD_cutoff,
+                   int &n_site_pass) {
 
     // Filter low read depths ( < 10 )
     if(child.depth < RD_cutoff || mom.depth < RD_cutoff || dad.depth < RD_cutoff) {
@@ -52,7 +54,7 @@ void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag, vector<vec
     }
     n_site_pass += 1;
     Real maxlike_null, maxlike_denovo, pp_null, pp_denovo, denom;
-        
+
     Matrix M(1, 10);
     Matrix C(10, 1);
     Matrix D(10, 1);
@@ -70,22 +72,22 @@ void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag, vector<vec
     //Load Likelihood matrices L(D|Gm), L(D|Gd) and L(D|Gc)
     //std::cout << "M =";
     for(size_t a = 0; a < 10; a++) {
-      M(0,a) = pow(10, -mom.lk[a] / 10.0);
-      //a[j] = pow(10, -mom.lk[a] / 10.0);
-      //std::cout << " " << a[j]
+        M(0, a) = pow(10, -mom.lk[a] / 10.0);
+        //a[j] = pow(10, -mom.lk[a] / 10.0);
+        //std::cout << " " << a[j]
     }
     //M << a;
 
-    
+
     for(size_t a = 0; a < 10; a++) {
-      D(a,0) = pow(10, -dad.lk[a] / 10.0);
-      //a[j] = pow(10, -dad.lk[j] / 10.0);
+        D(a, 0) = pow(10, -dad.lk[a] / 10.0);
+        //a[j] = pow(10, -dad.lk[j] / 10.0);
     }
     //D << a;
 
     for(size_t a = 0; a < 10; a++) {
-      C(a,0) = pow(10, -child.lk[a] / 10.0);
-      //a[j] = pow(10, -child.lk[j] / 10.0);
+        C(a, 0) = pow(10, -child.lk[a] / 10.0);
+        //a[j] = pow(10, -child.lk[j] / 10.0);
     }
     //C << a;
 
@@ -103,22 +105,22 @@ void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag, vector<vec
     // Combine prior L(Gm, Gf)
     switch(mom.ref_base) {
     case 'A':
-      L = T.cwiseProduct(lookup.aref);
-      //L = SP(T, lookup.aref); 
-      break;
+        L = T.cwiseProduct(lookup.aref);
+        //L = SP(T, lookup.aref);
+        break;
     case 'C':
-      L = T.cwiseProduct(lookup.cref);
-      //L = SP(T, lookup.cref); 
-      break;
+        L = T.cwiseProduct(lookup.cref);
+        //L = SP(T, lookup.cref);
+        break;
     case 'G':
-      L = T.cwiseProduct(lookup.gref);
-      //L = SP(T, lookup.gref); 
-      break;
+        L = T.cwiseProduct(lookup.gref);
+        //L = SP(T, lookup.gref);
+        break;
     case 'T':
-      L = T.cwiseProduct(lookup.tref);
-      //L = SP(T, lookup.tref); 
-      break;
-      
+        L = T.cwiseProduct(lookup.tref);
+        //L = SP(T, lookup.tref);
+        break;
+
     default: L = T; break;
     }
 
@@ -128,11 +130,11 @@ void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag, vector<vec
     //DN = SP(L, lookup.mrate);
 
     // Find max likelihood of null configuration
-    
+
     PP = DN.cwiseProduct(lookup.norm);
     //PP = SP(DN, lookup.norm); //zeroes out configurations with mendelian error
     maxlike_null = PP.maxCoeff(&i, &j);
-    
+
     //maxlike_null = PP.maximum2(i, j);
 
 
@@ -181,18 +183,18 @@ void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag, vector<vec
     pp_null = 1 - pp_denovo; //null posterior probability
 
     // Check for PP cutoff
-    
+
     /*
     std::cout << "ref base = " << mom.ref_base << std::endl;
     //std::cout << "M = " << M << std::endl;
     //std::cout << "P ----- " << std::endl; printMatrix(P);  std::cout << "------- " << std::endl;
     //std::cout << "F ----- " << std::endl; printMatrix(F); std::cout << "------- " << std::endl; //
     //std::cout << "lookup.tp ----- " << std::endl; printMatrix(lookup.tp); std::cout << "------- " << std::endl;
-    //std::cout << "lookup.norm ----- " << std::endl; printMatrix(lookup.norm); std::cout << "------- " << std::endl; //    
+    //std::cout << "lookup.norm ----- " << std::endl; printMatrix(lookup.norm); std::cout << "------- " << std::endl; //
     //std::cout << "T ----- " << std::endl; printMatrix(T); std::cout << "------- " << std::endl; //
     //std::cout << "lookup.aref ----- " << std::endl; printMatrix(lookup.aref); std::cout << "------- " << std::endl; //
     std::cout << "PP ----- " << std::endl; printMatrix(PP); std::cout << "------- " << std::endl; //
-   
+
     std::cout << "F(" << k << "," << l << ") = " << F(k,l) << std::endl;
     std::cout << "L(" << k << "," << l << ") = " << L(k,l) << std::endl;
     std::cout << "DN(" << k << "," << l << ") = " << DN(k,l) << std::endl;
@@ -204,7 +206,7 @@ void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag, vector<vec
     std::cout << std::endl;
     */
     if(pp_denovo > pp_cutoff) {
-      
+
         //remove ",X" from alt, helps with VCF op.
         string alt = mom.alt;
         size_t start = alt.find(",X");
@@ -227,49 +229,49 @@ void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag, vector<vec
              << " mom: " << mom.rms_mapQ;
         cout << endl;
 
-	if(!vcfout.empty()) {
-	  auto rec = vcfout[0].InitVariant();
-	  rec.target(ref_name);
-	  rec.position(coor);
-	  rec.alleles(std::string(1, mom.ref_base) + "," + alt); 
-	  rec.quality(0);
-	  rec.filter("PASS");
+        if(!vcfout.empty()) {
+            auto rec = vcfout[0].InitVariant();
+            rec.target(ref_name);
+            rec.position(coor);
+            rec.alleles(std::string(1, mom.ref_base) + "," + alt);
+            rec.quality(0);
+            rec.filter("PASS");
 #ifndef NEWVCFOUT
-	  // Old vcf output format
-	  rec.info("RD_MOM", mom.depth);
-	  rec.info("RD_DAD", dad.depth);
-	  rec.info("MQ_MOM", mom.rms_mapQ);
-	  rec.info("MQ_DAD", dad.rms_mapQ);
-	  rec.info("SNPcode", static_cast<float>(lookup.snpcode(i,j)));
-	  rec.info("code", static_cast<float>(lookup.code(i,j)));
-	  rec.samples("NULL_CONFIG(child/mom/dad)", std::vector<std::string>{tgt[i][j]});
-	  rec.samples("PP_NULL", std::vector<float>{static_cast<float>(pp_null)});
-	  rec.samples("ML_NULL", std::vector<float>{static_cast<float>(maxlike_null)});
-	  rec.samples("DNM_CONFIG(child/mom/dad)", std::vector<std::string>{tgt[k][l]});
-	  rec.samples("PP_DNM", std::vector<float>{static_cast<float>(pp_denovo)});
-	  rec.samples("ML_DNM", std::vector<float>{static_cast<float>(maxlike_denovo)});
-	  rec.samples("RD", std::vector<int32_t>{child.depth});
-	  rec.samples("MQ", std::vector<int32_t>{child.rms_mapQ});
+            // Old vcf output format
+            rec.info("RD_MOM", mom.depth);
+            rec.info("RD_DAD", dad.depth);
+            rec.info("MQ_MOM", mom.rms_mapQ);
+            rec.info("MQ_DAD", dad.rms_mapQ);
+            rec.info("SNPcode", static_cast<float>(lookup.snpcode(i, j)));
+            rec.info("code", static_cast<float>(lookup.code(i, j)));
+            rec.samples("NULL_CONFIG(child/mom/dad)", std::vector<std::string> {tgt[i][j]});
+            rec.samples("PP_NULL", std::vector<float> {static_cast<float>(pp_null)});
+            rec.samples("ML_NULL", std::vector<float> {static_cast<float>(maxlike_null)});
+            rec.samples("DNM_CONFIG(child/mom/dad)", std::vector<std::string> {tgt[k][l]});
+            rec.samples("PP_DNM", std::vector<float> {static_cast<float>(pp_denovo)});
+            rec.samples("ML_DNM", std::vector<float> {static_cast<float>(maxlike_denovo)});
+            rec.samples("RD", std::vector<int32_t> {child.depth});
+            rec.samples("MQ", std::vector<int32_t> {child.rms_mapQ});
 #else
-	  
-	  // Newer, more accurate VCF output format
-	  rec.info("SNPcode", static_cast<float>(lookup.snpcode(i,j)));
-	  rec.info("code", static_cast<float>(lookup.code(i,j)));
-	  rec.info("PP_NULL", static_cast<float>(pp_null));
-	  rec.info("ML_NULL", static_cast<float>(maxlike_null));
-	  rec.info("PP_DNM", static_cast<float>(static_cast<float>(pp_denovo)));
-	  rec.info("ML_DNM", static_cast<float>(static_cast<float>(maxlike_denovo)));
-	  rec.samples("RD", std::vector<int32_t>{child.depth, mom.depth, dad.depth});
-	  rec.samples("MQ", std::vector<int32_t>{child.rms_mapQ, mom.rms_mapQ, dad.rms_mapQ});
-	  std::vector<std::string> configs;
-	  boost::split(configs, tgt[i][j], boost::is_any_of("/"));
-	  rec.samples("NULL_CONFIG", configs);
-	  boost::split(configs, tgt[k][l], boost::is_any_of("/"));
-	  rec.samples("DNM_CONFIG", configs);  
+
+            // Newer, more accurate VCF output format
+            rec.info("SNPcode", static_cast<float>(lookup.snpcode(i, j)));
+            rec.info("code", static_cast<float>(lookup.code(i, j)));
+            rec.info("PP_NULL", static_cast<float>(pp_null));
+            rec.info("ML_NULL", static_cast<float>(maxlike_null));
+            rec.info("PP_DNM", static_cast<float>(static_cast<float>(pp_denovo)));
+            rec.info("ML_DNM", static_cast<float>(static_cast<float>(maxlike_denovo)));
+            rec.samples("RD", std::vector<int32_t> {child.depth, mom.depth, dad.depth});
+            rec.samples("MQ", std::vector<int32_t> {child.rms_mapQ, mom.rms_mapQ, dad.rms_mapQ});
+            std::vector<std::string> configs;
+            boost::split(configs, tgt[i][j], boost::is_any_of("/"));
+            rec.samples("NULL_CONFIG", configs);
+            boost::split(configs, tgt[k][l], boost::is_any_of("/"));
+            rec.samples("DNM_CONFIG", configs);
 #endif
-	  vcfout[0].WriteRecord(rec);
-	  }
-    
-     }
+            vcfout[0].WriteRecord(rec);
+        }
+
+    }
 
 }

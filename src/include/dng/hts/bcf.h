@@ -292,7 +292,7 @@ public:
 // NOTE: Need inline (or put into cpp file) otherwise will have clash when multiple source files
 // call bcf.h.
 inline Variant::Variant(const File &file) : BareVariant(), hdr_{file.hdr_} {
-  // NOOP
+    // NOOP
 }
 
 

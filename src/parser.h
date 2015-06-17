@@ -106,46 +106,51 @@ static int8_t nt4_table[256] = {
 
 
 // Check that "I16" value exists in INFO field
-static int read_I16(bcf1_t *rec, const bcf_hdr_t *hdr, std::vector<int> &anno)
-{
-  std::vector<int> i16vals;
-  //vcf.GetInfoValues("I16", i16vals);
-  int *dst = NULL;
-  int n_dst = 0;
-  int array_size = bcf_get_info_int32(hdr, rec, "I16", &dst, &n_dst);
+static int read_I16(bcf1_t *rec, const bcf_hdr_t *hdr, std::vector<int> &anno) {
+    std::vector<int> i16vals;
+    //vcf.GetInfoValues("I16", i16vals);
+    int *dst = NULL;
+    int n_dst = 0;
+    int array_size = bcf_get_info_int32(hdr, rec, "I16", &dst, &n_dst);
 
-  if(array_size == 0)
-    return -1;
-  if(array_size < 16)
-    return -2;
+    if(array_size == 0) {
+        return -1;
+    }
+    if(array_size < 16) {
+        return -2;
+    }
 
-  //TODO: Should reset array?
-  for(int a = 0; a < array_size; a++)
-    anno.push_back(dst[a]);      
-  return 0;
+    //TODO: Should reset array?
+    for(int a = 0; a < array_size; a++) {
+        anno.push_back(dst[a]);
+    }
+    return 0;
 
 }
 
 
 /**
- * Used by the [pair/snp/indel]Like.cc functions to make alt allele string printable. 
+ * Used by the [pair/snp/indel]Like.cc functions to make alt allele string printable.
  * Removes the N/X allele (X is the pre-BCFv2.2 version of IUPAC N).
  */
 inline void formatAltAlleles(std::string &alt) {
-  size_t start = alt.find(",X");
-  if(start == std::string::npos)
-    start = alt.find(",N");
+    size_t start = alt.find(",X");
+    if(start == std::string::npos) {
+        start = alt.find(",N");
+    }
 
-  if(start != std::string::npos) {
-    alt.replace(start, 2, "");
-  }
+    if(start != std::string::npos) {
+        alt.replace(start, 2, "");
+    }
 }
 
 
-void writeToSNPObject(snp_object_t *mom_snp, const bcf_hdr_t *hdr, bcf1_t *rec, int *g, int d,
+void writeToSNPObject(snp_object_t *mom_snp, const bcf_hdr_t *hdr, bcf1_t *rec,
+                      int *g, int d,
                       int mq, int &flag, int i, int i0);
 
-void writeToIndelObject(indel_t *mom_indel, const bcf_hdr_t *hdr, bcf1_t *rec, int *g,
+void writeToIndelObject(indel_t *mom_indel, const bcf_hdr_t *hdr, bcf1_t *rec,
+                        int *g,
                         int d, int mq, int &flag, int i, int i0);
 
 
@@ -155,9 +160,10 @@ int bcf_2qcall(const bcf_hdr_t *h, bcf1_t *rec, Trio t, qcall_t *mom_snp,
                qcall_t *dad, qcall_t *child, indel_t *mom_indel,
                indel_t *dad_indel, indel_t *child_indel, int &flag); // BCF to QCALL
 
-int bcf2Paired(const bcf_hdr_t *h, bcf1_t *b, Pair p, pair_t *tumor, pair_t *normal,
+int bcf2Paired(const bcf_hdr_t *h, bcf1_t *b, Pair p, pair_t *tumor,
+               pair_t *normal,
                int &flag);
 
-                    
+
 
 #endif

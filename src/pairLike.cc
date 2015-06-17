@@ -56,14 +56,14 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
 
     //Load Likelihood matrices L(D|Gt) and L(D|Gn)
     for(j = 0; j != 10; ++j) {
-      N(0,j) = pow(10, -normal.lk[j] / 10.);
-      //a[j] = pow(10, -normal.lk[j] / 10.);
+        N(0, j) = pow(10, -normal.lk[j] / 10.);
+        //a[j] = pow(10, -normal.lk[j] / 10.);
     }
     //N << a;
 
     for(j = 0; j != 10; ++j) {
-      T(j,0) = pow(10, -tumor.lk[j] / 10.);
-      //a[j] = pow(10, -tumor.lk[j] / 10.);
+        T(j, 0) = pow(10, -tumor.lk[j] / 10.);
+        //a[j] = pow(10, -tumor.lk[j] / 10.);
     }
     //T << a;
 
@@ -96,7 +96,7 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
 
         //remove ",X" from alt, helps with VCF op.
         string alt = tumor.alt;
-	formatAltAlleles(alt);
+        formatAltAlleles(alt);
         //size_t start = alt.find(",X");
         //if(start != std::string::npos) {
         //    alt.replace(start, 2, "");
@@ -117,61 +117,61 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
         cout << " dnm_snpcode: " << lookupPair.snpcode(k, l);
         cout << endl;
 
-	if(!vcfout.empty()) {
-	  auto rec = vcfout[0].InitVariant();
-	  rec.target(ref_name);
-	  rec.position(coor);
-	  rec.alleles(std::string(1, tumor.ref_base) + "," + alt); 
-	  rec.quality(0);
-	  rec.filter("PASS");
+        if(!vcfout.empty()) {
+            auto rec = vcfout[0].InitVariant();
+            rec.target(ref_name);
+            rec.position(coor);
+            rec.alleles(std::string(1, tumor.ref_base) + "," + alt);
+            rec.quality(0);
+            rec.filter("PASS");
 #ifndef NEWVCFOUT
-	  // Old vcf output format
-	  rec.info("RD_NORMAL", normal.depth);
-	  rec.info("MQ_NORMAL", normal.rms_mapQ);
-	  rec.samples("NULL_CONFIG(normal/tumor)", std::vector<std::string>{tgtPair[i - 1][j - 1]});
-	  rec.samples("pair_null_code", std::vector<float>{static_cast<float>(lookupPair.snpcode(i,j))});
-	  rec.samples("PP_NULL", std::vector<float>{static_cast<float>(pp_null)});
-	  rec.samples("DNM_CONFIG(tumor/normal)", std::vector<std::string>{tgtPair[k - 1][l - 1]});
-	  rec.samples("pair_denovo_code", std::vector<float>{static_cast<float>(lookupPair.snpcode(k,l))});
-	  rec.samples("PP_DNM", std::vector<float>{static_cast<float>(pp_denovo)});
-	  rec.samples("RD_T", std::vector<int32_t>{tumor.depth});
-	  rec.samples("MQ_T", std::vector<int32_t>{tumor.rms_mapQ});
+            // Old vcf output format
+            rec.info("RD_NORMAL", normal.depth);
+            rec.info("MQ_NORMAL", normal.rms_mapQ);
+            rec.samples("NULL_CONFIG(normal/tumor)", std::vector<std::string> {tgtPair[i - 1][j - 1]});
+            rec.samples("pair_null_code", std::vector<float> {static_cast<float>(lookupPair.snpcode(i, j))});
+            rec.samples("PP_NULL", std::vector<float> {static_cast<float>(pp_null)});
+            rec.samples("DNM_CONFIG(tumor/normal)", std::vector<std::string> {tgtPair[k - 1][l - 1]});
+            rec.samples("pair_denovo_code", std::vector<float> {static_cast<float>(lookupPair.snpcode(k, l))});
+            rec.samples("PP_DNM", std::vector<float> {static_cast<float>(pp_denovo)});
+            rec.samples("RD_T", std::vector<int32_t> {tumor.depth});
+            rec.samples("MQ_T", std::vector<int32_t> {tumor.rms_mapQ});
 #else
-	  
-	  // Newer, more accurate VCF output format
-	  rec.info("pair_null_code", static_cast<float>(lookupPair.snpcode(i,j)));
-	  rec.info("pair_denovo_code", static_cast<float>(lookupPair.snpcode(k,l)));
-	  rec.info("PP_NULL", static_cast<float>(pp_null));
-	  rec.info("PP_DNM", static_cast<float>(pp_denovo));
-	  rec.samples("RD", std::vector<int32_t>{tumor.depth, normal.depth});
-	  rec.samples("MQ", std::vector<int32_t>{tumor.rms_mapQ, normal.rms_mapQ});
-	  std::vector<std::string> configs;
-	  boost::split(configs, tgt[i-1][j-1], boost::is_any_of("/"));
-	  rec.samples("NULL_CONFIG", configs);
-	  boost::split(configs, tgt[k-1][l-1], boost::is_any_of("/"));
-	  rec.samples("DNM_CONFIG", configs);  
-#endif
-	  vcfout[0].WriteRecord(rec);
-	}
 
-	/*
-        if(op_vcf_f != "EMPTY") {
-            fo_vcf << ref_name << "\t";
-            fo_vcf << coor << "\t";
-            fo_vcf << ".\t"; // Don't know the rsID
-            fo_vcf << tumor.ref_base << "\t";
-            fo_vcf << alt << "\t";
-            fo_vcf << "0\t"; // Quality of the Call
-            fo_vcf << "PASS\t"; // passed the read depth filter
-            fo_vcf << "RD_NORMAL=" << normal.depth;
-            fo_vcf << ";MQ_NORMAL=" << normal.rms_mapQ << ";\t";
-            fo_vcf << "NULL_CONFIG(normal/tumor):pair_null_code:PP_NULL:DNM_CONFIG(normal/tumor):pair_denovo_code:PP_DNM:RD_T:MQ_T\t";
-            fo_vcf << tgtPair[i - 1][j - 1] << ":" << lookupPair.snpcode(i,
-                    j) << ":" << pp_null << ":";
-            fo_vcf << tgtPair[k - 1][l - 1] << ":" << lookupPair.snpcode(k,
-                    l) << ":" << pp_denovo << ":" << tumor.depth << ":" << tumor.rms_mapQ;
-            fo_vcf << "\n";
+            // Newer, more accurate VCF output format
+            rec.info("pair_null_code", static_cast<float>(lookupPair.snpcode(i, j)));
+            rec.info("pair_denovo_code", static_cast<float>(lookupPair.snpcode(k, l)));
+            rec.info("PP_NULL", static_cast<float>(pp_null));
+            rec.info("PP_DNM", static_cast<float>(pp_denovo));
+            rec.samples("RD", std::vector<int32_t> {tumor.depth, normal.depth});
+            rec.samples("MQ", std::vector<int32_t> {tumor.rms_mapQ, normal.rms_mapQ});
+            std::vector<std::string> configs;
+            boost::split(configs, tgt[i - 1][j - 1], boost::is_any_of("/"));
+            rec.samples("NULL_CONFIG", configs);
+            boost::split(configs, tgt[k - 1][l - 1], boost::is_any_of("/"));
+            rec.samples("DNM_CONFIG", configs);
+#endif
+            vcfout[0].WriteRecord(rec);
         }
-	*/
+
+        /*
+            if(op_vcf_f != "EMPTY") {
+                fo_vcf << ref_name << "\t";
+                fo_vcf << coor << "\t";
+                fo_vcf << ".\t"; // Don't know the rsID
+                fo_vcf << tumor.ref_base << "\t";
+                fo_vcf << alt << "\t";
+                fo_vcf << "0\t"; // Quality of the Call
+                fo_vcf << "PASS\t"; // passed the read depth filter
+                fo_vcf << "RD_NORMAL=" << normal.depth;
+                fo_vcf << ";MQ_NORMAL=" << normal.rms_mapQ << ";\t";
+                fo_vcf << "NULL_CONFIG(normal/tumor):pair_null_code:PP_NULL:DNM_CONFIG(normal/tumor):pair_denovo_code:PP_DNM:RD_T:MQ_T\t";
+                fo_vcf << tgtPair[i - 1][j - 1] << ":" << lookupPair.snpcode(i,
+                        j) << ":" << pp_null << ":";
+                fo_vcf << tgtPair[k - 1][l - 1] << ":" << lookupPair.snpcode(k,
+                        l) << ":" << pp_denovo << ":" << tumor.depth << ":" << tumor.rms_mapQ;
+                fo_vcf << "\n";
+            }
+        */
     }
 }

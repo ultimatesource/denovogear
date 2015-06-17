@@ -70,7 +70,8 @@ void setSNPLines(lookup_table_t &tgt, Real lines[][1000], int is_X) {
     static int snp_index = 0, k = 0, l = 0;
     if(is_X == 1) {  // XS
 #ifdef LOOKUP_ENABLED
-        fout_XSsnp << g_n_u_alleles << " " << g_inf << " " << g_t_prob << " " << g_gts << " ";
+        fout_XSsnp << g_n_u_alleles << " " << g_inf << " " << g_t_prob << " " << g_gts
+                   << " ";
         fout_XSsnp << g_kDenovorate << " " << g_dflag << " " << g_nflag;
         for(int i = 0; i < 4; i++) {
             fout_XSsnp << " " << g_priors[i];
@@ -79,7 +80,8 @@ void setSNPLines(lookup_table_t &tgt, Real lines[][1000], int is_X) {
 #endif
     } else if(is_X == 2) { // XD
 #ifdef LOOKUP_ENABLED
-        fout_XDsnp << g_n_u_alleles << " " << g_inf << " " << g_t_prob << " " << g_gts << " ";
+        fout_XDsnp << g_n_u_alleles << " " << g_inf << " " << g_t_prob << " " << g_gts
+                   << " ";
         fout_XDsnp << g_kDenovorate << " " << g_dflag << " " << g_nflag;
         for(int i = 0; i < 4; i++) {
             fout_XDsnp << " " << g_priors[i];
@@ -322,7 +324,8 @@ void getSNPPriors(std::string g_gts, int n_uniqa, int is_X) {
 }
 
 // Make Indel lookup table
-void makeIndelLookup(double PolyRate, lookup_table_t &tgt, lookup_indel_t &lookupIndel) {
+void makeIndelLookup(double PolyRate, lookup_table_t &tgt,
+                     lookup_indel_t &lookupIndel) {
 #ifdef LOOKUP_ENABLED
     fout_indel.precision(10);
 #endif
@@ -352,7 +355,7 @@ void makeIndelLookup(double PolyRate, lookup_table_t &tgt, lookup_indel_t &looku
                 g_khit = 0;
                 g_dflag = false;
                 g_nflag = false;
-		std::set<std::string> u_alleles;
+                std::set<std::string> u_alleles;
                 g_gts = seq1[cid];
                 u_alleles.insert(seq1[cid]);
                 g_gts += seq2[cid];
@@ -368,8 +371,9 @@ void makeIndelLookup(double PolyRate, lookup_table_t &tgt, lookup_indel_t &looku
                 g_gts += seq2[did];
                 u_alleles.insert(seq2[did]);
                 g_n_u_alleles = u_alleles.size();
-		std::string alleles = seq1[cid] + seq2[cid] + seq1[mid] + seq2[mid] + seq1[did] +
-                                 seq2[did];
+                std::string alleles = seq1[cid] + seq2[cid] + seq1[mid] + seq2[mid] + seq1[did]
+                                      +
+                                      seq2[did];
                 getIndelPriors(alleles, g_n_u_alleles, X);
 
                 // Child is missing data or homozygous
@@ -557,7 +561,7 @@ void makeSNPLookup(double SNPMrate, double PolyRate,
                 g_kDenovorate = 1.0 - g_Mrate;
                 g_dflag = false;
                 g_nflag = false;
-		std::set<std::string> u_alleles;
+                std::set<std::string> u_alleles;
                 g_gts = seq1[cid];
                 u_alleles.insert(seq1[cid]);
                 g_gts += seq2[cid];
@@ -573,7 +577,8 @@ void makeSNPLookup(double SNPMrate, double PolyRate,
                 g_gts += seq2[did];
                 u_alleles.insert(seq2[did]);
                 g_n_u_alleles = u_alleles.size();
-		std::string alleles = seq1[cid] + seq2[cid] + seq1[mid] + seq2[mid] + seq1[did] +
+                std::string alleles = seq1[cid] + seq2[cid] + seq1[mid] + seq2[mid] + seq1[did]
+                                      +
                                       seq2[did];
                 //cout<<"\n"<<i<<" GT string: "<<g_gts;
                 //cout<<" The number of unique u_alleles is: "<<g_n_u_alleles;
@@ -856,7 +861,7 @@ void makeXSSNPLookup(double SNPMrate, double PolyRate,
                 g_kDenovorate = 1.0 - g_Mrate;
                 g_dflag = false;
                 g_nflag = false;
-		std::set<std::string> u_alleles;
+                std::set<std::string> u_alleles;
                 g_gts = seq1[cid];
                 u_alleles.insert(seq1[cid]);
                 g_gts += seq2[cid];
@@ -872,7 +877,8 @@ void makeXSSNPLookup(double SNPMrate, double PolyRate,
                 g_gts += seq2[did];
                 u_alleles.insert(seq2[did]);
                 g_n_u_alleles = u_alleles.size();
-		std::string alleles = seq1[cid] + seq2[cid] + seq1[mid] + seq2[mid] + seq1[did] + seq2[did];
+                std::string alleles = seq1[cid] + seq2[cid] + seq1[mid] + seq2[mid] + seq1[did]
+                                      + seq2[did];
                 //cout<<"\n"<<i<<" GT string: "<<g_gts;
                 //cout<<" The number of unique u_alleles is: "<<g_n_u_alleles;
 
@@ -1086,7 +1092,8 @@ void makeXSSNPLookup(double SNPMrate, double PolyRate,
 
 }
 
-void makeXSIndelLookup(double PolyRate, lookup_table_t &tgt, lookup_indel_t &lookupIndel) {
+void makeXSIndelLookup(double PolyRate, lookup_table_t &tgt,
+                       lookup_indel_t &lookupIndel) {
 #ifdef LOOKUP_ENABLED
     fout_XSindel.precision(10);
 #endif
@@ -1116,7 +1123,7 @@ void makeXSIndelLookup(double PolyRate, lookup_table_t &tgt, lookup_indel_t &loo
                 g_khit = 0;
                 g_dflag = false;
                 g_nflag = false;
-		std::set<std::string> u_alleles;
+                std::set<std::string> u_alleles;
                 g_gts = seq1[cid];
                 u_alleles.insert(seq1[cid]);
                 g_gts += seq2[cid];
@@ -1132,8 +1139,9 @@ void makeXSIndelLookup(double PolyRate, lookup_table_t &tgt, lookup_indel_t &loo
                 g_gts += seq2[did];
                 u_alleles.insert(seq2[did]);
                 g_n_u_alleles = u_alleles.size();
-		std::string alleles = seq1[cid] + seq2[cid] + seq1[mid] + seq2[mid] + seq1[did] +
-                                 seq2[did];
+                std::string alleles = seq1[cid] + seq2[cid] + seq1[mid] + seq2[mid] + seq1[did]
+                                      +
+                                      seq2[did];
                 getIndelPriors(alleles, g_n_u_alleles, X);
 
                 // Child is missing data or homozygous
@@ -1294,7 +1302,8 @@ void makeXSIndelLookup(double PolyRate, lookup_table_t &tgt, lookup_indel_t &loo
 
 }
 
-void makeXDSNPLookup(double SNPMrate, double PolyRate, lookup_table_t &tgt, lookup_snp_t &lookup) {
+void makeXDSNPLookup(double SNPMrate, double PolyRate, lookup_table_t &tgt,
+                     lookup_snp_t &lookup) {
 #ifdef LOOKUP_ENABLED
     fout_XDsnp.precision(10);
 #endif
@@ -1327,7 +1336,7 @@ void makeXDSNPLookup(double SNPMrate, double PolyRate, lookup_table_t &tgt, look
                 g_kDenovorate = 1.0 - g_Mrate;
                 g_dflag = false;
                 g_nflag = false;
-		std::set<std::string> u_alleles;
+                std::set<std::string> u_alleles;
                 g_gts = seq1[cid];
                 u_alleles.insert(seq1[cid]);
                 g_gts += seq2[cid];
@@ -1343,7 +1352,8 @@ void makeXDSNPLookup(double SNPMrate, double PolyRate, lookup_table_t &tgt, look
                 g_gts += seq2[did];
                 u_alleles.insert(seq2[did]);
                 g_n_u_alleles = u_alleles.size();
-		std::string alleles = seq1[cid] + seq2[cid] + seq1[mid] + seq2[mid] + seq1[did] + seq2[did];
+                std::string alleles = seq1[cid] + seq2[cid] + seq1[mid] + seq2[mid] + seq1[did]
+                                      + seq2[did];
 
                 //cout<<"\n"<<i<<" GT string: "<<g_gts;
                 //cout<<" The number of unique u_alleles is: "<<g_n_u_alleles;
@@ -1597,7 +1607,8 @@ void makeXDSNPLookup(double SNPMrate, double PolyRate, lookup_table_t &tgt, look
 }
 
 
-void makeXDIndelLookup(double PolyRate, lookup_table_t &tgt, lookup_indel_t &lookupIndel) {
+void makeXDIndelLookup(double PolyRate, lookup_table_t &tgt,
+                       lookup_indel_t &lookupIndel) {
 #ifdef LOOKUP_ENABLED
     fout_XDindel.precision(10);
 #endif
@@ -1627,7 +1638,7 @@ void makeXDIndelLookup(double PolyRate, lookup_table_t &tgt, lookup_indel_t &loo
                 g_khit = 0;
                 g_dflag = false;
                 g_nflag = false;
-		std::set<std::string> u_alleles;
+                std::set<std::string> u_alleles;
                 g_gts = seq1[cid];
                 u_alleles.insert(seq1[cid]);
                 g_gts += seq2[cid];
@@ -1643,7 +1654,8 @@ void makeXDIndelLookup(double PolyRate, lookup_table_t &tgt, lookup_indel_t &loo
                 g_gts += seq2[did];
                 u_alleles.insert(seq2[did]);
                 g_n_u_alleles = u_alleles.size();
-		std::string alleles = seq1[cid] + seq2[cid] + seq1[mid] + seq2[mid] + seq1[did] +
+                std::string alleles = seq1[cid] + seq2[cid] + seq1[mid] + seq2[mid] + seq1[did]
+                                      +
                                       seq2[did];
                 getIndelPriors(alleles, g_n_u_alleles, X);
 
@@ -1832,7 +1844,8 @@ void makeXDIndelLookup(double PolyRate, lookup_table_t &tgt, lookup_indel_t &loo
 
 
 // Lookup table for paired samples
-void makePairedLookup(double pairMrate, lookup_table_t &tgt, lookup_pair_t &lookup) {
+void makePairedLookup(double pairMrate, lookup_table_t &tgt,
+                      lookup_pair_t &lookup) {
 #ifdef LOOKUP_ENABLED
     fout_pair.precision(10);
 #endif
@@ -1856,7 +1869,7 @@ void makePairedLookup(double pairMrate, lookup_table_t &tgt, lookup_pair_t &look
             d_flag[index] = false; // denovo flag
             n_flag[index] = true; // normal flag
             priors[index] = 1.0 - pairMrate;
-	    std::set<std::string> u_alleles;
+            std::set<std::string> u_alleles;
             g_gts = seq1[nor];
             u_alleles.insert(seq1[nor]);
             g_gts += seq2[nor];
@@ -1867,7 +1880,7 @@ void makePairedLookup(double pairMrate, lookup_table_t &tgt, lookup_pair_t &look
             g_gts += seq2[tum];
             u_alleles.insert(seq2[tum]);
             //n_alleles[index] = u_alleles.size(); // number of unique alleles
-	    std::string alleles = seq1[nor] + seq2[nor] + seq1[tum] + seq2[tum];
+            std::string alleles = seq1[nor] + seq2[nor] + seq1[tum] + seq2[tum];
             tgt[tum][nor] = g_gts; // genotype string
 
             codes[index] = -1;

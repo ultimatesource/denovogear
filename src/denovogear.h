@@ -55,9 +55,9 @@ void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
                      int RD_cutoff, int &n_site_pass, double user_indel_mrate);
 
 // Calculate Pair PP
-void pair_like(pair_t tumor, pair_t normal, 
-	       lookup_table_t &tgtPair, lookup_pair_t &lookupPair, 
-	       int flag, std::vector<hts::bcf::File> &vcfout,
+void pair_like(pair_t tumor, pair_t normal,
+               lookup_table_t &tgtPair, lookup_pair_t &lookupPair,
+               int flag, std::vector<hts::bcf::File> &vcfout,
                double pp_cutoff, int RD_cutoff, int &n_site_pass);
 
 

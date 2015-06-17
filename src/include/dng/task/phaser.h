@@ -55,7 +55,7 @@ inline void add_app_args(po::options_description &desc, arg_t &arg) {
 
 class Phaser : public Task<phaser::arg_t> {
 public:
-  int operator()(argument_type &arg);
+    int operator()(argument_type &arg);
 };
 
 }

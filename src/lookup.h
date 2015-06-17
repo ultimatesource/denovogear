@@ -30,7 +30,7 @@
 
 #define MIN_READ_DEPTH_SNP 10
 
-// The old code was mixing floats and doubles when setting and processing matrices. Found it caused problems 
+// The old code was mixing floats and doubles when setting and processing matrices. Found it caused problems
 // when max/min was called on matrices (*Like.cc) - had multiple maxs/mins due to roundoff.
 typedef double Real;
 
@@ -50,37 +50,37 @@ typedef std::vector<std::vector<std::string> > lookup_table_t;
 
 // SNP Lookup Table
 typedef struct {
-  SNPMatrix aref; /*priors for "A" reference allele */
-  SNPMatrix cref; /*priors for "C" reference allele */
-  SNPMatrix gref; /*priors for "G" reference allele */
-  SNPMatrix tref; /*priors for "T" reference allele */
-  SNPMatrix snpcode; /*code for identifying a biallelic locus */
-  SNPMatrix tp; /*code for identifying a biallelic locus */
-  SNPMatrix code; /*code for identifying a biallelic locus */
-  SNPMatrix mrate; /*mutation probability*/
-  SNPMatrix denovo; /*code for identifying de novo events + mutation rate*/
-  SNPMatrix norm; /*code for identifying de novo events + mutation rate*/
+    SNPMatrix aref; /*priors for "A" reference allele */
+    SNPMatrix cref; /*priors for "C" reference allele */
+    SNPMatrix gref; /*priors for "G" reference allele */
+    SNPMatrix tref; /*priors for "T" reference allele */
+    SNPMatrix snpcode; /*code for identifying a biallelic locus */
+    SNPMatrix tp; /*code for identifying a biallelic locus */
+    SNPMatrix code; /*code for identifying a biallelic locus */
+    SNPMatrix mrate; /*mutation probability*/
+    SNPMatrix denovo; /*code for identifying de novo events + mutation rate*/
+    SNPMatrix norm; /*code for identifying de novo events + mutation rate*/
 } lookup_snp_t;
 
 // Indel Lookup Table
 // TODO: mrate is not always being filled out in makeLookups.cc. Investigate
 typedef struct {
-  IndelMatrix priors; /*priors for Indel */
-  IndelMatrix snpcode; /*code for identifying a biallelic locus */
-  IndelMatrix tp; /*code for identifying a biallelic locus */
-  IndelMatrix code; /*code for identifying a biallelic locus */
-  IndelMatrix mrate; /*mutation probability*/
-  IndelMatrix denovo; /*code for identifying de novo events + mutation rate*/
-  IndelMatrix norm; /*code for identifying de novo events + mutation rate*/
-  IndelMatrix hit; /* multiplication factor for indel mu */
+    IndelMatrix priors; /*priors for Indel */
+    IndelMatrix snpcode; /*code for identifying a biallelic locus */
+    IndelMatrix tp; /*code for identifying a biallelic locus */
+    IndelMatrix code; /*code for identifying a biallelic locus */
+    IndelMatrix mrate; /*mutation probability*/
+    IndelMatrix denovo; /*code for identifying de novo events + mutation rate*/
+    IndelMatrix norm; /*code for identifying de novo events + mutation rate*/
+    IndelMatrix hit; /* multiplication factor for indel mu */
 } lookup_indel_t;
 
 // Paired-sample Lookup Table
 typedef struct {
-  PairMatrix snpcode; /*code for identifying a biallelic locus */
-  PairMatrix priors; /*priors */
-  PairMatrix denovo; /*code for identifying de novo events + mutation rate*/
-  PairMatrix norm; /*code for identifying de novo events + mutation rate*/
+    PairMatrix snpcode; /*code for identifying a biallelic locus */
+    PairMatrix priors; /*priors */
+    PairMatrix denovo; /*code for identifying de novo events + mutation rate*/
+    PairMatrix norm; /*code for identifying de novo events + mutation rate*/
 } lookup_pair_t;
 
 #endif

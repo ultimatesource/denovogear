@@ -6,8 +6,8 @@
 #include <vector>
 #include <stdlib.h>
 #include <getopt.h>
-#include <memory> 
-#include <assert.h> 
+#include <memory>
+#include <assert.h>
 
 #include <dng/hts/bcf.h>
 
@@ -28,7 +28,7 @@ double mu_scale = 1.0; // scaling factor for indel priors
 */
 
 
-//int callDenovoFromBCF(std::string ped_file, std::string bcf_file, std::string op_vcf_f, 
+//int callDenovoFromBCF(std::string ped_file, std::string bcf_file, std::string op_vcf_f,
 //		      std::string model, bool is_vcf, std::string region);
 
 /*
