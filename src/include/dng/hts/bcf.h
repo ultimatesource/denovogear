@@ -35,6 +35,16 @@ extern "C" {
 namespace hts {
 namespace bcf {
 
+const float float_missing = []() -> float {
+    // We use a lambda function so the result can be constant.
+    float a;
+    bcf_float_set_missing(a);
+    return a;
+}();
+const int32_t int32_missing = bcf_int32_missing;
+const int16_t int16_missing = bcf_int16_missing;
+const int8_t int8_missing = bcf_int8_missing;
+
 typedef bcf1_t BareVariant;
 
 class File;
@@ -99,16 +109,14 @@ public:
      * info() - Add another key=Value pair to the INFO field
      * @key: must be defined in the Header or won't be added.
      * @value: if set to NULL then previous set key-value pairs will be removed.
-     *
-     * TODO: Add a vector<> version of flat, ints, and strings.
      */
-    int info(const char *key, float value) {
+    int info(const char *key, const float *value, std::size_t count) {
         assert(key != nullptr);
-        return bcf_update_info_float(hdr(), base(), key, &value, 1);
+        return bcf_update_info_float(hdr(), base(), key, value, count);
     }
-    int info(const char *key, int32_t value) {
+    int info(const char *key, const int32_t *value, std::size_t count) {
         assert(key != nullptr);
-        return bcf_update_info_int32(hdr(), base(), key, &value, 1);
+        return bcf_update_info_int32(hdr(), base(), key, value, count);
     }
     int info(const char *key, const std::string &value) {
         assert(key != nullptr);
@@ -117,6 +125,23 @@ public:
     int info(const char *key, const char *value) {
         assert(key != nullptr);
         return bcf_update_info_string(hdr(), base(), key, value);
+    }
+
+    template<typename T>
+    int info(const char *key, T value) {
+        return info(key, &value, 1);
+    }
+    template<typename T, typename A>
+    int info(const char *key, const std::vector<T, A> &value) {
+        return info(key, &value[0], value.size());
+    }
+    template<typename T, std::size_t N>
+    int info(const char *key, const std::array<T, N> &value) {
+        return info(key, &value[0], value.size());
+    }
+    template<typename T, std::size_t N>
+    int info(const char *key, const T(&value)[N]) {
+        return info(key, &value[0], N);
     }
 
     /**
@@ -145,6 +170,9 @@ public:
             v[u] = data[u].c_str();
         }
         return samples(name, v);
+    }
+    int sample_genotypes(const std::vector<int32_t> &data) {
+        return bcf_update_genotypes(hdr(), base(), &data[0], data.size());
     }
 
 protected:
@@ -288,15 +316,54 @@ public:
     friend class Variant;
 };
 
-
-// NOTE: Need inline (or put into cpp file) otherwise will have clash when multiple source files
-// call bcf.h.
 inline Variant::Variant(const File &file) : BareVariant(), hdr_{file.hdr_} {
-    // NOOP
+    bcf_float_set_missing(qual);
 }
 
 
+struct allele_t {
+    operator int() {
+        return value;
+    }
+    int value;
+};
+
+// Wrappers for htslib "genotype" functions
+inline allele_t encode_allele_phased(int index) {
+    return {bcf_gt_phased(index)};
 }
-} // namespace hts::bcf
+
+inline allele_t encode_allele_unphased(int index) {
+    return {bcf_gt_unphased(index)};
+}
+
+inline constexpr allele_t encode_allele_missing() {
+    return {bcf_gt_missing};
+}
+
+inline bool allele_is_missing(allele_t value) {
+    return bcf_gt_is_missing(value);
+}
+
+inline bool allele_is_phased(allele_t value) {
+    return bcf_gt_is_phased(value);
+}
+
+inline int decode_allele(allele_t value) {
+    return bcf_gt_allele(value);
+}
+
+inline int genotype_from_alleles(int a, int b) {
+    return bcf_alleles2gt(a, b);
+}
+
+inline std::pair<int, int> alleles_from_genotype(int value) {
+    int a, b;
+    bcf_gt2alleles(value, &a, &b);
+    return {a, b};
+}
+
+} // namespace bcf
+} // namespace hts
 
 #endif /* CXX_HTS_BCF_H */

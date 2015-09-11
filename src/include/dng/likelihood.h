@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Reed A. Cartwright
+ * Copyright (c) 2014-2015 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -23,8 +23,10 @@
 #include <array>
 #include <cmath>
 #include <memory>
+#include <iostream>
 
 #include <dng/matrix.h>
+#include <dng/utilities.h>
 
 namespace dng {
 namespace genotype {
@@ -35,10 +37,27 @@ public:
     static const int kCacheSize = 512;
 
     struct params_t {
-        double pi; // probability of this component
-        double phi; // overdispersion parameter
+        double pi;      // probability of this component
+        double phi;     // overdispersion parameter
         double epsilon; // prob of error when homozygote is sequenced
-        double omega; // bias towards reference when heterozygote is sequenced
+        double omega;   // bias towards reference when heterozygote is sequenced
+        // fraction of reads that are ref is omega/(1+omega)
+        // Construct a params_t from a string of comma separated values
+        params_t(const std::string &str) {
+            auto f = util::parse_double_list(str, ',', 4);
+            if(!f.second) {
+                throw std::runtime_error("Unable to parse genotype-likelihood parameters. "
+                                         "It must be a comma separated list of floating-point numbers.");
+            }
+            if(f.first.size() != 4) {
+                throw std::runtime_error("Wrong number of values for genotype-likelihood parameters. "
+                                         "Expected 4; found " + std::to_string(f.first.size()) + ".");
+            }
+            pi = f.first[0];
+            phi = f.first[1];
+            epsilon = f.first[2];
+            omega = f.first[3];
+        }
     };
 
     std::pair<GenotypeArray, double> operator()(depth_t d, int ref_allele) {
@@ -65,9 +84,9 @@ public:
                 lh1 -= cache[4][2 * read_count];
                 lh2 -= cache[4][2 * read_count + 1];
             } else {
-                lh1 += lgamma(alphas_[ref_allele][i][4][0] + read_count)
+                lh1 -= lgamma(alphas_[ref_allele][i][4][0] + read_count)
                        - alphas_[ref_allele][i][4][1];
-                lh2 += lgamma(alphas_[ref_allele][i][4][2] + read_count)
+                lh2 -= lgamma(alphas_[ref_allele][i][4][2] + read_count)
                        - alphas_[ref_allele][i][4][3];
             }
             log_ret[i] = (lh2 < lh1) ? lh1 + log1p(exp(lh2 - lh1)) :
@@ -91,52 +110,6 @@ protected:
     alphas_t alphas_;
     double f1_, f2_; // log(f) and log(1-f)
 };
-
-/*
-double DirichletMultinomialLogProbability(double alphas[4], ReadData data) {
-	// TODO: Cache most of the math here
-	// TODO: Does not include the multinomial coefficient
-	int read_count = data.reads[0]+data.reads[1]+data.reads[2]+data.reads[3];
-	double alpha_total = alphas[0]+alphas[1]+alphas[2]+alphas[3];
-	double result = 0.0;
-	for(int i : {0,1,2,3}) {
-		for(int x = 0; x < data.reads[i]; ++x) {
-			result += log(alphas[i]+x);
-		}
-	}
-	for(int x = 0; x < read_count; ++x)
-		result -= log(alpha_total+x);
-	return result;
-}
-
-DiploidProbs DiploidSequencing(const TetMAParams &params, int ref_allele, ReadData data) {
-	DiploidProbs result;
-	double alphas_total = (1.0-params.phi_diploid)/params.phi_diploid;
-	for(int i : {0,1,2,3}) {
-		for(int j=0;j<i;++j) {
-			double alphas[4];
-			for(int k : {0,1,2,3}) {
-				if(k == i || k == j)
-					alphas[k] = (0.5-params.error_prob/3.0)*alphas_total;
-				else
-					alphas[k] = (params.error_prob/3.0)*alphas_total;
-			}
-			result[i*4+j] = DirichletMultinomialLogProbability(alphas, data);
-			result[j*4+i] = result[i*4+j];
-		}
-		double alphas[4];
-		for(int k : {0,1,2,3}) {
-			if(k == i)
-				alphas[k] = (1.0-params.error_prob)*alphas_total;
-			else
-				alphas[k] = params.error_prob/3.0*alphas_total;
-		}
-		result[i*4+i] = DirichletMultinomialLogProbability(alphas, data);
-	}
-	double scale = result.maxCoeff();
-	return (result - scale).exp();
-}
-*/
 
 } // namespace genotype
 } // namespace dng

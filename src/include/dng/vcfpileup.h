@@ -49,15 +49,16 @@ class VCFPileup {
 public:
     typedef void (callback_type)(bcf_hdr_t *, bcf1_t *);
 
-    VCFPileup() {
-        // Not yet sure if ReadGroups should be passed in
+    template<typename LB>
+    VCFPileup(const LB &lb) : libraries_{lb} {
+
     }
 
     template<typename Func>
     void operator()(const char *fname, Func func);
 
 private:
-
+    ReadGroups::StrSet libraries_;
 };
 
 template<typename Func>
@@ -71,6 +72,13 @@ void VCFPileup::operator()(const char *fname, Func func) {
     htsFile *fp = hts_open(fname, "r");
     bcf_hdr_t *hdr = bcf_hdr_read(fp);
     bcf1_t *rec = bcf_init1();
+    std::string samples;
+    for(auto && str : libraries_) {
+        samples += str + ',';
+    }
+    samples.pop_back();
+
+    bcf_hdr_set_samples(hdr, samples.c_str(), 0);
 
     while(bcf_read1(fp, hdr, rec) >= 0) {
         // check that the current record is for an SNP and not an Indel, MNP, or something else

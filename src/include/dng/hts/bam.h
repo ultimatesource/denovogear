@@ -130,9 +130,9 @@ class File : public hts::File {
 public:
     File(hts::File &&other, const char *region = nullptr,
          const char *fasta = nullptr,
-         int min_mapQ = 0, int min_len = 0) : hts::File(std::move(other)),
+         int min_mapQ = 0) : hts::File(std::move(other)),
         hdr_{nullptr, bam_hdr_destroy}, iter_{nullptr, hts_itr_destroy},
-        min_mapQ_(min_mapQ), min_len_(min_len) {
+        min_mapQ_(min_mapQ) {
         // TODO: handle different modes here???
         // TODO: remove throws or move some of them to base class???
 
@@ -160,43 +160,35 @@ public:
 
             if(!iter_) {
                 throw std::runtime_error("unable to parse region '" + std::string(region) +
-                                         "in file '" + std::string(name()) + "'.");
+                                         "' in file '" + std::string(name()) + "'.");
             }
         }
     }
 
     File(const char *file, const char *mode, const char *region = nullptr,
          const char *fasta = nullptr,
-         int min_mapQ = 0, int min_len = 0) : File(hts::File(file, mode), region, fasta,
-                     min_mapQ, min_len) {
+         int min_mapQ = 0) : File(hts::File(file, mode), region, fasta, min_mapQ) {
     }
 
-    int Read(Alignment &a) {
+    int Read(Alignment *p) {
         int ret;
         for(;;) {
-            ret = (iter_) ? sam_itr_next(handle(), iter_.get(), a.base())
-                  : sam_read1(handle(), hdr_.get(), a.base());
+            ret = (iter_) ? sam_itr_next(handle(), iter_.get(), p->base())
+                  : sam_read1(handle(), hdr_.get(), p->base());
             if(ret < 0) {
                 break;
             }
-            if(a.is_any(BAM_FUNMAP | BAM_FSECONDARY | BAM_FQCFAIL | BAM_FDUP)) {
+            if(p->is_any(BAM_FUNMAP | BAM_FSECONDARY | BAM_FQCFAIL | BAM_FDUP)) {
                 continue;
             }
-            if(a.map_qual() < min_mapQ_) {
+            if(p->map_qual() < min_mapQ_) {
                 continue;
-            }
-            // TODO: Move this to the outer loop?
-            if(min_len_ > 0) {
-                auto p = a.cigar();
-                if(bam_cigar2qlen(p.second - p.first, p.first) < min_len_) {
-                    continue;
-                }
             }
             break;
         }
         return ret;
     }
-    int operator()(Alignment &a) { return Read(a); }
+    int operator()(Alignment *p) { return Read(p); }
 
     int Write(const bam1_t &b) {
         return sam_write1(handle(), hdr_.get(), &b);
@@ -210,7 +202,7 @@ protected:
     std::unique_ptr<hts_itr_t, void(*)(hts_itr_t *)>
     iter_; // NULL if a region not specified
 
-    int min_mapQ_, min_len_; // mapQ filter; length filter
+    int min_mapQ_; // mapQ filter
 };
 
 } // namespace bam

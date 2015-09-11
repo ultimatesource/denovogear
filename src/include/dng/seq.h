@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Reed A. Cartwright
+ * Copyright (c) 2014-2015 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -37,7 +37,7 @@ inline char decode_base(unsigned char x) {
 
 // convert a 4-bit nucleotide into a index in [0-4]
 inline std::size_t base_index(uint8_t x) {
-    static const std::size_t table[] = {4, 0, 1, 4, 2, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4};
+    static constexpr std::size_t table[] = {4, 0, 1, 4, 2, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4};
     return table[x & 0xF];
 }
 
@@ -49,13 +49,13 @@ inline std::size_t char_index(uint8_t x) {
 
 // convert an index into a 4-bit nucleotide
 inline uint8_t indexed_base(std::size_t x) {
-    static const uint8_t table[] = {1, 2, 4, 8, 15, 15, 15, 15};
+    static constexpr uint8_t table[] = {1, 2, 4, 8, 15, 15, 15, 15};
     return table[x & 0x7];
 }
 
 // convert an index into a 4-bit nucleotide
 inline char indexed_char(std::size_t x) {
-    static const char table[] = "ACGTNNNN";
+    static constexpr char table[] = "ACGTNNNN";
     return table[x & 0x7];
 }
 

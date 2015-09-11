@@ -56,13 +56,12 @@ public:
         Expand();
     }
 
-    node_type &Malloc() {
-        //std::cerr << "Malloc " << ++count_ << std::endl;
+    node_type *Malloc() {
         // Check the inactive list first
         if(!inactive_.empty()) {
-            node_type &n = inactive_.front();
+            node_type *p = &inactive_.front();
             inactive_.pop_front();
-            return n;
+            return p;
         }
         // Expand allocated space as needed
         if(next_ == end_) {
@@ -71,13 +70,12 @@ public:
         // Inplace allocation
         node_type *p = next_++;
         new(p) node_type();
-        return *p;
+        return p;
     }
 
-    void Free(node_type &n) {
+    void Free(node_type *p) noexcept {
         // Put the node on the list of free elements
-        inactive_.push_front(n);
-        //std::cerr << "Free " << count_-- << std::endl;
+        inactive_.push_front(*p);
     }
 
     virtual ~IntrusivePool() {

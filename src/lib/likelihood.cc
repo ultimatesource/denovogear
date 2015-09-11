@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Reed A. Cartwright
+ * Copyright (c) 2014-2015 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -21,15 +21,23 @@
 #include <dng/matrix.h>
 #include <dng/likelihood.h>
 
+#ifndef DNG_LIKLIHOOD_PHI_MIN
+#   define DNG_LIKLIHOOD_PHI_MIN 1e-6
+#endif
+
 dng::genotype::DirichletMultinomialMixture
 ::DirichletMultinomialMixture(params_t model_a, params_t model_b) :
     cache_(5), alphas_(5) {
     double a, u, e, m, h;
 
-    f1_ = log(model_a.pi); // - log(model_a.pi+model_b.pi);
-    f2_ = log(model_b.pi); // - log(model_a.pi+model_b.pi);
+    f1_ = log(model_a.pi) - log(model_a.pi + model_b.pi);
+    f2_ = log(model_b.pi) - log(model_a.pi + model_b.pi);
 
     // model a
+    // Don't allow phi to be zero until we have rewritten the likelihood function
+    if(model_a.phi < DNG_LIKLIHOOD_PHI_MIN) {
+        model_a.phi = DNG_LIKLIHOOD_PHI_MIN;
+    }
     a = (1.0 - model_a.phi) / model_a.phi;
     u = model_a.omega;
     e = (model_a.epsilon * u) / 3.0 / (1.0 - model_a.epsilon * (1.0 - u));
@@ -39,11 +47,13 @@ dng::genotype::DirichletMultinomialMixture
     for(int r = 0; r < 5; ++r) {
         for(int g = 0; g < 10; ++g) {
             double tmp[5] = {e, e, e, e, e};
-            if(nucleotides[g][0] == nucleotides[g][1]) {
-                tmp[nucleotides[g][0]] = m;
+            int g1 = folded_diploid_nucleotides[g][0];
+            int g2 = folded_diploid_nucleotides[g][1];
+            if(g1 == g2) {
+                tmp[g1] = m;
             } else {
-                tmp[nucleotides[g][0]] = h;
-                tmp[nucleotides[g][1]] = h;
+                tmp[g1] = h;
+                tmp[g2] = h;
             }
             tmp[r] *= u;
             tmp[4] = tmp[0] + tmp[1] + tmp[2] + tmp[3];
@@ -56,6 +66,9 @@ dng::genotype::DirichletMultinomialMixture
     }
 
     // model b
+    if(model_b.phi < DNG_LIKLIHOOD_PHI_MIN) {
+        model_b.phi = DNG_LIKLIHOOD_PHI_MIN;
+    }
     a = (1.0 - model_b.phi) / model_b.phi;
     u = model_b.omega;
     e = (model_b.epsilon * u) / 3.0 / (1.0 - model_b.epsilon * (1.0 - u));
@@ -65,11 +78,13 @@ dng::genotype::DirichletMultinomialMixture
     for(int r = 0; r < 5; ++r) {
         for(int g = 0; g < 10; ++g) {
             double tmp[5] = {e, e, e, e, e};
-            if(nucleotides[g][0] == nucleotides[g][1]) {
-                tmp[nucleotides[g][0]] = m;
+            int g1 = folded_diploid_nucleotides[g][0];
+            int g2 = folded_diploid_nucleotides[g][1];
+            if(g1 == g2) {
+                tmp[g1] = m;
             } else {
-                tmp[nucleotides[g][0]] = h;
-                tmp[nucleotides[g][1]] = h;
+                tmp[g1] = h;
+                tmp[g2] = h;
             }
             tmp[r] *= u;
             tmp[4] = tmp[0] + tmp[1] + tmp[2] + tmp[3];
@@ -82,9 +97,9 @@ dng::genotype::DirichletMultinomialMixture
     }
 
     // construct cache
-    for(int r = 0; r < 5; ++r) {
-        for(int g = 0; g < 10; ++g) {
-            for(int x = 0; x < 5; ++x) {
+    for(int r = 0; r < 5; ++r) { // reference
+        for(int g = 0; g < 10; ++g) { // genotype
+            for(int x = 0; x < 5; ++x) { // nucleotide
                 double t1 = 0.0, t2 = 0.0;
                 for(int k = 0; k < kCacheSize; ++k) {
                     cache_[r][g][x][2 * k] = t1;

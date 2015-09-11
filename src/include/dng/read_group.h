@@ -45,6 +45,7 @@ namespace rg {
 struct id {};
 struct lb {};
 struct sm {};
+struct nx {};
 }
 
 // @RG ID: str->index; index->lb_index;
@@ -60,6 +61,7 @@ using mi::member;
 using mi::identity;
 using mi::ordered_non_unique;
 using mi::ordered_unique;
+using mi::random_access;
 
 struct rg_t {
     std::string id;
@@ -70,7 +72,8 @@ struct rg_t {
 typedef boost::multi_index_container<rg_t, indexed_by<
 ordered_unique<tag<rg::id>, member<rg_t, std::string, &rg_t::id>>,
                ordered_non_unique<tag<rg::lb>, member<rg_t, std::string, &rg_t::library>>,
-               ordered_non_unique<tag<rg::sm>, member<rg_t, std::string, &rg_t::sample>>
+               ordered_non_unique<tag<rg::sm>, member<rg_t, std::string, &rg_t::sample>>,
+               random_access<tag<rg::nx>>
                >> DataBase;
 }
 
@@ -80,7 +83,7 @@ public:
     typedef detail::rg_t ReadGroup;
     typedef detail::DataBase DataBase;
 
-    // Parse a list of BAM/SAM files into readgroups
+    // Parse a list of BAM/SAM files into read groups
     template<typename InFiles>
     void ParseHeaderText(InFiles &range);
 
@@ -93,10 +96,23 @@ public:
     inline const StrSet &samples() const { return samples_; }
     inline const DataBase &data() const { return data_; }
 
+    // Returns the library index based on read group sorted id
     inline std::size_t library_from_id(std::size_t n) const {
         return library_from_id_[n];
     }
 
+    // Returns the library index based on read group order of discovery
+    inline std::size_t library_from_index(std::size_t n) const {
+        return library_from_index_[n];
+    }
+
+    template<typename Range>
+    inline void EraseLibraries(Range &range) {
+        for(auto && lib : range) {
+            data_.get<rg::lb>().erase(lib);
+        }
+        ReloadData();
+    }
 
 protected:
     DataBase data_;
@@ -106,6 +122,7 @@ protected:
     StrSet samples_;
 
     std::vector<std::size_t> library_from_id_;
+    std::vector<std::size_t> library_from_index_;
 
     inline void ReloadData();
 };
@@ -134,10 +151,18 @@ inline void ReadGroups::ReloadData() {
         samples_.insert(a.sample);
     }
 
+    // remember the order the libraries were discovered
+    library_from_index_.reserve(groups_.size());
+    for(std::size_t u = 0; u < data_.get<rg::nx>().size(); ++u) {
+        library_from_index_.push_back(rg::index(libraries_,
+                                                data_.get<rg::nx>()[u].library));
+    }
+
     // connect groups to libraries and samples
     library_from_id_.resize(groups_.size());
     for(auto && a : data_) {
         library_from_id_[rg::index(groups_, a.id)] = rg::index(libraries_, a.library);
+
     }
 }
 
@@ -203,10 +228,10 @@ void ReadGroups::ParseHeaderText(InFiles &range) {
             if(it != tags.end()) {
                 // Prevent collision of LB tags from different samples by prepending sample tag
                 if(val.library != it->second) {
-                    val.library += '\t' + it->second;
+                    val.library += '-' + it->second;
                 }
             } else if(val.library != val.id) {
-                val.library += '\t' + val.id;
+                val.library += '-' + val.id;
             }
             data_.insert(std::move(val));
         }
@@ -235,7 +260,6 @@ void ReadGroups::ParseSamples(InFile &file) {
         if(p == nullptr || *(p + 1) == '\0') {
             val.sample = sm;
         } else {
-            val.library[p - sm] = '\t';
             val.sample.assign(sm, p);
         }
         data_.insert(std::move(val));

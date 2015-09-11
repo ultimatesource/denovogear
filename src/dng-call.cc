@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Reed A. Cartwright
+ * Copyright (c) 2014-2015 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -33,7 +33,7 @@ typedef dng::CommandLineApp<dng::task::Call> CallApp;
 
 int main(int argc, char *argv[]) {
 #ifdef DNG_DEVEL
-    boost::timer::auto_cpu_timer tmr(std::cerr);
+    boost::timer::auto_cpu_timer measure_speed(std::cerr);
 #endif
     try {
         return CallApp(argc, argv)();

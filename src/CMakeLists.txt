@@ -51,7 +51,8 @@ SET_PROPERTY(TARGET dng-phaser PROPERTY CXX_STANDARD_REQUIRED ON)
 
 ADD_EXECUTABLE(dng-call
   dng-call.cc
-  lib/call.cc lib/likelihood.cc lib/newick.cc lib/pedigree.cc
+  lib/call.cc lib/likelihood.cc lib/newick.cc lib/pedigree.cc lib/peeling.cc
+  lib/mutation.cc lib/stats.cc
 )
 SET_PROPERTY(TARGET dng-call PROPERTY CXX_STANDARD 11)
 SET_PROPERTY(TARGET dng-call PROPERTY CXX_STANDARD_REQUIRED ON)
