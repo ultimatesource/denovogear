@@ -81,7 +81,7 @@ public:
     typedef Node node_type;
     typedef detail::NodePool pool_type;
 
-    explicit BamScan(InFile &in, int min_qlen = 0) : in_{in}, next_loc_{0},
+    explicit BamScan(InFile &in, int min_qlen = 0) : in_(in), next_loc_{0},
         min_qlen_{min_qlen} {}
 
     list_type operator()(uint64_t target_loc, pool_type &pool) {
