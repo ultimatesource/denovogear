@@ -729,9 +729,156 @@ int Call::operator()(Call::argument_type &arg) {
                 }
             }
 
-            if(!calculate(read_depths, seq::char_index(ref_base), &stats)) {
+            size_t ref_index = seq::char_index(ref_base);
+            if(!calculate(read_depths, ref_index, &stats)) {
                 return;
             }
+
+            // Determine what nucleotides show up and the order they will appear in the REF and ALT field
+            // TODO: write tests that make sure REF="N" is properly handled
+            //      (1) N should be included in AD only if REF="N"
+            //      (2) N in AD should always be 0
+
+            // Measure total depth and sort nucleotides in descending order
+            typedef pair<int, int> key_t;
+            key_t total_depths[4] = {{0, 0}, {1, 0}, {2, 0}, {3, 0}};
+            int acgt_to_refalt_allele[5] = { -1, -1, -1, -1, -1}; // Maps allele to REF+ALT order
+            int refalt_to_acgt_allele[5] = { -1, -1, -1, -1, -1}; // Maps REF+ALT order to A,C,G,T,N order
+
+            int32_t dp_info = 0;
+            std::vector<int32_t> dp_counts(num_nodes, hts::bcf::int32_missing);
+            size_t dp_pos = library_start;
+            for(auto && a : read_depths) {
+                total_depths[0].second += a.counts[0];
+                total_depths[1].second += a.counts[1];
+                total_depths[2].second += a.counts[2];
+                total_depths[3].second += a.counts[3];
+                int32_t d = a.counts[0] + a.counts[1] + a.counts[2] + a.counts[3];
+                dp_info += d;
+                dp_counts[dp_pos++] = d;
+            }
+            sort(&total_depths[0], &total_depths[4], [](key_t a, key_t b) { return a.second > b.second; });
+
+            // Construct a string representation of REF+ALT by ignoring nucleotides with no coverage
+            string allele_order_str{seq::indexed_char(ref_index)};
+            acgt_to_refalt_allele[ref_index] = 0;
+            refalt_to_acgt_allele[0] = ref_index;
+            int allele_count = 0; // Measures how many alleles in total_depths are non zero
+            int refalt_count = 1; // Measures size of REF+ALT
+            for(; allele_count < 4
+                    && total_depths[allele_count].second > 0; allele_count++) {
+                if(total_depths[allele_count].first == ref_index) {
+                    continue;
+                }
+                allele_order_str += std::string(",") + seq::indexed_char(
+                                        total_depths[allele_count].first);
+                acgt_to_refalt_allele[total_depths[allele_count].first] = refalt_count;
+                refalt_to_acgt_allele[refalt_count] = total_depths[allele_count].first;
+                ++refalt_count;
+            }
+            // Update REF, ALT fields
+            record.alleles(allele_order_str);
+
+            // Construct numeric genotypes
+            int numeric_genotype[10][2] = {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}
+            };
+            for(int i = 0; i < 10; ++i) {
+                int n1 = acgt_to_refalt_allele[folded_diploid_nucleotides[i][0]];
+                int n2 = acgt_to_refalt_allele[folded_diploid_nucleotides[i][1]];
+                if(n1 > n2) {
+                    numeric_genotype[i][0] = encode_allele_unphased(n2);
+                    numeric_genotype[i][1] = encode_allele_unphased(n1);
+                } else {
+                    numeric_genotype[i][0] = encode_allele_unphased(n1);
+                    numeric_genotype[i][1] = encode_allele_unphased(n2);
+                }
+            }
+            // Link VCF genotypes to our order
+            int genotype_index[15];
+            for(int i = 0, k = 0; i < refalt_count; ++i) {
+                int n1 = refalt_to_acgt_allele[i];
+                for(int j = 0; j <= i; ++j, ++k) {
+                    int n2 = refalt_to_acgt_allele[j];
+                    genotype_index[k] = (j == 0 && ref_index == 4) ?
+                                        -1 : folded_diploid_genotypes_matrix[n1][n2];
+                }
+            }
+
+            // Calculate sample genotypes
+            vector<int32_t> best_genotypes(2 * num_nodes);
+            vector<int32_t> genotype_qualities(num_nodes);
+            int gt_count = refalt_count * (refalt_count + 1) / 2;
+            vector<float> gp_scores(num_nodes * gt_count);
+
+            for(size_t i = 0, k = 0; i < num_nodes; ++i) {
+                size_t pos;
+                double d = stats.posterior_probabilities[i].maxCoeff(&pos);
+                best_genotypes[2 * i] = numeric_genotype[pos][0];
+                best_genotypes[2 * i + 1] = numeric_genotype[pos][1];
+                genotype_qualities[i] = lphred<int32_t>(1.0 - d, 255);
+                // If either of the alleles is missing set quality to 0
+                if(allele_is_missing({best_genotypes[2 * i]}) ||
+                        allele_is_missing({best_genotypes[2 * i + 1]})) {
+                    genotype_qualities[i] = 0;
+                }
+                for(int j = 0; j < gt_count; ++j) {
+                    int n = genotype_index[j];
+                    gp_scores[k++] = (n == -1) ? 0.0 : stats.posterior_probabilities[i][n];
+                }
+            }
+
+            // Sample Likelihoods
+            vector<float> gl_scores(num_nodes * gt_count, hts::bcf::float_missing);
+            for(size_t i = library_start, k = library_start * gt_count; i < num_nodes;
+                    ++i) {
+                for(int j = 0; j < gt_count; ++j) {
+                    int n = genotype_index[j];
+                    gl_scores[k++] = (n == -1) ? hts::bcf::float_missing :
+                                     stats.genotype_likelihoods[i][n];
+                }
+            }
+
+            // Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
+            vector<int32_t> ad_counts(num_nodes * refalt_count, hts::bcf::int32_missing);
+            vector<int32_t> ad_info(refalt_count, 0);
+            for(size_t u = 0; u < read_depths.size(); ++u) {
+                size_t library_pos = (library_start + u) * refalt_count;
+                for(size_t k = 0; k < refalt_count; ++k) {
+                    size_t index = refalt_to_acgt_allele[k];
+                    ad_counts[library_pos + k] = (index == 4) ? 0 : read_depths[u].counts[index];
+                    ad_info[k] += (index == 4) ? 0 : read_depths[u].counts[index];
+                }
+            }
+
+
+            record.info("MUP", stats.mup);
+            record.info("LLD", stats.lld);
+            record.info("LLH", stats.llh);
+            record.info("MUX", stats.mux);
+            record.info("MU1P", stats.mu1p);
+
+            record.sample_genotypes(best_genotypes);
+            record.samples("GQ", genotype_qualities);
+            record.samples("GP", gp_scores);
+            record.samples("GL", gl_scores);
+            record.samples("DP", dp_counts);
+            record.samples("AD", ad_counts);
+
+            record.samples("MUP", stats.node_mup);
+
+            if(stats.has_single_mut) {
+                record.info("DNT", stats.dnt);
+                record.info("DNL", stats.dnl);
+                record.info("DNQ", stats.dnq);
+                record.info("DNC", stats.dnc);
+
+                record.samples("MU1P", stats.node_mu1p);
+            }
+
+            record.info("DP", dp_info);
+            record.info("AD", ad_info);
+
             record.target(chrom);
             record.position(position);
             vcfout.WriteRecord(record);
@@ -818,7 +965,6 @@ FindMutations::FindMutations(double min_prob, const Pedigree &pedigree,
         max_entropies_[ref_index] = (-entropy / total + log(total)) / M_LN2;
     }
 }
-
 
 // Returns true if a mutation was found and the record was modified
 bool FindMutations::operator()(const std::vector<depth_t> &depths,
