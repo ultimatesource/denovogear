@@ -380,7 +380,7 @@ int Call::operator()(Call::argument_type &arg) {
         }
 
         // Add each genotype/sample column
-        rgs.ParseHeaderText(bamdata);
+        rgs.ParseHeaderText(bamdata, arg.lbtag);
     } else if(cat == variant_data) {
         bcfdata.emplace_back(std::move(indata[0]));
         // Read header from first file
