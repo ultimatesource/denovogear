@@ -16,38 +16,24 @@ IF("${is_system_dir}" STREQUAL "-1")
 ENDIF("${is_system_dir}" STREQUAL "-1")
 ################################################################################
 
-#ADD_SUBDIRECTORY(contrib/newmat)
-#ADD_SUBDIRECTORY(utils)
-
-#INCLUDE_DIRECTORIES(BEFORE
-#	"${CMAKE_CURRENT_SOURCE_DIR}/utils"
-#	"${CMAKE_CURRENT_SOURCE_DIR}/contrib/newmat"
-#)
 
 INCLUDE_DIRECTORIES(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
 INCLUDE_DIRECTORIES(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+INCLUDE_DIRECTORIES(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/dnm")
 
 ADD_EXECUTABLE(dng-dnm
   dng-dnm.cc
-  snpLike.cc indelLike.cc pairLike.cc
-  makeLookup.cc
-  pedParser.cc
-  bcf2Qcall.cc bcf2Paired.cc
+  dnm/snpLike.cc dnm/indelLike.cc dnm/pairLike.cc dnm/makeLookup.cc
+  dnm/pedParser.cc dnm/bcf2Qcall.cc dnm/bcf2Paired.cc
 )
 SET_PROPERTY(TARGET dng-dnm PROPERTY CXX_STANDARD 11)
 SET_PROPERTY(TARGET dng-dnm PROPERTY CXX_STANDARD_REQUIRED ON)
 
-
 ADD_EXECUTABLE(dng-phaser
   dng-phaser.cc
-#  snpLike.cc indelLike.cc pairLike.cc
-#  makeLookup.cc
-#  pedParser.cc
-#  bcf2Qcall.cc bcf2Paired.cc
 )
 SET_PROPERTY(TARGET dng-phaser PROPERTY CXX_STANDARD 11)
 SET_PROPERTY(TARGET dng-phaser PROPERTY CXX_STANDARD_REQUIRED ON)
-
 
 ADD_EXECUTABLE(dng-call
   dng-call.cc

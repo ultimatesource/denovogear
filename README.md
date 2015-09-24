@@ -4,65 +4,6 @@
 
 Authors: Don Conrad, Avinash Ramu, Kael Dai, and Reed A. Cartwright.
 
-## RELEASE NOTES
-
-### v1.1.1
-
-* FEATURE: When building with cmake, users have the option to download and install dependencies.
-Just run `cmake -DBUILD_EXTERNAL_PROJECTS=1 ..`
-* FEATURE: `dng help` now fully implemented
-* FEATURE: more information added to `dng call` output
-* BUGFIX: When running `dng call` with HTSLIB 1.2.1, the following error message was being
-emitted: "FIXME: dirty header not synced".  This has been fixed.
-* BUGFIX: `dng call` now outputs correct 1-based site locations.
-* BUGFIX: a segfault was fixed in `dng dnm` and `dng phaser` caused by invalid commandline arguments
-* CHANGE: HTSLIB 1.2+ is now required.
-* Miscellaneous improvements to the build system
-
-### v1.1
-
-* Main program now called 'dng'
-* Added experimental 'dng call' module.
-* DeNovoGear now requires HTSLIB 1+, CMake 3.1+, Boost 1.47+, and Eigen 3+.
-
-### v1.0
-
-* made changes to indel_mrate parameter
-* better indenting
-* mu_scale scales indel mutation rate linearly
-
-### v0.5.4
-
-* added GPL v3
-* updated output fields for indels, snps to be the same
-
-### v0.5.3
-
-* removed 'X' allele in VCF op. VCF can be indexed by Tabix, IGVTools and used in Annovar.
-* added region based denovo calling on BCF files, invoked with --region flag
-* added vcf parser for denovo calling, invoked with --vcf flag
-
-### v0.5.2
-
-* Added read-depth, posterior-probability filters.
-* Output number of sites in the BCF and number of sites passing filters.
-* Modified paired caller output.
-
-### v0.5.1
-
-* Fixed bug in triallelic configuration.
-* Some trialleic denovo configurations were being called incorrectly.
-
-## DEPENDENCIES
-
-* Recent C++ compiler, supporting C++11 (eg. gcc 4.8.1+ or clang 3.3+)
-* CMake 3.1+ when compiling <http://www.cmake.org/download/#latest>
-* HTSlib 1.2+ <http://www.htslib.org/>
-* Eigen 3 <http://eigen.tuxfamily.org/>
-* Boost 1.47+ <http://www.boost.org/>
-
-Most Unix distributions contain package software that will install these dependencies for you.
-DNG contains code to [download and build missing dependencies](#build-missing-dependencies-as-needed).
 
 ## INSTALLATION
 
@@ -113,14 +54,67 @@ Compilation of DeNovoGear requires CMake.  Most Linux distributions allow you to
     make install
 ```
 
+### Testing
+
+Denovogear comes with unit tests as well as full-suite test data available at <https://github.com/denovogear/testdata>. After running the build commands the tests can be downloaded and ran using:
+```
+    make testdir
+    make test  
+```
+
+[git](https://git-scm.com/downloads) is required for the ````make testdir```` command to execute.
+
+
 ## RUNNING THE CODE
 
-### Finding Denovo Mutations in trios and pairs.
+### Synposis
+dng call <OPTIONS> -p pedigree.ped seq1.bam seq2.bam seq3.bam ...
 
-DeNovoGear takes in a PED file and a BCF file as input. The PED file describes the relationship between the samples and the BCF file contains the sequencing information for every locus.
+dng call <OPTIONS> -p pedigree.ped vars.bcf
+
+dng dnm [auto|XS|SD] <OPTIONS> -p pedigree.ped -b vars.bcf
+
+dng phase --dng dnm_variants --pgt parental_gts --bam seq.bam
+
+
+### dng call: Finding Mutations in General Pedigrees
+
+`dng call` is a module to identify mutations on zero-loop pedigrees from SAM/BAM/CRAM files.
+
+#### Usage:
+
+Example: `dng call -p family.ped family.bam`
+
+Print Usage: `dng help call`
+
+#### Pedigree File Format
+
+`dng call` uses a 6-column, tab-separated pedigree file format
+
+```
+1   1   0   0   1   NA12891
+1   2   0   0   2   NA12892
+1   3   1   2   2   NA12878
+```
+
+Column 1: Family ID
+
+Column 2: Individual ID
+
+Column 3: Father ID (0=unknown)
+
+Column 4: Mother ID (0=unknown)
+
+Column 5: Sex (1=male, 2=female, 0=unknown)
+
+Column 6: Sample IDs; a newick-formatted tree
+
+### dng dnm: Finding Denovo Mutations in trios and pairs.
+
+dng dnm takes in a PED file and a BCF file as input. The PED file describes the relationship between the samples and the BCF file contains the sequencing information for every locus.
 
 #### usage:
-	     `dng dnm auto --ped sample.ped --bcf sample.bcf`
+	     `dng dnm auto --ped testdata/sample_CEU/sample_CEU.ped --bcf testdata/sample_CEU/sample_CEU.bcf`
 
         If you would rather start with the BAM files and have samtools installed, this would work,
         `samtools mpileup -gDf hg19.fa s1.bam s2.bam s3.bam | dng dnm auto --ped sample.ped --bcf -`
@@ -163,9 +157,9 @@ If you wish to change the default point or indel mutation rates use the --snp_mr
 or --indel_mrate switches respectively.
 
 For example
-	     `dng dnm auto --ped sample.ped --bcf sample.bcf --snp_mrate 2e-10 --indel_mrate 1e-11`
+	     `dng dnm auto --ped testdata/sample_CEU/sample.ped --bcf testdata/sample_CEU/sample.bcf --snp_mrate 2e-10 --indel_mrate 1e-11`
 	            [OR]
-	     `dng dnm auto --ped sample.ped --vcf sample.vcf --snp_mrate 2e-10 --indel_mrate 1e-11`
+	     `dng dnm auto --ped testdata/sample_CEU/sample.ped --vcf testdata/sample_CEU/sample.vcf --snp_mrate 2e-10 --indel_mrate 1e-11`
 
 The indel mutation rate prior is calculated based on the length of the insertion or deletion event,
 separate models are used for insertions and deletions. The two models are based on the indel observations from the 1000Genomes phase 1 data.
@@ -180,9 +174,9 @@ Note that a constant factor is used to scale the mutation rate, it is set to 1.0
 by default and can be set using the switch --mu_scale. This provides the users to scale the mutation rate prior according to their data-set.
 
 For example,
-        `dng dnm auto --ped sample.ped --bcf sample.bcf --mu_scale 3`
+        `dng dnm auto --ped testdata/sample_CEU/sample.ped --bcf testdata/sample_CEU/sample.bcf --mu_scale 3`
 	     		   [OR]
-        `dng dnm auto --ped sample.ped --vcf sample.vcf --mu_scale 3`
+        `dng dnm auto --ped testdata/sample_CEU/sample.ped --vcf testdata/sample_CEU/sample.vcf --mu_scale 3`
 
 
 #### OUTPUT FORMAT for TRIOS
@@ -324,37 +318,65 @@ Please feel free to contact the authors about any concerns/comments.
 --rd_cutoff:     Read depth filter, sites where either one of the sample have read depth less than this threshold are filtered out. [10
 --region: region of the BCF file over which to perform denovo calling. [string of the form "chr:start-end"]
 
-### dng call: Finding Mutations in General Pedigrees
+## RELEASE NOTES
 
-`dng call` is an experimental module to identify mutations on zero-loop pedigrees from SAM/BAM/CRAM files.
+### v1.1.1
 
-#### Usage:
+* FEATURE: When building with cmake, users have the option to download and install dependencies.
+Just run `cmake -DBUILD_EXTERNAL_PROJECTS=1 ..`
+* FEATURE: `dng help` now fully implemented
+* FEATURE: more information added to `dng call` output
+* BUGFIX: When running `dng call` with HTSLIB 1.2.1, the following error message was being
+emitted: "FIXME: dirty header not synced".  This has been fixed.
+* BUGFIX: `dng call` now outputs correct 1-based site locations.
+* BUGFIX: a segfault was fixed in `dng dnm` and `dng phaser` caused by invalid commandline arguments
+* CHANGE: HTSLIB 1.2+ is now required.
+* Miscellaneous improvements to the build system
 
-Example: `dng call -p family.ped family.bam`
+### v1.1
 
-Print Usage: `dng help call`
+* Main program now called 'dng'
+* Added experimental 'dng call' module.
+* DeNovoGear now requires HTSLIB 1+, CMake 3.1+, Boost 1.47+, and Eigen 3+.
 
-#### Pedigree File Format
+### v1.0
 
-`dng call` uses a 6-column, tab-separated pedigree file format
+* made changes to indel_mrate parameter
+* better indenting
+* mu_scale scales indel mutation rate linearly
 
-```
-1   1   0   0   1   NA12891
-1   2   0   0   2   NA12892
-1   3   1   2   2   NA12878
-```
+### v0.5.4
 
-Column 1: Family ID
+* added GPL v3
+* updated output fields for indels, snps to be the same
 
-Column 2: Individual ID
+### v0.5.3
 
-Column 3: Father ID (0=unknown)
+* removed 'X' allele in VCF op. VCF can be indexed by Tabix, IGVTools and used in Annovar.
+* added region based denovo calling on BCF files, invoked with --region flag
+* added vcf parser for denovo calling, invoked with --vcf flag
 
-Column 4: Mother ID (0=unknown)
+### v0.5.2
 
-Column 5: Sex (1=male, 2=female, 0=unknown)
+* Added read-depth, posterior-probability filters.
+* Output number of sites in the BCF and number of sites passing filters.
+* Modified paired caller output.
 
-Column 6: Sample IDs; a newick-formatted tree
+### v0.5.1
+
+* Fixed bug in triallelic configuration.
+* Some trialleic denovo configurations were being called incorrectly.
+
+## DEPENDENCIES
+
+* Recent C++ compiler, supporting C++11 (eg. gcc 4.8.1+ or clang 3.3+)
+* CMake 3.1+ when compiling <http://www.cmake.org/download/#latest>
+* HTSlib 1.2+ <http://www.htslib.org/>
+* Eigen 3 <http://eigen.tuxfamily.org/>
+* Boost 1.47+ <http://www.boost.org/>
+
+Most Unix distributions contain package software that will install these dependencies for you.
+DNG contains code to [download and build missing dependencies](#build-missing-dependencies-as-needed).
 
 
 ## ACKNOWLEDGEMENTS
