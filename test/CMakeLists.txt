@@ -194,16 +194,16 @@ SET_TESTS_PROPERTIES(Phaser_Sample PROPERTIES
 
 ##### Issue 51 (and 52) - Test cases for various library identifiers (by LB, SM, and RG). ####
 # Only check the headers. Data will be different (and possibly meaningless) depending on how read-group libraries are grouped together 
-
-ADD_TEST(CALL_Sample5.3_BAM_LB_TAG ${DNG_CALL_EXE} -f ${TEST_DATA_DIR}/sample_5_3/sample-5.3_ref.fasta.gz -p ${TEST_DATA_DIR}/sample_5_3/ceu.ped -m 0.001 --lbtag "LB" ${TEST_DATA_DIR}/sample_5_3/test1.bam)
+# TODO: Incorporate test into the test_read_groups.cc unit-tests.
+ADD_TEST(CALL_Sample5.3_BAM_LB_TAG ${DNG_CALL_EXE} -f ${TEST_DATA_DIR}/sample_5_3/sample-5.3_ref.fasta.gz -p ${TEST_DATA_DIR}/sample_5_3/ceu.ped -m 0.001 --rgtag "LB" ${TEST_DATA_DIR}/sample_5_3/test1.bam)
 SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM_LB_TAG PROPERTIES 
 	PASS_REGULAR_EXPRESSION "FORMAT\tGL-1\tGL-2\tLB-NA12878-Solexa-135852\tLB-NA12891-Solexa-135851\tLB-NA12892-Solexa-135853"
 )
-ADD_TEST(CALL_Sample5.3_BAM_SM_TAG ${DNG_CALL_EXE} -f ${TEST_DATA_DIR}/sample_5_3/sample-5.3_ref.fasta.gz -p ${TEST_DATA_DIR}/sample_5_3/ceu.ped -m 0.001 --lbtag "SM" ${TEST_DATA_DIR}/sample_5_3/test1.bam)
+ADD_TEST(CALL_Sample5.3_BAM_SM_TAG ${DNG_CALL_EXE} -f ${TEST_DATA_DIR}/sample_5_3/sample-5.3_ref.fasta.gz -p ${TEST_DATA_DIR}/sample_5_3/ceu.ped -m 0.001 --rgtag "SM" ${TEST_DATA_DIR}/sample_5_3/test1.bam)
 SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM_SM_TAG PROPERTIES 
 	PASS_REGULAR_EXPRESSION "FORMAT\tGL-1\tGL-2\tLB-NA12878\tLB-NA12891\tLB-NA12892"
 )
-ADD_TEST(CALL_Sample5.3_BAM_ID_TAG ${DNG_CALL_EXE} -f ${TEST_DATA_DIR}/sample_5_3/sample-5.3_ref.fasta.gz -p ${TEST_DATA_DIR}/sample_5_3/ceu.ped -m 0.001 --lbtag "ID" ${TEST_DATA_DIR}/sample_5_3/test1.bam)
+ADD_TEST(CALL_Sample5.3_BAM_ID_TAG ${DNG_CALL_EXE} -f ${TEST_DATA_DIR}/sample_5_3/sample-5.3_ref.fasta.gz -p ${TEST_DATA_DIR}/sample_5_3/ceu.ped -m 0.001 --rgtag "ID" ${TEST_DATA_DIR}/sample_5_3/test1.bam)
 SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM_ID_TAG PROPERTIES 
 	PASS_REGULAR_EXPRESSION "FORMAT\tGL-1\tGL-2\tSM-NA12891\tSM-NA12892\tSM-NA12878\tLB-NA12878-H06HD.1\tLB-NA12878-H06HD.2\tLB-NA12878-H06JU.1\tLB-NA12891-H03N7.1\tLB-NA12891-H03N7.2\tLB-NA12891-H05F1.2\tLB-NA12892-H06JH.1\tLB-NA12892-H06JH.2\tLB-NA12892-H06JU.2"
 )
