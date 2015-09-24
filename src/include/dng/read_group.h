@@ -161,7 +161,7 @@ inline void ReadGroups::ReloadData() {
     // connect groups to libraries and samples
     library_from_id_.resize(groups_.size());
     for(auto && a : data_) {
-    	library_from_id_[rg::index(groups_, a.id)] = rg::index(libraries_, a.library);
+        library_from_id_[rg::index(groups_, a.id)] = rg::index(libraries_, a.library);
 
     }
 }
@@ -169,8 +169,8 @@ inline void ReadGroups::ReloadData() {
 
 template<typename InFiles>
 void ReadGroups::ParseHeaderText(InFiles &range, const std::string &lbtag) {
-	// Get tag to identify libraries, LB by default.
-	const std::string &lbtag_str = (lbtag.empty() ? "LB" : lbtag);
+    // Get tag to identify libraries, LB by default.
+    const std::string &lbtag_str = (lbtag.empty() ? "LB" : lbtag);
 
     // iterate through each file in the range
     for(auto && f : range) {
@@ -223,7 +223,7 @@ void ReadGroups::ParseHeaderText(InFiles &range, const std::string &lbtag) {
 
             // sample tag
             if((it = tags.find("SM")) != tags.end()) {
-            	val.sample = it->second;//std::move(it->second);
+                val.sample = it->second;//std::move(it->second);
             } else {
                 val.sample = val.id;
             }
@@ -231,16 +231,17 @@ void ReadGroups::ParseHeaderText(InFiles &range, const std::string &lbtag) {
             // library tag
             it = tags.find(lbtag_str);
             if(it == tags.end()) {
-            	// Will throw an error if any @RG header line is missing tag.
-                throw std::runtime_error("@RG header for '" + std::string(f.name()) + "' is missing " + lbtag_str + " tag." +
-                		"  Please fix or use option \'--lbtag\' to use another tag to identify libraries.");
+                // Will throw an error if any @RG header line is missing tag.
+                throw std::runtime_error("@RG header for '" + std::string(
+                                             f.name()) + "' is missing " + lbtag_str + " tag." +
+                                         "  Please fix or use option \'--lbtag\' to use another tag to identify libraries.");
             } else {
-            	// Unless using SM tag to group different libraries, prepend SM tag for readability
-            	if(lbtag_str == "SM") {
-            		val.library = it->second;
-            	} else {
-            		val.library = val.sample + "-" + it->second;
-            	}
+                // Unless using SM tag to group different libraries, prepend SM tag for readability
+                if(lbtag_str == "SM") {
+                    val.library = it->second;
+                } else {
+                    val.library = val.sample + "-" + it->second;
+                }
             }
 
             data_.insert(std::move(val));

@@ -50,7 +50,8 @@ XM((sam)(files), (s), "file containing a list of input filenames, one per line",
    std::string, "")
 XM((theta), , "the population diversity", double, DL(0.001, "0.001"))
 XM((output), (o), "Output VCF/BCF file", std::string, "-")
-XM((lbtag), , "SAM read group header tag to uniquely identify libraries.", std::string, "LB")
+XM((lbtag), , "SAM read group header tag to uniquely identify libraries.",
+   std::string, "LB")
 
 /***************************************************************************
  *    cleanup                                                              *
