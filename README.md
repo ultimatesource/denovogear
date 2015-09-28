@@ -1,8 +1,10 @@
-# DeNovoGear
+# DeNovoGear - Estimating *de novo* mutations from related individuals and cells
 
 [![Build Status](http://jenkins.scit.us/buildStatus/icon?job=DeNovoGear-GitHub)](http://jenkins.scit.us/job/DeNovoGear-GitHub/)
 
 Authors: Don Conrad, Avinash Ramu, Kael Dai, and Reed A. Cartwright.
+
+DeNovoGear is a software package to detect *de novo* mutations using next-generation sequencing data. It supports the analysis of many differential experimental designs and uses advanced statistical models to reduce the false positve rate.
 
 
 ## INSTALLATION
@@ -62,7 +64,7 @@ Denovogear comes with unit tests as well as full-suite test data available at <h
     make test  
 ```
 
-[git](https://git-scm.com/downloads) is required for the ````make testdir```` command to execute.
+[git](https://git-scm.com/downloads) is required for the `make testdir` command to execute.
 
 
 ## RUNNING THE CODE
@@ -79,13 +81,22 @@ dng phase --dng dnm_variants --pgt parental_gts --bam seq.bam
 
 ### dng call: Finding Mutations in General Pedigrees
 
-`dng call` is a module to identify mutations on zero-loop pedigrees from SAM/BAM/CRAM files.
+`dng call` is a module that utilizes advanced peeling algorithms to identify mutations and other statistics on zero-loop pedigrees from SAM/BAM/CRAM files. `dng call` produces valid variant call format files (vcf or bcf) that can be used with other applications.
+
+`dng call` is capable of calcuating:
+* The probability of there being exactly one, or at least one, mutation at a site.
+* The likely library genotype at a variant site, including quality score and posterior probabilities.
+* The expected number of de novo mutations.
+* The likelihood of observed data at a site.
+* The Anderson-Darling test statistic for reference vs. alternative alleles.
+* The likely gametic genotype of the parents in a trio.
 
 #### Usage:
 
-Example: `dng call -p family.ped family.bam`
+Example: `dng call -p family.ped familyL1.bam familyL2.bam familyL3.bam`
 
 Print Usage: `dng help call`
+
 
 #### Pedigree File Format
 
