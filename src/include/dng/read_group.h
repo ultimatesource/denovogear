@@ -85,7 +85,7 @@ public:
 
     // Parse a list of BAM/SAM files into read groups
     template<typename InFiles>
-    void ParseHeaderText(InFiles &range);
+    void ParseHeaderText(InFiles &range, const std::string &lbtag = "LB");
 
     // Parse a VCF file
     template<typename InFiles>
@@ -166,8 +166,12 @@ inline void ReadGroups::ReloadData() {
     }
 }
 
+
 template<typename InFiles>
-void ReadGroups::ParseHeaderText(InFiles &range) {
+void ReadGroups::ParseHeaderText(InFiles &range, const std::string &lbtag) {
+    // Get tag to identify libraries, LB by default.
+    const std::string &lbtag_str = (lbtag.empty() ? "LB" : lbtag);
+
     // iterate through each file in the range
     for(auto && f : range) {
         // get header text and continue on failure
@@ -179,6 +183,7 @@ void ReadGroups::ParseHeaderText(InFiles &range) {
         // enumerate over read groups
         for(text = strstr(text, "@RG\t"); text != nullptr;
                 text = strstr(text, "@RG\t")) {
+
             text += 4; // skip @RG\t
             // parse the @RG line as tab-separated key:value pairs
             // use a map to separate the parsing logic from the rg_t struct
@@ -218,21 +223,27 @@ void ReadGroups::ParseHeaderText(InFiles &range) {
 
             // sample tag
             if((it = tags.find("SM")) != tags.end()) {
-                val.sample = std::move(it->second);
+                val.sample = it->second;//std::move(it->second);
             } else {
                 val.sample = val.id;
             }
+
             // library tag
-            it = tags.find("LB");
-            val.library = val.sample;
-            if(it != tags.end()) {
-                // Prevent collision of LB tags from different samples by prepending sample tag
-                if(val.library != it->second) {
-                    val.library += '-' + it->second;
+            it = tags.find(lbtag_str);
+            if(it == tags.end()) {
+                // Will throw an error if any @RG header line is missing tag.
+                throw std::runtime_error("@RG header for '" + std::string(
+                                             f.name()) + "' is missing " + lbtag_str + " tag." +
+                                         "  Please fix or use option \'--lbtag\' to use another tag to identify libraries.");
+            } else {
+                // Unless using SM tag to group different libraries, prepend SM tag for readability
+                if(lbtag_str == "SM") {
+                    val.library = it->second;
+                } else {
+                    val.library = val.sample + "-" + it->second;
                 }
-            } else if(val.library != val.id) {
-                val.library += '-' + val.id;
             }
+
             data_.insert(std::move(val));
         }
     }
