@@ -49,8 +49,8 @@ XM((ref)(weight), (R), "weight given to reference base for population prior",
 XM((sam)(files), (s), "file containing a list of input filenames, one per line",
    std::string, "")
 XM((theta), , "the population diversity", double, DL(0.001, "0.001"))
-XM((output), (o), "Output VCF/BCF file", std::string, "-")
-XM((rgtag), , "SAM read group header tag to uniquely identify libraries.",
+XM((output), (o), "output VCF/BCF file", std::string, "-")
+XM((rgtag), , "combine read groups using @RG tags, e.g. ID, SM, LB, or DS.",
    std::string, "LB")
 
 /***************************************************************************
