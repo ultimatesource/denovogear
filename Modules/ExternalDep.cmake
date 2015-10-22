@@ -47,6 +47,16 @@ ENDIF(USE_STATIC_LIBS)
 
 ADD_CUSTOM_TARGET(ext_projects)
 
+IF(NOT GMAKE_EXECUTABLE)
+  FIND_PROGRAM(GMAKE_EXECUTABLE NAMES gmake make
+    DOC "Path to GNU Make binary."
+  )
+  IF(GMAKE_EXECUTABLE)
+    MESSAGE(STATUS "Found GNU Make: ${GMAKE_EXECUTABLE}")
+  ENDIF()
+ENDIF()
+MARK_AS_ADVANCED(GMAKE_EXECUTABLE)
+
 ################################################################################
 # THREADS
 #
@@ -63,6 +73,10 @@ IF(NOT BUILD_EXTERNAL_PROJECTS_FORCED)
 ENDIF()
 
 IF(BUILD_EXTERNAL_PROJECTS AND NOT ZLIB_FOUND)
+  IF(NOT GMAKE_EXECUTABLE)
+    MESSAGE(SEND_ERROR "GNU Make not found. Please set GMAKE_EXECUTABLE.")
+  ENDIF()
+
   SET(ZLIB_FOUND TRUE)
   SET(ZLIB_INCLUDE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/zlib/include/")
   SET(ZLIB_LIBRARIES "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/zlib/lib/libz.a")
@@ -89,6 +103,8 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT ZLIB_FOUND)
     CONFIGURE_COMMAND "env" "CC=${CMAKE_C_COMPILER}" "CFLAGS=${EXT_CFLAGS}" "LDFLAGS=${EXT_LDFLAGS}"
       "./configure" "--prefix=<INSTALL_DIR>"
     BUILD_IN_SOURCE true
+    BUILD_COMMAND ${GMAKE_EXECUTABLE}
+    INSTALL_COMMAND ${GMAKE_EXECUTABLE} install
     ${byproducts}
   )
   ADD_DEPENDENCIES(ext_projects ext_zlib)
@@ -139,19 +155,44 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT Boost_FOUND)
     SET(byproducts BUILD_BYPRODUCTS ${Boost_LIBRARIES})
   ENDIF()
 
-  SET(boost_bootstrap "./bootstrap.sh")
   IF(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
-    LIST(APPEND boost_bootstrap --with-toolset=clang)
-    SET(boost_toolset "toolset=clang-${CMAKE_CXX_COMPILER_VERSION}")
+    SET(EXT_BOOST_CXX_TOOLSET "clang")
   ELSEIF(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    LIST(APPEND boost_bootstrap --with-toolset=gcc)
-    SET(boost_toolset "toolset=gcc-${CMAKE_CXX_COMPILER_VERSION}")
-  ELSEIF(CMAKE_CXX_COMPILER_ID STREQUAL "INTEL")
-    LIST(APPEND boost_bootstrap --with-toolset=intel)
-    SET(boost_toolset "toolset=intel-${CMAKE_CXX_COMPILER_VERSION}")
+    SET(EXT_BOOST_CXX_TOOLSET "gcc")
+  ELSEIF(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    SET(EXT_BOOST_CXX_TOOLSET "intel")
+  ELSE()
+    SET(EXT_BOOST_CXX_TOOLSET "cc")
   ENDIF()
 
-  SET(boost_build "./b2" install
+  IF(NOT DEFINED EXT_BOOST_TOOLSET)
+    SET(EXT_BOOST_TOOLSET "${EXT_BOOST_CXX_TOOLSET}-${CMAKE_CXX_COMPILER_VERSION}" CACHE STRING "Toolset to use when building ext_boost.")  
+  ENDIF()
+
+  IF(EXT_BOOST_TOOLSET)
+    SET(boost_toolset "toolset=${EXT_BOOST_TOOLSET}")
+  ENDIF()
+
+  SET(EXT_BOOST_BOOTSTRAP_TOOLSET "cc" CACHE STRING "Toolset to use when bootstrapping ext_boost.")
+
+  CONFIGURE_FILE(
+    "${CMAKE_CURRENT_SOURCE_DIR}/Modules/cmake_ext_boost_bootstrap.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/cmake_ext_boost_bootstrap.cmake"
+    IMMEDIATE @ONLY
+  )
+
+  SET(boost_bootstrap
+    "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/cmake_ext_boost_bootstrap.cmake"
+  )
+
+  MARK_AS_ADVANCED(EXT_BOOST_TOOLSET EXT_BOOST_BOOTSTRAP_TOOLSET)
+
+  IF(cxx_std_flag)
+    SET(boost_cxxflags "cxxflags=${cxx_std_flag}")
+  ENDIF()
+
+  SET(boost_build
+    ./b2 install
     --prefix=<INSTALL_DIR>
     --with-program_options
     --with-filesystem
@@ -163,8 +204,9 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT Boost_FOUND)
     threading=multi
     link=static
     runtime-link=shared
-    cxxflags=-std=c++11
+    optimization=speed
     ${boost_toolset}
+    ${boost_cxxflags}
     ${boost_variant}
   )
 
@@ -252,6 +294,10 @@ IF(NOT BUILD_EXTERNAL_PROJECTS_FORCED)
 ENDIF()
 
 IF(BUILD_EXTERNAL_PROJECTS AND NOT HTSLIB_FOUND)
+  IF(NOT GMAKE_EXECUTABLE)
+    MESSAGE(SEND_ERROR "GNU Make not found. Please set GMAKE_EXECUTABLE.")
+  ENDIF()
+
   SET(HTSLIB_FOUND true)
   SET(HTSLIB_VERSION 1.2.1)
   SET(HTSLIB_INCLUDE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/htslib/include/")
@@ -269,7 +315,7 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT HTSLIB_FOUND)
 
   IF(use_byproducts)
     SET(byproducts BUILD_BYPRODUCTS ${HTSLIB_LIBRARIES})
-  ENDIF()  
+  ENDIF()
 
   GET_FILENAME_COMPONENT(zlib_lib_dir ${ZLIB_LIBRARIES} DIRECTORY)
 
@@ -284,6 +330,8 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT HTSLIB_FOUND)
       "CFLAGS=${EXT_CFLAGS} -I${ZLIB_INCLUDE_DIRS}"
       "LDFLAGS=${EXT_LDFLAGS} -L${zlib_lib_dir}"
     BUILD_IN_SOURCE true
+    BUILD_COMMAND ${GMAKE_EXECUTABLE}
+    INSTALL_COMMAND ${GMAKE_EXECUTABLE} install
     ${byproducts}
   )
   ADD_DEPENDENCIES(ext_projects ext_htslib)
