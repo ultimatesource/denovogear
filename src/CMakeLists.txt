@@ -16,16 +16,12 @@ IF("${is_system_dir}" STREQUAL "-1")
 ENDIF("${is_system_dir}" STREQUAL "-1")
 ################################################################################
 
-#ADD_SUBDIRECTORY(contrib/newmat)
-#ADD_SUBDIRECTORY(utils)
-
-#INCLUDE_DIRECTORIES(BEFORE
-#	"${CMAKE_CURRENT_SOURCE_DIR}/utils"
-#	"${CMAKE_CURRENT_SOURCE_DIR}/contrib/newmat"
-#)
-
 INCLUDE_DIRECTORIES(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
 INCLUDE_DIRECTORIES(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
+IF(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+  ADD_DEFINITIONS(-D_GLIBCXX_USE_C99)
+ENDIF()
 
 ADD_EXECUTABLE(dng-dnm
   dng-dnm.cc
@@ -34,28 +30,37 @@ ADD_EXECUTABLE(dng-dnm
   pedParser.cc
   bcf2Qcall.cc bcf2Paired.cc
 )
-SET_PROPERTY(TARGET dng-dnm PROPERTY CXX_STANDARD 11)
-SET_PROPERTY(TARGET dng-dnm PROPERTY CXX_STANDARD_REQUIRED ON)
 
+# Some compilers have incomplete c++11 support provide a list of
+# common features to toss an error if someone tries to use
+# and early compiler
+TARGET_COMPILE_FEATURES(dng-dnm PRIVATE
+  cxx_auto_type
+  cxx_constexpr
+  cxx_decltype
+  cxx_deleted_functions
+  cxx_lambdas
+  cxx_nonstatic_member_init
+  cxx_nullptr
+  cxx_range_for
+  cxx_rvalue_references
+  cxx_strong_enums
+  cxx_trailing_return_types
+  cxx_attributes
+  cxx_reference_qualified_functions
+  cxx_decltype_incomplete_return_types
+  cxx_thread_local
+)
 
 ADD_EXECUTABLE(dng-phaser
   dng-phaser.cc
-#  snpLike.cc indelLike.cc pairLike.cc
-#  makeLookup.cc
-#  pedParser.cc
-#  bcf2Qcall.cc bcf2Paired.cc
 )
-SET_PROPERTY(TARGET dng-phaser PROPERTY CXX_STANDARD 11)
-SET_PROPERTY(TARGET dng-phaser PROPERTY CXX_STANDARD_REQUIRED ON)
-
 
 ADD_EXECUTABLE(dng-call
   dng-call.cc
   lib/call.cc lib/likelihood.cc lib/newick.cc lib/pedigree.cc lib/peeling.cc
   lib/mutation.cc lib/stats.cc
 )
-SET_PROPERTY(TARGET dng-call PROPERTY CXX_STANDARD 11)
-SET_PROPERTY(TARGET dng-call PROPERTY CXX_STANDARD_REQUIRED ON)
 
 CONFIGURE_FILE(
   "${CMAKE_CURRENT_SOURCE_DIR}/dng.sh.in"
@@ -67,14 +72,10 @@ CONFIGURE_FILE(
   "${CMAKE_CURRENT_BINARY_DIR}/version.h"
   @ONLY)
 
-IF(USE_STATIC_LIBS)
-  IF(CMAKE_C_COMPILER_ID EQUAL "GNU")
-    SET(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "-static-libgcc")
-  ENDIF()
-  IF(CMAKE_CXX_COMPILER_ID EQUAL "GNU")
-    SET(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "-static-libgcc -static-libstdc++")
-  ENDIF()
-ENDIF(USE_STATIC_LIBS)
+IF(USE_STATIC_LIBSTDCXX)
+  SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++")
+ENDIF()
+
 IF(USE_STATIC_FLAG)
   SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
   SET_TARGET_PROPERTIES(dng-dnm    PROPERTIES LINK_SEARCH_START_STATIC On)
@@ -86,27 +87,24 @@ IF(USE_STATIC_FLAG)
   SET_TARGET_PROPERTIES(dng-call   PROPERTIES LINK_SEARCH_END_STATIC On)
 ENDIF(USE_STATIC_FLAG)
 
-TARGET_LINK_LIBRARIES(dng-dnm ZLIB::ZLIB)
 TARGET_LINK_LIBRARIES(dng-dnm Boost::PROGRAM_OPTIONS Boost::FILESYSTEM Boost::SYSTEM)
 TARGET_LINK_LIBRARIES(dng-dnm HTSLIB::HTSLIB Threads::Threads)
 TARGET_LINK_LIBRARIES(dng-dnm EIGEN3::EIGEN3)
 
-TARGET_LINK_LIBRARIES(dng-phaser ZLIB::ZLIB)
 TARGET_LINK_LIBRARIES(dng-phaser Boost::PROGRAM_OPTIONS Boost::FILESYSTEM Boost::SYSTEM)
 TARGET_LINK_LIBRARIES(dng-phaser HTSLIB::HTSLIB Threads::Threads)
 
-TARGET_LINK_LIBRARIES(dng-call
-  Boost::PROGRAM_OPTIONS Boost::FILESYSTEM Boost::SYSTEM
-)
+TARGET_LINK_LIBRARIES(dng-call HTSLIB::HTSLIB Threads::Threads)
+TARGET_LINK_LIBRARIES(dng-call EIGEN3::EIGEN3)
+TARGET_LINK_LIBRARIES(dng-call Boost::PROGRAM_OPTIONS Boost::FILESYSTEM Boost::SYSTEM)
+
 IF(DEVEL_MODE)
   TARGET_LINK_LIBRARIES(dng-call Boost::TIMER)
 ENDIF()
 
-TARGET_LINK_LIBRARIES(dng-call HTSLIB::HTSLIB Threads::Threads)
-
-TARGET_LINK_LIBRARIES(dng-call EIGEN3::EIGEN3)
 IF(TARGET ext_eigen3)
   ADD_DEPENDENCIES(dng-call ext_eigen3)
+  ADD_DEPENDENCIES(dng-dnm ext_eigen3)
 ENDIF()
 
 ################################################################################

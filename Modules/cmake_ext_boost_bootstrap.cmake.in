@@ -1,0 +1,27 @@
+set(work "@CMAKE_CURRENT_BINARY_DIR@/@EXT_PREFIX@/boost/src/ext_boost")
+set(build "${work}/tools/build/src/engine")
+
+set(ENV{CC} "@CMAKE_C_COMPILER@")
+execute_process(
+  COMMAND sh "${build}/build.sh" "@EXT_BOOST_BOOTSTRAP_TOOLSET@"
+  WORKING_DIRECTORY "${build}"
+  RESULT_VARIABLE result
+  ERROR_FILE ${work}/bootstrap.log
+  OUTPUT_FILE ${work}/bootstrap.log
+)
+if(result)
+  MESSAGE(FATAL_ERROR "Unable to boostrap ext_boost. See '${work}/bootstrap.log' for details. Error code: ${result}")
+endif()
+
+execute_process(
+  COMMAND "${build}/bootstrap/jam0" -d0 -f build.jam "--toolset=@EXT_BOOST_BOOTSTRAP_TOOLSET@"
+  --toolset-root= --show-locate-target
+  WORKING_DIRECTORY "${build}"
+  OUTPUT_VARIABLE output
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+file(COPY "${build}/${output}/b2" DESTINATION "${work}")
+
+file(WRITE "${work}/tools/build/src/user-config.jam"
+  "using @EXT_BOOST_CXX_TOOLSET@ : @CMAKE_CXX_COMPILER_VERSION@ : @CMAKE_CXX_COMPILER@ : ;"
+)

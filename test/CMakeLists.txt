@@ -18,40 +18,24 @@ IF(NOT TEST_DATA_DIR)
 ENDIF(NOT TEST_DATA_DIR)
 
 
-
 ################################################################################
 # Compile unit tests
 include_directories(../src/include)
-include_directories(${Boost_INCLUDE_DIRS})
-include_directories(${EIGEN3_INCLUDE_DIR})
-include_directories(${EIGEN3_INCLUDE_DIR}/unsupported)
-
-IF(NOT Boost_USE_STATIC_LIBS)
-  add_definitions(-DBOOST_TEST_DYN_LINK)
-ENDIF()
 
 # Make a test for each unit test file located in test/ dir
 file(GLOB_RECURSE TESTS test_*[cc|cpp])
 foreach(test ${TESTS})
   get_filename_component(testName ${test} NAME_WE)
   add_executable(${testName} EXCLUDE_FROM_ALL ${test})
-  set_target_properties(${testName} PROPERTIES CXX_STANDARD 11)
-  set_target_properties(${testName} PROPERTIES CXX_STANDARD_REQUIRED ON)
-  target_link_libraries(${testName} Threads::Threads)
-  IF(Boost_FOUND)
-    target_link_libraries(${testName}
-      ${Boost_PROGRAM_OPTIONS_LIBRARY}
-      ${Boost_FILESYSTEM_LIBRARY}
-      ${Boost_SYSTEM_LIBRARY}
-      ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY}
-    )
-  ENDIF(Boost_FOUND)
-  IF(HTSLIB_FOUND)
-    target_link_libraries(${testName} ${HTSLIB_LIBRARIES})
-  ENDIF(HTSLIB_FOUND)
-  IF(ZLIB_FOUND)
-    target_link_libraries(${testName} ZLIB::ZLIB)
-  ENDIF(ZLIB_FOUND)
+  target_link_libraries(${testName}
+    Threads::Threads
+    Boost::PROGRAM_OPTIONS
+    Boost::FILESYSTEM
+    Boost::SYSTEM
+    Boost::UNIT_TEST_FRAMEWORK
+    EIGEN3::EIGEN3
+    HTSLIB::HTSLIB
+  )
   add_test(${testName}_build "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target ${testName})
   add_test(${testName}_run ${testName})
   set_tests_properties(${testName}_run PROPERTIES DEPENDS ${testName}_build)
@@ -60,7 +44,7 @@ endforeach(test)
 ################################################################################
 # Full executable tests
 
-# Check if using download source pacakge or running latest code inside a git repository
+# Check if using download source package or running latest code inside a git repository
 IF(NOT DEFINED DNG_VERSION_COMMIT OR DNG_VERSION_COMMIT STREQUAL "unknown")
   SET(DATA_PACKAGE "v${DNG_VERSION_MAJOR}.${DNG_VERSION_MINOR}")
   IF(DEFINED DNG_VERSION_PATCH)
