@@ -347,12 +347,17 @@ double dng::stats::g_test(double a11, double a12, double a21, double a22) {
     double col1 = a11 + a21, col2 = a12 + a22;
     double N = row1 + row2;
 
-    double value = xlogx(a11 / N) + xlogx(a12 / N) + xlogx(a21 / N) + xlogx(
-                       a22 / N);
-    value -= xlogx(row1 / N) + xlogx(row2 / N) + xlogx(col1 / N) + xlogx(col2 / N);
-    value *= 2.0 * N;
+    double value = xlogx(N)
+                 + xlogx(a11) + xlogx(a12)
+                 + xlogx(a21) + xlogx(a22);
+    value -= xlogx(row1) + xlogx(row2)
+           + xlogx(col1) + xlogx(col2);
+    value *= 2.0;
 
-    return cdf(complement(chi_squared{1}, value));
+    if(value > 0.0) {
+    	return cdf(complement(chi_squared{1}, value));
+    }
+    return 1.0;
 }
 
 double dng::stats::ad_two_sample_test(std::vector<uint8_t> a,
