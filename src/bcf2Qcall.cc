@@ -20,6 +20,7 @@
 
 #include <string>
 #include <vector>
+#include <array>
 #include <math.h>
 
 #include "parser.h"

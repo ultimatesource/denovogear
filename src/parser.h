@@ -36,7 +36,7 @@
 #define MAX_QCALL_LINE 2048
 
 // maximum phred-scaled likelihood, as close to zero as possible (8 bit)
-#define MAX_PL 2255
+#define MAX_PL 255
 
 // Stores the list of sample values (PL) for each sample
 typedef std::vector<std::vector<int>> sample_vals_int;
