@@ -35,6 +35,9 @@
 #define MIN_MAPQ 40
 #define MAX_QCALL_LINE 2048
 
+// maximum phred-scaled likelihood, as close to zero as possible (8 bit)
+#define MAX_PL 2255
+
 // Stores the list of sample values (PL) for each sample
 typedef std::vector<std::vector<int>> sample_vals_int;
 
@@ -106,7 +109,7 @@ static int8_t nt4_table[256] = {
 
 
 // Check that "I16" value exists in INFO field
-static int read_I16(bcf1_t *rec, const bcf_hdr_t *hdr, std::vector<int> &anno) {
+static int read_I16(bcf1_t *rec, const bcf_hdr_t *hdr, std::array<int, 16> &anno) {
     std::vector<int> i16vals;
     //vcf.GetInfoValues("I16", i16vals);
     int *dst = NULL;
@@ -122,11 +125,12 @@ static int read_I16(bcf1_t *rec, const bcf_hdr_t *hdr, std::vector<int> &anno) {
 
     //TODO: Should reset array?
     for(int a = 0; a < array_size; a++) {
-        anno.push_back(dst[a]);
+        anno[a] = dst[a];
     }
     return 0;
 
 }
+
 
 
 /**

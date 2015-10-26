@@ -159,8 +159,22 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
                                  ". Use auto, XS, or XD.");
     }
 
-    if(arg.bcf.empty() || arg.ped.empty()) {
-        throw std::runtime_error("ERROR ! Please specify both the PED file and BCF file ! Exiting!");
+    std::string input_file;
+    if(!arg.bcf.empty()) {
+    	if(!arg.vcf.empty()) {
+    		throw std::runtime_error("ERROR ! Attempting to use both a vcf and bcf file, can only use one. Exiting !");
+    	}
+    	input_file = arg.bcf;
+    }
+    else if(!arg.vcf.empty()) {
+    	input_file = arg.vcf;
+    }
+    else {
+    	throw std::runtime_error("ERROR ! please specify input variant file with --bcf command! Exiting!");
+    }
+
+    if(arg.ped.empty()) {
+        throw std::runtime_error("ERROR ! No PED file! Exiting!");
     }
 
     snp_mrate = arg.snp_mrate;
@@ -205,9 +219,9 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
     }
 
     std::vector<hts::bcf::File> output_vcf;
-    if(!arg.vcf.empty()) {
-        output_vcf.emplace_back(arg.vcf.c_str(), "w");
-        writeVCFHeader(output_vcf[0], arg.bcf, arg.ped, samples);
+    if(!arg.write.empty()) {
+        output_vcf.emplace_back(arg.write.c_str(), "w");
+        writeVCFHeader(output_vcf[0], input_file, arg.ped, samples);
     }
 
     qcall_t mom_snp, dad_snp, child_snp;
@@ -220,8 +234,7 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
     int indel_total_count = 0, indel_pass_count = 0;
     int pair_total_count = 0, pair_pass_count = 0;
 
-    hts::bcf::File vcf_input(arg.bcf.c_str(),
-                             "r"); // using hts::bcf::File so that both VCF and BCF can be read
+    hts::bcf::File vcf_input(input_file.c_str(), "r"); // hts::bcf::File can read both VCF and BCF
     const bcf_hdr_t *hdr = vcf_input.header();
     bcf_srs_t *rec_reader = bcf_sr_init(); // used for iterating each rec in BCF/VCF
 
@@ -234,7 +247,7 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
     }
 
     // Initialize the record reader to iterate through the BCF/VCF input
-    int ret = bcf_sr_add_reader(rec_reader, arg.bcf.c_str());
+    int ret = bcf_sr_add_reader(rec_reader, input_file.c_str());
     if(ret == 0) {
         int errnum = rec_reader->errnum;
         switch(errnum) {
