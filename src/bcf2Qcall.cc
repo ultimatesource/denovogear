@@ -20,10 +20,13 @@
 
 #include <string>
 #include <vector>
+#include <array>
 #include <math.h>
 
 #include "parser.h"
 #include "htslib/vcf.h"
+
+
 
 void writeToSNPObject(snp_object_t *mom_snp, const bcf_hdr_t *hdr, bcf1_t *rec,
                       int *g, int d,
@@ -62,6 +65,7 @@ void writeToSNPObject(snp_object_t *mom_snp, const bcf_hdr_t *hdr, bcf1_t *rec,
     } else {
         mom_snp->depth = d;
     }
+
 
     // Get PL liklihoods
     for(int j = 0; j < 10; j++) {
@@ -153,12 +157,13 @@ int bcf_2qcall(const bcf_hdr_t *hdr, bcf1_t *rec, Trio t, qcall_t *mom_snp,
     }
 
     // get I16 values from INFO field
-    std::vector<int> anno;
+    std::array<int, 16> anno;
     if(read_I16(rec, hdr, anno) != 0) {
         d_rest = 0;
     } else {
         d_rest = dp = anno[0] + anno[1] + anno[2] + anno[3];
     }
+
 
     // Calculate map quality from I16 fields 9 and 11
     mq = (int)(sqrt((double)(anno[9] + anno[11]) / dp) + .499);
@@ -173,6 +178,7 @@ int bcf_2qcall(const bcf_hdr_t *hdr, bcf1_t *rec, Trio t, qcall_t *mom_snp,
     if(rec->n_allele < 2) {
         return -11;
     }
+
 
     // Map the alternative alleles
     int s;
@@ -193,7 +199,7 @@ int bcf_2qcall(const bcf_hdr_t *hdr, bcf1_t *rec, Trio t, qcall_t *mom_snp,
         }
     }
 
-    // TODO: This doesn't handle the case when there is no 'N' alternative allele
+
     for(k = 0; k < 4; ++k)
         if(map[k] < 0) { map[k] = k1; }
 
@@ -221,13 +227,19 @@ int bcf_2qcall(const bcf_hdr_t *hdr, bcf1_t *rec, Trio t, qcall_t *mom_snp,
         for(k = j = 0; k < 4; k++) {
             for(l = k; l < 4; l++) { //AA,AC,AG,AT,CC,CG,CT,GG,GT,TT
                 int t, x = map[k], y = map[l];
-                if(x > y) {
-                    t = x;
-                    x = y;
-                    y = t;
+                if(x < 0 || y < 0) {
+                	// If PL field is not specified for a given genotype, just assume its likelihood is a close to 0 as possible.
+                	g[j++] = MAX_PL;
                 }
-                // see VCF specifications, 'GL' format section
-                g[j++] = pl_fields[i][y * (y + 1) / 2 + x];
+                else {
+                	if(x > y) {
+                		t = x;
+                		x = y;
+                		y = t;
+                	}
+                	// see VCF specifications, 'GL' format section
+                	g[j++] = pl_fields[i][y * (y + 1) / 2 + x];
+                }
             }
         }
 
