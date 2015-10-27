@@ -25,6 +25,7 @@
 #include <vector>
 #include "pedParser.h"
 #include <dng/hts/bcf.h>
+#include <array>
 //#include "htslib/vcf.h"
 
 // TODO: qcall_t, pair_t, and indel_t can be merged. Use struct inheritance.
