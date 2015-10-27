@@ -53,6 +53,9 @@ XM((region), (r),
 XM((poly_rate), (o), "Polymorphsim rate - used in prior calculations", double,
    DL(1e-3, "1e-3"))
 XM((mu_scale), (m), "Scaling factor for indel priors", double, DL(1.0, "1.0"))
+XM((write), (w),
+   "Write output to vcf file.",
+   std::string, "")
 
 /***************************************************************************
  *    cleanup                                                              *

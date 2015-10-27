@@ -167,7 +167,7 @@ int bcf2Paired(const bcf_hdr_t *hdr, bcf1_t *rec, Pair pair1, pair_t *tumor,
 
 
     // get I16 values from INFO field
-    std::vector<int> anno;
+    std::array<int, 16> anno;
     if(read_I16(rec, hdr, anno) != 0) {
         d_rest = 0;
     } else {
@@ -240,12 +240,18 @@ int bcf2Paired(const bcf_hdr_t *hdr, bcf1_t *rec, Pair pair1, pair_t *tumor,
         for(k = j = 0; k < 4; k++) {
             for(l = k; l < 4; l++) { //AA,AC,AG,AT,CC,CG,CT,GG,GT,TT
                 int t, x = map[k], y = map[l];
-                if(x > y) {
-                    t = x;
-                    x = y;
-                    y = t;
+                if(x < 0 || y < 0) {
+                	// If PL field is not specified for a given genotype, just assume its likelihood is a close to 0 as possible.
+                	g[j++] = MAX_PL;
                 }
-                g[j++] = pl_fields[i][y * (y + 1) / 2 + x];
+                else {
+					if(x > y) {
+						t = x;
+						x = y;
+						y = t;
+					}
+					g[j++] = pl_fields[i][y * (y + 1) / 2 + x];
+                }
             }
         }
 
