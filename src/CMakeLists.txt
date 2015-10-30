@@ -49,7 +49,6 @@ TARGET_COMPILE_FEATURES(dng-dnm PRIVATE
   cxx_attributes
   cxx_reference_qualified_functions
   cxx_decltype_incomplete_return_types
-  cxx_thread_local
 )
 
 ADD_EXECUTABLE(dng-phaser
