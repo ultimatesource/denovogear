@@ -60,11 +60,9 @@ Compilation of DeNovoGear requires CMake.  Most Linux distributions allow you to
 
 Denovogear comes with unit tests as well as full-suite test data available at <https://github.com/denovogear/testdata>. After running the build commands the tests can be downloaded and ran using:
 ```
-    make testdir
+    make testdata
     make test  
 ```
-
-[git](https://git-scm.com/downloads) is required for the `make testdir` command to execute.
 
 
 ## RUNNING THE CODE
