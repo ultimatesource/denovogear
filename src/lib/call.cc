@@ -707,9 +707,19 @@ int Call::operator()(Call::argument_type &arg) {
 
             // Create a map between the order of vcf alleles (REF+ALT) and their correct index in read_depths.counts[]
             vector<size_t> a2i;
+            string allele_order_str;
+            int acgt_to_refalt_allele[5] = { -1, -1, -1, -1, -1}; // Maps allele to REF+ALT order
+            int refalt_to_acgt_allele[5] = { -1, -1, -1, -1, -1}; // Maps REF+ALT order to A,C,G,T,N order
             for(int a = 0; a < n_alleles; a++) {
                 char base = *(rec->d.allele[a]);
+                size_t base_indx = seq::char_index(base);
                 a2i.push_back(seq::char_index(base));
+                acgt_to_refalt_allele[base_indx] = a;
+                refalt_to_acgt_allele[a] = base_indx;
+
+                if(a != 0)
+            		allele_order_str += ",";
+            	allele_order_str += rec->d.allele[a];
             }
 
             // Build the read_depths
@@ -734,50 +744,33 @@ int Call::operator()(Call::argument_type &arg) {
                 return;
             }
 
-            // Determine what nucleotides show up and the order they will appear in the REF and ALT field
-            // TODO: write tests that make sure REF="N" is properly handled
-            //      (1) N should be included in AD only if REF="N"
-            //      (2) N in AD should always be 0
+            // reformatted AD fields for output. The first few fields are the GL and SM fields and "AD" is missing. The
+            // remaining fields are just copied from the input file
+            std::vector<int32_t> ad_counts(library_start*n_alleles, hts::bcf::int32_missing);
+            ad_counts.insert(ad_counts.end(), ad, ad + n_samples*n_alleles);
 
-            // Measure total depth and sort nucleotides in descending order
-            typedef pair<int, int> key_t;
-            key_t total_depths[4] = {{0, 0}, {1, 0}, {2, 0}, {3, 0}};
-            int acgt_to_refalt_allele[5] = { -1, -1, -1, -1, -1}; // Maps allele to REF+ALT order
-            int refalt_to_acgt_allele[5] = { -1, -1, -1, -1, -1}; // Maps REF+ALT order to A,C,G,T,N order
+            // sum up all the counts
+            vector<int32_t> ad_info(n_alleles, 0);
+            for(size_t a = 0; a < n_ad; a++)
+            	ad_info[a%n_alleles] += ad[a];
 
-            int32_t dp_info = 0;
+            // sum up the depths for each sample and over all
             std::vector<int32_t> dp_counts(num_nodes, hts::bcf::int32_missing);
-            size_t dp_pos = library_start;
-            for(auto && a : read_depths) {
-                total_depths[0].second += a.counts[0];
-                total_depths[1].second += a.counts[1];
-                total_depths[2].second += a.counts[2];
-                total_depths[3].second += a.counts[3];
-                int32_t d = a.counts[0] + a.counts[1] + a.counts[2] + a.counts[3];
-                dp_info += d;
-                dp_counts[dp_pos++] = d;
+            int32_t dp_info = 0;
+            for(int sample = 0; sample < n_samples; sample++) {
+            	int32_t count = 0;
+            	for(int allele = 0; allele < n_alleles; allele++) {
+            		count += ad[sample*n_alleles + allele];
+            	}
+            	dp_counts[sample+library_start] = count;
+            	dp_info += count;
             }
-            sort(&total_depths[0], &total_depths[4], [](key_t a, key_t b) { return a.second > b.second; });
 
-            // Construct a string representation of REF+ALT by ignoring nucleotides with no coverage
-            string allele_order_str{seq::indexed_char(ref_index)};
-            acgt_to_refalt_allele[ref_index] = 0;
-            refalt_to_acgt_allele[0] = ref_index;
-            int allele_count = 0; // Measures how many alleles in total_depths are non zero
-            int refalt_count = 1; // Measures size of REF+ALT
-            for(; allele_count < 4
-                    && total_depths[allele_count].second > 0; allele_count++) {
-                if(total_depths[allele_count].first == ref_index) {
-                    continue;
-                }
-                allele_order_str += std::string(",") + seq::indexed_char(
-                                        total_depths[allele_count].first);
-                acgt_to_refalt_allele[total_depths[allele_count].first] = refalt_count;
-                refalt_to_acgt_allele[refalt_count] = total_depths[allele_count].first;
-                ++refalt_count;
-            }
             // Update REF, ALT fields
             record.alleles(allele_order_str);
+
+            typedef pair<int, int> key_t;
+            key_t total_depths[4] = {{0, 0}, {1, 0}, {2, 0}, {3, 0}};
 
             // Construct numeric genotypes
             int numeric_genotype[10][2] = {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
@@ -796,7 +789,7 @@ int Call::operator()(Call::argument_type &arg) {
             }
             // Link VCF genotypes to our order
             int genotype_index[15];
-            for(int i = 0, k = 0; i < refalt_count; ++i) {
+            for(int i = 0, k = 0; i < n_alleles; ++i) {
                 int n1 = refalt_to_acgt_allele[i];
                 for(int j = 0; j <= i; ++j, ++k) {
                     int n2 = refalt_to_acgt_allele[j];
@@ -808,7 +801,7 @@ int Call::operator()(Call::argument_type &arg) {
             // Calculate sample genotypes
             vector<int32_t> best_genotypes(2 * num_nodes);
             vector<int32_t> genotype_qualities(num_nodes);
-            int gt_count = refalt_count * (refalt_count + 1) / 2;
+            int gt_count = n_alleles * (n_alleles + 1) / 2;
             vector<float> gp_scores(num_nodes * gt_count);
 
             for(size_t i = 0, k = 0; i < num_nodes; ++i) {
@@ -836,18 +829,6 @@ int Call::operator()(Call::argument_type &arg) {
                     int n = genotype_index[j];
                     gl_scores[k++] = (n == -1) ? hts::bcf::float_missing :
                                      stats.genotype_likelihoods[i][n];
-                }
-            }
-
-            // Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
-            vector<int32_t> ad_counts(num_nodes * refalt_count, hts::bcf::int32_missing);
-            vector<int32_t> ad_info(refalt_count, 0);
-            for(size_t u = 0; u < read_depths.size(); ++u) {
-                size_t library_pos = (library_start + u) * refalt_count;
-                for(size_t k = 0; k < refalt_count; ++k) {
-                    size_t index = refalt_to_acgt_allele[k];
-                    ad_counts[library_pos + k] = (index == 4) ? 0 : read_depths[u].counts[index];
-                    ad_info[k] += (index == 4) ? 0 : read_depths[u].counts[index];
                 }
             }
 
