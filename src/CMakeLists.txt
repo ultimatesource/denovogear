@@ -19,6 +19,7 @@ ENDIF("${is_system_dir}" STREQUAL "-1")
 INCLUDE_DIRECTORIES(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
 INCLUDE_DIRECTORIES(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
+
 IF(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
   ADD_DEFINITIONS(-D_GLIBCXX_USE_C99)
 ENDIF()
@@ -49,6 +50,7 @@ TARGET_COMPILE_FEATURES(dng-dnm PRIVATE
   cxx_attributes
   cxx_reference_qualified_functions
   cxx_decltype_incomplete_return_types
+#  cxx_thread_local
 )
 
 ADD_EXECUTABLE(dng-phaser
