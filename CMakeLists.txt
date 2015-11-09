@@ -193,11 +193,6 @@ INCLUDE(ExternalDep)
 ADD_SUBDIRECTORY(src)
 ADD_SUBDIRECTORY(test)
 
-configure_file(src/treecall2.py src/dng-treecall COPYONLY)
-configure_file(src/treecall/memoize.py src/treecall/memoize.py COPYONLY)
-configure_file(src/treecall/pyvcf.py src/treecall/pyvcf.py COPYONLY)
-configure_file(src/treecall/__init__.py src/treecall/__init__.py COPYONLY)
-
 
 ########### Add uninstall target ###############
 CONFIGURE_FILE(
