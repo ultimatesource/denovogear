@@ -78,6 +78,11 @@ find_package(PythonLibs 2.7 REQUIRED)
   
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/treecall2.py.in"
   "${CMAKE_CURRENT_BINARY_DIR}/treecall2.py" @ONLY)
+  
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/treecall/setup.py.in"
+  "${CMAKE_CURRENT_SOURCE_DIR}/treecall/setup.py" @ONLY)
+  
+install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/treecall/setup.py install --user)")
 
 IF(USE_STATIC_LIBSTDCXX)
   SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++")
