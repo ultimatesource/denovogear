@@ -81,8 +81,6 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/treecall2.py.in"
   
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/treecall/setup.py.in"
   "${CMAKE_CURRENT_SOURCE_DIR}/treecall/setup.py" @ONLY)
-  
-install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/treecall/setup.py install --user)")
 
 IF(USE_STATIC_LIBSTDCXX)
   SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++")
@@ -129,3 +127,4 @@ INSTALL(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/dng.sh"
   DESTINATION ${CMAKE_INSTALL_BINDIR} RENAME dng)
 INSTALL(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/treecall2.py"
   DESTINATION ${CMAKE_INSTALL_LIBEXECDIR} RENAME dng-treecall)
+install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/treecall/setup.py install --install-purelib ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBEXECDIR})")
