@@ -1,0 +1,25 @@
+"editdist" is a CPython module that calculates the Levenshtein edit
+distance between two strings. 
+
+To install, use the standard Python distutils incantation:
+
+	python setup.py build
+	python setup.py install
+
+Regression tests are in the test.py file.
+
+py-editdist is licensed under a ISC/BSD licence. See the LICENSE file
+for details.
+
+Please report bugs to Damien Miller <djm@mindrot.org>. Please check the
+TODO file first, in case your problem is something I already know about
+(please send patches!)
+
+A simple example that demonstrates the module:
+
+	import editdist
+
+	# Calculate an edit distance
+	d = editdist.distance("abcd", "abcef")
+
+$Id: README,v 1.1.1.1 2006/07/05 13:33:21 djm Exp $
