@@ -356,6 +356,15 @@ Column 5: Sex (1=male, 2=female, 0=unknown)
 
 Column 6: Sample IDs; a newick-formatted tree
 
+### dng treecall: Finding Mutations and Trees from Single Cell Sequencing
+
+`dng treecall` is an experimental module to identify mutations and trees from whole-genome sequencing of single cells 
+
+#### Usage:
+
+Print Usage: `dng treecall -h`
+
+see https://github.com/nh3/treecall/
 
 ## ACKNOWLEDGEMENTS
 DeNovoGear uses the Samtools libraries to parse BCF files, we thank the Heng Li and the rest of the authors of Samtools for making this resource available to developers.
