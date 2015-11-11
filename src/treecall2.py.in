@@ -3,22 +3,42 @@
 # Author: Ni Huang <nihuang at genetics dot wustl dot edu>
 
 from __future__ import print_function
-import warnings
 import signal
 signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 import sys
 import itertools
-import numpy as np
-from scipy.stats import sem
 from editdist import distance as strdist
 from treecall.memoize import memoized
 from treecall.pyvcf import Vcf,VcfFile,warning
 
-with warnings.catch_warnings(ImportWarning):
+im_ete2=True
+try:
     from ete2 import Tree
+except ImportError:
+    im_ete2=False
+if not im_ete2:
+    print('dng treecall requires ete2, which is not installed on your system. To install ete2 see the instructions at http://etetoolkit.org/download/')
+    
+im_np=True
+try:
+    import numpy as np
+except ImportError:
+    im_np=False
+if not im_np:
+    print('dng treecall requires numpy, which is not installed on your system. To install numpy see the instructions at http://www.scipy.org/install.html')
+    
+im_sp=True
+try:
+    from scipy.stats import sem
+except ImportError:
+    im_sp=False
+if not im_sp:  
+    print('dng treecall requires scipy, which is not installed on your system. To install scipy see the instructions at http://www.scipy.org/install.html')
 
-warnings.filterwarnings('error')
+if not all((im_ete2,im_np,im_sp)):
+    sys.exit(1)
+
 
 NT4 = np.array(('A','C','G','T'))
 GTYPE3 = np.array(('RR','RA','AA'))
