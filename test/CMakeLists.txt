@@ -18,6 +18,13 @@ IF(NOT TEST_DATA_DIR)
 ENDIF(NOT TEST_DATA_DIR)
 
 
+###############################################################################
+# Tests on the source code
+ADD_TEST(build_gitkeep ${CMAKE_COMMAND} -E md5sum "${CMAKE_SOURCE_DIR}/build/.gitkeep")
+SET_TESTS_PROPERTIES(build_gitkeep PROPERTIES
+  PASS_REGULAR_EXPRESSION "d41d8cd98f00b204e9800998ecf8427e"
+)
+
 ################################################################################
 # Compile unit tests
 include_directories(../src/include)
