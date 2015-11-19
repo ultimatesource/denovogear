@@ -18,23 +18,22 @@ ENDIF("${is_system_dir}" STREQUAL "-1")
 
 INCLUDE_DIRECTORIES(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
 INCLUDE_DIRECTORIES(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+INCLUDE_DIRECTORIES(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/dnm")
 
 IF(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
   ADD_DEFINITIONS(-D_GLIBCXX_USE_C99)
 ENDIF()
 
-ADD_EXECUTABLE(dng-dnm
-  dng-dnm.cc
-  snpLike.cc indelLike.cc pairLike.cc
-  makeLookup.cc
-  pedParser.cc
-  bcf2Qcall.cc bcf2Paired.cc
+ADD_EXECUTABLE(dng-call
+  dng-call.cc
+  lib/call.cc lib/likelihood.cc lib/newick.cc lib/pedigree.cc lib/peeling.cc
+  lib/mutation.cc lib/stats.cc
 )
 
 # Some compilers have incomplete c++11 support provide a list of
 # common features to toss an error if someone tries to use
 # and early compiler
-TARGET_COMPILE_FEATURES(dng-dnm PRIVATE
+TARGET_COMPILE_FEATURES(dng-call PRIVATE
   cxx_auto_type
   cxx_constexpr
   cxx_decltype
@@ -51,14 +50,14 @@ TARGET_COMPILE_FEATURES(dng-dnm PRIVATE
   cxx_decltype_incomplete_return_types
 )
 
-ADD_EXECUTABLE(dng-phaser
-  dng-phaser.cc
+ADD_EXECUTABLE(dng-dnm
+  dng-dnm.cc
+  dnm/snpLike.cc dnm/indelLike.cc dnm/pairLike.cc dnm/makeLookup.cc
+  dnm/pedParser.cc dnm/bcf2Qcall.cc dnm/bcf2Paired.cc
 )
 
-ADD_EXECUTABLE(dng-call
-  dng-call.cc
-  lib/call.cc lib/likelihood.cc lib/newick.cc lib/pedigree.cc lib/peeling.cc
-  lib/mutation.cc lib/stats.cc
+ADD_EXECUTABLE(dng-phaser
+  dng-phaser.cc
 )
 
 CONFIGURE_FILE(

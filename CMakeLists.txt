@@ -192,6 +192,7 @@ INCLUDE(ExternalDep)
 
 ADD_SUBDIRECTORY(src)
 ADD_SUBDIRECTORY(test)
+ADD_SUBDIRECTORY(doc)
 
 ########### Add uninstall target ###############
 CONFIGURE_FILE(
