@@ -25,11 +25,66 @@
 #include <memory>
 #include <iostream>
 
+#include <boost/math/special_functions/lanczos.hpp>
+
 #include <dng/matrix.h>
 #include <dng/utilities.h>
 
 namespace dng {
 namespace genotype {
+
+namespace detail {
+class log_pochhammer {
+    typedef boost::math::lanczos::lanczos13m53 Lanczos;
+public:
+    static constexpr int kCacheSize{512};
+
+    log_pochhammer() { }
+
+    log_pochhammer(double a) : cache_(kCacheSize) {
+        // store these values for later usage
+        a_ = a;
+        ah_ = a - 0.5;
+        loga_ = log(a);
+        agh_ = a + Lanczos::g() - 0.5;
+        la_ = log(Lanczos::lanczos_sum(a));
+        logam1_ = loga_-1.0;
+        for(int i=0;i<kCacheSize;++i) {
+            cache_[i] = lnpoch_pos(i+1);
+        }
+    }
+
+    double operator()(int n) {
+        assert(n >= 0);
+        assert(cache_.size() == kCacheSize); // Check for proper initialization
+        if(n <= 0) {
+            return 0.0;
+        } else if(n <= kCacheSize) {
+            return cache_[n-1];
+        }
+        return lnpoch_pos(n);
+    }
+private:
+    // store these values for later usage
+    double a_, loga_, agh_, ah_, la_, logam1_;
+
+    std::vector<double> cache_;
+
+    double lnpoch_pos(double n) {
+        // assumes n >= 1
+        // if n is small relative to a, we can use a Sterling-derived approximation
+        if(n < a_*sqrt(DBL_EPSILON)) {
+            return n*logam1_ + (n+ah_)*log1p(n/a_);
+        }
+        // Use Boost's Lanczos approximation
+        double result = ah_*log1p(n/agh_);
+        result += log(Lanczos::lanczos_sum(a_+n)) - la_;
+        result += n*(log(agh_ + n)-1.0);
+        return result;
+    }
+};
+
+}
 
 class DirichletMultinomialMixture {
 public:
@@ -67,47 +122,31 @@ public:
         for(int i = 0; i < 10; ++i) {
             auto &cache = cache_[ref_allele][i];
             double lh1 = f1_, lh2 = f2_;
-            for(int j : {0, 1, 2, 3}) {
-                if(d.counts[j] < kCacheSize) {
-                    // access coefs that are in the cache
-                    lh1 += cache[j][2 * d.counts[j]]; // component 1
-                    lh2 += cache[j][2 * d.counts[j] + 1]; // component 2
-                } else {
-                    // if the value is not in the cache, calculate it
-                    lh1 += lgamma(alphas_[ref_allele][i][j][0] + d.counts[j])
-                           - alphas_[ref_allele][i][j][1];
-                    lh2 += lgamma(alphas_[ref_allele][i][j][2] + d.counts[j])
-                           - alphas_[ref_allele][i][j][3];
-                }
+            for(int j=0;j<4;++j) {
+                lh1 += cache[j].first(d.counts[j]);
+                lh2 += cache[j].second(d.counts[j]);
             }
-            if(read_count < kCacheSize) {
-                lh1 -= cache[4][2 * read_count];
-                lh2 -= cache[4][2 * read_count + 1];
-            } else {
-                lh1 -= lgamma(alphas_[ref_allele][i][4][0] + read_count)
-                       - alphas_[ref_allele][i][4][1];
-                lh2 -= lgamma(alphas_[ref_allele][i][4][2] + read_count)
-                       - alphas_[ref_allele][i][4][3];
-            }
+            lh1 -= cache[4].first(read_count);
+            lh2 -= cache[4].second(read_count);
+
             log_ret[i] = (lh2 < lh1) ? lh1 + log1p(exp(lh2 - lh1)) :
                          lh2 + log1p(exp(lh1 - lh2)) ;
         }
         double scale = log_ret.maxCoeff();
-        return std::make_pair((log_ret - scale).exp(), scale);
+        return {(log_ret - scale).exp(), scale};
     }
 
     DirichletMultinomialMixture(params_t model_a, params_t model_b);
 
 protected:
-    // NOTE: cache_[a][b][c][d] = sum alpha[a][b][c]+x for x in [0,d/2)
-    // NOTE: alpha_[a][b][c] = {alpha1, lgamma(alpha1), alpha2, lgamma(alpha2)}
-    typedef std::array<double, 2 * kCacheSize> cache_type;
-    typedef std::vector<std::array<std::array<cache_type, 5>, 10>> cache_t;
-    typedef std::vector<std::array<std::array<std::array<double, 4>, 5>, 10>>
-            alphas_t;
+
+    // NOTE: a = reference; b = genotype; c = nucleotide; d = depth
+    // NOTE: cache_[a][b][c].first(d)  = sum alpha1[a][b][c]+x for x in [0,d)
+    // NOTE: cache_[a][b][c].second(d) = sum alpha2[a][b][c]+x for x in [0,d)
+    typedef detail::log_pochhammer cache_type;
+    typedef std::vector<std::array<std::array<std::pair<cache_type,cache_type>, 5>, 10>> cache_t;
 
     cache_t cache_;
-    alphas_t alphas_;
     double f1_, f2_; // log(f) and log(1-f)
 };
 
