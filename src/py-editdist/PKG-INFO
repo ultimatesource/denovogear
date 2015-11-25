@@ -1,0 +1,18 @@
+Metadata-Version: 1.0
+Name: py-editdist
+Version: 0.3
+Summary: Calculate Levenshtein edit distance between two strings
+Home-page: http://www.mindrot.org/py-editdist.html
+Author: Damien Miller
+Author-email: djm@mindrot.org
+License: BSD
+Download-URL: http://www.mindrot.org/files/py-editdist/
+Description: py-editdist calculates the Levenshtein edit distance between
+             between two strings. It is implemented as a CPython module
+	     for maximum speed
+Keywords: edit distance, algorithm, Levenshtein
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: BSD License
+Classifier: Natural Language :: English
+Classifier: Programming Language :: Python
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
