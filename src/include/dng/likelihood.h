@@ -28,7 +28,7 @@
 #include <boost/math/special_functions/lanczos.hpp>
 
 #include <dng/matrix.h>
-#include <dng/utilities.h>
+#include <dng/utility.h>
 
 namespace dng {
 namespace genotype {
@@ -99,7 +99,7 @@ public:
         // fraction of reads that are ref is omega/(1+omega)
         // Construct a params_t from a string of comma separated values
         params_t(const std::string &str) {
-            auto f = util::parse_double_list(str, ',', 4);
+            auto f = utility::parse_double_list(str, ',', 4);
             if(!f.second) {
                 throw std::runtime_error("Unable to parse genotype-likelihood parameters. "
                                          "It must be a comma separated list of floating-point numbers.");

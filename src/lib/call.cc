@@ -44,7 +44,7 @@
 #include <dng/read_group.h>
 #include <dng/likelihood.h>
 #include <dng/seq.h>
-#include <dng/utilities.h>
+#include <dng/utility.h>
 #include <dng/hts/bcf.h>
 #include <dng/hts/extra.h>
 #include <dng/vcfpileup.h>
@@ -76,7 +76,7 @@ std::pair<std::string, std::string> vcf_get_output_mode(
 
     if(arg.output.empty() || arg.output == "-")
         return {"-", "w"};
-    auto ret = hts::extra::extract_file_type(arg.output);
+    auto ret = utility::extract_file_type(arg.output);
     if(iequals(ret.first, "bcf")) {
         return {ret.second, "wb"};
     } else if(iequals(ret.first, "vcf")) {
@@ -108,7 +108,7 @@ std::string vcf_command_line_text(const char *arg,
                                   const std::vector<V, A> &val) {
     std::string str;
     for(auto && a : val) {
-        str += std::string("--") + arg + '=' + dng::util::to_pretty(a) + ' ';
+        str += std::string("--") + arg + '=' + dng::utility::to_pretty(a) + ' ';
     }
     str.pop_back();
     return str;
@@ -117,7 +117,7 @@ std::string vcf_command_line_text(const char *arg,
 
 template<typename VAL>
 std::string vcf_command_line_text(const char *arg, VAL val) {
-    return std::string("--") + arg + '=' + dng::util::to_pretty(val);
+    return std::string("--") + arg + '=' + dng::utility::to_pretty(val);
 }
 
 std::string vcf_command_line_text(const char *arg, std::string val) {
@@ -289,8 +289,8 @@ std::vector<std::string> extract_contigs(const bcf_hdr_t *hdr) {
 int Call::operator()(Call::argument_type &arg) {
     using namespace std;
     using namespace hts::bcf;
-    using dng::util::lphred;
-    using dng::util::phred;
+    using dng::utility::lphred;
+    using dng::utility::phred;
 
     // Parse pedigree from file
     dng::io::Pedigree ped;
@@ -322,7 +322,7 @@ int Call::operator()(Call::argument_type &arg) {
     // TODO: include the size into the pattern, but this makes it harder to catch the second error.
     // TODO: turn all of this into a template function that returns array<double,4>?
     {
-        auto f = util::parse_double_list(arg.nuc_freqs, ',', 4);
+        auto f = utility::parse_double_list(arg.nuc_freqs, ',', 4);
         if(!f.second) {
             throw std::runtime_error("Unable to parse nuc-freq option. "
                                      "It must be a comma separated list of floating-point numbers.");
@@ -952,8 +952,8 @@ bool FindMutations::operator()(const std::vector<depth_t> &depths,
                                int ref_index, stats_t *stats) {
     using namespace std;
     using namespace hts::bcf;
-    using dng::util::lphred;
-    using dng::util::phred;
+    using dng::utility::lphred;
+    using dng::utility::phred;
 
     assert(stats != nullptr);
 
