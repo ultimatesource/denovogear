@@ -26,24 +26,6 @@
 namespace hts {
 namespace extra {
 
-// TODO: Should this stay here?  Or move out of the hts wrapper?
-// TODO: Undestand .hidden files ?
-std::pair<std::string, std::string> extract_file_type(const std::string &path) {
-    if(path.empty())
-        return {};
-
-    std::string::size_type x = path.length() - 1;
-
-    for(std::string::size_type u = 0; u < path.length(); ++u) {
-        if(path[u] == ':' && u > 1)
-            return {path.substr(0, u), path.substr(u + 1)};
-        if(path[u] == '.') {
-            x = u;
-        }
-    }
-    return {path.substr(x + 1), path};
-}
-
 }
 }
 

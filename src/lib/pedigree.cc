@@ -20,6 +20,7 @@
 #include <dng/pedigree.h>
 #include <dng/graph.h>
 #include <dng/mutation.h>
+#include <dng/utility.h>
 
 #include <algorithm>
 
@@ -239,7 +240,7 @@ bool dng::Pedigree::Construct(const io::Pedigree &pedigree,
         if(!labels[u].empty()) {
             labels_.push_back(labels[u]);
         } else {
-            labels_.push_back(DNG_SM_PREFIX "unnamed_node_" + util::to_pretty(vid));
+            labels_.push_back(DNG_SM_PREFIX "unnamed_node_" + utility::to_pretty(vid));
         }
         node_ids[u] = vid++;
     }
@@ -643,14 +644,14 @@ std::vector<std::string> dng::Pedigree::BCFHeaderLines() const {
             ret.push_back(head + labels_[child]
                           + ",Father=" + labels_[parents.parent1]
                           + ",Mother=" + labels_[parents.parent2]
-                          + ",FatherMR=" + util::to_pretty(parents.length1)
-                          + ",MotherMR=" + util::to_pretty(parents.length2)
+                          + ",FatherMR=" + utility::to_pretty(parents.length1)
+                          + ",MotherMR=" + utility::to_pretty(parents.length2)
                           + ">"
                          );
         } else {
             ret.push_back(head + labels_[child]
                           + ",Original=" + labels_[parents.parent1]
-                          + ",OriginalMR=" + util::to_pretty(parents.length1)
+                          + ",OriginalMR=" + utility::to_pretty(parents.length1)
                           + ">"
                          );
         }
