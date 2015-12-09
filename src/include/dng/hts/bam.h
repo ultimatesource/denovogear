@@ -141,20 +141,22 @@ public:
         	                                     + "' does not contain sequence data (BAM/SAM/CRAM).");
         SetFaiFileName(fasta);
 
-        if(header == nullptr) {
-        	hdr_.reset(sam_hdr_read(handle()));
-        }
-        else {
-            // NOTE: It's possible that multiple bam files share a single header, but this should be a non-standard use case. For memory and
-            // parallelization keeping hdr_ as a unique_ptr, and just making multiple copies of the file handles if necessary.
+        if(header != nullptr && header[0] != '\0') {
         	hts::File hdrf(header, "r");
         	hdr_.reset(sam_hdr_read(hdrf.handle()));
+            if(!hdr_) {
+                throw std::runtime_error("unable to read header in file '" + std::string(
+                                             header) + "'.");
+            }
+        } else {
+        	hdr_.reset(sam_hdr_read(handle()));
+            if(!hdr_) {
+                throw std::runtime_error("unable to read header in file '" + std::string(
+                                             name()) + "'.");
+            }
         }
 
-        if(!hdr_) {
-            throw std::runtime_error("unable to read header in file '" + std::string(
-                                         name()) + "'.");
-        }
+
         if(region != nullptr && region[0] != '\0') {
             std::unique_ptr<hts_idx_t, void(*)(hts_idx_t *)> idx{
                 sam_index_load(handle(), name()), hts_idx_destroy};
@@ -172,8 +174,8 @@ public:
     }
 
     File(const char *file, const char *mode, const char *region = nullptr,
-         const char *fasta = nullptr,
-         int min_mapQ = 0) : File(hts::File(file, mode), region, fasta, min_mapQ) {
+         const char *fasta = nullptr,int min_mapQ = 0, const char *header = nullptr)  :
+            File(hts::File(file, mode), region, fasta, min_mapQ) {
     }
 
     int Read(Alignment *p) {

@@ -367,13 +367,10 @@ int Call::operator()(Call::argument_type &arg) {
 
     if(cat == sequence_data) {
         // Wrap input in hts::bam::File
-
-    	// grab a separate header if it exists
-    	const char *hdr_file = (!arg.header.empty() ? arg.header.c_str() : nullptr);
         for(auto && f : indata) {
-       		bamdata.emplace_back(std::move(f), arg.region.c_str(), arg.fasta.c_str(),
-                                 arg.min_mapqual, hdr_file);
-         }
+       	    bamdata.emplace_back(std::move(f), arg.region.c_str(), arg.fasta.c_str(),
+				 arg.min_mapqual, arg.header.c_str());
+        }
 
         // Read header from first file
         const bam_hdr_t *h = bamdata[0].header();
