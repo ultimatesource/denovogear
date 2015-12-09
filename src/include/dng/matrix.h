@@ -31,9 +31,8 @@
 
 namespace dng {
 
-union depth_t {
-    uint16_t counts[4] = {0, 0, 0, 0};
-    uint64_t key;
+struct depth_t {
+    int32_t counts[4]{0,0,0,0};
 };
 
 #ifdef DNG_USE_DYNAMIC_GENOTYPE_ARRAY
