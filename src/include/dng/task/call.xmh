@@ -52,6 +52,8 @@ XM((theta), , "the population diversity", double, DL(0.001, "0.001"))
 XM((output), (o), "output VCF/BCF file", std::string, "-")
 XM((rgtag), , "combine read groups using @RG tags, e.g. ID, SM, LB, or DS.",
    std::string, "LB")
+XM((header), (h), "Location of separate bam header file for read-groups.", 
+   std::string, "")
 
 /***************************************************************************
  *    cleanup                                                              *
