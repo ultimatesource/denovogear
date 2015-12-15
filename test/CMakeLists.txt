@@ -101,6 +101,7 @@ foreach(test ${TESTS2})
   get_filename_component(testName ${test} NAME_WE)
   add_executable(${testName} EXCLUDE_FROM_ALL ${test}
           ${CMAKE_SOURCE_DIR}/src/lib/peeling.cc
+          ${CMAKE_SOURCE_DIR}/src/lib/regions.cc
           ##            ../src/lib/likelihood.cc ../src/lib/newick.cc ../src/lib/pedigree.cc
           ##            ../src/lib/mutation.cc ../src/lib/stats.cc
           )

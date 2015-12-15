@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015 Reed A. Cartwright
+ * Copyright (c) 2014-2016 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -24,6 +24,8 @@
 #include <tuple>
 #include <cmath>
 #include <locale>
+#include <cstdint>
+#include <climits>
 
 #include <boost/spirit/include/support_ascii.hpp>
 #include <boost/spirit/include/qi_real.hpp>
@@ -38,6 +40,25 @@
 
 namespace dng {
 namespace utility {
+
+typedef int64_t location_t;
+
+constexpr location_t LOCATION_MAX = ((static_cast<location_t>(INT32_MAX) << 32) | INT32_MAX);
+
+inline location_t make_location(int t, int p) {
+    assert((t & INT32_MAX) == t && (p & INT32_MAX) == p);
+    return (static_cast<location_t>(t) << 32) | p;
+}
+inline int location_to_target(location_t u) {
+    int x = static_cast<int>(u >> 32);
+    assert((x & INT32_MAX) == x);
+    return x;
+}
+inline int location_to_position(location_t u) {
+    int x = static_cast<int>(u & UINT32_MAX); // yes, UINT32_MAX
+    assert((x & INT32_MAX) == x);
+    return x;
+}
 
 template<class A, class B, std::size_t N>
 std::size_t key_switch(A &ss, const B(&key)[N]) {
@@ -68,7 +89,7 @@ std::pair<std::vector<double>, bool> parse_double_list(const S &str,
     namespace qi = boost::spirit::qi;
     std::vector<double> f;
     f.reserve(sz_hint);
-    boost::spirit::ascii::space_type space;
+    boost::spirit::standard::space_type space;
     auto b = boost::begin(str);
     auto e = boost::end(str);
     bool r = qi::phrase_parse(b, e, qi::double_ % sep, space, f);
@@ -129,6 +150,8 @@ inline std::pair<std::string, std::string> extract_file_type(const std::string &
 }
 
 }
+using utility::location_t;
+
 } // namespace dng::utility
 
 #endif
