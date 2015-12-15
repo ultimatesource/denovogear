@@ -24,6 +24,7 @@
 #include <tuple>
 #include <cmath>
 #include <locale>
+#include <cstdint>
 
 #include <boost/spirit/include/support_ascii.hpp>
 #include <boost/spirit/include/qi_real.hpp>
@@ -36,6 +37,21 @@
 
 namespace dng {
 namespace utility {
+
+typedef int64_t location_t;
+
+inline location_t make_location(int t, int p) {
+    assert(t >= 0 && p >= 0);
+    return (static_cast<int64_t>(t) << 32) | p;
+}
+inline int location_to_target(location_t u) {
+    assert(u >= 0);
+    return static_cast<int>(u >> 32);
+}
+inline int location_to_position(location_t u) {
+    assert(u >= 0);
+    return static_cast<int>(u & 0x7FFFFFFF);
+}
 
 template<class A, class B, std::size_t N>
 std::size_t key_switch(A &ss, const B(&key)[N]) {

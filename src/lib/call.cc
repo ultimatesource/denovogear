@@ -291,6 +291,8 @@ int Call::operator()(Call::argument_type &arg) {
     using namespace hts::bcf;
     using dng::utility::lphred;
     using dng::utility::phred;
+    using dng::utility::location_to_target;
+    using dng::utility::location_to_position;
 
     // Parse pedigree from file
     dng::io::Pedigree ped;
@@ -441,7 +443,7 @@ int Call::operator()(Call::argument_type &arg) {
     if(cat == sequence_data) {
         const bam_hdr_t *h = bamdata[0].header();
         dng::BamPileup mpileup{rgs.groups(), arg.min_qlen};
-        mpileup(bamdata, [&](const dng::BamPileup::data_type & data, uint64_t loc) {
+        mpileup(bamdata, [&](const dng::BamPileup::data_type & data, utility::location_t loc) {
 
             // Calculate target position and fetch sequence name
             int target_id = location_to_target(loc);

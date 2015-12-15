@@ -39,26 +39,19 @@
 #include <dng/fileio.h>
 #include <dng/cigar.h>
 #include <dng/read_group.h>
+#include <dng/utility.h>
 
 namespace dng {
 
-inline uint64_t make_location(int t, int p) {
-    return (static_cast<uint64_t>(t) << 32) | p;
-}
-inline int location_to_target(uint64_t u) {
-    return static_cast<int>(u >> 32);
-}
-inline int location_to_position(uint64_t u) {
-    return static_cast<int>(u & 0x7FFFFFFF);
-}
-
 namespace pileup {
+
+using dng::utility::location_t;
 
 struct Node : public PoolNode {
     hts::bam::Alignment aln;   // sequence record
-    uint64_t beg; // 0-based left-most edge, [beg,end)
-    uint64_t end; // 0-based right-most edge, [beg,end)
-    uint64_t pos; // current position of the pileup in this query/read
+    location_t beg; // 0-based left-most edge, [beg,end)
+    location_t end; // 0-based right-most edge, [beg,end)
+    location_t pos; // current position of the pileup in this query/read
     bool is_missing; // is there no base call at the pileup position?
 
     hts::bam::cigar_t cigar; // cigar
@@ -84,7 +77,8 @@ public:
     explicit BamScan(InFile &in, int min_qlen = 0) : in_(in), next_loc_{0},
         min_qlen_{min_qlen} {}
 
-    list_type operator()(uint64_t target_loc, pool_type &pool) {
+    list_type operator()(location_t target_loc, pool_type &pool) {
+        using utility::make_location;
         // Reads from in_ until it encounters the first read
         // that is right of pos.
         // TODO: check for proper read ordering???
@@ -94,7 +88,7 @@ public:
                 // Try to grab a read, if not return current buffer
                 if(in_(&p->aln) < 0) {
                     pool.Free(p);
-                    next_loc_ = std::numeric_limits<uint64_t>::max();
+                    next_loc_ = std::numeric_limits<location_t>::max();
                     return std::move(buffer_);
                 }
                 p->cigar = p->aln.cigar();
@@ -127,10 +121,10 @@ public:
         return ret;
     }
 
-    uint64_t next_loc() const { return next_loc_; }
+    location_t next_loc() const { return next_loc_; }
 
 private:
-    uint64_t next_loc_;
+    location_t next_loc_;
     InFile &in_;
     list_type buffer_;
     int min_qlen_;
@@ -145,7 +139,7 @@ public:
     typedef detail::NodePool pool_type;
 
     typedef std::vector<list_type> data_type;
-    typedef void (callback_type)(const data_type &, uint64_t);
+    typedef void (callback_type)(const data_type &, location_t);
 
     template<typename InFiles, typename Func>
     void operator()(InFiles &range, Func func);
@@ -160,8 +154,8 @@ public:
 
 protected:
     template<typename Scanners>
-    int Advance(Scanners &range, data_type *data, uint64_t *target_loc,
-                uint64_t *fast_forward_loc);
+    int Advance(Scanners &range, data_type *data, location_t *target_loc,
+                location_t *fast_forward_loc);
 
     template<typename STR>
     std::size_t ReadGroupIndex(const STR &s) {
@@ -182,6 +176,7 @@ template<typename InFiles, typename Func>
 void BamPileup::operator()(InFiles &range, Func func) {
     using namespace std;
     using namespace fileio;
+    using utility::make_location;
 
     // encapsulate input files into scanners
     vector<detail::BamScan<typename boost::range_value<InFiles>::type>> scanners;
@@ -194,8 +189,8 @@ void BamPileup::operator()(InFiles &range, Func func) {
 
     // data will hold our pileup information
     data_type data(read_groups_.size());
-    uint64_t current_loc = 0;
-    uint64_t fast_forward_loc = 0;
+    location_t current_loc = 0;
+    location_t fast_forward_loc = 0;
 
     // if we have no read_groups specified, use each file as a single group
     // TODO: check this
@@ -205,7 +200,7 @@ void BamPileup::operator()(InFiles &range, Func func) {
 
     // If there is a parsed region, use it.
     // TODO: check to see if the regions are all the same???
-    uint64_t beg_loc = 0, end_loc = std::numeric_limits<uint64_t>::max();
+    location_t beg_loc = 0, end_loc = std::numeric_limits<location_t>::max();
     if(boost::begin(range)->iter() != nullptr) {
         beg_loc = make_location(boost::begin(range)->iter()->tid,
                                 boost::begin(range)->iter()->beg);
@@ -231,8 +226,8 @@ void BamPileup::operator()(InFiles &range, Func func) {
 // current_pos
 
 template<typename Scanners>
-int BamPileup::Advance(Scanners &range, data_type *data, uint64_t *target_loc,
-                       uint64_t *fast_forward_loc) {
+int BamPileup::Advance(Scanners &range, data_type *data, location_t *target_loc,
+                       location_t *fast_forward_loc) {
     using namespace std;
     // enumerate through existing data set, updating location of reads and
     // purge reads that have expired
@@ -246,7 +241,7 @@ int BamPileup::Advance(Scanners &range, data_type *data, uint64_t *target_loc,
                 pool_.Free(p);
                 continue;
             }
-            uint64_t q = cigar::target_to_query(*target_loc, it->beg, it->cigar);
+            location_t q = cigar::target_to_query(*target_loc, it->beg, it->cigar);
             it->pos = cigar::query_pos(q);
             it->is_missing = cigar::query_del(q);
             ++it;
@@ -258,7 +253,7 @@ int BamPileup::Advance(Scanners &range, data_type *data, uint64_t *target_loc,
         *target_loc = *fast_forward_loc;
     }
     if(*target_loc >= *fast_forward_loc) {
-        uint64_t next_loc = numeric_limits<uint64_t>::max();
+        location_t next_loc = numeric_limits<location_t>::max();
         std::size_t k = 0;
         for(auto it = boost::begin(range); it != boost::end(range); ++it, ++k) {
             auto &scanner = *it;
@@ -280,7 +275,7 @@ int BamPileup::Advance(Scanners &range, data_type *data, uint64_t *target_loc,
                     }
                 }
                 // process cigar string
-                uint64_t q = cigar::target_to_query(*target_loc, p->beg, p->cigar);
+                location_t q = cigar::target_to_query(*target_loc, p->beg, p->cigar);
                 p->pos = cigar::query_pos(q);
                 p->is_missing = cigar::query_del(q);
 
@@ -291,7 +286,7 @@ int BamPileup::Advance(Scanners &range, data_type *data, uint64_t *target_loc,
         }
         *fast_forward_loc = next_loc;
     }
-    if(fast_forward && *fast_forward_loc == numeric_limits<uint64_t>::max()) {
+    if(fast_forward && *fast_forward_loc == numeric_limits<location_t>::max()) {
         return -1;
     }
     return (fast_forward ? 0 : 1);

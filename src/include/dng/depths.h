@@ -24,9 +24,32 @@
 namespace dng {
 
 class AlleleDepths {
+public:
+	typedef std::vector<int> data_t; 
+
+	int operator()(data_t::size_type nuc, data_t::size_type lib) const {
+		// storage is nucleotide major
+		assert(0 <= nuc && nuc < num_nucleotides_ && 0 <= lib && lib < num_libraries_);
+		return data_[nuc*num_libraries_ + lib];
+	}
+	int& operator()(data_t::size_type nuc, data_t::size_type set) {
+		// storage is nucleotide major
+		assert(0 <= nuc && nuc < num_nucleotides_ && 0 <= lib && lib < num_libraries_);
+		return data_[nuc*num_libraries_ + lib];
+	}
+
+	int64_t location() const { return location_; }
+	int8_t type() const { return type_; }
+	data_t::size_type num_libraries() const { return num_libraries_; }
+	data_t::size_type num_nucleotides() const { return num_nucleotides_; }
 
 protected:
-	std::vector<int> data;
+	int64_t location_;
+	int8_t  type_;
+	data_t data_;
+	data_t::size_type num_nucleotides_;
+	data_t::size_type num_libraries_;
+
 };
 
 }
