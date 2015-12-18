@@ -21,6 +21,8 @@
 #ifndef DNG_DEPTHS_H
 #define DNG_DEPTHS_H
 
+#include <dng/utility.h>
+
 namespace dng {
 
 class AlleleDepths {
@@ -38,13 +40,13 @@ public:
 		return data_[nuc*num_libraries_ + lib];
 	}
 
-	int64_t location() const { return location_; }
+	location_t location() const { return location_; }
 	int8_t type() const { return type_; }
 	data_t::size_type num_libraries() const { return num_libraries_; }
 	data_t::size_type num_nucleotides() const { return num_nucleotides_; }
 
 protected:
-	int64_t location_;
+	location_t location_;
 	int8_t  type_;
 	data_t data_;
 	data_t::size_type num_nucleotides_;
