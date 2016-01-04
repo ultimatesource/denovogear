@@ -76,11 +76,17 @@ find_package(PythonLibs 2.7 REQUIRED)
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/treecall2.py.in"
   "${CMAKE_CURRENT_BINARY_DIR}/treecall2.py" @ONLY)
   
+file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/treecall/"
+   DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/treecall/")
+
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/treecall/setup.py.in"
-  "${CMAKE_CURRENT_SOURCE_DIR}/treecall/setup.py" @ONLY)
+  "${CMAKE_CURRENT_BINARY_DIR}/treecall/setup.py" @ONLY)
+
+file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/py-editdist/"
+  DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/py-editdist/")
   
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/py-editdist/setup.py.in"
-  "${CMAKE_CURRENT_SOURCE_DIR}/py-editdist/setup.py" @ONLY)
+  "${CMAKE_CURRENT_BINARY_DIR}/py-editdist/setup.py" @ONLY)
 
 IF(USE_STATIC_LIBSTDCXX)
   SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++")
@@ -127,5 +133,5 @@ INSTALL(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/dng.sh"
   DESTINATION ${CMAKE_INSTALL_BINDIR} RENAME dng)
 INSTALL(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/treecall2.py"
   DESTINATION ${CMAKE_INSTALL_LIBEXECDIR} RENAME dng-treecall)
-install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/treecall/setup.py install --install-purelib \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBEXECDIR})")
-install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/py-editdist/setup.py install --install-lib \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBEXECDIR})")
+install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/treecall/setup.py install --install-purelib \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBEXECDIR})")
+install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/py-editdist/setup.py install --install-lib \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBEXECDIR})")
