@@ -21,10 +21,10 @@ VERSION = "0.3"
 
 if __name__ == '__main__':
 	editdist = Extension('editdist',
-		sources = ['@CMAKE_CURRENT_SOURCE_DIR@/py-editdist/editdist.c'])
+		sources = ['@CMAKE_CURRENT_BINARY_DIR@/py-editdist/editdist.c'])
 	setup(	name = "editdist",
 		version = VERSION,
-		package_dir={ '': '@CMAKE_CURRENT_SOURCE_DIR@' },
+		package_dir={ '': '@CMAKE_CURRENT_BINARY_DIR@' },
 		packages=['py-editdist'],
 		author = "Damien Miller",
 		author_email = "djm@mindrot.org",

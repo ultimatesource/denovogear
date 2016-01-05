@@ -88,6 +88,10 @@ file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/py-editdist/"
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/py-editdist/setup.py.in"
   "${CMAKE_CURRENT_BINARY_DIR}/py-editdist/setup.py" @ONLY)
 
+add_custom_target(treecall ALL ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/treecall/setup.py build) 
+
+add_custom_target(py-ed ALL ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/py-editdist/setup.py build)
+
 IF(USE_STATIC_LIBSTDCXX)
   SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++")
 ENDIF()
