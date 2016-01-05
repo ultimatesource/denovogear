@@ -76,15 +76,9 @@ find_package(PythonLibs 2.7 REQUIRED)
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/treecall2.py.in"
   "${CMAKE_CURRENT_BINARY_DIR}/treecall2.py" @ONLY)
   
-file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/treecall/"
-   DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/treecall/")
-
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/treecall/setup.py.in"
   "${CMAKE_CURRENT_BINARY_DIR}/treecall/setup.py" @ONLY)
 
-file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/py-editdist/"
-  DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/py-editdist/")
-  
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/py-editdist/setup.py.in"
   "${CMAKE_CURRENT_BINARY_DIR}/py-editdist/setup.py" @ONLY)
 
