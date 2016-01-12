@@ -65,9 +65,10 @@ template<typename Func>
 void VCFPileup::operator()(const char *fname, Func func) {
     // TODO? If using multiple input vcf files then we may require scanners to search each file for the same position
 
+    std::cout << "\nSTART VCFPileup::()" << std::endl;
     // type erase callback function
     std::function<callback_type> call_back(func);
-
+    std::cout << "call_back 1" << std::endl;
     // Open the VCF/BCF file
     htsFile *fp = hts_open(fname, "r");
     bcf_hdr_t *hdr = bcf_hdr_read(fp);
@@ -79,7 +80,7 @@ void VCFPileup::operator()(const char *fname, Func func) {
     samples.pop_back();
 
     bcf_hdr_set_samples(hdr, samples.c_str(), 0);
-
+    std::cout << "start while()" << std::endl;
     while(bcf_read1(fp, hdr, rec) >= 0) {
         // check that the current record is for an SNP and not an Indel, MNP, or something else
         if(bcf_get_variant_types(rec) != VCF_SNP) {
@@ -89,6 +90,7 @@ void VCFPileup::operator()(const char *fname, Func func) {
         // execute func
         call_back(hdr, rec);
     }
+    std::cout << "END VCFPileup::()\n" << std::endl;
 }
 
 }

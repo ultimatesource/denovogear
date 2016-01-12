@@ -47,10 +47,10 @@ BOOST_AUTO_TEST_CASE(Test_parse_double_list)
 
 }
 
-BOOST_AUTO_TEST_CASE(Test_to_pretty)
-{
-  BOOST_CHECK(dng::util::to_pretty(1)=="1");
-  BOOST_CHECK(dng::util::to_pretty(1.234)=="1.234");
-  BOOST_CHECK(dng::util::to_pretty("string")=="string");
-  BOOST_CHECK(dng::util::to_pretty('c')=="c");
-}
+//BOOST_AUTO_TEST_CASE(Test_to_pretty)
+//{
+//  BOOST_CHECK(dng::util::to_pretty(1)=="1");
+//  BOOST_CHECK(dng::util::to_pretty(1.234)=="1.234");
+//  BOOST_CHECK(dng::util::to_pretty("string")=="string");
+//  BOOST_CHECK(dng::util::to_pretty('c')=="c");
+//}

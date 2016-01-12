@@ -18,10 +18,12 @@
  */
 
 #include <dng/peeling.h>
+#include <iostream>
 
 // Family Order: Parent, Child
 void dng::peel::down(workspace_t &work, const family_members_t &family,
                      const TransitionVector &mat) {
+    std::cout << " down " << std::endl;
     assert(family.size() == 2);
     auto parent = family[0];
     auto child = family[1];
@@ -32,6 +34,7 @@ void dng::peel::down(workspace_t &work, const family_members_t &family,
 // Family Order: Parent, Child
 void dng::peel::down_fast(workspace_t &work, const family_members_t &family,
                           const TransitionVector &mat) {
+    std::cout << " down fast" << std::endl;
     assert(family.size() == 2);
     auto parent = family[0];
     auto child = family[1];
@@ -42,6 +45,7 @@ void dng::peel::down_fast(workspace_t &work, const family_members_t &family,
 // Family Order: Parent, Child
 void dng::peel::up(workspace_t &work, const family_members_t &family,
                    const TransitionVector &mat) {
+    std::cout << " up " << std::endl;
     assert(family.size() == 2);
     auto parent = family[0];
     auto child = family[1];
@@ -51,6 +55,7 @@ void dng::peel::up(workspace_t &work, const family_members_t &family,
 // Family Order: Parent, Child
 void dng::peel::up_fast(workspace_t &work, const family_members_t &family,
                         const TransitionVector &mat) {
+    std::cout << " up fast " << std::endl;
     assert(family.size() == 2);
     auto parent = family[0];
     auto child = family[1];
@@ -60,6 +65,7 @@ void dng::peel::up_fast(workspace_t &work, const family_members_t &family,
 // Family Order: Father, Mother, Child1, Child2, ...
 void dng::peel::to_father(workspace_t &work, const family_members_t &family,
                           const TransitionVector &mat) {
+    std::cout << " to father " << std::endl;
     assert(family.size() >= 3);
     auto dad = family[0];
     auto mom = family[1];
@@ -78,6 +84,7 @@ void dng::peel::to_father(workspace_t &work, const family_members_t &family,
 // Family Order: Father, Mother, Child1, Child2, ...
 void dng::peel::to_father_fast(workspace_t &work,
                                const family_members_t &family, const TransitionVector &mat) {
+    std::cout << " to fasher fast " << std::endl;
     assert(family.size() >= 3);
     auto dad = family[0];
     auto mom = family[1];

@@ -126,11 +126,16 @@ public:
     CommandLineApp(int argc, char *argv[]) : ext_desc_("Allowed Options")  {
         using namespace std;
         using detail::add_app_args;
-
+        std::cout << "HH0" << "\t" << argc << std::endl;
+        for (int j = 0; j < argc; ++j) {
+            std::cout << argv[j] << std::endl;
+        }
+//        std::cout << argv << std::endl;
         boost::filesystem::path bin_path(argv[0]);
         arg.run_name = bin_path.filename().generic_string();
         arg.run_path = bin_path.parent_path().generic_string();
-
+        std::cout << "PATH: " << arg.run_name << "\t:\t" << arg.run_path
+                                 << std::endl;
         add_app_args(ext_desc_, static_cast<typename task_type::argument_type &>(arg));
 
         ext_desc_.add_options()
@@ -150,8 +155,10 @@ public:
 
         po::store(po::command_line_parser(argc, argv)
                   .options(int_desc_).positional(pos_desc_).run(), vm_);
+    std::cout << arg.mu << std::endl;//0
         po::notify(vm_);
-
+std::cout << arg.mu << std::endl; //mu set to default;
+        std::cout << arg.arg_file << std::endl; //mu set to default;
         if(!arg.arg_file.empty()) {
             if(arg.arg_file == "-") {
                 po::store(po::parse_config_file(cin, ext_desc_), vm_);
@@ -166,9 +173,12 @@ public:
             }
             po::notify(vm_);
         }
+        std::cout <<"H1" << std::endl;
+
     }
 
     int operator()() {
+        std::cout <<"H2" << std::endl;
         using namespace std;
         if(arg.version) {
             return CmdVersion();
@@ -176,6 +186,7 @@ public:
         if(arg.help || arg.input.empty()) {
             return CmdHelp();
         }
+
         return task_(arg);
     }
 

@@ -57,6 +57,9 @@ public:
         }
         // Peel pedigree one family at a time
         for(std::size_t i = 0; i < peeling_functions_.size(); ++i) {
+            std::cout << "PeelForward: index: "<<  i << "\tfunction: ";
+            std::cout << *(peeling_functions_[i]) ;
+            std:: cout << std::endl;
             (*peeling_functions_[i])(work, family_members_[i], mat);
         }
         // Sum over roots
@@ -110,6 +113,7 @@ public:
     std::pair<size_t, size_t> library_nodes() const { return {first_library_, num_nodes_}; }
 
 protected:
+public:
     // node structure:
     // founder germline, non-founder germline, somatic, library
     std::size_t num_nodes_;        // total number of nodes

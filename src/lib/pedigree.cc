@@ -587,23 +587,30 @@ void dng::Pedigree::PrintTable(std::ostream &os) {
     }
     for(int i = 0; i < peeling_ops_.size(); ++i) {
         const auto &fam = family_members_[i];
+        std::cout << i << "\tOP:" << "\t" << peeling_ops_[i] << "\t" <<
+        "Family 0 1 2: " << fam[0] << "\t" << fam[1] << "\t" << fam[2]
+                                                    << std::endl;
         switch(peeling_ops_[i]) {
         case peel::op::DOWN:
         case peel::op::DOWNFAST:
+            std::cout << "D" << std::endl;
             write_up[fam[0]] = i + 1;
             break;
         case peel::op::TOCHILD:
         case peel::op::TOCHILDFAST:
+            std::cout << "C" << std::endl;
             write_up[fam[2]] = i + 1;
             break;
         case peel::op::UP:
         case peel::op::UPFAST:
         case peel::op::TOFATHER:
         case peel::op::TOFATHERFAST:
+            std::cout << "U" << std::endl;
             write_low[fam[0]] = i + 1;
             break;
         case peel::op::TOMOTHER:
         case peel::op::TOMOTHERFAST:
+            std::cout << "M" << std::endl;
             write_low[fam[1]] = i + 1;
         default:
             break;
