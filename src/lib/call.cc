@@ -286,7 +286,7 @@ std::vector<std::string> extract_contigs(const bcf_hdr_t *hdr) {
 
 // The main loop for dng-call application
 // argument_type arg holds the processed command line arguments
-int Call::operator()(Call::argument_type &arg) {
+FindMutationsGetter Call::operator()(Call::argument_type &arg) {
     using namespace std;
     using namespace hts::bcf;
     using dng::util::lphred;
