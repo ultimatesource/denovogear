@@ -48,7 +48,8 @@ dng::GenotypeArray dng::peel::up_core(workspace_t &work, const family_members_t 
     assert(family.size() == 2);
 //    auto parent = family[0];
     auto child = family[1];
-    auto geno_array = (mat[child] * work.lower[child].matrix()).array();
+
+    dng::GenotypeArray geno_array = (mat[child] * work.lower[child].matrix()).array();
     return geno_array;
 }
 // Family Order: Parent, Child
@@ -58,8 +59,24 @@ void dng::peel::up(workspace_t &work, const family_members_t &family,
     assert(family.size() == 2);
     auto parent = family[0];
     auto child = family[1];
-    work.lower[parent] *= (mat[child] * work.lower[child].matrix()).array();
-//    work.lower[parent] *= up_core(work, family, mat);
+
+//    std::cout << work.lower[parent] << "\n" << std::endl;
+//    std::cout << work.lower[child] << "\n" << std::endl;
+//    auto a = (mat[child] * work.lower[child].matrix());
+//    auto b = up_core(work, family, mat);
+//    std::cout << "A:\n" << a << std::endl;
+//    auto c = a;
+//    auto d = a.array();
+//    std::cout << "B:\n" << b << std::endl;
+//    std::cout << "C:\n" << c << std::endl;
+//    std::cout << "D:\n" << d << std::endl;
+//    work.lower[parent] *= a;
+
+//    work.lower[parent] *= (mat[child] * work.lower[child].matrix()).array();
+    work.lower[parent] *= up_core(work, family, mat);
+    std::cout << work.lower[parent] << "\n" << std::endl;
+//    work.lower[parent] = (mat[child] * work.lower[child].matrix()).array();
+//    std::cout << work.lower[parent] << "\n" << std::endl;
 }
 
 // Family Order: Parent, Child
@@ -94,6 +111,10 @@ void dng::peel::to_father(workspace_t &work, const family_members_t &family,
     }
     // Include Mom
     work.paired_buffer.resize(10, 10);
+    std::cout << work.paired_buffer << std::endl;
+    std::cout << ""<< std::endl;
+    std::cout << (work.upper[mom] *
+                 work.lower[mom])<< std::endl;
     work.lower[dad] *= (work.paired_buffer.matrix() * (work.upper[mom] *
                         work.lower[mom]).matrix()).array();
     work.paired_buffer.resize(100, 1); //Might not need this, from the website: Assignment is the action of copying a matrix into another, using operator=. Eigen resizes the matrix on the left-hand side automatically so that it matches the size of the matrix on the right-hand size. For example:

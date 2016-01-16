@@ -80,6 +80,7 @@ struct workspace_t {
     void CleanupFast() {
         // TODO: create a check that sees if this has been done before the
         // forward algorithm.
+
         boost::fill_n(lower, somatic_nodes.second, DNG_INDIVIDUAL_BUFFER_ONES);
         dirty_lower = false;
     }
