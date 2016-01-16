@@ -139,7 +139,7 @@ ADD_EXECUTABLE(dng-call_test
         vt/calculateProbs.cc
         lib/likelihood.cc lib/newick.cc lib/pedigree.cc lib/peeling.cc
         lib/mutation.cc lib/stats.cc
-        )
+        vt/peeling_test.cpp vt/find_mutation_getter.cpp vt/find_mutation_getter.h)
 
 TARGET_LINK_LIBRARIES(dng-call_test HTSLIB::HTSLIB Threads::Threads)
 TARGET_LINK_LIBRARIES(dng-call_test EIGEN3::EIGEN3)

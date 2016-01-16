@@ -98,8 +98,17 @@ struct workspace_t {
 };
 
 typedef std::vector<std::size_t> family_members_t;
+// Core operations
+dng::GenotypeArray up_core(workspace_t &work, const family_members_t &family,
+            const TransitionVector &mat);
 
-// Basic peeling operations
+void down_core(workspace_t &work, const family_members_t &family,
+             const TransitionVector &mat);
+
+void to_core(workspace_t &work, const family_members_t &family,
+             const TransitionVector &mat);
+
+    // Basic peeling operations
 void up(workspace_t &work, const family_members_t &family,
         const TransitionVector &mat);
 void down(workspace_t &work, const family_members_t &family,
