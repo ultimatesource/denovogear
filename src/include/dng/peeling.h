@@ -100,6 +100,9 @@ struct workspace_t {
 
 typedef std::vector<std::size_t> family_members_t;
 // Core operations
+dng::PairedGenotypeArray sum_over_child(workspace_t &work, const family_members_t &family,
+    const TransitionVector &mat);
+
 dng::GenotypeArray up_core(workspace_t &work, const family_members_t &family,
             const TransitionVector &mat);
 

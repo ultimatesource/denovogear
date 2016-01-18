@@ -56,6 +56,8 @@
 #include "find_mutation_getter.h"
 #include "assert_helper.h"
 
+
+
 using namespace dng::task;
 using namespace dng;
 
@@ -118,6 +120,63 @@ void test1(const FindMutationsGetter &find_mutation){
 
 
 }
+
+
+
+void TestSumOverChild() {
+
+
+
+    int child_offset = 2;
+    for (int t = 0; t < 100; ++t) {
+        peel::family_members_t family1 {0,1}; //0 parent, 1 child
+        dng::peel::workspace_t workspace;
+
+        int num_child = std::rand()%10+1;
+
+        int total_family_size = num_child + child_offset;
+        vector<TransitionMatrix> m;
+        vector<GenotypeArray> g;
+        m.resize(total_family_size);
+        g.resize(total_family_size);
+        for (int k = 2; k < 2+num_child; ++k) {
+                                                                                                                                                                                                                                                                                                                    family1.push_back(k);
+            m[k] = TransitionMatrix::Random(10, 10);
+            g[k] = GenotypeArray::Random();
+        }
+
+        GenotypeArray expected = GenotypeArray::Ones();
+        for (int k = 2; k < total_family_size; ++k) {
+            GenotypeArray temp_array = GenotypeArray::Zero();
+            for (int i = 0; i < 10; ++i) {
+                for (int j = 0; j < 10; ++j) {
+                    temp_array[i] += m[k](i, j) * g[k][j];
+                }
+            }
+            expected *= temp_array;
+        }
+
+        workspace.Resize(total_family_size);
+        dng::TransitionVector full_matrix;
+        full_matrix.resize(total_family_size);
+        full_matrix[0] = {};
+        full_matrix[1] = {};
+        for (int k = 2; k < total_family_size; ++k) {
+            full_matrix[k] = m[k];
+            workspace.lower[k] = g[k];
+        }
+
+
+        GenotypeArray result = dng::peel::sum_over_child(workspace, family1, full_matrix);
+        for (int i = 0; i < 10; ++i) {
+            AssertNear(expected[i], result[i]);
+        }
+    }
+
+
+
+}
+
 
 void TestUpCore(){
 
@@ -215,27 +274,27 @@ void TestToFather(){
         const GenotypeArray u0 = GenotypeArray::Random();
         const GenotypeArray u1 = GenotypeArray::Random();
 
-        PairedGenotypeArray expected = PairedGenotypeArray::Zero(100,1);
+        PairedGenotypeArray all_child = PairedGenotypeArray::Zero(100, 1);
         for (int i = 0; i < 100; ++i) {
             for (int j = 0; j < 10; ++j) {
-                expected(i,0) += m(i, j) * g2[j];
+                all_child(i, 0) += m(i, j) * g2[j];
             }
+        }
+        all_child.resize(10, 10);
 
-//            expected[i] *= g0[i];
-        }
-        expected.resize(10, 10);
-        GenotypeArray temp;
+        GenotypeArray ga_mum;
         for (int j = 0; j < 10; ++j) {
-            temp[j] = u0[j] * u1[j];
+            ga_mum[j] = u1[j] * g1[j];
         }
-        GenotypeArray expected2 = GenotypeArray::Zero();
+
+        GenotypeArray expected = GenotypeArray::Zero();
         for (int i = 0; i < 10; ++i) {
             for (int j = 0; j < 10; ++j) {
-                expected2[i] += m(i, j) * temp[j];
+                expected[i] += all_child(i, j) * ga_mum[j];
             }
-            expected2[i] *= g0[i];
+            expected[i] *= g0[i];
         }
-
+//        std::cout << expected.sum() << std::endl;
 
         workspace.Resize(3);
         dng::TransitionVector full_matrix{3};
@@ -252,7 +311,7 @@ void TestToFather(){
         dng::peel::to_father(workspace, family1, full_matrix);
         GenotypeArray result = workspace.lower[0];
         for (int i = 0; i < 10; ++i) {
-            AssertNear(expected2[i], result[i]);
+            AssertNear(expected[i], result[i]);
         }
     }
 }
@@ -419,9 +478,10 @@ int dng::task::Call::operator()(dng::task::Call::argument_type &arg) {
 
 int main(int argc, char *argv[]) {
 //BOOST_AUTO_TEST_CASE(Test_FM){
-    TestUpCore();
-    TestUp();
-    TestToFather();
+//    TestUpCore();
+//    TestUp();
+//    TestToFather();
+    TestSumOverChild();
     try {
 //        return CallApp(argc, argv)();
 //        dng::CommandLineApp<dng::task::Call> a (argc, argv) ;
