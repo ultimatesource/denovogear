@@ -293,7 +293,7 @@ void TestToFather(){
             for (int j = 0; j < 10; ++j) {
                 expected[i] += all_child(i, j) * ga_mum[j];
             }
-            expected_fast = expected;
+            expected_fast[i] = expected[i];
             expected[i] *= g0[i];
         }
 //        std::cout << expected.sum() << std::endl;
@@ -306,7 +306,7 @@ void TestToFather(){
         workspace.lower[0] = g0;
         workspace.lower[1] = g1;
         workspace.lower[2] = g2;
-        workspace.upper[0] = {};
+        workspace.upper[0] = u0;
         workspace.upper[1] = u1;
         workspace.upper[2] = {};
 
@@ -319,7 +319,7 @@ void TestToFather(){
         dng::peel::to_father_fast(workspace, family1, full_matrix);
         GenotypeArray result_fast = workspace.lower[0];
         for (int i = 0; i < 10; ++i) {
-            AssertNear(expected[i], result[i]);
+            AssertNear(expected_fast[i], result_fast[i]);
         }
 
 
@@ -382,7 +382,7 @@ void TestToMother(){
             for (int j = 0; j < 10; ++j) {
                 expected[i] += temp_child(i, j) * ga_dad[j];
             }
-            expected_fast = expected;
+            expected_fast[i] = expected[i];
             expected[i] *= g1[i];
         }
 //        std::cout << expected.sum() << std::endl;
@@ -396,7 +396,7 @@ void TestToMother(){
         workspace.lower[1] = g1;
         workspace.lower[2] = g2;
         workspace.upper[0] = u0;
-        workspace.upper[1] = {};
+        workspace.upper[1] = u1;
         workspace.upper[2] = {};
 
         dng::peel::to_mother(workspace, family1, full_matrix);
@@ -408,7 +408,7 @@ void TestToMother(){
         dng::peel::to_mother_fast(workspace, family1, full_matrix);
         GenotypeArray result_fast = workspace.lower[1];
         for (int i = 0; i < 10; ++i) {
-            AssertNear(expected[i], result[i]);
+            AssertNear(expected_fast[i], result_fast[i]);
         }
 
 
@@ -577,7 +577,7 @@ int main(int argc, char *argv[]) {
 //BOOST_AUTO_TEST_CASE(Test_FM){
 //    TestUpCore();
 //    TestUp();
-//    TestToFather();
+    TestToFather();
     TestToMother();
 //    TestSumOverChild();
 //    try {
@@ -598,7 +598,7 @@ int main(int argc, char *argv[]) {
 //    } catch(std::exception &e) {
 //        std::cerr << e.what() << std::endl;
 //    }
-    std::cout << "Done"<< std::endl;
+    std::cout << "Tests done"<< std::endl;
     return EXIT_FAILURE;
 
 }

@@ -99,16 +99,20 @@ struct workspace_t {
 };
 
 typedef std::vector<std::size_t> family_members_t;
-// Core operations
 
-dng::PairedGenotypeArray sum_over_child(workspace_t &work, const family_members_t &family,
-    const TransitionVector &mat);
+enum class Parents : bool {Father=false, Mother=true};
+
+// utility
+
+dng::PairedGenotypeArray sum_over_child(workspace_t &work, const family_members_t &family, const TransitionVector &mat);
 
 dng::GenotypeArray multiply_upper_lower(workspace_t &work, int index);
 
 dng::GenotypeArray multiply_lower_upper(workspace_t &work, int index);
 
+// Core operations
 dng::GenotypeArray up_core(workspace_t &work, const family_members_t &family, const TransitionVector &mat);
+
 
 void down_core(workspace_t &work, const family_members_t &family, const TransitionVector &mat);
 
@@ -116,7 +120,11 @@ dng::GenotypeArray to_father_core(workspace_t &work, const family_members_t &fam
 
 dng::GenotypeArray to_mother_core(workspace_t &work, const family_members_t &family, const TransitionVector &mat);
 
-        // Basic peeling operations
+dng::GenotypeArray to_parent_core(workspace_t &work, const family_members_t &family,
+                                  const TransitionVector &mat, const Parents to_parent);
+
+
+// Basic peeling operations
 void up(workspace_t &work, const family_members_t &family,
         const TransitionVector &mat);
 void down(workspace_t &work, const family_members_t &family,
