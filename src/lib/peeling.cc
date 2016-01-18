@@ -20,6 +20,16 @@
 #include <dng/peeling.h>
 #include <iostream>
 
+dng::GenotypeArray dng::peel::multiply_upper_lower(workspace_t &work, int index){
+
+    return (work.upper[index] * work.lower[index]);
+}
+
+dng::GenotypeArray dng::peel::multiply_lower_upper(workspace_t &work, int index){
+
+    return (work.lower[index] * work.upper[index]);
+}
+
 // Family Order: Parent, Child
 void dng::peel::down(workspace_t &work, const family_members_t &family,
                      const TransitionVector &mat) {
@@ -115,6 +125,22 @@ void dng::peel::up_fast(workspace_t &work, const family_members_t &family,
 
 
 // Family Order: Father, Mother, Child1, Child2, ...
+dng::GenotypeArray dng::peel::to_father_core(workspace_t &work, const family_members_t &family,
+                                        const TransitionVector &mat) {
+    std::cout << " to father core: " << family[0] << "\t" << family[1] << "\t" << family[2] << std::endl;
+    assert(family.size() >= 3);
+    auto dad = family[0];
+    auto mom = family[1];
+
+    work.paired_buffer = sum_over_child(work, family, mat); //TODO: replace with this
+    // Include Mom
+    work.paired_buffer.resize(10, 10);
+    PairedGenotypeArray mom_array = multiply_upper_lower(work, mom); //TODO: replace with this
+    GenotypeArray dad_array = (work.paired_buffer.matrix() * mom_array.matrix() ).array();//TODO: replace with this
+    return dad_array;
+}
+
+// Family Order: Father, Mother, Child1, Child2, ...
 void dng::peel::to_father(workspace_t &work, const family_members_t &family,
                           const TransitionVector &mat) {
     std::cout << " to father: " << family[0] << "\t" << family[1] << "\t" << family[2] << std::endl;
@@ -126,22 +152,27 @@ void dng::peel::to_father(workspace_t &work, const family_members_t &family,
     for(std::size_t i = 3; i < family.size(); ++i) {
         work.paired_buffer *= (mat[family[i]] * work.lower[family[i]].matrix()).array();
     }
-//    work.paired_buffer = sum_over_child(work, family, mat); //TODO: replace with this
+//    work.paired_buffer = sum_over_child(work, family, mat);
 
     // Include Mom
     work.paired_buffer.resize(10, 10);
 
-    std::cout << work.paired_buffer.sum() << "\n" << std::endl;
-    std::cout << (work.upper[mom] * work.lower[mom]).sum() << std::endl;
+//    std::cout << work.paired_buffer.sum() << "\n" << std::endl;
+//    std::cout << (work.upper[mom] * work.lower[mom]).sum() << std::endl;
 
     work.lower[dad] *= (work.paired_buffer.matrix() * (work.upper[mom] *
                         work.lower[mom]).matrix()).array();
+
 
     std::cout << ((work.paired_buffer.matrix() * (work.upper[mom] * work.lower[mom]).matrix()).array()) << std::endl;
     std::cout<< work.lower[dad] << std::endl;
 
     work.paired_buffer.resize(100, 1); //Might not need this, from the website: Assignment is the action of copying a matrix into another, using operator=. Eigen resizes the matrix on the left-hand side automatically so that it matches the size of the matrix on the right-hand size. For example:
+
+
+//    work.lower[dad] *= to_father_core(work, family, mat); //TODO: replace with this
 }
+
 
 // Family Order: Father, Mother, Child1, Child2, ...
 void dng::peel::to_father_fast(workspace_t &work,

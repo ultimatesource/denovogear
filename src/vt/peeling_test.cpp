@@ -288,10 +288,12 @@ void TestToFather(){
         }
 
         GenotypeArray expected = GenotypeArray::Zero();
+        GenotypeArray expected_fast = GenotypeArray::Zero();
         for (int i = 0; i < 10; ++i) {
             for (int j = 0; j < 10; ++j) {
                 expected[i] += all_child(i, j) * ga_mum[j];
             }
+            expected_fast = expected;
             expected[i] *= g0[i];
         }
 //        std::cout << expected.sum() << std::endl;
@@ -313,10 +315,105 @@ void TestToFather(){
         for (int i = 0; i < 10; ++i) {
             AssertNear(expected[i], result[i]);
         }
+
+        dng::peel::to_father_fast(workspace, family1, full_matrix);
+        GenotypeArray result_fast = workspace.lower[0];
+        for (int i = 0; i < 10; ++i) {
+            AssertNear(expected[i], result[i]);
+        }
+
+
     }
 }
 
 
+
+void TestToMother(){
+
+
+
+//// Family Order: Father, Mother, Child1, Child2, ...
+//    void dng::peel::to_father(workspace_t &work, const family_members_t &family,
+//                              const TransitionVector &mat) {
+//        std::cout << " to father: " << family[0] << "\t" << family[1] << "\t" << family[2] << std::endl;
+//        assert(family.size() >= 3);
+//        auto dad = family[0];
+//        auto mom = family[1];
+//        // Sum over children
+//        work.paired_buffer = (mat[family[2]] * work.lower[family[2]].matrix()).array();
+//        for(std::size_t i = 3; i < family.size(); ++i) {
+//            work.paired_buffer *= (mat[family[i]] * work.lower[family[i]].matrix()).array();
+//        }
+//        // Include Mom
+//        work.paired_buffer.resize(10, 10);
+//        work.lower[dad] *= (work.paired_buffer.matrix() * (work.upper[mom] *
+//                                                           work.lower[mom]).matrix()).array();
+//        work.paired_buffer.resize(100, 1); //Might not need this, from the website: Assignment is the action of copying a matrix into another, using operator=. Eigen resizes the matrix on the left-hand side automatically so that it matches the size of the matrix on the right-hand size. For example:
+//    }
+
+    peel::family_members_t family1 {0, 1, 2}; //0 dad, 1 , 2 child
+    dng::peel::workspace_t workspace;
+
+    for (int t = 0; t < 10; ++t) {
+        const TransitionMatrix m = TransitionMatrix::Random(100, 10);
+        const GenotypeArray g0 = GenotypeArray::Random();
+        const GenotypeArray g1 = GenotypeArray::Random();
+        const GenotypeArray g2 = GenotypeArray::Random();
+        const GenotypeArray u0 = GenotypeArray::Random();
+        const GenotypeArray u1 = GenotypeArray::Random();
+
+        PairedGenotypeArray all_child = PairedGenotypeArray::Zero(100, 1);
+        for (int i = 0; i < 100; ++i) {
+            for (int j = 0; j < 10; ++j) {
+                all_child(i, 0) += m(i, j) * g2[j];
+            }
+        }
+        all_child.resize(10, 10);
+
+        GenotypeArray ga_dad;
+        for (int j = 0; j < 10; ++j) {
+            ga_dad[j] = u0[j] * g0[j];
+        }
+
+        GenotypeArray expected = GenotypeArray::Zero();
+        GenotypeArray expected_fast = GenotypeArray::Zero();
+        auto temp_child = all_child.transpose();
+        for (int i = 0; i < 10; ++i) {
+            for (int j = 0; j < 10; ++j) {
+                expected[i] += temp_child(i, j) * ga_dad[j];
+            }
+            expected_fast = expected;
+            expected[i] *= g1[i];
+        }
+//        std::cout << expected.sum() << std::endl;
+
+        workspace.Resize(3);
+        dng::TransitionVector full_matrix{3};
+        full_matrix[0] = {};
+        full_matrix[1] = {};
+        full_matrix[2] = m;
+        workspace.lower[0] = g0;
+        workspace.lower[1] = g1;
+        workspace.lower[2] = g2;
+        workspace.upper[0] = u0;
+        workspace.upper[1] = {};
+        workspace.upper[2] = {};
+
+        dng::peel::to_mother(workspace, family1, full_matrix);
+        GenotypeArray result = workspace.lower[1];
+        for (int i = 0; i < 10; ++i) {
+            AssertNear(expected[i], result[i]);
+        }
+
+        dng::peel::to_mother_fast(workspace, family1, full_matrix);
+        GenotypeArray result_fast = workspace.lower[1];
+        for (int i = 0; i < 10; ++i) {
+            AssertNear(expected[i], result[i]);
+        }
+
+
+    }
+}
 // The main loop for dng-call application
 // argument_type arg holds the processed command line arguments
 int dng::task::Call::operator()(dng::task::Call::argument_type &arg) {
@@ -481,25 +578,27 @@ int main(int argc, char *argv[]) {
 //    TestUpCore();
 //    TestUp();
 //    TestToFather();
-    TestSumOverChild();
-    try {
-//        return CallApp(argc, argv)();
-//        dng::CommandLineApp<dng::task::Call> a (argc, argv) ;
-
-//        char *argv[] = {"test", "-p", "arg2", NULL};
-//        int argc = sizeof(argv) / sizeof(char*) - 1;
-        int argc=4;
-        char *argv[argc+1];
-        argv[0] = (char*) "test";
-        argv[1] = (char*) "-p";
-        argv[2] = (char*) "testdata/sample_5_3/ceu.ped"; //"pedFile";
-        argv[3] = (char*) "testdata/sample_5_3/test1.vcf"; //test1.bam
-//        dng::CommandLineApp<dng::task::Call> a (argc, argv) ;
-//        a();
-
-    } catch(std::exception &e) {
-        std::cerr << e.what() << std::endl;
-    }
+    TestToMother();
+//    TestSumOverChild();
+//    try {
+////        return CallApp(argc, argv)();
+////        dng::CommandLineApp<dng::task::Call> a (argc, argv) ;
+//
+////        char *argv[] = {"test", "-p", "arg2", NULL};
+////        int argc = sizeof(argv) / sizeof(char*) - 1;
+//        int argc=4;
+//        char *argv[argc+1];
+//        argv[0] = (char*) "test";
+//        argv[1] = (char*) "-p";
+//        argv[2] = (char*) "testdata/sample_5_3/ceu.ped"; //"pedFile";
+//        argv[3] = (char*) "testdata/sample_5_3/test1.vcf"; //test1.bam
+////        dng::CommandLineApp<dng::task::Call> a (argc, argv) ;
+////        a();
+//
+//    } catch(std::exception &e) {
+//        std::cerr << e.what() << std::endl;
+//    }
+    std::cout << "Done"<< std::endl;
     return EXIT_FAILURE;
 
 }
