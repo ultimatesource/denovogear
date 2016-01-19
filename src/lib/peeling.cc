@@ -101,7 +101,7 @@ void dng::peel::to_mother(workspace_t &work, const family_members_t &family,
     auto mom = family[1];
     // Sum over children
     work.paired_buffer = (mat[family[2]] * work.lower[family[2]].matrix()).array();
-    for(size_t i = 3; i < family.size() - 1; ++i) {
+    for(size_t i = 3; i < family.size(); ++i) {
         work.paired_buffer *= (mat[family[i]] * work.lower[family[i]].matrix()).array();
     }
     // Include Dad
