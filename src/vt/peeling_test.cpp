@@ -139,8 +139,8 @@ void TestSumOverChild() {
         peel::family_members_t family;
 
 //        int num_child = std::rand()%10+1;
-        std::uniform_int_distribution<> dis(1, 10);
-        int num_child = dis(gen);
+        std::uniform_int_distribution<> rand_unif(1, 10);
+        int num_child = rand_unif(gen);
         int total_family_size = num_child + child_offset;
         vector<TransitionMatrix> m(total_family_size);
 //        vector<GenotypeArray> u(total_family_size);
@@ -259,15 +259,13 @@ void TestUp(){
 void TestToFather(){
 
     int child_offset = 2;
-    std::uniform_int_distribution<> dis(1, 10);
+    std::uniform_int_distribution<> rand_unif(1, 10);
 
     for (int t = 0; t < num_test; ++t) {
 
         peel::family_members_t family;
 
-//        int num_child = std::rand()%10+1;
-
-        int num_child = dis(gen);
+        int num_child = rand_unif(gen);
 
 
         int total_family_size = num_child + child_offset;
@@ -346,19 +344,18 @@ void TestToFather(){
 void TestToMother(){
 
     int child_offset = 2;
-    std::uniform_int_distribution<> dis(1, 10);
+    std::uniform_int_distribution<> rand_unif(1, 10);
 
 
     for (int t = 0; t < num_test; ++t) {
 
-        peel::family_members_t family;
-        int num_child = dis(gen);
-
+        int num_child = rand_unif(gen);
         int total_family_size = num_child + child_offset;
         vector<TransitionMatrix> m(total_family_size);
         vector<GenotypeArray> u(total_family_size);
         vector<GenotypeArray> g(total_family_size);
 
+        peel::family_members_t family;
         for (int k = 0; k < total_family_size; ++k) {
             family.push_back(k);
             g[k] = GenotypeArray::Random();
@@ -430,14 +427,14 @@ void TestToMother(){
 void TestToChild(){
 
     int child_offset = 2;
-    std::uniform_int_distribution<> dis(2, 10);
+    std::uniform_int_distribution<> rand_unif(2, 10);
 
 
     for (int t = 0; t < num_test; ++t) {
 
         peel::family_members_t family;
 
-        int num_child = dis(gen);
+        int num_child = rand_unif(gen);
         int total_family_size = num_child + child_offset;
         vector<TransitionMatrix> m(total_family_size);
         vector<GenotypeArray> u(total_family_size);
