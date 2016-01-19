@@ -120,8 +120,8 @@ void dng::peel::up(workspace_t &work, const family_members_t &family,
 //    std::cout << "D:\n" << d << std::endl;
 //    work.lower[parent] *= a;
 
-    work.lower[parent] *= (mat[child] * work.lower[child].matrix()).array();
-//    work.lower[parent] *= up_core(work, family, mat); //TODO: replace with this
+//    work.lower[parent] *= (mat[child] * work.lower[child].matrix()).array();
+    work.lower[parent] *= up_core(work, family, mat); //TODO: replace with this
 
 
 //    std::cout << work.lower[parent] << "\n" << std::endl;
@@ -136,8 +136,8 @@ void dng::peel::up_fast(workspace_t &work, const family_members_t &family,
     assert(family.size() == 2);
     auto parent = family[0];
     auto child = family[1];
-    work.lower[parent] = (mat[child] * work.lower[child].matrix()).array();
-//    work.lower[parent] = up_core(work, family, mat); //TODO: replace with this
+//    work.lower[parent] = (mat[child] * work.lower[child].matrix()).array();
+    work.lower[parent] = up_core(work, family, mat); //TODO: replace with this
 
 
 //    std::cout << work.lower[parent] << std::endl;
@@ -158,12 +158,12 @@ dng::GenotypeArray dng::peel::to_father_core(workspace_t &work, const family_mem
     auto dad = family[0];
     auto mom = family[1];
 
-    work.paired_buffer = sum_over_child(work, family, mat); //TODO: replace with this
-    // Include Mom
-    work.paired_buffer.resize(10, 10);
-    PairedGenotypeArray other_parent = multiply_upper_lower(work, mom); //TODO: replace with this
-    GenotypeArray dad_array = (work.paired_buffer.matrix() * other_parent.matrix() ).array();//TODO: replace with this
-//    dad_array = to_parent_core(work, family, mat, Parents::Father);
+//    work.paired_buffer = sum_over_child(work, family, mat); //TODO: replace with this
+//    // Include Mom
+//    work.paired_buffer.resize(10, 10);
+//    PairedGenotypeArray other_parent = multiply_upper_lower(work, mom); //TODO: replace with this
+//    GenotypeArray dad_array = (work.paired_buffer.matrix() * other_parent.matrix() ).array();//TODO: replace with this
+    GenotypeArray dad_array = to_parent_core(work, family, mat, Parents::Father);
 
     return dad_array;
 }
@@ -203,12 +203,12 @@ dng::GenotypeArray dng::peel::to_mother_core(workspace_t &work, const family_mem
     auto dad = family[0];
     auto mom = family[1];
 
-    work.paired_buffer = sum_over_child(work, family, mat); //TODO: replace with this
-    // Include Mom
-    work.paired_buffer.resize(10, 10);
-    PairedGenotypeArray other_parent = multiply_upper_lower(work, dad); //TODO: replace with this
-    GenotypeArray mom_array = (work.paired_buffer.matrix().transpose() * other_parent.matrix() ).array();//TODO: replace with this
-//    mom_array = to_parent_core(work, family, mat, Parents::Mother);
+//    work.paired_buffer = sum_over_child(work, family, mat); //TODO: replace with this
+//    // Include Mom
+//    work.paired_buffer.resize(10, 10);
+//    PairedGenotypeArray other_parent = multiply_upper_lower(work, dad); //TODO: replace with this
+//    GenotypeArray mom_array = (work.paired_buffer.matrix().transpose() * other_parent.matrix() ).array();//TODO: replace with this
+  GenotypeArray  mom_array = to_parent_core(work, family, mat, Parents::Mother);
     return mom_array;
 }
 
@@ -232,8 +232,8 @@ void dng::peel::to_father(workspace_t &work, const family_members_t &family,
 //    std::cout << work.paired_buffer.sum() << "\n" << std::endl;
 //    std::cout << (work.upper[mom] * work.lower[mom]).sum() << std::endl;
 
-    work.lower[dad] *= (work.paired_buffer.matrix() * (work.upper[mom] *
-                        work.lower[mom]).matrix()).array();
+//    work.lower[dad] *= (work.paired_buffer.matrix() * (work.upper[mom] *
+//                        work.lower[mom]).matrix()).array();
 
 
 //    std::cout << ((work.paired_buffer.matrix() * (work.upper[mom] * work.lower[mom]).matrix()).array()) << std::endl;
@@ -242,7 +242,7 @@ void dng::peel::to_father(workspace_t &work, const family_members_t &family,
 //    work.paired_buffer.resize(100, 1); //Might not need this, from the website: Assignment is the action of copying a matrix into another, using operator=. Eigen resizes the matrix on the left-hand side automatically so that it matches the size of the matrix on the right-hand size. For example:
 
 
-//    work.lower[dad] *= to_father_core(work, family, mat); //TODO: replace with this
+    work.lower[dad] *= to_father_core(work, family, mat); //TODO: replace with this
 }
 
 
@@ -262,8 +262,8 @@ void dng::peel::to_father_fast(workspace_t &work,
 
     // Include Mom
     work.paired_buffer.resize(10, 10);
-    work.lower[dad] = (work.paired_buffer.matrix() * (work.upper[mom] *
-                       work.lower[mom]).matrix()).array();
+//    work.lower[dad] = (work.paired_buffer.matrix() * (work.upper[mom] *
+//                       work.lower[mom]).matrix()).array();
 
 //    std::cout <<  work.paired_buffer.sum() << std::endl;
 //    std::cout <<  work.upper[mom].sum() << std::endl;
@@ -272,7 +272,7 @@ void dng::peel::to_father_fast(workspace_t &work,
 
 //    work.paired_buffer.resize(100, 1);
 
-//    work.lower[dad] = to_father_core(work, family, mat); //TODO: replace with this
+    work.lower[dad] = to_father_core(work, family, mat); //TODO: replace with this
 
 
 }
@@ -293,13 +293,13 @@ void dng::peel::to_mother(workspace_t &work, const family_members_t &family,
 
     // Include Dad
     work.paired_buffer.resize(10, 10);
-    work.lower[mom] *= (work.paired_buffer.matrix().transpose() * (work.upper[dad] *
-                        work.lower[dad]).matrix()).array();
+//    work.lower[mom] *= (work.paired_buffer.matrix().transpose() * (work.upper[dad] *
+//                        work.lower[dad]).matrix()).array();
 
 
 //    work.paired_buffer.resize(100, 1);
 
-//    work.lower[mom] *= to_mother_core(work, family, mat); //TODO: replace with this
+    work.lower[mom] *= to_mother_core(work, family, mat); //TODO: replace with this
 }
 
 // Family Order: Father, Mother, Child1, Child2, ...
@@ -318,11 +318,11 @@ void dng::peel::to_mother_fast(workspace_t &work,
 
     // Include Dad
     work.paired_buffer.resize(10, 10);
-    work.lower[mom] = (work.paired_buffer.matrix().transpose() * (work.upper[dad] *
-                       work.lower[dad]).matrix()).array();
+//    work.lower[mom] = (work.paired_buffer.matrix().transpose() * (work.upper[dad] *
+//                       work.lower[dad]).matrix()).array();
 //    work.paired_buffer.resize(100, 1);
 
-//    work.lower[mom] = to_mother_core(work, family, mat); //TODO: replace with this
+    work.lower[mom] = to_mother_core(work, family, mat); //TODO: replace with this
 }
 
 // Family Order: Father, Mother, Child, Child2, ....
