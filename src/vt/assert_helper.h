@@ -7,8 +7,10 @@
 #ifndef DENOVOGEAR_ASSERT_HELPER_H
 #define DENOVOGEAR_ASSERT_HELPER_H
 
+#include <boost/test/test_tools.hpp>
+
 //FIXME: too many global
-const double TEST_THRESHOLD = 1e-14;
+const double TEST_THRESHOLD = 1e-10;
 
 
 template<typename A, typename B>
@@ -18,7 +20,8 @@ void AssertTrue(A expected, B actual){
 
 template<typename A>
 void AssertNear(A expected, A actual){
-    assert(expected - actual < TEST_THRESHOLD);
+    assert( ((expected - actual)/expected) < TEST_THRESHOLD);
+
 };
 
 template<typename A>

@@ -56,12 +56,18 @@
 #include "find_mutation_getter.h"
 #include "assert_helper.h"
 
-
-
+//#include <stdlib.h>
+#include <ctime>
+#include <cstdlib>
 using namespace dng::task;
 using namespace dng;
 
 using namespace std;
+
+int num_test = 100;
+std::random_device rd;
+std::mt19937 gen(rd());
+
 
 void test1(const FindMutationsGetter &find_mutation){
 
@@ -128,48 +134,58 @@ void TestSumOverChild() {
 
 
     int child_offset = 2;
-    for (int t = 0; t < 100; ++t) {
-        peel::family_members_t family1 {0,1}; //0 parent, 1 child
-        dng::peel::workspace_t workspace;
+    for (int t = 0; t < num_test; ++t) {
 
-        int num_child = std::rand()%10+1;
+        peel::family_members_t family;
 
+//        int num_child = std::rand()%10+1;
+        std::uniform_int_distribution<> dis(1, 10);
+        int num_child = dis(gen);
         int total_family_size = num_child + child_offset;
-        vector<TransitionMatrix> m;
-        vector<GenotypeArray> g;
-        m.resize(total_family_size);
-        g.resize(total_family_size);
-        for (int k = 2; k < 2+num_child; ++k) {
-                                                                                                                                                                                                                                                                                                                    family1.push_back(k);
-            m[k] = TransitionMatrix::Random(10, 10);
+        vector<TransitionMatrix> m(total_family_size);
+//        vector<GenotypeArray> u(total_family_size);
+        vector<GenotypeArray> g(total_family_size);
+
+        for (int k = 0; k < total_family_size; ++k) {
+            family.push_back(k);
             g[k] = GenotypeArray::Random();
+            if(k < child_offset){
+                m[k] = TransitionMatrix::Random(10, 10);
+//                u[k] = GenotypeArray::Random();
+            }
+            else{
+                m[k] = TransitionMatrix::Random(100, 10);
+            }
         }
 
-        GenotypeArray expected = GenotypeArray::Ones();
+        PairedGenotypeArray expected = PairedGenotypeArray::Ones(100, 1);
         for (int k = 2; k < total_family_size; ++k) {
-            GenotypeArray temp_array = GenotypeArray::Zero();
-            for (int i = 0; i < 10; ++i) {
-                for (int j = 0; j < 10; ++j) {
-                    temp_array[i] += m[k](i, j) * g[k][j];
+            PairedGenotypeArray temp_array = PairedGenotypeArray::Zero(100, 1);
+
+            for (int i = 0; i < m[k].rows(); ++i) {
+                double x = 0;
+                for (int j = 0; j < m[k].cols(); ++j) {
+                    x += m[k](i, j) * g[k][j];
                 }
+                temp_array(i, 0) = x;
             }
             expected *= temp_array;
         }
 
+        dng::peel::workspace_t workspace;
         workspace.Resize(total_family_size);
-        dng::TransitionVector full_matrix;
-        full_matrix.resize(total_family_size);
-        full_matrix[0] = {};
-        full_matrix[1] = {};
-        for (int k = 2; k < total_family_size; ++k) {
-            full_matrix[k] = m[k];
-            workspace.lower[k] = g[k];
+        dng::TransitionVector full_matrix(total_family_size);
+        for (int l = 0; l < total_family_size; ++l) {
+            workspace.lower[l] = g[l];
+//            workspace.upper[l] = u[l];
+            full_matrix[l] = m[l];
         }
 
 
-        GenotypeArray result = dng::peel::sum_over_child(workspace, family1, full_matrix);
-        for (int i = 0; i < 10; ++i) {
-            AssertNear(expected[i], result[i]);
+
+        PairedGenotypeArray result = dng::peel::sum_over_child(workspace, family, full_matrix);
+        for (int i = 0; i < 100; ++i) {
+            AssertNear(expected(i, 0), result(i, 0));
         }
     }
 
@@ -183,7 +199,7 @@ void TestUpCore(){
     peel::family_members_t family1 {0,1}; //0 parent, 1 child
     dng::peel::workspace_t workspace;
 
-    for (int t = 0; t < 10; ++t) {
+    for (int t = 0; t < num_test; ++t) {
         const TransitionMatrix m = TransitionMatrix::Random(10, 10);
         const GenotypeArray g = GenotypeArray::Random();
         GenotypeArray expected = GenotypeArray::Zero();
@@ -211,7 +227,7 @@ void TestUp(){
     peel::family_members_t family1 {0,1}; //0 parent, 1 child
     dng::peel::workspace_t workspace;
 
-    for (int t = 0; t < 10; ++t) {
+    for (int t = 0; t < num_test; ++t) {
         const TransitionMatrix m = TransitionMatrix::Random(10, 10);
         const GenotypeArray g0 = GenotypeArray::Random();
         const GenotypeArray g1 = GenotypeArray::Random();
@@ -242,49 +258,50 @@ void TestUp(){
 
 void TestToFather(){
 
+    int child_offset = 2;
+    std::uniform_int_distribution<> dis(1, 10);
+
+    for (int t = 0; t < num_test; ++t) {
+
+        peel::family_members_t family;
+
+//        int num_child = std::rand()%10+1;
+
+        int num_child = dis(gen);
 
 
-//// Family Order: Father, Mother, Child1, Child2, ...
-//    void dng::peel::to_father(workspace_t &work, const family_members_t &family,
-//                              const TransitionVector &mat) {
-//        std::cout << " to father: " << family[0] << "\t" << family[1] << "\t" << family[2] << std::endl;
-//        assert(family.size() >= 3);
-//        auto dad = family[0];
-//        auto mom = family[1];
-//        // Sum over children
-//        work.paired_buffer = (mat[family[2]] * work.lower[family[2]].matrix()).array();
-//        for(std::size_t i = 3; i < family.size(); ++i) {
-//            work.paired_buffer *= (mat[family[i]] * work.lower[family[i]].matrix()).array();
-//        }
-//        // Include Mom
-//        work.paired_buffer.resize(10, 10);
-//        work.lower[dad] *= (work.paired_buffer.matrix() * (work.upper[mom] *
-//                                                           work.lower[mom]).matrix()).array();
-//        work.paired_buffer.resize(100, 1); //Might not need this, from the website: Assignment is the action of copying a matrix into another, using operator=. Eigen resizes the matrix on the left-hand side automatically so that it matches the size of the matrix on the right-hand size. For example:
-//    }
+        int total_family_size = num_child + child_offset;
+        vector<TransitionMatrix> m(total_family_size);
+        vector<GenotypeArray> u(total_family_size);
+        vector<GenotypeArray> g(total_family_size);
 
-    peel::family_members_t family1 {0, 1, 2}; //0 dad, 1 , 2 child
-    dng::peel::workspace_t workspace;
-
-    for (int t = 0; t < 10; ++t) {
-        const TransitionMatrix m = TransitionMatrix::Random(100, 10);
-        const GenotypeArray g0 = GenotypeArray::Random();
-        const GenotypeArray g1 = GenotypeArray::Random();
-        const GenotypeArray g2 = GenotypeArray::Random();
-        const GenotypeArray u0 = GenotypeArray::Random();
-        const GenotypeArray u1 = GenotypeArray::Random();
-
-        PairedGenotypeArray all_child = PairedGenotypeArray::Zero(100, 1);
-        for (int i = 0; i < 100; ++i) {
-            for (int j = 0; j < 10; ++j) {
-                all_child(i, 0) += m(i, j) * g2[j];
+        for (int k = 0; k < total_family_size; ++k) {
+            family.push_back(k);
+            g[k] = GenotypeArray::Random();
+            if(k < child_offset){
+                m[k] = TransitionMatrix::Random(10, 10);
+                u[k] = GenotypeArray::Random();
             }
+            else{
+                m[k] = TransitionMatrix::Random(100, 10);
+            }
+        }
+
+        PairedGenotypeArray all_child = PairedGenotypeArray::Ones(100, 1);
+        for (int c = child_offset; c < total_family_size ; ++c) {
+            PairedGenotypeArray one_child = PairedGenotypeArray::Zero(100, 1);
+            for (int i = 0; i < 100; ++i) {
+                for (int j = 0; j < 10; ++j) {
+                    one_child(i, 0) += m[c](i, j) * g[c][j];
+                }
+            }
+            all_child *= one_child;
         }
         all_child.resize(10, 10);
 
         GenotypeArray ga_mum;
         for (int j = 0; j < 10; ++j) {
-            ga_mum[j] = u1[j] * g1[j];
+            ga_mum[j] = u[1][j] * g[1][j];
         }
 
         GenotypeArray expected = GenotypeArray::Zero();
@@ -294,29 +311,27 @@ void TestToFather(){
                 expected[i] += all_child(i, j) * ga_mum[j];
             }
             expected_fast[i] = expected[i];
-            expected[i] *= g0[i];
+            expected[i] *= g[0][i];
         }
 //        std::cout << expected.sum() << std::endl;
 
-        workspace.Resize(3);
-        dng::TransitionVector full_matrix{3};
-        full_matrix[0] = {};
-        full_matrix[1] = {};
-        full_matrix[2] = m;
-        workspace.lower[0] = g0;
-        workspace.lower[1] = g1;
-        workspace.lower[2] = g2;
-        workspace.upper[0] = u0;
-        workspace.upper[1] = u1;
-        workspace.upper[2] = {};
 
-        dng::peel::to_father(workspace, family1, full_matrix);
+        dng::peel::workspace_t workspace;
+        workspace.Resize(total_family_size);
+        dng::TransitionVector full_matrix(total_family_size);
+        for (int l = 0; l < total_family_size; ++l) {
+            workspace.lower[l] = g[l];
+            workspace.upper[l] = u[l];
+            full_matrix[l] = m[l];
+        }
+
+        dng::peel::to_father(workspace, family, full_matrix);
         GenotypeArray result = workspace.lower[0];
         for (int i = 0; i < 10; ++i) {
             AssertNear(expected[i], result[i]);
         }
 
-        dng::peel::to_father_fast(workspace, family1, full_matrix);
+        dng::peel::to_father_fast(workspace, family, full_matrix);
         GenotypeArray result_fast = workspace.lower[0];
         for (int i = 0; i < 10; ++i) {
             AssertNear(expected_fast[i], result_fast[i]);
@@ -330,49 +345,47 @@ void TestToFather(){
 
 void TestToMother(){
 
+    int child_offset = 2;
+    std::uniform_int_distribution<> dis(1, 10);
 
 
-//// Family Order: Father, Mother, Child1, Child2, ...
-//    void dng::peel::to_father(workspace_t &work, const family_members_t &family,
-//                              const TransitionVector &mat) {
-//        std::cout << " to father: " << family[0] << "\t" << family[1] << "\t" << family[2] << std::endl;
-//        assert(family.size() >= 3);
-//        auto dad = family[0];
-//        auto mom = family[1];
-//        // Sum over children
-//        work.paired_buffer = (mat[family[2]] * work.lower[family[2]].matrix()).array();
-//        for(std::size_t i = 3; i < family.size(); ++i) {
-//            work.paired_buffer *= (mat[family[i]] * work.lower[family[i]].matrix()).array();
-//        }
-//        // Include Mom
-//        work.paired_buffer.resize(10, 10);
-//        work.lower[dad] *= (work.paired_buffer.matrix() * (work.upper[mom] *
-//                                                           work.lower[mom]).matrix()).array();
-//        work.paired_buffer.resize(100, 1); //Might not need this, from the website: Assignment is the action of copying a matrix into another, using operator=. Eigen resizes the matrix on the left-hand side automatically so that it matches the size of the matrix on the right-hand size. For example:
-//    }
+    for (int t = 0; t < num_test; ++t) {
 
-    peel::family_members_t family1 {0, 1, 2}; //0 dad, 1 , 2 child
-    dng::peel::workspace_t workspace;
+        peel::family_members_t family;
+        int num_child = dis(gen);
 
-    for (int t = 0; t < 10; ++t) {
-        const TransitionMatrix m = TransitionMatrix::Random(100, 10);
-        const GenotypeArray g0 = GenotypeArray::Random();
-        const GenotypeArray g1 = GenotypeArray::Random();
-        const GenotypeArray g2 = GenotypeArray::Random();
-        const GenotypeArray u0 = GenotypeArray::Random();
-        const GenotypeArray u1 = GenotypeArray::Random();
+        int total_family_size = num_child + child_offset;
+        vector<TransitionMatrix> m(total_family_size);
+        vector<GenotypeArray> u(total_family_size);
+        vector<GenotypeArray> g(total_family_size);
 
-        PairedGenotypeArray all_child = PairedGenotypeArray::Zero(100, 1);
-        for (int i = 0; i < 100; ++i) {
-            for (int j = 0; j < 10; ++j) {
-                all_child(i, 0) += m(i, j) * g2[j];
+        for (int k = 0; k < total_family_size; ++k) {
+            family.push_back(k);
+            g[k] = GenotypeArray::Random();
+            if(k < child_offset){
+                m[k] = TransitionMatrix::Random(10, 10);
+                u[k] = GenotypeArray::Random();
             }
+            else{
+                m[k] = TransitionMatrix::Random(100, 10);
+            }
+        }
+
+        PairedGenotypeArray all_child = PairedGenotypeArray::Ones(100, 1);
+        for (int c = child_offset; c < total_family_size ; ++c) {
+            PairedGenotypeArray one_child = PairedGenotypeArray::Zero(100, 1);
+            for (int i = 0; i < 100; ++i) {
+                for (int j = 0; j < 10; ++j) {
+                    one_child(i, 0) += m[c](i, j) * g[c][j];
+                }
+            }
+            all_child *= one_child;
         }
         all_child.resize(10, 10);
 
         GenotypeArray ga_dad;
         for (int j = 0; j < 10; ++j) {
-            ga_dad[j] = u0[j] * g0[j];
+            ga_dad[j] = u[0][j] * g[0][j];
         }
 
         GenotypeArray expected = GenotypeArray::Zero();
@@ -383,31 +396,121 @@ void TestToMother(){
                 expected[i] += temp_child(i, j) * ga_dad[j];
             }
             expected_fast[i] = expected[i];
-            expected[i] *= g1[i];
+            expected[i] *= g[1][i];
         }
 //        std::cout << expected.sum() << std::endl;
 
-        workspace.Resize(3);
-        dng::TransitionVector full_matrix{3};
-        full_matrix[0] = {};
-        full_matrix[1] = {};
-        full_matrix[2] = m;
-        workspace.lower[0] = g0;
-        workspace.lower[1] = g1;
-        workspace.lower[2] = g2;
-        workspace.upper[0] = u0;
-        workspace.upper[1] = u1;
-        workspace.upper[2] = {};
+        dng::peel::workspace_t workspace;
+        workspace.Resize(total_family_size);
+        dng::TransitionVector full_matrix(total_family_size);
+        for (int l = 0; l < total_family_size; ++l) {
+            workspace.lower[l] = g[l];
+            workspace.upper[l] = u[l];
+            full_matrix[l] = m[l];
+        }
 
-        dng::peel::to_mother(workspace, family1, full_matrix);
+
+        dng::peel::to_mother(workspace, family, full_matrix);
         GenotypeArray result = workspace.lower[1];
         for (int i = 0; i < 10; ++i) {
             AssertNear(expected[i], result[i]);
         }
 
-        dng::peel::to_mother_fast(workspace, family1, full_matrix);
+        dng::peel::to_mother_fast(workspace, family, full_matrix);
         GenotypeArray result_fast = workspace.lower[1];
         for (int i = 0; i < 10; ++i) {
+            AssertNear(expected_fast[i], result_fast[i]);
+        }
+
+
+    }
+}
+
+
+void TestToChild(){
+
+    int child_offset = 2;
+    std::uniform_int_distribution<> dis(2, 10);
+
+
+    for (int t = 0; t < num_test; ++t) {
+
+        peel::family_members_t family;
+
+        int num_child = dis(gen);
+        int total_family_size = num_child + child_offset;
+        vector<TransitionMatrix> m(total_family_size);
+        vector<GenotypeArray> u(total_family_size);
+        vector<GenotypeArray> g(total_family_size);
+
+        for (int k = 0; k < total_family_size; ++k) {
+            family.push_back(k);
+            g[k] = GenotypeArray::Random();
+            if(k < child_offset){
+                m[k] = TransitionMatrix::Random(10, 10);
+                u[k] = GenotypeArray::Random();
+            }
+            else{
+                m[k] = TransitionMatrix::Random(100, 10);
+            }
+        }
+
+        PairedGenotypeArray all_child = PairedGenotypeArray::Ones(100, 1);
+        for (int c = child_offset+1; c < total_family_size ; ++c) {
+            PairedGenotypeArray one_child = PairedGenotypeArray::Zero(100, 1);
+            for (int i = 0; i < 100; ++i) {
+                for (int j = 0; j < 10; ++j) {
+                    one_child(i, 0) += m[c](i, j) * g[c][j];
+                }
+            }
+            all_child *= one_child;
+        }
+
+        GenotypeArray dad_array;
+        GenotypeArray mom_array;
+        for (int j = 0; j < 10; ++j) {
+            dad_array[j] = u[0][j] * g[0][j];
+            mom_array[j] = u[1][j] * g[1][j];
+        }
+        PairedGenotypeArray parents_array = PairedGenotypeArray::Zero(100, 1);
+        for (int d = 0; d < 10; ++d) {
+            for (int m = 0; m < 10; ++m) {
+                parents_array(d*10+m, 0) = dad_array[d] * mom_array[m];
+            }
+        }
+        PairedGenotypeArray parents_children = parents_array * all_child;
+
+        GenotypeArray expected = GenotypeArray::Zero();
+        GenotypeArray expected_fast = GenotypeArray::Zero();
+        auto temp_m = m[2].transpose();
+        for (int i = 0; i < 10; ++i) {
+            for (int j = 0; j < 100; ++j) {
+                expected[i] += temp_m(i, j) * parents_children(j, 0);
+                expected_fast[i] += temp_m(i, j) * parents_array(j, 0);
+            }
+        }
+
+
+        dng::peel::workspace_t workspace;
+        workspace.Resize(total_family_size);
+        dng::TransitionVector full_matrix(total_family_size);
+        for (int l = 0; l < total_family_size; ++l) {
+            workspace.lower[l] = g[l];
+            workspace.upper[l] = u[l];
+            full_matrix[l] = m[l];
+        }
+
+
+        dng::peel::to_child(workspace, family, full_matrix);
+        GenotypeArray result = workspace.upper[2];
+        for (int i = 0; i < expected.size(); ++i) {
+            AssertNear(expected[i], result[i]);
+        }
+
+        peel::family_members_t family_fast {family[0], family[1], family[2]};
+        dng::peel::to_child_fast(workspace, family_fast, full_matrix);
+        GenotypeArray result_fast = workspace.upper[2];
+        for (int i = 0; i < expected_fast.size(); ++i) {
             AssertNear(expected_fast[i], result_fast[i]);
         }
 
@@ -574,12 +677,16 @@ int dng::task::Call::operator()(dng::task::Call::argument_type &arg) {
 
 
 int main(int argc, char *argv[]) {
-//BOOST_AUTO_TEST_CASE(Test_FM){
-//    TestUpCore();
-//    TestUp();
+    std::srand(std::time(0));
+
+    TestUpCore();
+    TestUp();
+    TestSumOverChild();
     TestToFather();
     TestToMother();
-//    TestSumOverChild();
+    TestToChild();
+
+    //BOOST_AUTO_TEST_CASE(Test_FM){
 //    try {
 ////        return CallApp(argc, argv)();
 ////        dng::CommandLineApp<dng::task::Call> a (argc, argv) ;

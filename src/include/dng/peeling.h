@@ -101,10 +101,15 @@ struct workspace_t {
 typedef std::vector<std::size_t> family_members_t;
 
 enum class Parents : bool {Father=false, Mother=true};
+//enum class Parents : std::size_t {Father=0, Mother=1};
+//HOW TO?? auto dad = family[Parents::Father];
 
 // utility
 
 dng::PairedGenotypeArray sum_over_child(workspace_t &work, const family_members_t &family, const TransitionVector &mat);
+
+dng::PairedGenotypeArray sum_over_child(workspace_t &work, const family_members_t &family, const TransitionVector &mat, int first_child);
+
 
 dng::GenotypeArray multiply_upper_lower(workspace_t &work, int index);
 
