@@ -11,7 +11,7 @@
 
 //FIXME: too many global
 const double TEST_THRESHOLD = 1e-10;
-
+const double BOOST_CLOSE_THRESHOLD = 1e-6;
 
 template<typename A, typename B>
 void AssertTrue(A expected, B actual){
