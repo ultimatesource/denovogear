@@ -25,9 +25,12 @@ SET_TESTS_PROPERTIES(build_gitkeep PROPERTIES
   PASS_REGULAR_EXPRESSION "d41d8cd98f00b204e9800998ecf8427e"
 )
 
+
+
 ################################################################################
 # Compile unit tests
 include_directories(../src/include)
+
 
 # Make a test for each unit test file located in test/ dir
 file(GLOB_RECURSE TESTS test_*[cc|cpp])
@@ -49,6 +52,40 @@ foreach(test ${TESTS})
 endforeach(test)
 
 ################################################################################
+
+
+
+################################################################################
+# temp Compile unit tests with *.cc
+# TODO: Use a different filename pattern for now (test2_* instead of test_*).
+# TODO: How to add min *.cc files instead of all *.cc later?
+include_directories(./)
+
+file(GLOB_RECURSE TESTS2 "test2_*[cc|cpp]")
+foreach(test ${TESTS2})
+  get_filename_component(testName ${test} NAME_WE)
+  add_executable(${testName} EXCLUDE_FROM_ALL ${test}
+          ${CMAKE_SOURCE_DIR}/src/lib/peeling.cc
+          ##            ../src/lib/likelihood.cc ../src/lib/newick.cc ../src/lib/pedigree.cc
+          ##            ../src/lib/mutation.cc ../src/lib/stats.cc
+          )
+  target_link_libraries(${testName}
+          Threads::Threads
+          Boost::PROGRAM_OPTIONS
+          Boost::FILESYSTEM
+          Boost::SYSTEM
+          Boost::UNIT_TEST_FRAMEWORK
+          EIGEN3::EIGEN3
+          HTSLIB::HTSLIB
+          )
+  add_test(${testName}_build "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target ${testName})
+  add_test(${testName}_run ${testName})
+  set_tests_properties(${testName}_run PROPERTIES DEPENDS ${testName}_build)
+endforeach(test)
+
+################################################################################
+
+
 # Full executable tests
 
 # Check if using download source package or running latest code inside a git repository

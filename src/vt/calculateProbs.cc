@@ -1016,10 +1016,10 @@ bool FindMutations::operator()(const std::vector<depth_t> &depths,
     using dng::util::phred;
 
     assert(stats != nullptr);
-    std::cout << work_.founder_nodes << std::endl;
-    std::cout << work_.library_nodes << std::endl;
-    std::cout << work_.germline_nodes << std::endl;
-    std::cout << work_.somatic_nodes << std::endl;
+    std::cout << work_.founder_nodes.first << std::endl;
+    std::cout << work_.library_nodes.first << std::endl;
+    std::cout << work_.germline_nodes.first << std::endl;
+    std::cout << work_.somatic_nodes.first << std::endl;
 
     // calculate genotype likelihoods and store in the lower library vector
     double scale = 0.0, stemp;

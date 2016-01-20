@@ -10,6 +10,7 @@
 #include <boost/test/test_tools.hpp>
 #include <boost/test/unit_test.hpp>
 
+//TODO: Where should this file go?
 //FIXME: too many global
 const double ABS_TEST_THRESHOLD = 1e-10;
 const double BOOST_CLOSE_THRESHOLD = 1e-6;

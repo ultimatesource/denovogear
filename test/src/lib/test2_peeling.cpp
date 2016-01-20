@@ -13,7 +13,7 @@
 #include <iostream>
 
 #include <dng/peeling.h>
-#include <gdbm.h>
+
 #include "boost_test_helper.h"
 
 //#include <boost/test/data/test_case.hpp>

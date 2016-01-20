@@ -139,7 +139,7 @@ ADD_EXECUTABLE(dng-call_test
         vt/calculateProbs.cc
         lib/likelihood.cc lib/newick.cc lib/pedigree.cc lib/peeling.cc
         lib/mutation.cc lib/stats.cc
-        vt/peeling_test.cpp vt/find_mutation_getter.cpp vt/find_mutation_getter.h vt/boost_test_helper.h)
+        vt/peeling_test.cpp vt/find_mutation_getter.cpp vt/find_mutation_getter.h ../test/boost_test_helper.h)
 
 TARGET_LINK_LIBRARIES(dng-call_test HTSLIB::HTSLIB Threads::Threads)
 TARGET_LINK_LIBRARIES(dng-call_test EIGEN3::EIGEN3)
@@ -171,34 +171,34 @@ TARGET_LINK_LIBRARIES(dng_test_peeling EIGEN3::EIGEN3)
 TARGET_LINK_LIBRARIES(dng_test_peeling Boost::PROGRAM_OPTIONS Boost::FILESYSTEM Boost::SYSTEM Boost::UNIT_TEST_FRAMEWORK)
 
 
-################################################################################
-# Compile unit tests
-include_directories(../src/include)
-
-foreach (test vt/peeling_test.cpp)
-    get_filename_component(testName ${test} NAME_WE)
-    add_executable(${testName} EXCLUDE_FROM_ALL ${test}
-            lib/peeling.cc
-#            vt/find_mutation_getter.h
-#            lib/likelihood.cc lib/newick.cc lib/pedigree.cc
-#            lib/mutation.cc lib/stats.cc
-#            vt/vcf_helper.h
-#            vt/assert_helper.h
-            )
-    target_link_libraries(${testName}
-            Threads::Threads
-            Boost::PROGRAM_OPTIONS
-            Boost::FILESYSTEM
-            Boost::SYSTEM
-            Boost::UNIT_TEST_FRAMEWORK
-            EIGEN3::EIGEN3
-            HTSLIB::HTSLIB
-            )
-    add_test(${testName}_build "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target ${testName})
-    add_test(${testName}_run ${testName})
-    set_tests_properties(${testName}_run PROPERTIES DEPENDS ${testName}_build)
-
-endforeach (test)
+#################################################################################
+## Compile unit tests
+#include_directories(../src/include)
+#
+#foreach (test vt/peeling_test.cpp)
+#    get_filename_component(testName ${test} NAME_WE)
+#    add_executable(${testName} EXCLUDE_FROM_ALL ${test}
+#            lib/peeling.cc
+##            vt/find_mutation_getter.h
+##            lib/likelihood.cc lib/newick.cc lib/pedigree.cc
+##            lib/mutation.cc lib/stats.cc
+##            vt/vcf_helper.h
+##            vt/assert_helper.h
+#            )
+#    target_link_libraries(${testName}
+#            Threads::Threads
+#            Boost::PROGRAM_OPTIONS
+#            Boost::FILESYSTEM
+#            Boost::SYSTEM
+#            Boost::UNIT_TEST_FRAMEWORK
+#            EIGEN3::EIGEN3
+#            HTSLIB::HTSLIB
+#            )
+#    add_test(${testName}_build "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target ${testName})
+#    add_test(${testName}_run ${testName})
+#    set_tests_properties(${testName}_run PROPERTIES DEPENDS ${testName}_build)
+#
+#endforeach (test)
 
 #
 ## Make a test for each unit test file located in test/ dir
