@@ -2,9 +2,10 @@
 // Created by steven on 1/15/16.
 //
 
-#define BOOST_TEST_MODULE "dng::lib::peeling.cc"
+#define BOOST_TEST_MODULE PEELING
 
 #include <boost/test/unit_test.hpp>
+#include <boost/test/floating_point_comparison.hpp>
 #include <vector>
 #include <string>
 
@@ -26,47 +27,50 @@
 
 #include <boost/algorithm/string.hpp>
 
-#include <dng/task/call.h>
-#include <dng/pedigree.h>
-#include <dng/fileio.h>
-#include <dng/pileup.h>
-#include <dng/read_group.h>
-#include <dng/likelihood.h>
-#include <dng/seq.h>
-#include <dng/utilities.h>
-#include <dng/hts/bcf.h>
-#include <dng/hts/extra.h>
-#include <dng/vcfpileup.h>
-#include <dng/mutation.h>
-#include <dng/stats.h>
+//#include <dng/task/call.h>
+//#include <dng/pedigree.h>
+//#include <dng/fileio.h>
+//#include <dng/pileup.h>
+//#include <dng/read_group.h>
+//#include <dng/likelihood.h>
+//#include <dng/seq.h>
+//#include <dng/utilities.h>
+//#include <dng/hts/bcf.h>
+//#include <dng/hts/extra.h>
+//#include <dng/vcfpileup.h>
+//#include <dng/mutation.h>
+//#include <dng/stats.h>
+//
+//#include <htslib/faidx.h>
+//#include <htslib/khash.h>
+//#include <dng/app.h>
 
-#include <htslib/faidx.h>
-#include <htslib/khash.h>
-#include <dng/app.h>
-
-#include "version.h"
+//#include "version.h"
 
 
 
-#include "vcf_helper.h"
-#include "find_mutation.h"
+//#include "vcf_helper.h"
+//#include "find_mutation.h"
 //#include <boost/test/unit_test.hpp>
-#include "find_mutation_getter.h"
+//#include "find_mutation_getter.h"
 #include "assert_helper.h"
-#include <boost/test/floating_point_comparison.hpp>
+
 //#include <stdlib.h>
+
+#include <dng/peeling.h>
 #include <ctime>
 #include <cstdlib>
-using namespace dng::task;
+#include <form.h>
+
+//using namespace dng::task;
 using namespace dng;
 
 using namespace std;
+namespace utf = boost::unit_test;
 
-int num_test = 100;
+int num_test = 3;
 std::random_device rd;
 std::mt19937 gen(rd());
-void setup() { BOOST_TEST_MESSAGE("set up"); }
-void teardown() { BOOST_TEST_MESSAGE("tear down"); }
 
 double BOOST_CLOSE_THRESHOLD = 1e-6;
 //
@@ -128,7 +132,7 @@ double BOOST_CLOSE_THRESHOLD = 1e-6;
 //
 //}
 
-
+BOOST_AUTO_TEST_SUITE(test_peeling_suite)
 
 BOOST_AUTO_TEST_CASE(test_sum_over_child) {
 
@@ -189,6 +193,7 @@ BOOST_AUTO_TEST_CASE(test_sum_over_child) {
             BOOST_CHECK_CLOSE(expected(i, 0), result(i, 0), BOOST_CLOSE_THRESHOLD);
         }
     }
+
 
 }
 
@@ -518,6 +523,7 @@ BOOST_AUTO_TEST_CASE(test_to_child){
 
     }
 
+
 }
 
 
@@ -733,3 +739,5 @@ BOOST_AUTO_TEST_CASE(test_to_child){
 ////    BOOST_CHECK(dng::seq::indexed_char(3) == 'T');
 ////
 ////}
+
+BOOST_AUTO_TEST_SUITE_END()

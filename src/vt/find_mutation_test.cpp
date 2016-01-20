@@ -46,6 +46,7 @@
 #include "vcf_helper.h"
 #include "find_mutation.h"
 #include "find_mutation_getter.h"
+#include "assert_helper.h"
 //#include <boost/test/unit_test.hpp>
 
 using namespace dng::task;
