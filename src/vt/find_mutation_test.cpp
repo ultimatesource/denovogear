@@ -46,7 +46,7 @@
 #include "vcf_helper.h"
 #include "find_mutation.h"
 #include "find_mutation_getter.h"
-#include "assert_helper.h"
+#include "boost_test_helper.h"
 //#include <boost/test/unit_test.hpp>
 
 using namespace dng::task;
@@ -143,7 +143,7 @@ cat("{", paste(s, collapse="}, \n{"), "}\n" )
     for (int i = 0; i < 5; ++i) {
         auto array = pArray[i];
         for (int k = 0; k < 10; ++k) {
-            assert(expected_prior[i][k] - array[k] < TEST_THRESHOLD);
+            assert(expected_prior[i][k] - array[k] < ABS_TEST_THRESHOLD);
         }
     }
 
