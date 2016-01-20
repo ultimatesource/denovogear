@@ -25,7 +25,7 @@ using namespace dng;
 namespace utf = boost::unit_test;
 
 
-int num_test = 1;
+int num_test = 10;
 
 std::random_device rd;
 std::mt19937 gen(rd());
@@ -44,19 +44,30 @@ struct Fx {
 
     int num_child;
     int total_family_size;
+    std::uniform_int_distribution<> rand_unif;
+//    std::uniform_int_distribution<> rand_unif(1, 10);
+//    std::uniform_int_distribution<> rand_unif(1, 10);
+
     Fx(std::string s = "") : s(s) {
 //        std::srand(std::time(0));
 //        std::mt19937 gen(rd2());
 
         BOOST_TEST_MESSAGE("set up " << s);
 
+        rand_unif = std::uniform_int_distribution<>(1,10);
+        init_family();
+    }
 
-        std::uniform_int_distribution<> rand_unif(1, 10);
+    void init_family(){
+
+
+
         int num_child = rand_unif(gen);
-        int total_family_size = num_child + child_offset;
-        std::cout << num_child << std::endl;
-        
 
+        total_family_size = num_child + child_offset;
+        std::cout << num_child << std::endl;
+
+        family.clear();
         m.resize(total_family_size);
         u.resize(total_family_size);
         g.resize(total_family_size);
@@ -73,7 +84,6 @@ struct Fx {
             }
         }
     }
-
 
     ~Fx() {
         BOOST_TEST_MESSAGE("tear down " << s);
@@ -123,31 +133,29 @@ BOOST_FIXTURE_TEST_SUITE(test_peeling_suite, Fx)
 
     BOOST_AUTO_TEST_CASE(test_sum_over_child, * utf::fixture(&setup, &teardown)) {
 
-        std::cout << s<< std::endl;
-        int child_offset = 2;
         for (int t = 0; t < num_test; ++t) {
 
-            peel::family_members_t family;
-
-            std::uniform_int_distribution<> rand_unif(1, 10);
-            int num_child = rand_unif(gen);
-            int total_family_size = num_child + child_offset;
-
-            std::vector<TransitionMatrix> m(total_family_size);
-//        std::vector<GenotypeArray> u(total_family_size);
-            std::vector<GenotypeArray> g(total_family_size);
-
-            for (int k = 0; k < total_family_size; ++k) {
-                family.push_back(k);
-                g[k] = GenotypeArray::Random();
-                if (k < child_offset) {
-                    m[k] = TransitionMatrix::Random(10, 10);
-//                u[k] = GenotypeArray::Random();
-                }
-                else {
-                    m[k] = TransitionMatrix::Random(100, 10);
-                }
-            }
+//            peel::family_members_t family;
+            init_family();
+//            std::uniform_int_distribution<> rand_unif(1, 10);
+//            int num_child = rand_unif(gen);
+//            int total_family_size = num_child + child_offset;
+//
+//            std::vector<TransitionMatrix> m(total_family_size);
+////        std::vector<GenotypeArray> u(total_family_size);
+//            std::vector<GenotypeArray> g(total_family_size);
+//
+//            for (int k = 0; k < total_family_size; ++k) {
+//                family.push_back(k);
+//                g[k] = GenotypeArray::Random();
+//                if (k < child_offset) {
+//                    m[k] = TransitionMatrix::Random(10, 10);
+////                u[k] = GenotypeArray::Random();
+//                }
+//                else {
+//                    m[k] = TransitionMatrix::Random(100, 10);
+//                }
+//            }
 
             PairedGenotypeArray expected = PairedGenotypeArray::Ones(100, 1);
             for (int k = 2; k < total_family_size; ++k) {
@@ -248,32 +256,34 @@ BOOST_FIXTURE_TEST_SUITE(test_peeling_suite, Fx)
 
     BOOST_AUTO_TEST_CASE(test_to_father) {
 
-        int child_offset = 2;
-        std::uniform_int_distribution<> rand_unif(1, 10);
+//        int child_offset = 2;
+//        std::uniform_int_distribution<> rand_unif(1, 10);
 
         for (int t = 0; t < num_test; ++t) {
 
-            peel::family_members_t family;
+//            peel::family_members_t family;
+//
+//            int num_child = rand_unif(gen);
+//
+//
+//            int total_family_size = num_child + child_offset;
+//            std::vector<TransitionMatrix> m(total_family_size);
+//            std::vector<GenotypeArray> u(total_family_size);
+//            std::vector<GenotypeArray> g(total_family_size);
+//
+//            for (int k = 0; k < total_family_size; ++k) {
+//                family.push_back(k);
+//                g[k] = GenotypeArray::Random();
+//                if (k < child_offset) {
+//                    m[k] = TransitionMatrix::Random(10, 10);
+//                    u[k] = GenotypeArray::Random();
+//                }
+//                else {
+//                    m[k] = TransitionMatrix::Random(100, 10);
+//                }
+//            }
 
-            int num_child = rand_unif(gen);
-
-
-            int total_family_size = num_child + child_offset;
-            std::vector<TransitionMatrix> m(total_family_size);
-            std::vector<GenotypeArray> u(total_family_size);
-            std::vector<GenotypeArray> g(total_family_size);
-
-            for (int k = 0; k < total_family_size; ++k) {
-                family.push_back(k);
-                g[k] = GenotypeArray::Random();
-                if (k < child_offset) {
-                    m[k] = TransitionMatrix::Random(10, 10);
-                    u[k] = GenotypeArray::Random();
-                }
-                else {
-                    m[k] = TransitionMatrix::Random(100, 10);
-                }
-            }
+            init_family();
 
             PairedGenotypeArray all_child = PairedGenotypeArray::Ones(100, 1);
             for (int c = child_offset; c < total_family_size; ++c) {
@@ -333,30 +343,32 @@ BOOST_FIXTURE_TEST_SUITE(test_peeling_suite, Fx)
 
     BOOST_AUTO_TEST_CASE(test_to_mother) {
 
-        int child_offset = 2;
-        std::uniform_int_distribution<> rand_unif(1, 10);
+//        int child_offset = 2;
+//        std::uniform_int_distribution<> rand_unif(1, 10);
 
 
         for (int t = 0; t < num_test; ++t) {
 
-            int num_child = rand_unif(gen);
-            int total_family_size = num_child + child_offset;
-            std::vector<TransitionMatrix> m(total_family_size);
-            std::vector<GenotypeArray> u(total_family_size);
-            std::vector<GenotypeArray> g(total_family_size);
+//            int num_child = rand_unif(gen);
+//            int total_family_size = num_child + child_offset;
+//            std::vector<TransitionMatrix> m(total_family_size);
+//            std::vector<GenotypeArray> u(total_family_size);
+//            std::vector<GenotypeArray> g(total_family_size);
+//
+//            peel::family_members_t family;
+//            for (int k = 0; k < total_family_size; ++k) {
+//                family.push_back(k);
+//                g[k] = GenotypeArray::Random();
+//                if (k < child_offset) {
+//                    m[k] = TransitionMatrix::Random(10, 10);
+//                    u[k] = GenotypeArray::Random();
+//                }
+//                else {
+//                    m[k] = TransitionMatrix::Random(100, 10);
+//                }
+//            }
 
-            peel::family_members_t family;
-            for (int k = 0; k < total_family_size; ++k) {
-                family.push_back(k);
-                g[k] = GenotypeArray::Random();
-                if (k < child_offset) {
-                    m[k] = TransitionMatrix::Random(10, 10);
-                    u[k] = GenotypeArray::Random();
-                }
-                else {
-                    m[k] = TransitionMatrix::Random(100, 10);
-                }
-            }
+            init_family();
 
             PairedGenotypeArray all_child = PairedGenotypeArray::Ones(100, 1);
             for (int c = child_offset; c < total_family_size; ++c) {
@@ -417,32 +429,35 @@ BOOST_FIXTURE_TEST_SUITE(test_peeling_suite, Fx)
 
     BOOST_AUTO_TEST_CASE(test_to_child) {
 
-        int child_offset = 2;
-        std::uniform_int_distribution<> rand_unif(2, 10);
+//        int child_offset = 2;
+//        std::uniform_int_distribution<> rand_unif(2, 10);
 
+        rand_unif = std::uniform_int_distribution<>(2,10);
 
         for (int t = 0; t < num_test; ++t) {
 
-            peel::family_members_t family;
+//            peel::family_members_t family;
+//
+//            int num_child = rand_unif(gen);
+//            int total_family_size = num_child + child_offset;
+//            std::vector<TransitionMatrix> m(total_family_size);
+//            std::vector<GenotypeArray> u(total_family_size);
+//            std::vector<GenotypeArray> g(total_family_size);
+//
+//            for (int k = 0; k < total_family_size; ++k) {
+//                family.push_back(k);
+//                g[k] = GenotypeArray::Random();
+//                if (k < child_offset) {
+//                    m[k] = TransitionMatrix::Random(10, 10);
+//                    u[k] = GenotypeArray::Random();
+//                }
+//                else {
+//                    m[k] = TransitionMatrix::Random(100, 10);
+//                }
+//            }
 
-            int num_child = rand_unif(gen);
-            int total_family_size = num_child + child_offset;
-            std::vector<TransitionMatrix> m(total_family_size);
-            std::vector<GenotypeArray> u(total_family_size);
-            std::vector<GenotypeArray> g(total_family_size);
-
-            for (int k = 0; k < total_family_size; ++k) {
-                family.push_back(k);
-                g[k] = GenotypeArray::Random();
-                if (k < child_offset) {
-                    m[k] = TransitionMatrix::Random(10, 10);
-                    u[k] = GenotypeArray::Random();
-                }
-                else {
-                    m[k] = TransitionMatrix::Random(100, 10);
-                }
-            }
-
+            init_family();
+            
             PairedGenotypeArray all_child = PairedGenotypeArray::Ones(100, 1);
             for (int c = child_offset + 1; c < total_family_size; ++c) {
                 PairedGenotypeArray one_child = PairedGenotypeArray::Zero(100, 1);
