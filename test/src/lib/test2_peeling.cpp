@@ -147,64 +147,64 @@ void copy_family_to_workspace(peel::workspace_t &workspace, dng::TransitionVecto
 //BOOST_AUTO_TEST_SUITE(test_peeling_suite,  * utf::fixture<Fx>(std::string("FX")) )
 BOOST_FIXTURE_TEST_SUITE(test_peeling_suite, Fx)
 
-    BOOST_AUTO_TEST_CASE(test_sum_over_child, *utf::fixture(&setup, &teardown)) {
-        for (int t = 0; t <NUM_TEST; ++t) {
-
-            init_family();
-
-            PairedGenotypeArray expected = PairedGenotypeArray::Ones(100, 1);
-            for (int k = 2; k < total_family_size; ++k) {
-                PairedGenotypeArray temp_array = PairedGenotypeArray::Zero(100, 1);
-
-                for (int i = 0; i < trans_matrix[k].rows(); ++i) {
-                    double x = 0;
-                    for (int j = 0; j < trans_matrix[k].cols(); ++j) {
-                        x += trans_matrix[k](i, j) * lower_array[k][j];
-                    }
-                    temp_array(i, 0) = x;
-                }
-                expected *= temp_array;
-            }
-            //Done expected
-
-
-            dng::peel::workspace_t workspace;
-            dng::TransitionVector full_matrix;
-            copy_family_to_workspace(workspace, full_matrix, total_family_size,
-                                     lower_array, upper_array,
-                                     trans_matrix);
-
-            PairedGenotypeArray result = dng::peel::sum_over_child(workspace, family, full_matrix);
-
-            boost_check_matrix(expected, result, 100, 1);
-        }
-    }
-
-
-    BOOST_AUTO_TEST_CASE(test_up_core, *utf::fixture(&setup, &teardown)) {
-
-        for (int t = 0; t <NUM_TEST; ++t) {
-
-            init_family_parent_child_only();
-
-            GenotypeArray expected = GenotypeArray::Zero();
-            for (int i = 0; i < 10; ++i) {
-                for (int j = 0; j < 10; ++j) {
-                    expected[i] += trans_matrix[1](i, j) * lower_array[1][j];
-                }
-            }
-            //Done expected
-
-            dng::peel::workspace_t workspace;
-            dng::TransitionVector full_matrix;
-            copy_family_to_workspace(workspace, full_matrix, total_family_size,
-                                     lower_array, upper_array, trans_matrix);
-
-            GenotypeArray result = dng::peel::up_core(workspace, family, full_matrix);
-            boost_check_array(expected, result, 10);
-
-        }
-    }
+//    BOOST_AUTO_TEST_CASE(test_sum_over_child, *utf::fixture(&setup, &teardown)) {
+//        for (int t = 0; t <NUM_TEST; ++t) {
+//
+//            init_family();
+//
+//            PairedGenotypeArray expected = PairedGenotypeArray::Ones(100, 1);
+//            for (int k = 2; k < total_family_size; ++k) {
+//                PairedGenotypeArray temp_array = PairedGenotypeArray::Zero(100, 1);
+//
+//                for (int i = 0; i < trans_matrix[k].rows(); ++i) {
+//                    double x = 0;
+//                    for (int j = 0; j < trans_matrix[k].cols(); ++j) {
+//                        x += trans_matrix[k](i, j) * lower_array[k][j];
+//                    }
+//                    temp_array(i, 0) = x;
+//                }
+//                expected *= temp_array;
+//            }
+//            //Done expected
+//
+//
+//            dng::peel::workspace_t workspace;
+//            dng::TransitionVector full_matrix;
+//            copy_family_to_workspace(workspace, full_matrix, total_family_size,
+//                                     lower_array, upper_array,
+//                                     trans_matrix);
+//
+//            PairedGenotypeArray result = dng::peel::sum_over_child(workspace, family, full_matrix);
+//
+//            boost_check_matrix(expected, result, 100, 1);
+//        }
+//    }
+//
+//
+//    BOOST_AUTO_TEST_CASE(test_up_core, *utf::fixture(&setup, &teardown)) {
+//
+//        for (int t = 0; t <NUM_TEST; ++t) {
+//
+//            init_family_parent_child_only();
+//
+//            GenotypeArray expected = GenotypeArray::Zero();
+//            for (int i = 0; i < 10; ++i) {
+//                for (int j = 0; j < 10; ++j) {
+//                    expected[i] += trans_matrix[1](i, j) * lower_array[1][j];
+//                }
+//            }
+//            //Done expected
+//
+//            dng::peel::workspace_t workspace;
+//            dng::TransitionVector full_matrix;
+//            copy_family_to_workspace(workspace, full_matrix, total_family_size,
+//                                     lower_array, upper_array, trans_matrix);
+//
+//            GenotypeArray result = dng::peel::up_core(workspace, family, full_matrix);
+//            boost_check_array(expected, result, 10);
+//
+//        }
+//    }
 
     BOOST_AUTO_TEST_CASE(test_up) {
 
