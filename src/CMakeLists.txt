@@ -139,7 +139,7 @@ ADD_EXECUTABLE(dng-call_test
         vt/calculateProbs.cc
         lib/likelihood.cc lib/newick.cc lib/pedigree.cc lib/peeling.cc
         lib/mutation.cc lib/stats.cc
-        vt/peeling_test.cpp vt/find_mutation_getter.cpp vt/find_mutation_getter.h ../test/boost_test_helper.h)
+        vt/find_mutation_getter.cpp vt/find_mutation_getter.h ../test/boost_test_helper.h)
 
 TARGET_LINK_LIBRARIES(dng-call_test HTSLIB::HTSLIB Threads::Threads)
 TARGET_LINK_LIBRARIES(dng-call_test EIGEN3::EIGEN3)
@@ -156,19 +156,6 @@ TARGET_LINK_LIBRARIES(dng_vt HTSLIB::HTSLIB Threads::Threads)
 TARGET_LINK_LIBRARIES(dng_vt EIGEN3::EIGEN3)
 TARGET_LINK_LIBRARIES(dng_vt Boost::PROGRAM_OPTIONS Boost::FILESYSTEM Boost::SYSTEM Boost::UNIT_TEST_FRAMEWORK)
 
-
-ADD_EXECUTABLE(dng_test_peeling
-        vt/peeling_test.cpp
-        vt/find_mutation_getter.h
-        lib/likelihood.cc lib/newick.cc lib/pedigree.cc lib/peeling.cc
-        lib/mutation.cc lib/stats.cc
-        vt/vcf_helper.h
-
-        )
-
-TARGET_LINK_LIBRARIES(dng_test_peeling HTSLIB::HTSLIB Threads::Threads)
-TARGET_LINK_LIBRARIES(dng_test_peeling EIGEN3::EIGEN3)
-TARGET_LINK_LIBRARIES(dng_test_peeling Boost::PROGRAM_OPTIONS Boost::FILESYSTEM Boost::SYSTEM Boost::UNIT_TEST_FRAMEWORK)
 
 
 #################################################################################
