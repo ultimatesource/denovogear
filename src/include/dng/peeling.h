@@ -109,6 +109,12 @@ struct workspace_t {
         assert(boost::size(range) == library_nodes.second - library_nodes.first);
         boost::copy(range, lower.begin() + library_nodes.first);
     }
+
+    inline dng::GenotypeArray multiply_upper_lower(std::size_t index){
+
+        return (upper[index] * lower[index]);
+    }
+
 };
 
 typedef std::vector<std::size_t> family_members_t;
@@ -124,7 +130,7 @@ dng::PairedGenotypeArray sum_over_children(workspace_t &work, const family_membe
 dng::PairedGenotypeArray sum_over_children(workspace_t &work, const family_members_t &family,
                                            const TransitionVector &mat, int first_child_index);
 
-dng::GenotypeArray multiply_upper_lower(workspace_t &work, size_t index);
+[[deprecated]] dng::GenotypeArray multiply_upper_lower(workspace_t &work, size_t index);
 
 
 [[deprecated]] dng::GenotypeArray multiply_lower_upper(workspace_t &work, size_t index);
@@ -185,6 +191,9 @@ void to_mother_reverse(workspace_t &work, const family_members_t &family,
                        const TransitionVector &mat);
 void to_child_reverse(workspace_t &work, const family_members_t &family,
                       const TransitionVector &mat);
+
+
+
 
 typedef decltype(&down) function_t;
 
