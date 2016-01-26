@@ -128,27 +128,35 @@ protected:
 
 class File : public hts::File {
 public:
-    File(hts::File &&other, const char *region = nullptr,
-         const char *fasta = nullptr,
-         int min_mapQ = 0) : hts::File(std::move(other)),
-        hdr_{nullptr, bam_hdr_destroy}, iter_{nullptr, hts_itr_destroy},
-        min_mapQ_(min_mapQ) {
-        // TODO: handle different modes here???
-        // TODO: remove throws or move some of them to base class???
+    File(hts::File &&data, const char *region = nullptr,
+         const char *fasta = nullptr, int min_mapQ = 0, const char *header = nullptr) :
+        	 hts::File(std::move(data)), hdr_{nullptr, bam_hdr_destroy},
+        	 iter_{nullptr, hts_itr_destroy}, min_mapQ_(min_mapQ) {
 
-        if(!is_open()) { // Return early if the opening failed.  User must also check is_open to detect failure.
-            return;
+        if(!is_open()) {
+        	return;
         }
         if(format().category != sequence_data)
-            throw std::runtime_error("file '" + std::string(name())
-                                     + "' does not contain sequence data (BAM/SAM/CRAM).");
-
+        	throw std::runtime_error("file '" + std::string(name())
+        	                                     + "' does not contain sequence data (BAM/SAM/CRAM).");
         SetFaiFileName(fasta);
-        hdr_.reset(sam_hdr_read(handle()));
-        if(!hdr_) {
-            throw std::runtime_error("unable to read header in file '" + std::string(
-                                         name()) + "'.");
+
+        if(header != nullptr && header[0] != '\0') {
+        	hts::File hdrf(header, "r");
+        	hdr_.reset(sam_hdr_read(hdrf.handle()));
+            if(!hdr_) {
+                throw std::runtime_error("unable to read header in file '" + std::string(
+                                             header) + "'.");
+            }
+        } else {
+        	hdr_.reset(sam_hdr_read(handle()));
+            if(!hdr_) {
+                throw std::runtime_error("unable to read header in file '" + std::string(
+                                             name()) + "'.");
+            }
         }
+
+
         if(region != nullptr && region[0] != '\0') {
             std::unique_ptr<hts_idx_t, void(*)(hts_idx_t *)> idx{
                 sam_index_load(handle(), name()), hts_idx_destroy};
@@ -166,8 +174,8 @@ public:
     }
 
     File(const char *file, const char *mode, const char *region = nullptr,
-         const char *fasta = nullptr,
-         int min_mapQ = 0) : File(hts::File(file, mode), region, fasta, min_mapQ) {
+         const char *fasta = nullptr,int min_mapQ = 0, const char *header = nullptr)  :
+            File(hts::File(file, mode), region, fasta, min_mapQ) {
     }
 
     int Read(Alignment *p) {

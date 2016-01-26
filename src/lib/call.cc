@@ -370,9 +370,10 @@ int Call::operator()(Call::argument_type &arg) {
     if(cat == sequence_data) {
         // Wrap input in hts::bam::File
         for(auto && f : indata) {
-            bamdata.emplace_back(std::move(f), arg.region.c_str(), arg.fasta.c_str(),
-                                 arg.min_mapqual);
+       	    bamdata.emplace_back(std::move(f), arg.region.c_str(), arg.fasta.c_str(),
+				 arg.min_mapqual, arg.header.c_str());
         }
+
         // Read header from first file
         const bam_hdr_t *h = bamdata[0].header();
 
@@ -387,6 +388,8 @@ int Call::operator()(Call::argument_type &arg) {
         bcfdata.emplace_back(std::move(indata[0]));
         // Read header from first file
         const bcf_hdr_t *h = bcfdata[0].header();
+
+
 
         // Add contigs to header
         for(auto && contig : extract_contigs(h)) {

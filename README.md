@@ -1,6 +1,6 @@
 # DeNovoGear - Estimating *de novo* mutations from related individuals and cells
 
-[![Build Status](http://jenkins.scit.us/buildStatus/icon?job=DeNovoGear-GitHub)](http://jenkins.scit.us/job/DeNovoGear-GitHub/)
+[![Build Status](http://jenkins.cartwrig.ht/buildStatus/icon?job=DeNovoGear-GitHub)](http://jenkins.cartwrig.ht/job/DeNovoGear-GitHub/)
 
 Authors: Don Conrad, Avinash Ramu, Kael Dai, and Reed A. Cartwright.
 

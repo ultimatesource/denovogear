@@ -25,9 +25,12 @@ SET_TESTS_PROPERTIES(build_gitkeep PROPERTIES
   PASS_REGULAR_EXPRESSION "d41d8cd98f00b204e9800998ecf8427e"
 )
 
+
+
 ################################################################################
 # Compile unit tests
 include_directories(../src/include)
+
 
 # Make a test for each unit test file located in test/ dir
 file(GLOB_RECURSE TESTS test_*[cc|cpp])
@@ -49,6 +52,40 @@ foreach(test ${TESTS})
 endforeach(test)
 
 ################################################################################
+
+
+
+################################################################################
+# temp Compile unit tests with *.cc
+# TODO: Use a different filename pattern for now (test2_* instead of test_*).
+# TODO: How to add min *.cc files instead of all *.cc later?
+include_directories(./)
+
+file(GLOB_RECURSE TESTS2 "test2_*[cc|cpp]")
+foreach(test ${TESTS2})
+  get_filename_component(testName ${test} NAME_WE)
+  add_executable(${testName} EXCLUDE_FROM_ALL ${test}
+          ${CMAKE_SOURCE_DIR}/src/lib/peeling.cc
+          ##            ../src/lib/likelihood.cc ../src/lib/newick.cc ../src/lib/pedigree.cc
+          ##            ../src/lib/mutation.cc ../src/lib/stats.cc
+          )
+  target_link_libraries(${testName}
+          Threads::Threads
+          Boost::PROGRAM_OPTIONS
+          Boost::FILESYSTEM
+          Boost::SYSTEM
+          Boost::UNIT_TEST_FRAMEWORK
+          EIGEN3::EIGEN3
+          HTSLIB::HTSLIB
+          )
+  add_test(${testName}_build "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target ${testName})
+  add_test(${testName}_run ${testName})
+  set_tests_properties(${testName}_run PROPERTIES DEPENDS ${testName}_build)
+endforeach(test)
+
+################################################################################
+
+
 # Full executable tests
 
 # Check if using download source package or running latest code inside a git repository
@@ -232,3 +269,8 @@ SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM_ID_TAG PROPERTIES
 	PASS_REGULAR_EXPRESSION "FORMAT\tGL-1\tGL-2\tSM-NA12891\tSM-NA12892\tSM-NA12878\tLB-NA12878-H06HD.1\tLB-NA12878-H06HD.2\tLB-NA12878-H06JU.1\tLB-NA12891-H03N7.1\tLB-NA12891-H03N7.2\tLB-NA12891-H05F1.2\tLB-NA12892-H06JH.1\tLB-NA12892-H06JH.2\tLB-NA12892-H06JU.2"
 )
 
+##### Issue 55 - Separate header and bam file
+ADD_TEST(CALL_Sample5.3_SAM_SEP_HDR ${DNG_CALL_EXE} -f ${TEST_DATA_DIR}/sep_header/sample-5.3_ref.fasta.gz -p ${TEST_DATA_DIR}/sep_header/ceu.ped -m 0.001 -h ${TEST_DATA_DIR}/sep_header/test1_hdr.sam ${TEST_DATA_DIR}/sep_header/test1_nohdr.sam)
+SET_TESTS_PROPERTIES(CALL_Sample5.3_SAM_SEP_HDR PROPERTIES 
+	PASS_REGULAR_EXPRESSION "FORMAT\tGL-1\tGL-2\tLB-NA12878-Solexa-135852\tLB-NA12891-Solexa-135851\tLB-NA12892-Solexa-135853"
+)
