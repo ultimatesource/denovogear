@@ -30,6 +30,9 @@
 
 #include <dng/matrix.h>
 #include <map>
+
+
+
 namespace dng {
 namespace peel {
 
@@ -40,6 +43,8 @@ enum {
     TOCHILDFAST,
     NUM // Total number of possible forward operations
 };
+
+
 
 std::map<decltype(peel::op::NUM), std::string> map_enum_string {
         {peel::op::UP, "UP"},
@@ -54,6 +59,9 @@ std::map<decltype(peel::op::NUM), std::string> map_enum_string {
         {peel::op::TOCHILDFAST, "TOCHILDFAST"}
 };
 } // namespace dng::peel::op
+
+#define WORKSPACE_T_MULTIPLE_UPPER_LOWER(workspace, index) \
+    (workspace.upper[index] * workspace.lower[index])
 
 struct workspace_t {
     IndividualVector upper; // Holds P(~Descendent_Data & G=g)
@@ -110,12 +118,20 @@ struct workspace_t {
         boost::copy(range, lower.begin() + library_nodes.first);
     }
 
+
     inline dng::GenotypeArray multiply_upper_lower(std::size_t index){
 
         return (upper[index] * lower[index]);
     }
+#define WORKSPACE_T_MULTIPLE_UPPER_LOWER(workspace, index) \
+    (workspace.upper[index] * workspace.lower[index])
+
+#define WORKSPACE_T_KRONECKER_PRODUCT_PARENTS(workspace, dad, mom) \
+    kroneckerProduct(WORKSPACE_T_MULTIPLE_UPPER_LOWER(work, dad).matrix(),  \
+                     WORKSPACE_T_MULTIPLE_UPPER_LOWER(work, mom).matrix() )
 
 };
+
 
 typedef std::vector<std::size_t> family_members_t;
 
@@ -135,6 +151,7 @@ dng::PairedGenotypeArray sum_over_children(workspace_t &work, const family_membe
 
 [[deprecated]] dng::GenotypeArray multiply_lower_upper(workspace_t &work, size_t index);
 
+[[deprecated]]
 dng::PairedGenotypeArray kroneckerProductDadMom(workspace_t &work,
                                                 std::size_t dad, std::size_t mom);
 

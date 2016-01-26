@@ -57,8 +57,9 @@ endforeach(test)
 
 ################################################################################
 ## TODO: How to build something like "make timetrail" and compile all time measuring files
-
-
+IF(DEVEL_MODE)
+  ADD_DEFINITIONS(-DDNG_DEVEL)
+ENDIF()
 file(GLOB_RECURSE TESTS2 "testt_time*[cc|cpp]")
 foreach(test ${TESTS2})
   get_filename_component(testName ${test} NAME_WE)
@@ -75,6 +76,7 @@ foreach(test ${TESTS2})
           Boost::UNIT_TEST_FRAMEWORK
           EIGEN3::EIGEN3
           HTSLIB::HTSLIB
+#          Boost::TIMER
           )
 #  add_test(${testName}_build "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target ${testName})
 #  add_test(${testName}_run ${testName})

@@ -20,11 +20,11 @@
 #include <dng/peeling.h>
 #include <iostream>
 
-bool DEBUG_PEELING = false;
-//#define DEBUG_PEELING true;
-//#ifdef DEBUG_PEELING
-//    std::cout << "==" << __FUNCTION__ << "==" << std::endl;
-//#endif
+#define PEELING_VERBOSE(level)    \
+    if(level==0){}                       \
+    else if(level==1) std::cerr << "== dng::peeling::" << __FUNCTION__ << " ==" << std::endl;
+
+const int DEBUG_PEELING = 0; //TODO: deal with this in CMAKE later.
 
 [[deprecated]] dng::GenotypeArray dng::peel::multiply_upper_lower(workspace_t &work, std::size_t index){
 
@@ -36,12 +36,13 @@ dng::GenotypeArray dng::peel::multiply_lower_upper(workspace_t &work, std::size_
     return multiply_upper_lower(work, index);
 }
 
-
+[[deprecated]]
 dng::PairedGenotypeArray dng::peel::kroneckerProductDadMom(workspace_t &work, std::size_t dad, std::size_t mom){
 
     dng::PairedGenotypeArray result = kroneckerProduct(
-            work.multiply_upper_lower(dad).matrix(),
-            work.multiply_upper_lower(mom).matrix() );
+            WORKSPACE_T_MULTIPLE_UPPER_LOWER(work, dad).matrix(),
+            WORKSPACE_T_MULTIPLE_UPPER_LOWER(work, mom).matrix()
+    );
     return result;
 
 }
@@ -111,19 +112,19 @@ dng::GenotypeArray dng::peel::to_parent_core(workspace_t &work, const family_mem
 // Family Order: Parent, Child
 void dng::peel::down(workspace_t &work, const family_members_t &family,
                      const TransitionVector &mat) {
-    if(DEBUG_PEELING){ std::cout << "==" << __FUNCTION__ << "==" << std::endl; }
+    PEELING_VERBOSE(DEBUG_PEELING)
 
     assert(family.size() == 2);
     auto parent = family[0];
     auto child = family[1];
 
-    work.upper[child] = (mat[child].transpose() * work.multiply_upper_lower(parent).matrix() ).array();
+    work.upper[child] = (mat[child].transpose() * WORKSPACE_T_MULTIPLE_UPPER_LOWER(work, parent).matrix()).array();
 }
 
 // Family Order: Parent, Child
 void dng::peel::down_fast(workspace_t &work, const family_members_t &family,
                           const TransitionVector &mat) {
-    if(DEBUG_PEELING){ std::cout << "==" << __FUNCTION__ << "==" << std::endl; }
+    PEELING_VERBOSE(DEBUG_PEELING)
 
     assert(family.size() == 2);
     auto parent = family[0];
@@ -135,7 +136,7 @@ void dng::peel::down_fast(workspace_t &work, const family_members_t &family,
 // Family Order: Parent, Child
 void dng::peel::up(workspace_t &work, const family_members_t &family,
                    const TransitionVector &mat) {
-    if(DEBUG_PEELING){ std::cout << "==" << __FUNCTION__ << "==" << std::endl; }
+    PEELING_VERBOSE(DEBUG_PEELING)
 
     auto parent = family[0];
     work.lower[parent] *= up_core(work, family, mat);
@@ -144,7 +145,7 @@ void dng::peel::up(workspace_t &work, const family_members_t &family,
 // Family Order: Parent, Child
 void dng::peel::up_fast(workspace_t &work, const family_members_t &family,
                         const TransitionVector &mat) {
-    if(DEBUG_PEELING){ std::cout << "==" << __FUNCTION__ << "==" << std::endl; }
+    PEELING_VERBOSE(DEBUG_PEELING)
     auto parent = family[0];
     work.lower[parent] = up_core(work, family, mat);
 }
@@ -154,7 +155,8 @@ void dng::peel::up_fast(workspace_t &work, const family_members_t &family,
 // Family Order: Father, Mother, Child1, Child2, ...
 void dng::peel::to_father(workspace_t &work, const family_members_t &family,
                           const TransitionVector &mat) {
-    if(DEBUG_PEELING){ std::cout << "==" << __FUNCTION__ << "==" << std::endl; }
+    PEELING_VERBOSE(DEBUG_PEELING)
+    PEELING_VERBOSE(DEBUG_PEELING)
     auto dad = family[0];
     work.lower[dad] *= to_parent_core(work, family, mat, Parents::Father);
 
@@ -163,7 +165,7 @@ void dng::peel::to_father(workspace_t &work, const family_members_t &family,
 // Family Order: Father, Mother, Child1, Child2, ...
 void dng::peel::to_father_fast(workspace_t &work, const family_members_t &family,
                                const TransitionVector &mat) {
-    if(DEBUG_PEELING){ std::cout << "==" << __FUNCTION__ << "==" << std::endl; }
+    PEELING_VERBOSE(DEBUG_PEELING)
     auto dad = family[0];
     work.lower[dad] =  to_parent_core(work, family, mat, Parents::Father);
 
@@ -172,7 +174,7 @@ void dng::peel::to_father_fast(workspace_t &work, const family_members_t &family
 // Family Order: Father, Mother, Child1, Child2, ...
 void dng::peel::to_mother(workspace_t &work, const family_members_t &family,
                           const TransitionVector &mat) {
-    if(DEBUG_PEELING){ std::cout << "==" << __FUNCTION__ << "==" << std::endl; }
+    PEELING_VERBOSE(DEBUG_PEELING)
     auto mom = family[1];
     work.lower[mom] *= to_parent_core(work, family, mat, Parents::Mother);
 }
@@ -180,7 +182,7 @@ void dng::peel::to_mother(workspace_t &work, const family_members_t &family,
 // Family Order: Father, Mother, Child1, Child2, ...
 void dng::peel::to_mother_fast(workspace_t &work,
                                const family_members_t &family, const TransitionVector &mat) {
-    if(DEBUG_PEELING){ std::cout << "==" << __FUNCTION__ << "==" << std::endl; }
+    PEELING_VERBOSE(DEBUG_PEELING)
     auto mom = family[1];
     work.lower[mom] = to_parent_core(work, family, mat, Parents::Mother);
 }
@@ -191,36 +193,37 @@ void dng::peel::to_mother_fast(workspace_t &work,
 // Family Order: Father, Mother, Child, Child2, ....
 void dng::peel::to_child(workspace_t &work, const family_members_t &family,
                          const TransitionVector &mat) {
-    if(DEBUG_PEELING){ std::cout << "==" << __FUNCTION__ << "==" << std::endl; }
+    PEELING_VERBOSE(DEBUG_PEELING)
     assert(family.size() >= 4);
     auto dad = family[0];
     auto mom = family[1];
     auto child = family[2];
     // Parents
-    work.paired_buffer = kroneckerProductDadMom(work, dad, mom).array();
-    work.paired_buffer *= sum_over_children(work, family, mat, 3);
-    work.upper[child] = (mat[child].transpose() * work.paired_buffer.matrix()).array();
+    work.paired_buffer = WORKSPACE_T_KRONECKER_PRODUCT_PARENTS(work, dad, mom).array()
+                            * sum_over_children(work, family, mat, 3);
+    work.upper[child] = (mat[child].transpose() * work.paired_buffer.matrix() ).array();
+
 
 }
 
 // Family Order: Father, Mother, CHild
 void dng::peel::to_child_fast(workspace_t &work, const family_members_t &family,
                               const TransitionVector &mat) {
-    if(DEBUG_PEELING){ std::cout << "==" << __FUNCTION__ << "==" << std::endl; }
+    PEELING_VERBOSE(DEBUG_PEELING)
     assert(family.size() == 3);
     auto dad = family[0];
     auto mom = family[1];
     auto child = family[2];
     // Parents
-    work.paired_buffer = kroneckerProductDadMom(work, dad, mom).array();
+//    work.paired_buffer = kroneckerProductDadMom(work, dad, mom).array();
 
-    work.upper[child] = (mat[child].transpose() * work.paired_buffer.matrix()).array();
+    work.upper[child] = (mat[child].transpose() * WORKSPACE_T_KRONECKER_PRODUCT_PARENTS(work, dad, mom) ).array();
 }
 
 // Family Order: Parent, Child
 void dng::peel::down_reverse(workspace_t &work, const family_members_t &family,
                              const TransitionVector &mat) {
-    if(DEBUG_PEELING){ std::cout << "==" << __FUNCTION__ << "==" << std::endl; }
+    PEELING_VERBOSE(DEBUG_PEELING)
     assert(family.size() == 2);
     auto parent = family[0];
     auto child = family[1];
@@ -233,7 +236,7 @@ void dng::peel::down_reverse(workspace_t &work, const family_members_t &family,
 // prevent divide by zero errors by adding a minor offset to one of the calculations
 void dng::peel::up_reverse(workspace_t &work, const family_members_t &family,
                            const TransitionVector &mat) {
-    if(DEBUG_PEELING){ std::cout << "==" << __FUNCTION__ << "==" << std::endl; }
+    PEELING_VERBOSE(DEBUG_PEELING)
     assert(family.size() == 2);
     auto parent = family[0];
     auto child = family[1];
@@ -248,7 +251,7 @@ void dng::peel::up_reverse(workspace_t &work, const family_members_t &family,
 // Family Order: Father, Mother, Child1, Child2, ...
 void dng::peel::to_father_reverse(workspace_t &work,
                                   const family_members_t &family, const TransitionVector &mat) {
-    if(DEBUG_PEELING){ std::cout << "==" << __FUNCTION__ << "==" << std::endl; }
+    PEELING_VERBOSE(DEBUG_PEELING)
     assert(family.size() >= 3);
     auto dad = family[0];
     auto mom = family[1];
@@ -287,7 +290,7 @@ void dng::peel::to_father_reverse(workspace_t &work,
 // Family Order: Father, Mother, Child1, Child2, ...
 void dng::peel::to_mother_reverse(workspace_t &work,
                                   const family_members_t &family, const TransitionVector &mat) {
-    if(DEBUG_PEELING){ std::cout << "==" << __FUNCTION__ << "==" << std::endl; }
+    PEELING_VERBOSE(DEBUG_PEELING)
     assert(family.size() >= 3);
     auto dad = family[0];
     auto mom = family[1];
@@ -318,7 +321,7 @@ void dng::peel::to_mother_reverse(workspace_t &work,
 // Family Order: Father, Mother, Child1, Child2, ...
 void dng::peel::to_child_reverse(workspace_t &work,
                                  const family_members_t &family, const TransitionVector &mat) {
-    if(DEBUG_PEELING){ std::cout << "==" << __FUNCTION__ << "==" << std::endl; }
+    PEELING_VERBOSE(DEBUG_PEELING)
     assert(family.size() >= 3);
     auto dad = family[0];
     auto mom = family[1];

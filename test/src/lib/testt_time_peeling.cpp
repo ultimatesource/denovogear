@@ -6,6 +6,7 @@
 
 #include <boost/test/unit_test.hpp>
 #include <boost/test/tools/floating_point_comparison.hpp>
+#include <boost/timer/timer.hpp>
 
 #include <string>
 #include <cstdlib>
@@ -89,38 +90,41 @@ BOOST_AUTO_TEST_CASE(test_speed_to_father) {
 
         GenotypeArray temp_result;
 
-
-        //Updated version
-        temp_result = GenotypeArray::Zero();
-        start = std::chrono::system_clock::now();
-        for (int t = 0; t < num_repeat; ++t) {
-            workspace.lower[0] = lower_array[0];
-//            dng::peel::to_father_fast(workspace, family, full_matrix);
-            dng::peel::to_father(workspace, family, full_matrix);
-            GenotypeArray result = workspace.lower[0];
-            temp_result += result;
+        {
+            //Updated version
+//            boost::timer::auto_cpu_timer measure_speed(std::cerr);
+            temp_result = GenotypeArray::Zero();
+            start = std::chrono::system_clock::now();
+            for (int t = 0; t < num_repeat; ++t) {
+                workspace.lower[0] = lower_array[0];
+                //            dng::peel::to_father_fast(workspace, family, full_matrix);
+                dng::peel::to_father(workspace, family, full_matrix);
+                GenotypeArray result = workspace.lower[0];
+                temp_result += result;
+            }
+            end = std::chrono::system_clock::now();
+            elapsed_seconds = end - start;
+            elapsed_update += elapsed_seconds;
+            //        std::cout << "Updated time: " << elapsed_seconds.count() << "s\t" << temp_result.sum() << std::endl;
         }
-        end = std::chrono::system_clock::now();
-        elapsed_seconds = end-start;
-        elapsed_update += elapsed_seconds;
-//        std::cout << "Updated time: " << elapsed_seconds.count() << "s\t" << temp_result.sum() << std::endl;
 
-
-        //Original version
-        temp_result = GenotypeArray::Zero();
-        start = std::chrono::system_clock::now();
-        for (int t = 0; t < num_repeat; ++t) {
-            workspace.lower[0] = lower_array[0];
+        {
+            //Original version
+//            boost::timer::auto_cpu_timer measure_speed(std::cerr);
+            temp_result = GenotypeArray::Zero();
+            start = std::chrono::system_clock::now();
+            for (int t = 0; t < num_repeat; ++t) {
+                workspace.lower[0] = lower_array[0];
 //            dng::peel::to_father_fast_original(workspace, family, full_matrix);
-            to_father_original(workspace, family, full_matrix);
-            GenotypeArray result_original = workspace.lower[0];
-            temp_result += result_original;
-        }
-        end = std::chrono::system_clock::now();
-        elapsed_seconds = end-start;
-        elapsed_original += elapsed_seconds;
+                to_father_original(workspace, family, full_matrix);
+                GenotypeArray result_original = workspace.lower[0];
+                temp_result += result_original;
+            }
+            end = std::chrono::system_clock::now();
+            elapsed_seconds = end - start;
+            elapsed_original += elapsed_seconds;
 //        std::cout << "Original time: " << elapsed_seconds.count() << "s\t" << temp_result.sum() << std::endl;
-
+        }
     }
 
     double total = num_time_trial*num_repeat;
@@ -134,3 +138,14 @@ BOOST_AUTO_TEST_CASE(test_speed_to_father) {
 
 
 BOOST_AUTO_TEST_SUITE_END()
+
+
+
+/*
+Summary: 1e+07 calls.
+*** No errors detected
+Original total: 34.8541 each: 3.48541e-06
+Update   total: 33.3654 each: 3.33654e-06
+delta/origin: -0.0427128
+
+*/
