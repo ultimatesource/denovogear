@@ -21,10 +21,46 @@
 #ifndef DNG_IO_AD_H
 #define DNG_IO_AD_H
 
+#include <string>
+
+#include <boost/filesystem.hpp>
+#include <boost/algorithm/string/predicate.hpp>
+
+
+#include <dng/io/utility.h>
+#include <dng/utility.h>
+
 namespace dng {
 namespace io {
 
+class Ad {
+public:
+    explicit Ad(const std::string &filename, std::ios_base::openmode mode = std::ios_base::in) {
+        Open(filename,mode);
+    }
+    explicit Ad(const char *filename, std::ios_base::openmode mode = std::ios_base::in) : Ad(std::string{filename},mode) { }
 
+    void Open(const std::string &filename, std::ios_base::openmode mode = std::ios_base::in) {
+        auto split = extract_file_type(filename);
+        // assume anything not marked as ad is in text/tad format
+        is_binary_ad_ = boost::iequals(split.first, "ad");
+        if(is_binary_ad_) {
+            mode |= std::ios::bin;
+        }
+        path_ = split.second;
+        file_.open(path_, mode);
+    }
+
+    bool is_open() const { return file_.is_open() };
+    operator bool() const { return is_open(); }
+
+
+
+protected:
+    boost::filesystem::path path_;
+    boost::filesystem::fstream file_;
+    bool is_binary_ad_{false};
+};
 
 }}
 

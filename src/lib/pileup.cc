@@ -131,9 +131,6 @@ int Pileup::operator()(Call::argument_type &arg) {
         }
 
         // Determine what nucleotides show up and the order they will appear in the REF and ALT field
-        // TODO: write tests that make sure REF="N" is properly handled
-        //      (1) N should be included in AD only if REF="N"
-        //      (2) N in AD should always be 0
 
         // Measure total depth and sort nucleotides in descending order
         typedef pair<int, int> key_t;

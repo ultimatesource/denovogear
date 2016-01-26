@@ -42,7 +42,7 @@ typedef int64_t location_t;
 
 inline location_t make_location(int t, int p) {
     assert(t >= 0 && p >= 0);
-    return (static_cast<int64_t>(t) << 32) | p;
+    return (static_cast<int64_t>(t) << 32) | (p & 0x7FFFFFFF);
 }
 inline int location_to_target(location_t u) {
     assert(u >= 0);

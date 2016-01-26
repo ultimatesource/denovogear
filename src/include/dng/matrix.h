@@ -35,6 +35,7 @@ struct depth_t {
     int32_t counts[4]{0,0,0,0};
 };
 
+
 #ifdef DNG_USE_DYNAMIC_GENOTYPE_ARRAY
 typedef Eigen::ArrayXd GenotypeArray;
 typedef std::vector<GenotypeArray> IndividualVector;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Reed A. Cartwright
+ * Copyright (c) 2015-2016 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -21,13 +21,30 @@
 #ifndef DNG_DEPTHS_H
 #define DNG_DEPTHS_H
 
+#include <utility>
+
 #include <dng/utility.h>
 
 namespace dng {
 
+typedef std::vector<int32_t> allele_depths_t; 
+
 class AlleleDepths {
 public:
-	typedef std::vector<int> data_t; 
+	typedef allele_depths_t::size_type size_type;
+
+	AlleleDepths(location_t location, int8_t type, size_type num_nucleotides, size_type num_libraries, allele_depths_t data) :
+		location_(location), type_(type), num_nucleotides_(num_nucleotides), num_libraries_(num_libraries),
+		data_(std::move(data))
+	{
+		assert(data_.size() == num_libraries_*num_nucleotides_);
+	}
+
+	AlleleDepths(location_t location, int8_t type, size_type num_nucleotides, size_type num_libraries) :
+		location_(location), type_(type), num_nucleotides_(num_nucleotides), num_libraries_(num_libraries),
+		data_(num_nucleotides*num_libraries, 0)
+	{
+	}
 
 	int operator()(data_t::size_type nuc, data_t::size_type lib) const {
 		// storage is nucleotide major
@@ -40,20 +57,35 @@ public:
 		return data_[nuc*num_libraries_ + lib];
 	}
 
+
 	location_t location() const { return location_; }
 	int8_t type() const { return type_; }
-	data_t::size_type num_libraries() const { return num_libraries_; }
-	data_t::size_type num_nucleotides() const { return num_nucleotides_; }
+	size_type num_libraries() const { return num_libraries_; }
+	size_type num_nucleotides() const { return num_nucleotides_; }
+
+	void location(location_t location) { location_ = location; }
+    void location(int target, int position) { location_ = make_location(target, position); }
+	
+	void type(int8_t type) { type_ = type; }
+
+	void resize(size_type num_nucleotides, size_type num_libraries) {
+		num_nucleotides_ = num_nucleotides;
+		num_libraries_ = num_libraries;
+		data_.resize(num_nucleotides*num_libraries);
+	}
+	void zero() {
+		data_.assign(data_.size(), 0);
+	}
+
 
 protected:
 	location_t location_;
 	int8_t  type_;
-	data_t data_;
-	data_t::size_type num_nucleotides_;
-	data_t::size_type num_libraries_;
-
+	size_type num_nucleotides_;
+	size_type num_libraries_;
+	allele_depths_t data_;
 };
 
-}
+} // namespace dng
 
 #endif

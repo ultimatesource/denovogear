@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Reed A. Cartwright
+ * Copyright (c) 2015-2016 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -16,14 +16,13 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-
 struct ad_info_t {
-	char type;
-	char width;
-	char label_upper[6];
-	char label_lower[6];
-	char reference;
-	char indexes[4];
+    char type;  // binary id of the type
+    char width; // the number of nucleotides in the type
+    char label_upper[6]; // upper_case text version of the type
+    char label_lower[6]; // lower_case text version of the type
+    char reference; // the value of the reference base
+    char indexes[4]; // the value of the alleles.  Only use .width many.
 };
 
 ad_info_t ad_info[128] = {

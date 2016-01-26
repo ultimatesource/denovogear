@@ -46,19 +46,17 @@ inline std::size_t char_index(uint8_t x) {
     return base_index(encode_base(x));
 }
 
-
 // convert an index into a 4-bit nucleotide
 inline uint8_t indexed_base(std::size_t x) {
     static constexpr uint8_t table[] = {1, 2, 4, 8, 15, 15, 15, 15};
     return table[x & 0x7];
 }
 
-// convert an index into a 4-bit nucleotide
+// convert an index into an ASCII character
 inline char indexed_char(std::size_t x) {
     static constexpr char table[] = "ACGTNNNN";
     return table[x & 0x7];
 }
-
 
 }
 } // namespace dng::seq
