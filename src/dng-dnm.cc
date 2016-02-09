@@ -234,8 +234,7 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
     int indel_total_count = 0, indel_pass_count = 0;
     int pair_total_count = 0, pair_pass_count = 0;
 
-    hts::bcf::File vcf_input(input_file.c_str(), "r"); // hts::bcf::File can read both VCF and BCF
-    const bcf_hdr_t *hdr = vcf_input.header();
+
     bcf_srs_t *rec_reader = bcf_sr_init(); // used for iterating each rec in BCF/VCF
 
     // Open region if specified
@@ -265,6 +264,10 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
         };
     }
 
+    // Get the header (should be only one input file)
+    const bcf_hdr_t *hdr = bcf_sr_get_header(rec_reader, 0);
+
+    
     while(bcf_sr_next_line(rec_reader)) {
         bcf1_t *rec = bcf_sr_get_line(rec_reader, 0);
         int j = 0;
