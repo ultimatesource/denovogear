@@ -95,7 +95,7 @@ IF(NOT DEFINED DNG_VERSION_COMMIT OR DNG_VERSION_COMMIT STREQUAL "unknown")
     SET(DATA_PACKAGE "${DATA_PACKAGE}.${DNG_VERSION_PATCH}")
   ENDIF()
   SET(DATA_PACKAGE "${DATA_PACKAGE}.tar.gz")
-  SET(DOWNLOAD_URL "https://github.com/kaeldai/testdata/archive/${DATA_PACKAGE}")
+  SET(DOWNLOAD_URL "https://github.com/denovogear/testdata/archive/${DATA_PACKAGE}")
 ENDIF()
 
 IF(NOT DEFINED TEST_DATA_DIR)
