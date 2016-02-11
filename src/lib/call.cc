@@ -414,8 +414,8 @@ int Call::operator()(Call::argument_type &arg) {
         vcfout.AddHeaderMetadata(line.c_str());
     }
 
-    FindMutations calculate { min_prob, pedigree,
-        { arg.theta, freqs, arg.ref_weight, arg.gamma[0], arg.gamma[1] } };
+    FindMutations calculate ( min_prob, pedigree,
+        { arg.theta, freqs, arg.ref_weight, arg.gamma[0], arg.gamma[1] } );
 
     // Pileup data
     std::vector<depth_t> read_depths(rgs.libraries().size());
@@ -877,7 +877,7 @@ int Call::operator()(Call::argument_type &arg) {
 
 FindMutations::FindMutations(double min_prob, const Pedigree &pedigree,
                              params_t params) :
-    pedigree_{pedigree}, min_prob_{min_prob},
+    pedigree_(pedigree), min_prob_(min_prob),
     params_(params), genotype_likelihood_{params.params_a, params.params_b},
     work_(pedigree.CreateWorkspace()) {
 
