@@ -26,15 +26,17 @@
 #include <boost/filesystem.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 
-
 #include <dng/io/utility.h>
 #include <dng/utility.h>
+#include <dng/depths.h>
 
 namespace dng {
 namespace io {
 
 class Ad {
 public:
+    typedef dng::pileup::AlleleDepths AlleleDepths;
+
     explicit Ad(const std::string &filename, std::ios_base::openmode mode = std::ios_base::in) {
         Open(filename,mode);
     }
@@ -54,12 +56,13 @@ public:
     bool is_open() const { return file_.is_open() };
     operator bool() const { return is_open(); }
 
-
+    int Write(const AlleleDepths& line);
 
 protected:
     boost::filesystem::path path_;
     boost::filesystem::fstream file_;
     bool is_binary_ad_{false};
+    location_t last_location_{0};
 };
 
 }}

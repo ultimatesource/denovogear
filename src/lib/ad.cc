@@ -16,16 +16,10 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-struct ad_info_t {
-    char type;  // binary id of the type
-    char width; // the number of nucleotides in the type
-    char label_upper[6]; // upper_case text version of the type
-    char label_lower[6]; // lower_case text version of the type
-    char reference; // the value of the reference base
-    char indexes[4]; // the value of the alleles.  Only use .width many.
-};
 
-ad_info_t ad_info[128] = {
+#include <dng/depths.h>
+
+const AlleleDepths::type_info_t AlleleDepths::type_info_table[128] = {
     {0,   1, "A",     "a",     0, {0,3,2,1}},
     {1,   1, "C",     "c",     1, {1,3,2,0}},
     {2,   1, "G",     "g",     2, {2,3,1,0}},
@@ -155,3 +149,121 @@ ad_info_t ad_info[128] = {
     {126, 4, "NTGAC", "ntgac", 4, {3,2,0,1}},
     {127, 4, "NTGCA", "ntgca", 4, {3,2,1,0}}
 };
+
+int itf8_put(char *cp, int32_t val);
+int ltf8_put(char *cp, int64_t val);
+int ad_write_line(dng::location_t last_location, const dng::io::Ad::AlleleDepths& line);
+int tad_write_line(const dng::io::Ad::AlleleDepths& line);
+
+int dng::io::Ad::Write(const AlleleDepths& line) {
+    if(is_binary_ad_) {
+        return ad_write_line(last_location_, line);
+    } else {
+        return tad_write_line(line);
+    }
+}
+
+int itf8_put(char *out, int32_t n) {
+    assert(n >= 0);
+    if(n <= 0x7F) {
+        *out = n;
+        return 1;
+    } else if(n <= 0x7FF)
+}
+
+
+int itf8_put(char *cp, int32_t val) {
+    if        (!(val & ~0x00000007f)) { // 1 byte
+    *cp = val;
+    return 1;
+    } else if (!(val & ~0x00003fff)) { // 2 byte
+    *cp++ = (val >> 8 ) | 0x80;
+    *cp   = val & 0xff;
+    return 2;
+    } else if (!(val & ~0x01fffff)) { // 3 byte
+    *cp++ = (val >> 16) | 0xc0;
+    *cp++ = (val >> 8 ) & 0xff;
+    *cp   = val & 0xff;
+    return 3;
+    } else if (!(val & ~0x0fffffff)) { // 4 byte
+    *cp++ = (val >> 24) | 0xe0;
+    *cp++ = (val >> 16) & 0xff;
+    *cp++ = (val >> 8 ) & 0xff;
+    *cp   = val & 0xff;
+    return 4;
+    } else {                           // 5 byte
+    *cp++ = 0xf0 | ((val>>28) & 0xff);
+    *cp++ = (val >> 20) & 0xff;
+    *cp++ = (val >> 12) & 0xff;
+    *cp++ = (val >> 4 ) & 0xff;
+    *cp = val & 0x0f;
+    return 5;
+    }
+}
+
+int ltf8_put(char *cp, int64_t val) {
+    if        (!(val & ~((1LL<<7)-1))) {
+    *cp = val;
+    return 1;
+    } else if (!(val & ~((1LL<<(6+8))-1))) {
+    *cp++ = (val >> 8 ) | 0x80;
+    *cp   = val & 0xff;
+    return 2;
+    } else if (!(val & ~((1LL<<(5+2*8))-1))) {
+    *cp++ = (val >> 16) | 0xc0;
+    *cp++ = (val >> 8 ) & 0xff;
+    *cp   = val & 0xff;
+    return 3;
+    } else if (!(val & ~((1LL<<(4+3*8))-1))) {
+    *cp++ = (val >> 24) | 0xe0;
+    *cp++ = (val >> 16) & 0xff;
+    *cp++ = (val >> 8 ) & 0xff;
+    *cp   = val & 0xff;
+    return 4;
+    } else if (!(val & ~((1LL<<(3+4*8))-1))) {
+    *cp++ = (val >> 32) | 0xf0;
+    *cp++ = (val >> 24) & 0xff;
+    *cp++ = (val >> 16) & 0xff;
+    *cp++ = (val >> 8 ) & 0xff;
+    *cp   = val & 0xff;
+    return 5;
+    } else if (!(val & ~((1LL<<(2+5*8))-1))) {
+    *cp++ = (val >> 40) | 0xf8;
+    *cp++ = (val >> 32) & 0xff;
+    *cp++ = (val >> 24) & 0xff;
+    *cp++ = (val >> 16) & 0xff;
+    *cp++ = (val >> 8 ) & 0xff;
+    *cp   = val & 0xff;
+    return 6;
+    } else if (!(val & ~((1LL<<(1+6*8))-1))) {
+    *cp++ = (val >> 48) | 0xfc;
+    *cp++ = (val >> 40) & 0xff;
+    *cp++ = (val >> 32) & 0xff;
+    *cp++ = (val >> 24) & 0xff;
+    *cp++ = (val >> 16) & 0xff;
+    *cp++ = (val >> 8 ) & 0xff;
+    *cp   = val & 0xff;
+    return 7;
+    } else if (!(val & ~((1LL<<(7*8))-1))) {
+    *cp++ = (val >> 56) | 0xfe;
+    *cp++ = (val >> 48) & 0xff;
+    *cp++ = (val >> 40) & 0xff;
+    *cp++ = (val >> 32) & 0xff;
+    *cp++ = (val >> 24) & 0xff;
+    *cp++ = (val >> 16) & 0xff;
+    *cp++ = (val >> 8 ) & 0xff;
+    *cp   = val & 0xff;
+    return 8;
+    } else {
+    *cp++ = 0xff;
+    *cp++ = (val >> 56) & 0xff;
+    *cp++ = (val >> 48) & 0xff;
+    *cp++ = (val >> 40) & 0xff;
+    *cp++ = (val >> 32) & 0xff;
+    *cp++ = (val >> 24) & 0xff;
+    *cp++ = (val >> 16) & 0xff;
+    *cp++ = (val >> 8 ) & 0xff;
+    *cp   = val & 0xff;
+    return 9;
+    }
+}
