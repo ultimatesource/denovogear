@@ -2,27 +2,9 @@ INCLUDE(CheckIncludeFile)
 INCLUDE(CheckFunctionExists)
 INCLUDE(CheckLibraryExists)
 
-################################################################################
-# Always make a full statement RPATH
-# See http://www.itk.org/Wiki/CMake_RPATH_handling
-
-SET(CMAKE_SKIP_BUILD_RPATH FALSE)
-SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${LIB_INSTALL_DIR}")
-SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-LIST(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/${LIB_INSTALL_DIR}" is_system_dir)
-IF("${is_system_dir}" STREQUAL "-1")
-  SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${LIB_INSTALL_DIR}")
-ENDIF("${is_system_dir}" STREQUAL "-1")
-################################################################################
-
 INCLUDE_DIRECTORIES(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
 INCLUDE_DIRECTORIES(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 INCLUDE_DIRECTORIES(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/dnm")
-
-IF(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
-  ADD_DEFINITIONS(-D_GLIBCXX_USE_C99)
-ENDIF()
 
 ADD_EXECUTABLE(dng-call
   dng-call.cc
