@@ -27,10 +27,10 @@
  * XM((long)(name), (shortname), "description", typename, defaultvalue)    *
  ***************************************************************************/
 
-XM((dnm), (), "filename: File with list of DNMs to be phased", std::string, "")
-XM((pgt), (), "filename: File with parental genotypes for phasing sites",
+XM((dnm), , "filename: File with list of DNMs to be phased", std::string, "")
+XM((pgt), , "filename: File with parental genotypes for phasing sites",
    std::string, "")
-XM((bam), (), "filename: bam file", std::string, "")
+XM((bam), , "filename: bam file", std::string, "")
 XM((window), (s), "size of window for phasing sites (> insert size)", long,
    1000)
 
