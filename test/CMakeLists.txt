@@ -12,8 +12,8 @@ IF(NOT TEST_DATA_DIR)
     SET(TEST_DATA_DIR ${CMAKE_SOURCE_DIR}/testdata)
   ELSEIF(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/../testdata)
     SET(TEST_DATA_DIR ${CMAKE_SOURCE_DIR}/../testdata)
-#  ELSE(NOT TEST_DATA_DIR)
-#    MESSAGE(STATUS "WARNING: Unable to find data for full package testing. Please set TEST_DATA_DIR.")
+  ELSE(NOT TEST_DATA_DIR)
+    MESSAGE(STATUS "WARNING: Unable to find data for full package testing. Please set TEST_DATA_DIR.")
   ENDIF(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/testdata)
 ENDIF(NOT TEST_DATA_DIR)
 
@@ -109,8 +109,8 @@ IF(DEFINED DOWNLOAD_URL)
     DEPENDS dng-phaser dng-dnm dng-call
     PREFIX "testdata"
     EXCLUDE_FROM_ALL 1
-    DOWNLOAD_DIR "${TEST_DATA_DIR}"
-    URL "https://github.com/kaeldai/testdata/archive/${DATA_PACKAGE}"
+    DOWNLOAD_DIR "https://github.com/denovogear/testdata/archive/${DATA_PACKAGE}"
+    URL "${DOWNLOAD_URL}"
     SOURCE_DIR "${TEST_DATA_DIR}"
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ""
@@ -122,7 +122,7 @@ ELSE()
     PREFIX "testdata"
     EXCLUDE_FROM_ALL TRUE
     DOWNLOAD_DIR "${TEST_DATA_DIR}"
-    GIT_REPOSITORY "https://github.com/kaeldai/testdata.git"
+    GIT_REPOSITORY "https://github.com/denovogear/testdata.git"
     SOURCE_DIR "${TEST_DATA_DIR}"
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ""
