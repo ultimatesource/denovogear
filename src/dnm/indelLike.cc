@@ -172,12 +172,12 @@ void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
         cout << "DENOVO-INDEL CHILD_ID: " << child->id;
         cout << " chr: " << ref_name << " pos: " << coor << " ref: " << mom->ref_base <<
              " alt: " << alt;
-        cout << " maxlike_null: " << maxlike_null << " pp_null: " << pp_null << " tgt: "
+        cout << " maxlike_null: " << maxlike_null << " pp_null: " << pp_null << " tgt_null(child/mom/dad): "
              << tgtIndel[i - 1][j - 1];
         cout << " snpcode: " << lookupIndel.snpcode(i,
                 j) << " code: " << lookupIndel.code(i, j);
         cout << " maxlike_dnm: " << maxlike_denovo << " pp_dnm: " << pp_denovo;
-        cout << " tgt: " << tgtIndel[k - 1][l - 1] << " lookup: " << lookupIndel.code(k,
+        cout << " tgt_dnm(child/mom/dad): " << tgtIndel[k - 1][l - 1] << " lookup: " << lookupIndel.code(k,
                 l) << " flag: " << flag;
         cout << " READ_DEPTH child: " << child->depth << " dad: " << dad->depth <<
              " mom: " << mom->depth;
