@@ -45,14 +45,14 @@ int callMakeSNPLookup(lookup_table_t &tgtSNP, lookup_snp_t &lookupSNP,
     }
 
     cerr << "\nCreated SNP lookup table\n";
-    cerr << " First mrate: " << lookupSNP.mrate(1,
-            1) << " last: " << lookupSNP.mrate(100, 10) << endl;
-    cerr << " First code: " << lookupSNP.code(1,
-            1) << " last: " << lookupSNP.code(100, 10) << endl;
+    cerr << " First mrate: " << lookupSNP.mrate(0,
+            0) << " last: " << lookupSNP.mrate(99, 9) << endl;
+    cerr << " First code: " << lookupSNP.code(0,
+            0) << " last: " << lookupSNP.code(99, 9) << endl;
     cerr << " First target string: " << tgtSNP[0][0] << " last: " << tgtSNP[99][9]
          << endl;
-    cerr << " First tref: " << lookupSNP.tref(1,
-            1) << " last: " << lookupSNP.tref(100, 10) << endl;
+    cerr << " First tref: " << lookupSNP.tref(0,
+            0) << " last: " << lookupSNP.tref(99, 9) << endl;
     return 0;
 }
 
@@ -76,12 +76,12 @@ int callMakeINDELLookup(lookup_table_t &tgtIndel, lookup_indel_t &lookupIndel,
     }
 
     std::cerr << "\nCreated indel lookup table";
-    std::cerr << " First code: " << lookupIndel.code(1,
-              1) << " last: " << lookupIndel.code(9, 3) << std::endl;
+    std::cerr << " First code: " << lookupIndel.code(0,
+              0) << " last: " << lookupIndel.code(8, 2) << std::endl;
     std::cerr << " First target string: " << tgtIndel[0][0] << " last: " <<
               tgtIndel[8][2] << std::endl;
-    std::cerr << " First prior: " << lookupIndel.priors(1,
-              1) << " last: " << lookupIndel.priors(9, 3) << std::endl;
+    std::cerr << " First prior: " << lookupIndel.priors(0,
+              0) << " last: " << lookupIndel.priors(8, 2) << std::endl;
     return 0;
 }
 
@@ -97,8 +97,8 @@ int callMakePairedLookup(lookup_table_t &tgtPair, lookup_pair_t &lookupPair) {
     std::cerr << "\nCreated paired lookup table" << std::endl;
     std::cerr << " First target string: " << tgtPair[0][0] << " last: " <<
               tgtPair[9][9] << std::endl;
-    std::cerr << " First prior " << lookupPair.priors(1,
-              1) << " last: " << lookupPair.priors(10, 10) << std::endl;
+    std::cerr << " First prior " << lookupPair.priors(0,
+              0) << " last: " << lookupPair.priors(9, 9) << std::endl;
     return 0;
 }
 

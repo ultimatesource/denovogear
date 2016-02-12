@@ -112,11 +112,11 @@ public:
 protected:
     // node structure:
     // founder germline, non-founder germline, somatic, library
-    std::size_t num_nodes_;        // total number of nodes
-    std::size_t first_founder_;    // start of founder germline
-    std::size_t first_nonfounder_; // start of non-founder germline
-    std::size_t first_somatic_;    // start of somatic nodes
-    std::size_t first_library_;    // start of libraries
+    std::size_t num_nodes_{0};        // total number of nodes
+    std::size_t first_founder_{0};    // start of founder germline
+    std::size_t first_nonfounder_{0}; // start of non-founder germline
+    std::size_t first_somatic_{0};    // start of somatic nodes
+    std::size_t first_library_{0};    // start of libraries
 
     std::vector<std::size_t> roots_;
 
