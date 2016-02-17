@@ -1,22 +1,47 @@
 
+###############################################################################
+# Testdata information
+SET(TESTDATA_COMMIT 6e82a87)
+SET(TESTDATA_MD5 956b2720e25bc4d30deb045d85f8b5d4)
+SET(TESTDATA_REPO denovogear/testdata)
+SET(TESTDATA_URL "https://api.github.com/repos/${TESTDATA_REPO}/tarball/${TESTDATA_COMMIT}")
+SET(TESTDATA_DIR "${CMAKE_BINARY_DIR}/testdata")
+
+SET(TESTDATA "" CACHE PATH "Source directory of custom testing data.")
+
+IF(NOT TESTDATA)
+# Project to download testdata
+  ExternalProject_Add(testdata
+    PREFIX testdata
+    EXCLUDE_FROM_ALL 1
+    SOURCE_DIR "${TESTDATA_DIR}"
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND ""
+    INSTALL_COMMAND ""
+
+    DOWNLOAD_NAME testdata.tar.gz
+    DOWNLOAD_DIR "${CMAKE_BINARY_DIR}"
+    URL "${TESTDATA_URL}"
+    URL_MD5 "${TESTDATA_MD5}"
+  )
+ELSE()
+  SET(TESTDATA_DIR "${TESTDATA}")
+  ExternalProject_Add(testdata
+    PREFIX testdata
+    EXCLUDE_FROM_ALL 1
+    SOURCE_DIR "${TESTDATA_DIR}"
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND ""
+    INSTALL_COMMAND ""
+  )
+ENDIF()
+
 ################################################################################
 # Determine the location of the executables/scripts and any data sets required for full package testing
 # TODO: Search for packages and data installed outside of denovogear directory, move to ../modules/
 SET(DNG_DNM_EXE ${CMAKE_BINARY_DIR}/src/dng-dnm)
 SET(DNG_PHASER_EXE ${CMAKE_BINARY_DIR}/src/dng-phaser)
 SET(DNG_CALL_EXE ${CMAKE_BINARY_DIR}/src/dng-call)
-SET(DNG_DNM_EXE ${CMAKE_BINARY_DIR}/src/dng-dnm)
-SET(DNG_PHASER_EXE ${CMAKE_BINARY_DIR}/src/dng-phaser)
-IF(NOT TEST_DATA_DIR)
-  IF(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/testdata)
-    SET(TEST_DATA_DIR ${CMAKE_SOURCE_DIR}/testdata)
-  ELSEIF(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/../testdata)
-    SET(TEST_DATA_DIR ${CMAKE_SOURCE_DIR}/../testdata)
-  ELSE(NOT TEST_DATA_DIR)
-    MESSAGE(STATUS "WARNING: Unable to find data for full package testing. Please set TEST_DATA_DIR.")
-  ENDIF(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/testdata)
-ENDIF(NOT TEST_DATA_DIR)
-
 
 ###############################################################################
 # Tests on the source code
@@ -25,12 +50,9 @@ SET_TESTS_PROPERTIES(build_gitkeep PROPERTIES
   PASS_REGULAR_EXPRESSION "d41d8cd98f00b204e9800998ecf8427e"
 )
 
-
-
 ################################################################################
 # Compile unit tests
 include_directories(../src/include)
-
 
 # Make a test for each unit test file located in test/ dir
 file(GLOB_RECURSE TESTS test_*[cc|cpp])
@@ -87,57 +109,21 @@ endforeach(test)
 
 
 # Full executable tests
+ADD_TEST(build_testdata "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target testdata)
+ADD_TEST(build_dng_call "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target dng-call)
+ADD_TEST(build_dng_dnm "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target dng-dnm)
+ADD_TEST(build_dng_phaser "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target dng-phaser)
 
-# Check if using download source package or running latest code inside a git repository
-IF(NOT DEFINED DNG_VERSION_COMMIT OR DNG_VERSION_COMMIT STREQUAL "unknown")
-  SET(DATA_PACKAGE "v${DNG_VERSION_MAJOR}.${DNG_VERSION_MINOR}")
-  IF(DEFINED DNG_VERSION_PATCH)
-    SET(DATA_PACKAGE "${DATA_PACKAGE}.${DNG_VERSION_PATCH}")
-  ENDIF()
-  SET(DATA_PACKAGE "${DATA_PACKAGE}.tar.gz")
-  SET(DOWNLOAD_URL "https://github.com/denovogear/testdata/archive/${DATA_PACKAGE}")
-ENDIF()
+################################################################################
+# DNG-CALL Tests
 
-IF(NOT DEFINED TEST_DATA_DIR)
-  # set test data download directory if not already set
-  SET(TEST_DATA_DIR "${CMAKE_SOURCE_DIR}/testdata")
-ENDIF()
-
-IF(DEFINED DOWNLOAD_URL)
-  # if user testing code from package then get the corresponding archived tests.
-  ExternalProject_Add(testdata
-    DEPENDS dng-phaser dng-dnm dng-call
-    PREFIX "testdata"
-    EXCLUDE_FROM_ALL 1
-    DOWNLOAD_DIR "${TEST_DATA_DIR}"
-    URL "${DOWNLOAD_URL}"
-    SOURCE_DIR "${TEST_DATA_DIR}"
-    CONFIGURE_COMMAND ""
-    BUILD_COMMAND ""
-    INSTALL_COMMAND "")
-ELSE()
-  # if code was downloaded directly from github, then grab the lastest tests
-  ExternalProject_Add(testdata
-    DEPENDS dng-phaser dng-dnm dng-call
-    PREFIX "testdata"
-    EXCLUDE_FROM_ALL TRUE
-    DOWNLOAD_DIR "${TEST_DATA_DIR}"
-    GIT_REPOSITORY "https://github.com/denovogear/testdata.git"
-    SOURCE_DIR "${TEST_DATA_DIR}"
-    CONFIGURE_COMMAND ""
-    BUILD_COMMAND ""
-    INSTALL_COMMAND "")
-ENDIF()
-
-IF(NOT DEFINED TEST_DATA_DIR OR (DEFINED TEST_DATA_DIR AND NOT IS_DIRECTORY "${TEST_DATA_DIR}"))
-  MESSAGE(STATUS "WARNING: Could not find directory ${TEST_DATA_DIR}. Full package tests will fail.")
-  MESSAGE(STATUS "         Please run \'cmake testdata\' before running \'make test\'")
-ENDIF()
-    
 ADD_TEST(CALL_Help ${DNG_CALL_EXE})
+SET_TESTS_PROPERTIES(CALL_Help PROPERTIES DEPENDS build_dng_call)
 SET_TESTS_PROPERTIES(CALL_Help PROPERTIES PASS_REGULAR_EXPRESSION "Usage:")
 
-ADD_TEST(CALL_Sample5.3_BAM ${DNG_CALL_EXE} -f ${TEST_DATA_DIR}/sample_5_3/sample-5.3_ref.fasta.gz -p ${TEST_DATA_DIR}/sample_5_3/ceu.ped -m 0.001 ${TEST_DATA_DIR}/sample_5_3/test1.bam)
+ADD_TEST(CALL_Sample5.3_BAM ${DNG_CALL_EXE} -f ${TESTDATA_DIR}/sample_5_3/sample-5.3_ref.fasta.gz -p ${TESTDATA_DIR}/sample_5_3/ceu.ped -m 0.001 ${TESTDATA_DIR}/sample_5_3/test1.bam)
+SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM PROPERTIES DEPENDS build_dng_call)
+SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM PROPERTIES DEPENDS build_testdata)
 SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM PROPERTIES PASS_REGULAR_EXPRESSION "126385924") 
 SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM PROPERTIES PASS_REGULAR_EXPRESSION "MUP=0.17539\;LLD=-23.3726\;LLH=-6.85898\;MUX=0.17539\;MU1P=0.17539\;DNT=GGxGG>GT\;DNL=LB-NA12878-Solexa-135852\;DNQ=42\;DNC=100\;DP=148\;AD=123,25\;ADF=63,13\;ADR=60,12\;FS=0\;MQTa=-1.32794")
 SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM PROPERTIES PASS_REGULAR_EXPRESSION "0/0:33:0.99953[0-9]*,0.000470132[0-9]*,5.06516[0-9]*e-12:.,.,.:.:.,.:.,.:.,.:.:.")
@@ -147,7 +133,9 @@ SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM PROPERTIES PASS_REGULAR_EXPRESSION "0/0:
 SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM PROPERTIES PASS_REGULAR_EXPRESSION "0/0:8:0.851097[0-9]*,0.148903[0-9]*,5.26064[0-9]*e-12:0,-3.86108[0-9]*,-14.313[0-9]*:56:55,1:22,0:33,1:3.3337[0-9]*e-05:3.3337[0-9]*e-05")
 
 
-ADD_TEST(CALL_Sample5.3_VCF ${DNG_CALL_EXE} -p ${TEST_DATA_DIR}/sample_5_3/ceu.ped -m 0.001 ${TEST_DATA_DIR}/sample_5_3/test1.vcf)
+ADD_TEST(CALL_Sample5.3_VCF ${DNG_CALL_EXE} -p ${TESTDATA_DIR}/sample_5_3/ceu.ped -m 0.001 ${TESTDATA_DIR}/sample_5_3/test1.vcf)
+SET_TESTS_PROPERTIES(CALL_Sample5.3_VCF PROPERTIES DEPENDS build_dng_call)
+SET_TESTS_PROPERTIES(CALL_Sample5.3_VCF PROPERTIES DEPENDS build_testdata)
 SET_TESTS_PROPERTIES(CALL_Sample5.3_VCF PROPERTIES PASS_REGULAR_EXPRESSION "MUP=0.116189[0-9]*\;LLD=-30.5967[0-9]*\;LLH=-6.68014[0-9]*\;MUX=0.116189[0-9]*\;MU1P=0.116189[0-9]*\;DNT=GGxGG>GT\;DNL=LB-NA12878:Solexa-135852\;DNQ=42\;DNC=100\;DP=189\;AD=158,30,1")
 SET_TESTS_PROPERTIES(CALL_Sample5.3_VCF PROPERTIES PASS_REGULAR_EXPRESSION "0/0:38:0.999833[0-9]*,0.000167058[0-9]*,1.78739[0-9]*e-12,2.75325[0-9]*e-11,3.57372[0-9]*e-16,4.51356[0-9]*e-20:.,.,.,.,.,.:.:.,.,.:.:.") 
 SET_TESTS_PROPERTIES(CALL_Sample5.3_VCF PROPERTIES PASS_REGULAR_EXPRESSION "0/0:18:0.984574[0-9]*,0.0154262[0-9]*,1.66835[0-9]*e-10,9.77602[0-9]*e-12,1.67414[0-9]*e-14,1.58815[0-9]*e-20")
@@ -155,14 +143,51 @@ SET_TESTS_PROPERTIES(CALL_Sample5.3_VCF PROPERTIES PASS_REGULAR_EXPRESSION "0/0:
 SET_TESTS_PROPERTIES(CALL_Sample5.3_VCF PROPERTIES PASS_REGULAR_EXPRESSION "0/0:38:0.999837[0-9]*,0.000163186[0-9]*,2.11375[0-9]*e-15,2.7779[0-9]*e-11,4.22658[0-9]*e-19,5.33792[0-9]*e-23:0,-6.64246[0-9]*,-17.5301[0-9]*,-6.64246[0-9]*,-17.5301[0-9]*,-17.5301[0-9]*:57:57,0,0:3.33278[0-9]*e-05:3.33278[0-9]*e-05") 
 SET_TESTS_PROPERTIES(CALL_Sample5.3_VCF PROPERTIES PASS_REGULAR_EXPRESSION "0/0:18:0.984578[0-9]*,0.0154223[0-9]*,6.97054[0-9]*e-14,9.45085[0-9]*e-12,6.98069[0-9]*e-18,2.94856[0-9]*e-24:0,-4.667[0-9]*,-16.0119[0-9]*,-7.10524[0-9]*,-16.3122[0-9]*,-18.7879[0-9]*:77:76,1,0:3.33292e-05:3.33292e-05")
 
+##### Issue 51 (and 52) - Test cases for various library identifiers (by LB, SM, and RG). ####
+# Only check the headers. Data will be different (and possibly meaningless) depending on how read-group libraries are grouped together 
+# TODO: Incorporate test into the test_read_groups.cc unit-tests.
+ADD_TEST(CALL_Sample5.3_BAM_LB_TAG ${DNG_CALL_EXE} -f ${TESTDATA_DIR}/sample_5_3/sample-5.3_ref.fasta.gz -p ${TESTDATA_DIR}/sample_5_3/ceu.ped -m 0.001 --rgtag "LB" ${TESTDATA_DIR}/sample_5_3/test1.bam)
+SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM_LB_TAG PROPERTIES DEPENDS build_dng_call)
+SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM_LB_TAG PROPERTIES DEPENDS build_testdata)
+SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM_LB_TAG PROPERTIES 
+  PASS_REGULAR_EXPRESSION "FORMAT\tGL-1\tGL-2\tLB-NA12878-Solexa-135852\tLB-NA12891-Solexa-135851\tLB-NA12892-Solexa-135853"
+)
+ADD_TEST(CALL_Sample5.3_BAM_SM_TAG ${DNG_CALL_EXE} -f ${TESTDATA_DIR}/sample_5_3/sample-5.3_ref.fasta.gz -p ${TESTDATA_DIR}/sample_5_3/ceu.ped -m 0.001 --rgtag "SM" ${TESTDATA_DIR}/sample_5_3/test1.bam)
+SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM_SM_TAG PROPERTIES DEPENDS build_dng_call)
+SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM_SM_TAG PROPERTIES DEPENDS build_testdata)
+SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM_SM_TAG PROPERTIES 
+  PASS_REGULAR_EXPRESSION "FORMAT\tGL-1\tGL-2\tLB-NA12878\tLB-NA12891\tLB-NA12892"
+)
+ADD_TEST(CALL_Sample5.3_BAM_ID_TAG ${DNG_CALL_EXE} -f ${TESTDATA_DIR}/sample_5_3/sample-5.3_ref.fasta.gz -p ${TESTDATA_DIR}/sample_5_3/ceu.ped -m 0.001 --rgtag "ID" ${TESTDATA_DIR}/sample_5_3/test1.bam)
+SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM_ID_TAG PROPERTIES DEPENDS build_dng_call)
+SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM_ID_TAG PROPERTIES DEPENDS build_testdata)
+SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM_ID_TAG PROPERTIES 
+  PASS_REGULAR_EXPRESSION "FORMAT\tGL-1\tGL-2\tSM-NA12891\tSM-NA12892\tSM-NA12878\tLB-NA12878-H06HD.1\tLB-NA12878-H06HD.2\tLB-NA12878-H06JU.1\tLB-NA12891-H03N7.1\tLB-NA12891-H03N7.2\tLB-NA12891-H05F1.2\tLB-NA12892-H06JH.1\tLB-NA12892-H06JH.2\tLB-NA12892-H06JU.2"
+)
+
+##### Issue 55 - Separate header and bam file
+ADD_TEST(CALL_Sample5.3_SAM_SEP_HDR ${DNG_CALL_EXE} -f ${TESTDATA_DIR}/sep_header/sample-5.3_ref.fasta.gz -p ${TESTDATA_DIR}/sep_header/ceu.ped -m 0.001 -h ${TESTDATA_DIR}/sep_header/test1_hdr.sam ${TESTDATA_DIR}/sep_header/test1_nohdr.sam)
+SET_TESTS_PROPERTIES(CALL_Sample5.3_SAM_SEP_HDR PROPERTIES DEPENDS build_dng_call)
+SET_TESTS_PROPERTIES(CALL_Sample5.3_SAM_SEP_HDR PROPERTIES DEPENDS build_testdata)
+SET_TESTS_PROPERTIES(CALL_Sample5.3_SAM_SEP_HDR PROPERTIES 
+  PASS_REGULAR_EXPRESSION "FORMAT\tGL-1\tGL-2\tLB-NA12878-Solexa-135852\tLB-NA12891-Solexa-135851\tLB-NA12892-Solexa-135853"
+)
+
+
+###########################################################################################
+# DNG-DNM Tests
 
 ADD_TEST(DNM_Help ${DNG_DNM_EXE} --h)
+SET_TESTS_PROPERTIES(DNM_Help PROPERTIES DEPENDS build_dng_dnm)
 SET_TESTS_PROPERTIES(DNM_Help PROPERTIES PASS_REGULAR_EXPRESSION "Usage:")
 
 ADD_TEST(DNM_InputErr ${DNG_DNM_EXE} auto)
+SET_TESTS_PROPERTIES(DNM_InputErr PROPERTIES DEPENDS build_dng_dnm)
 SET_TESTS_PROPERTIES(DNM_InputErr PROPERTIES PASS_REGULAR_EXPRESSION "ERROR")
 
-ADD_TEST(DNM_SampleCEU ${DNG_DNM_EXE} auto --ped ${TEST_DATA_DIR}/sample_CEU/sample_CEU.ped --bcf ${TEST_DATA_DIR}/sample_CEU/sample_CEU.vcf --snp_mrate 2e-10 --indel_mrate 1e-11)
+ADD_TEST(DNM_SampleCEU ${DNG_DNM_EXE} auto --ped ${TESTDATA_DIR}/sample_CEU/sample_CEU.ped --bcf ${TESTDATA_DIR}/sample_CEU/sample_CEU.vcf --snp_mrate 2e-10 --indel_mrate 1e-11)
+SET_TESTS_PROPERTIES(DNM_SampleCEU PROPERTIES DEPENDS build_dng_dnm)
+SET_TESTS_PROPERTIES(DNM_SampleCEU PROPERTIES DEPENDS build_testdata)
 SET_TESTS_PROPERTIES(DNM_SampleCEU PROPERTIES PASS_REGULAR_EXPRESSION "DENOVO-SNP CHILD_ID: NA12878_vald-sorted\.bam\.bam") 
 SET_TESTS_PROPERTIES(DNM_SampleCEU PROPERTIES PASS_REGULAR_EXPRESSION "chr: 2")
 SET_TESTS_PROPERTIES(DNM_SampleCEU PROPERTIES PASS_REGULAR_EXPRESSION "pos: 214668360") 
@@ -182,7 +207,9 @@ SET_TESTS_PROPERTIES(DNM_SampleCEU PROPERTIES PASS_REGULAR_EXPRESSION "READ_DEPT
 SET_TESTS_PROPERTIES(DNM_SampleCEU PROPERTIES PASS_REGULAR_EXPRESSION "MAPPING_QUALITY child: 59 dad: 59 mom: 59")
 
 
-ADD_TEST(DNM_SamplePaired ${DNG_DNM_EXE} auto --ped ${TEST_DATA_DIR}/sample_CEU/sample_paired.ped --bcf ${TEST_DATA_DIR}/sample_CEU/sample_CEU.vcf)
+ADD_TEST(DNM_SamplePaired ${DNG_DNM_EXE} auto --ped ${TESTDATA_DIR}/sample_CEU/sample_paired.ped --bcf ${TESTDATA_DIR}/sample_CEU/sample_CEU.vcf)
+SET_TESTS_PROPERTIES(DNM_SamplePaired PROPERTIES DEPENDS build_dng_dnm)
+SET_TESTS_PROPERTIES(DNM_SamplePaired PROPERTIES DEPENDS build_testdata)
 SET_TESTS_PROPERTIES(DNM_SamplePaired PROPERTIES PASS_REGULAR_EXPRESSION "TUMOR_ID: NA12878_vald-sorted\.bam\.bam")
 SET_TESTS_PROPERTIES(DNM_SamplePaired PROPERTIES PASS_REGULAR_EXPRESSION "NORMAL_ID: NA12891_vald-sorted\.bam\.bam")
 SET_TESTS_PROPERTIES(DNM_SamplePaired PROPERTIES PASS_REGULAR_EXPRESSION "chr: 2")
@@ -203,7 +230,9 @@ SET_TESTS_PROPERTIES(DNM_SamplePaired PROPERTIES PASS_REGULAR_EXPRESSION "null_s
 SET_TESTS_PROPERTIES(DNM_SamplePaired PROPERTIES PASS_REGULAR_EXPRESSION "dnm_snpcode: 2")
 
 
-ADD_TEST(DNM_ATMutation ${DNG_DNM_EXE} auto --ped ${TEST_DATA_DIR}/trio/mutationAT.ped --vcf ${TEST_DATA_DIR}/trio/mutationAT.vcf --snp_mrate 1e-8 --poly_rate 0.001)
+ADD_TEST(DNM_ATMutation ${DNG_DNM_EXE} auto --ped ${TESTDATA_DIR}/trio/mutationAT.ped --vcf ${TESTDATA_DIR}/trio/mutationAT.vcf --snp_mrate 1e-8 --poly_rate 0.001)
+SET_TESTS_PROPERTIES(DNM_ATMutation PROPERTIES DEPENDS build_dng_dnm)
+SET_TESTS_PROPERTIES(DNM_ATMutation PROPERTIES DEPENDS build_testdata)
 SET_TESTS_PROPERTIES(DNM_ATMutation PROPERTIES PASS_REGULAR_EXPRESSION "chr: 2")
 SET_TESTS_PROPERTIES(DNM_ATMutation PROPERTIES PASS_REGULAR_EXPRESSION "pos: 214668361")
 SET_TESTS_PROPERTIES(DNM_ATMutation PROPERTIES PASS_REGULAR_EXPRESSION "maxlike_null: 9\.9301e-11")
@@ -217,18 +246,22 @@ SET_TESTS_PROPERTIES(DNM_ATMutation PROPERTIES PASS_REGULAR_EXPRESSION "tgt_dnm(
 SET_TESTS_PROPERTIES(DNM_ATMutation PROPERTIES PASS_REGULAR_EXPRESSION "lookup: 5")
 SET_TESTS_PROPERTIES(DNM_ATMutation PROPERTIES PASS_REGULAR_EXPRESSION "flag: 0")
 
+#########################################################################################
+# DNG-PHASER Tests
 
-# Test the help command 
+# Test the help command
 ADD_TEST(Phaser_Help ${DNG_PHASER_EXE} --h)
+SET_TESTS_PROPERTIES(Phaser_Help PROPERTIES DEPENDS build_dng_phaser)
 SET_TESTS_PROPERTIES(Phaser_Help PROPERTIES PASS_REGULAR_EXPRESSION "Usage:")
-
 
 # Test for input error message
 ADD_TEST(Phaser_InputErr ${DNG_PHASER_EXE})
+SET_TESTS_PROPERTIES(Phaser_InputErr PROPERTIES DEPENDS build_dng_phaser)
 SET_TESTS_PROPERTIES(Phaser_InputErr PROPERTIES PASS_REGULAR_EXPRESSION "INPUT ERROR!")
 
-
-ADD_TEST(Phaser_Sample ${DNG_PHASER_EXE} --dnm ${TEST_DATA_DIR}/sample_Phaser/sample_phasing_dnm_f --pgt ${TEST_DATA_DIR}/sample_Phaser/sample_phasing_GTs_f --bam ${TEST_DATA_DIR}/sample_Phaser/test1.bam)
+ADD_TEST(Phaser_Sample ${DNG_PHASER_EXE} --dnm ${TESTDATA_DIR}/sample_Phaser/sample_phasing_dnm_f --pgt ${TESTDATA_DIR}/sample_Phaser/sample_phasing_GTs_f --bam ${TESTDATA_DIR}/sample_Phaser/test1.bam)
+SET_TESTS_PROPERTIES(Phaser_Sample PROPERTIES DEPENDS build_dng_phaser)
+SET_TESTS_PROPERTIES(Phaser_Sample PROPERTIES DEPENDS build_testdata)
 SET_TESTS_PROPERTIES(Phaser_Sample PROPERTIES PASS_REGULAR_EXPRESSION "DNM_pos 1:75884343	INHERITED T	VARIANT C")
 SET_TESTS_PROPERTIES(Phaser_Sample PROPERTIES PASS_REGULAR_EXPRESSION "HAP POS 75884200 p1: AT p2: AC")
 SET_TESTS_PROPERTIES(Phaser_Sample PROPERTIES PASS_REGULAR_EXPRESSION "Base at DNM position: A Base at phasing position: A	 INFERRED PARENT OF ORIGIN for DNM: N/A SUPPORTING READ COUNT: 1")
@@ -237,25 +270,3 @@ SET_TESTS_PROPERTIES(Phaser_Sample PROPERTIES PASS_REGULAR_EXPRESSION "DNM_pos 1
 SET_TESTS_PROPERTIES(Phaser_Sample PROPERTIES PASS_REGULAR_EXPRESSION "DNM_pos 1:182974758	INHERITED G	VARIANT A")
 SET_TESTS_PROPERTIES(Phaser_Sample PROPERTIES PASS_REGULAR_EXPRESSION "HAP POS 182974760 p1: GT p2: CA")
 SET_TESTS_PROPERTIES(Phaser_Sample PROPERTIES PASS_REGULAR_EXPRESSION "Base at DNM position: G Base at phasing position: G	 INFERRED PARENT OF ORIGIN for DNM: p2 SUPPORTING READ COUNT: 1")
-
-##### Issue 51 (and 52) - Test cases for various library identifiers (by LB, SM, and RG). ####
-# Only check the headers. Data will be different (and possibly meaningless) depending on how read-group libraries are grouped together 
-# TODO: Incorporate test into the test_read_groups.cc unit-tests.
-ADD_TEST(CALL_Sample5.3_BAM_LB_TAG ${DNG_CALL_EXE} -f ${TEST_DATA_DIR}/sample_5_3/sample-5.3_ref.fasta.gz -p ${TEST_DATA_DIR}/sample_5_3/ceu.ped -m 0.001 --rgtag "LB" ${TEST_DATA_DIR}/sample_5_3/test1.bam)
-SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM_LB_TAG PROPERTIES 
-	PASS_REGULAR_EXPRESSION "FORMAT\tGL-1\tGL-2\tLB-NA12878-Solexa-135852\tLB-NA12891-Solexa-135851\tLB-NA12892-Solexa-135853"
-)
-ADD_TEST(CALL_Sample5.3_BAM_SM_TAG ${DNG_CALL_EXE} -f ${TEST_DATA_DIR}/sample_5_3/sample-5.3_ref.fasta.gz -p ${TEST_DATA_DIR}/sample_5_3/ceu.ped -m 0.001 --rgtag "SM" ${TEST_DATA_DIR}/sample_5_3/test1.bam)
-SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM_SM_TAG PROPERTIES 
-	PASS_REGULAR_EXPRESSION "FORMAT\tGL-1\tGL-2\tLB-NA12878\tLB-NA12891\tLB-NA12892"
-)
-ADD_TEST(CALL_Sample5.3_BAM_ID_TAG ${DNG_CALL_EXE} -f ${TEST_DATA_DIR}/sample_5_3/sample-5.3_ref.fasta.gz -p ${TEST_DATA_DIR}/sample_5_3/ceu.ped -m 0.001 --rgtag "ID" ${TEST_DATA_DIR}/sample_5_3/test1.bam)
-SET_TESTS_PROPERTIES(CALL_Sample5.3_BAM_ID_TAG PROPERTIES 
-	PASS_REGULAR_EXPRESSION "FORMAT\tGL-1\tGL-2\tSM-NA12891\tSM-NA12892\tSM-NA12878\tLB-NA12878-H06HD.1\tLB-NA12878-H06HD.2\tLB-NA12878-H06JU.1\tLB-NA12891-H03N7.1\tLB-NA12891-H03N7.2\tLB-NA12891-H05F1.2\tLB-NA12892-H06JH.1\tLB-NA12892-H06JH.2\tLB-NA12892-H06JU.2"
-)
-
-##### Issue 55 - Separate header and bam file
-ADD_TEST(CALL_Sample5.3_SAM_SEP_HDR ${DNG_CALL_EXE} -f ${TEST_DATA_DIR}/sep_header/sample-5.3_ref.fasta.gz -p ${TEST_DATA_DIR}/sep_header/ceu.ped -m 0.001 -h ${TEST_DATA_DIR}/sep_header/test1_hdr.sam ${TEST_DATA_DIR}/sep_header/test1_nohdr.sam)
-SET_TESTS_PROPERTIES(CALL_Sample5.3_SAM_SEP_HDR PROPERTIES 
-	PASS_REGULAR_EXPRESSION "FORMAT\tGL-1\tGL-2\tLB-NA12878-Solexa-135852\tLB-NA12891-Solexa-135851\tLB-NA12892-Solexa-135853"
-)
