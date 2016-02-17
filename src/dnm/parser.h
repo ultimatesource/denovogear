@@ -40,7 +40,7 @@
 #define MAX_PL 255
 
 // Stores the list of sample values (PL) for each sample
-typedef std::vector<std::vector<int>> sample_vals_int;
+typedef std::vector<std::vector<uint32_t>> sample_vals_int;
 
 // Store SNP info
 typedef struct { //New struct for Q calls

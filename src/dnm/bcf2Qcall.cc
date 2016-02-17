@@ -81,7 +81,7 @@ void writeToSNPObject(snp_object_t *mom_snp, const bcf_hdr_t *hdr, bcf1_t *rec,
 // merging the two functions.
 void writeToIndelObject(indel_t *mom_indel, const bcf_hdr_t *hdr, bcf1_t *rec,
                         int *g,
-                        int d, int mq, int &flag, int i, int i0) {
+                        int d, int mq, int &flag, int i, int i0, std::vector<uint32_t> &pl_fields) {
 
     strcpy(mom_indel->chr, bcf_hdr_id2name(hdr, rec->rid)); // copy chrom
     mom_indel->pos = rec->pos + 1; // vcf posistion is stored in 0 based
@@ -97,6 +97,8 @@ void writeToIndelObject(indel_t *mom_indel, const bcf_hdr_t *hdr, bcf1_t *rec,
     }
     strcpy(mom_indel->alt, alt_str.c_str()); // ALT
     mom_indel->rms_mapQ = mq;
+    strcpy(mom_indel->id, hdr->samples[i]);
+
     int *res_array = NULL;
     int n_res_array = 0;
     int n_res = bcf_get_format_int32(hdr, rec, "DP", &res_array, &n_res_array);
@@ -108,7 +110,7 @@ void writeToIndelObject(indel_t *mom_indel, const bcf_hdr_t *hdr, bcf1_t *rec,
 
     // Get PL liklihoods
     for(int j = 0; j < 3; j++) {
-        mom_indel->lk[j] = g[j];
+        mom_indel->lk[j] = pl_fields[j];
     }
 
     flag = mom_indel->rms_mapQ < MIN_MAPQ || mom_indel->depth < MIN_READ_DEPTH;
@@ -188,7 +190,7 @@ int bcf_2qcall(const bcf_hdr_t *hdr, bcf1_t *rec, Trio t, qcall_t *mom_snp,
     for(k = 0, s = 1, k1 = -1; k < 3 && s < rec->n_allele; ++k, s++) {
         // skip sites with multiple indel allele
         if(strlen(alleles[s]) > 1) {
-            return 10;
+            //return 10;
         }
 
         a[k + 1] = nt4_table[(int)alleles[s][0]];
@@ -249,7 +251,7 @@ int bcf_2qcall(const bcf_hdr_t *hdr, bcf1_t *rec, Trio t, qcall_t *mom_snp,
             if(indel == 0) {
                 writeToSNPObject(mom_snp, hdr, rec, g, d, mq, flag, i, i0);
             } else {
-                writeToIndelObject(mom_indel, hdr, rec, g, d, mq, flag, i, i0);
+                writeToIndelObject(mom_indel, hdr, rec, g, d, mq, flag, i, i0, pl_fields[i]);
             }
         }
 
@@ -259,7 +261,7 @@ int bcf_2qcall(const bcf_hdr_t *hdr, bcf1_t *rec, Trio t, qcall_t *mom_snp,
             if(indel == 0) {
                 writeToSNPObject(dad_snp, hdr, rec, g, d, mq, flag, i, i0);
             } else {
-                writeToIndelObject(dad_indel, hdr, rec, g, d, mq, flag, i, i0);
+                writeToIndelObject(dad_indel, hdr, rec, g, d, mq, flag, i, i0, pl_fields[i]);
             }
         }
 
@@ -269,7 +271,7 @@ int bcf_2qcall(const bcf_hdr_t *hdr, bcf1_t *rec, Trio t, qcall_t *mom_snp,
             if(indel == 0) {
                 writeToSNPObject(child_snp, hdr, rec, g, d, mq, flag, i, i0);
             } else {
-                writeToIndelObject(child_indel, hdr, rec,  g, d, mq, flag, i, i0);
+                writeToIndelObject(child_indel, hdr, rec,  g, d, mq, flag, i, i0, pl_fields[i]);
             }
         }
     }
