@@ -29,6 +29,9 @@
 #include <boost/range/algorithm/fill_n.hpp>
 
 #include <dng/matrix.h>
+#include <map>
+
+
 
 namespace dng {
 namespace peel {
@@ -40,7 +43,25 @@ enum {
     TOCHILDFAST,
     NUM // Total number of possible forward operations
 };
+
+
+
+std::map<decltype(peel::op::NUM), std::string> map_enum_string {
+        {peel::op::UP, "UP"},
+        {peel::op::DOWN, "DOWN"},
+        {peel::op::TOFATHER, "TOFATHER"},
+        {peel::op::TOMOTHER, "TOMOTHER"},
+        {peel::op::TOCHILD, "TOCHILD"},
+        {peel::op::UPFAST, "UPFAST"},
+        {peel::op::DOWNFAST, "DOWNFAST"},
+        {peel::op::TOFATHERFAST, "TOFATHERFAST"},
+        {peel::op::TOMOTHERFAST, "TOMOTHERFAST"},
+        {peel::op::TOCHILDFAST, "TOCHILDFAST"}
+};
 } // namespace dng::peel::op
+
+#define WORKSPACE_T_MULTIPLE_UPPER_LOWER(workspace, index) \
+    (workspace.upper[index] * workspace.lower[index])
 
 struct workspace_t {
     IndividualVector upper; // Holds P(~Descendent_Data & G=g)
@@ -80,6 +101,7 @@ struct workspace_t {
     void CleanupFast() {
         // TODO: create a check that sees if this has been done before the
         // forward algorithm.
+
         boost::fill_n(lower, somatic_nodes.second, DNG_INDIVIDUAL_BUFFER_ONES);
         dirty_lower = false;
     }
@@ -95,11 +117,63 @@ struct workspace_t {
         assert(boost::size(range) == library_nodes.second - library_nodes.first);
         boost::copy(range, lower.begin() + library_nodes.first);
     }
+
+
+    inline dng::GenotypeArray multiply_upper_lower(std::size_t index){
+
+        return (upper[index] * lower[index]);
+    }
+#define WORKSPACE_T_MULTIPLE_UPPER_LOWER(workspace, index) \
+    (workspace.upper[index] * workspace.lower[index])
+
+#define WORKSPACE_T_KRONECKER_PRODUCT_PARENTS(workspace, dad, mom) \
+    kroneckerProduct(WORKSPACE_T_MULTIPLE_UPPER_LOWER(work, dad).matrix(),  \
+                     WORKSPACE_T_MULTIPLE_UPPER_LOWER(work, mom).matrix() )
+
 };
+
 
 typedef std::vector<std::size_t> family_members_t;
 
-// Basic peeling operations
+enum class Parents : bool {Father=false, Mother=true};
+//enum class Parents : std::size_t {Father=0, Mother=1};
+//TODO: HOW TO?? auto dad = family[Parents::Father]; Dad always 0, Mom always 1
+
+// utility
+dng::PairedGenotypeArray sum_over_children(workspace_t &work, const family_members_t &family,
+                                           const TransitionVector &mat);
+
+dng::PairedGenotypeArray sum_over_children(workspace_t &work, const family_members_t &family,
+                                           const TransitionVector &mat, int first_child_index);
+
+[[deprecated]] dng::GenotypeArray multiply_upper_lower(workspace_t &work, size_t index);
+
+
+[[deprecated]] dng::GenotypeArray multiply_lower_upper(workspace_t &work, size_t index);
+
+[[deprecated]]
+dng::PairedGenotypeArray kroneckerProductDadMom(workspace_t &work,
+                                                std::size_t dad, std::size_t mom);
+
+
+// Core operations
+dng::GenotypeArray up_core(workspace_t &work, const family_members_t &family,
+                           const TransitionVector &mat);
+
+
+dng::GenotypeArray to_parent_core(workspace_t &work, const family_members_t &family,
+                                  const TransitionVector &mat, const Parents to_parent);
+
+[[deprecated]]
+dng::GenotypeArray to_father_core(workspace_t &work, const family_members_t &family,
+                                  const TransitionVector &mat);
+
+[[deprecated]]
+dng::GenotypeArray to_mother_core(workspace_t &work, const family_members_t &family,
+                                  const TransitionVector &mat);
+
+
+        // Basic peeling operations
 void up(workspace_t &work, const family_members_t &family,
         const TransitionVector &mat);
 void down(workspace_t &work, const family_members_t &family,
@@ -134,6 +208,9 @@ void to_mother_reverse(workspace_t &work, const family_members_t &family,
                        const TransitionVector &mat);
 void to_child_reverse(workspace_t &work, const family_members_t &family,
                       const TransitionVector &mat);
+
+
+
 
 typedef decltype(&down) function_t;
 
