@@ -30,6 +30,7 @@
 #include <dng/newick.h>
 #include <dng/read_group.h>
 #include <dng/peeling.h>
+#include <utils/assert_utils.h>
 
 namespace dng {
 
@@ -109,6 +110,8 @@ public:
     size_t num_nodes() const { return num_nodes_; }
     std::pair<size_t, size_t> library_nodes() const { return {first_library_, num_nodes_}; }
 
+    bool Equal(Pedigree &other_ped);
+    
 protected:
     // node structure:
     // founder germline, non-founder germline, somatic, library

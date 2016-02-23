@@ -6,6 +6,7 @@ INCLUDE_DIRECTORIES(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
 INCLUDE_DIRECTORIES(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 INCLUDE_DIRECTORIES(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/dnm")
 
+
 ADD_EXECUTABLE(dng-call
   dng-call.cc
   lib/call.cc lib/likelihood.cc lib/newick.cc lib/pedigree.cc lib/peeling.cc

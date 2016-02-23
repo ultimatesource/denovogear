@@ -657,3 +657,66 @@ std::vector<std::string> dng::Pedigree::BCFHeaderLines() const {
     }
     return ret;
 }
+
+
+bool dng::Pedigree::Equal(dng::Pedigree &other_ped) {
+
+    AssertEqual(num_nodes_, other_ped.num_nodes());
+    AssertEqual(first_founder_, other_ped.first_founder_);
+    AssertEqual(first_nonfounder_, other_ped.first_nonfounder_);
+    AssertEqual(first_somatic_, other_ped.first_somatic_);
+    AssertEqual(first_library_, other_ped.first_library_);
+
+    auto other_labels = other_ped.labels();
+    AssertVectorEqual(labels_, other_labels);
+
+    //TODO: How to iterate through struct? without create another function in struct?
+    auto other_transitions = other_ped.transitions();
+    for (int j = 0; j < transitions_.size(); ++j) {
+        assert(transitions_[j].type == other_transitions[j].type);
+        assert(transitions_[j].parent1 == other_transitions[j].parent1);
+        assert(transitions_[j].parent2 == other_transitions[j].parent2);
+        assert(transitions_[j].length1 == other_transitions[j].length1);
+        assert(transitions_[j].length2 == other_transitions[j].length2);
+    }
+
+    auto other_roots = other_ped.roots_;
+    AssertVectorEqual(roots_, other_roots);
+
+    auto other_peeling_ops = other_ped.peeling_ops_;
+    AssertVectorEqual(peeling_ops_, other_peeling_ops);
+
+    auto other_peeling_function_ops = other_ped.peeling_functions_ops_;
+    AssertVectorEqual(peeling_functions_ops_, other_peeling_function_ops);
+
+
+    auto other_peeling_functions = other_ped.peeling_functions_;
+    for (int j = 0; j < peeling_functions_.size() - 1; ++j) {
+        int op_index = peeling_functions_ops_[j];
+
+        assert(dng::peel::functions[op_index] ==
+               other_peeling_functions[j]); //Check against expected dng::peel::functions
+        assert(peeling_functions_[j] == other_peeling_functions[j]); //Check against others
+
+    }
+
+    auto other_peeling_reverse_functions = other_ped.peeling_reverse_functions_;
+    for (int j = 0; j < peeling_reverse_functions_.size() - 1; ++j) {
+        int op_index = peeling_functions_ops_[j];
+        assert(dng::peel::reverse_functions[op_index] ==
+               other_peeling_reverse_functions[j]); //Check against expected dng::peel::functions
+        assert(peeling_reverse_functions_[j] == other_peeling_reverse_functions[j]); //Check against others
+
+    }
+
+
+    auto other_family_members_ = other_ped.family_members_;
+    AssertEqual(family_members_.size(), other_family_members_.size());
+    for (int k = 0; k < family_members_.size(); ++k) {
+        AssertVectorEqual(family_members_[k], other_family_members_[k]);
+    }
+
+    return true;
+
+
+}
