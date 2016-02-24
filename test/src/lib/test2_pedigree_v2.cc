@@ -149,7 +149,7 @@ BOOST_AUTO_TEST_CASE(test_constructor, *utf::fixture(&setup, &teardown)) {
 
 BOOST_AUTO_TEST_CASE(test_pedigree_equal, *utf::fixture(&setup, &teardown)) {
 
-    bool is_equal = pedigree.Equal(pedigree_v2);
+    bool is_equal = pedigree.equal(pedigree_v2);
     BOOST_CHECK(is_equal);
 }
 
@@ -183,7 +183,7 @@ BOOST_AUTO_TEST_CASE(test_constructor_2, *utf::fixture(&setup, &teardown)) {
         BOOST_CHECK_EQUAL(expected_labels[j], labels[j]);
     }
 
-    
+
     auto size_t_negative_one = static_cast<size_t>(-1);
     std::vector<Pedigree::transition_t> expected_transitions = {
             {Pedigree::TransitionType::Founder, size_t_negative_one, size_t_negative_one , 0, 0},
@@ -212,7 +212,7 @@ BOOST_AUTO_TEST_CASE(test_constructor_2, *utf::fixture(&setup, &teardown)) {
 
 BOOST_AUTO_TEST_CASE(test_pedigree_v2, *utf::fixture(&setup, &teardown)) {
 
-    
+
     BOOST_CHECK_EQUAL(5, pedigree_v2.num_nodes());
 
 

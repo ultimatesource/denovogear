@@ -95,7 +95,7 @@ public:
     bool Construct(const io::Pedigree &pedigree, dng::ReadGroups &rgs, const InheritancePattern &pattern,
                    double mu, double mu_somatic, double mu_library);
 
-    bool Equal(Pedigree &other_ped);
+    bool equal(Pedigree &other_ped);
 
 
     const std::vector<peel::family_members_t>& inspect_family_members() const {

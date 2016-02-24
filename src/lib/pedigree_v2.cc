@@ -846,16 +846,16 @@ void dng::PedigreeV2::CreatePeelingOps(dng::Graph &pedigree_graph, const std::ve
 
 
 //
-//bool dng::PedigreeV2::Equal(dng::Pedigree &other_ped) {
+//bool dng::PedigreeV2::equal(dng::Pedigree &other_ped) {
 //
-//    AssertEqual(num_nodes_, other_ped.num_nodes());
-//    AssertEqual(first_founder_, other_ped.first_founder_);
-//    AssertEqual(first_nonfounder_, other_ped.first_nonfounder_);
-//    AssertEqual(first_somatic_, other_ped.first_somatic_);
-//    AssertEqual(first_library_, other_ped.first_library_);
+//    assert_equal(num_nodes_, other_ped.num_nodes());
+//    assert_equal(first_founder_, other_ped.first_founder_);
+//    assert_equal(first_nonfounder_, other_ped.first_nonfounder_);
+//    assert_equal(first_somatic_, other_ped.first_somatic_);
+//    assert_equal(first_library_, other_ped.first_library_);
 //
 //    auto other_labels = other_ped.labels();
-//    AssertVectorEqual(labels_, other_labels);
+//    assert_equal_vector(labels_, other_labels);
 //
 //    //TODO: How to iterate through struct? without create another function in struct?
 //    auto other_transitions = other_ped.transitions();
@@ -868,13 +868,13 @@ void dng::PedigreeV2::CreatePeelingOps(dng::Graph &pedigree_graph, const std::ve
 //    }
 //
 //    auto other_roots = other_ped.roots_;
-//    AssertVectorEqual(roots_, other_roots);
+//    assert_equal_vector(roots_, other_roots);
 //
 //    auto other_peeling_ops = other_ped.peeling_ops_;
-//    AssertVectorEqual(peeling_ops_, other_peeling_ops);
+//    assert_equal_vector(peeling_ops_, other_peeling_ops);
 //
 //    auto other_peeling_function_ops = other_ped.peeling_functions_ops_;
-//    AssertVectorEqual(peeling_functions_ops_, other_peeling_function_ops);
+//    assert_equal_vector(peeling_functions_ops_, other_peeling_function_ops);
 //
 //
 //    auto other_peeling_functions = other_ped.peeling_functions_;
@@ -899,9 +899,9 @@ void dng::PedigreeV2::CreatePeelingOps(dng::Graph &pedigree_graph, const std::ve
 //
 //
 //    auto other_family_members_ = other_ped.family_members_;
-//    AssertEqual(family_members_.size(), other_family_members_.size());
+//    assert_equal(family_members_.size(), other_family_members_.size());
 //    for (int k = 0; k < family_members_.size(); ++k) {
-//        AssertVectorEqual(family_members_[k], other_family_members_[k]);
+//        assert_equal_vector(family_members_[k], other_family_members_[k]);
 //    }
 //
 //    return true;
