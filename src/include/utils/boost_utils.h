@@ -5,6 +5,7 @@
 #ifndef DENOVOGEAR_BOOST_UTILS_H
 #define DENOVOGEAR_BOOST_UTILS_H
 
+#include <boost/range/iterator_range_core.hpp>
 namespace utils {
 
 

@@ -110,7 +110,7 @@ public:
     size_t num_nodes() const { return num_nodes_; }
     std::pair<size_t, size_t> library_nodes() const { return {first_library_, num_nodes_}; }
 
-    bool Equal(Pedigree &other_ped);
+    bool equal(Pedigree &other_ped);
     
 protected:
     // node structure:
