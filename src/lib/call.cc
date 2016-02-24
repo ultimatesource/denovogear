@@ -172,7 +172,7 @@ void vcf_add_header_text(hts::bcf::File &vcfout, Call::argument_type &arg) {
     vcfout.AddHeaderMetadata("##FORMAT=<ID=MUP,Number=1,Type=Float,Description=\"Probability of at least 1 de novo mutation in this node.\">");
     vcfout.AddHeaderMetadata("##FORMAT=<ID=MU1P,Number=1,Type=Float,Description=\"Conditional probability that this node contains a de novo mutation given only 1 de novo mutation\">");
 }
-
+//TODO: In the process of moving this class to find_mutations.cc
 class FindMutations {
 public:
     struct params_t {
@@ -746,6 +746,10 @@ int Call::operator()(Call::argument_type &arg) {
             if(!calculate(read_depths, ref_index, &stats)) {
                 return;
             }
+//TODO: Replace the if(!caluclate...) with the following
+//            MutationStats mutation_stats (min_prob);
+//            calculate.calculate_mutation(read_depths, ref_index, mutation_stats);
+
 
             // reformatted AD fields for output. The first few fields are the GL and SM fields and "AD" is missing. The
             // remaining fields are just copied from the input file
@@ -771,6 +775,10 @@ int Call::operator()(Call::argument_type &arg) {
 
             // Update REF, ALT fields
             record.alleles(allele_order_str);
+//TODO: replace the calculation with set_genotype_related_stats(). This will work for both sequence/variant_data
+//mutation_stats.set_genotype_related_stats(acgt_to_refalt_allele, refalt_to_acgt_allele, n_alleles,
+//                                          ref_index, num_nodes, library_start);
+
 
             typedef pair<int, int> key_t;
             key_t total_depths[4] = {{0, 0}, {1, 0}, {2, 0}, {3, 0}};
@@ -834,6 +842,13 @@ int Call::operator()(Call::argument_type &arg) {
                                      stats.genotype_likelihoods[i][n];
                 }
             }
+
+//mutation_stats.record_basic_stats(record);//TODO: replace with this
+//mutation_stats.record_genotype_stats(record);//TODO: replace with this
+//mutation_stats.record_single_mutation_stats(record); //TODO: replace with this
+
+
+
 
 
             record.info("MUP", stats.mup);

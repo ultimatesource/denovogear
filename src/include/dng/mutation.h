@@ -59,6 +59,8 @@ constexpr int mitotic_diploid_mutation_counts[16][16] = {
 extern const char mitotic_diploid_mutation_labels[10][10][6];
 extern const char meiotic_diploid_mutation_labels[100][10][9];
 
+//TODO: Somewhere we need to explain mutype = -1,0,1 -> full, no, one. Maybe enum class?
+
 inline TransitionMatrix mitosis_haploid_matrix(const MutationMatrix &m,
         int mutype = -1) {
     TransitionMatrix ret{4, 4};
@@ -68,6 +70,7 @@ inline TransitionMatrix mitosis_haploid_matrix(const MutationMatrix &m,
                         m(i, j) : 0.0;
         }
     }
+
     return ret; // 4 x 4
 }
 
@@ -229,15 +232,15 @@ inline dng::GenotypeArray population_prior(double theta,
     dng::GenotypeArray ret{10};
     ret <<
         alpha[0]*(1.0 + alpha[0]) / alpha_sum / (1.0 + alpha_sum), // AA
-              2.0 * alpha[0]*(alpha[1]) / alpha_sum / (1.0 + alpha_sum), // AC
-              2.0 * alpha[0]*(alpha[2]) / alpha_sum / (1.0 + alpha_sum), // AG
-              2.0 * alpha[0]*(alpha[3]) / alpha_sum / (1.0 + alpha_sum), // AT
-              alpha[1]*(1.0 + alpha[1]) / alpha_sum / (1.0 + alpha_sum), // CC
-              2.0 * alpha[1]*(alpha[2]) / alpha_sum / (1.0 + alpha_sum), // CG
-              2.0 * alpha[1]*(alpha[3]) / alpha_sum / (1.0 + alpha_sum), // CT
-              alpha[2]*(1.0 + alpha[2]) / alpha_sum / (1.0 + alpha_sum), // GG
-              2.0 * alpha[2]*(alpha[3]) / alpha_sum / (1.0 + alpha_sum), // GT
-              alpha[3]*(1.0 + alpha[3]) / alpha_sum / (1.0 + alpha_sum); // GG
+        2.0 * alpha[0]*(alpha[1]) / alpha_sum / (1.0 + alpha_sum), // AC
+        2.0 * alpha[0]*(alpha[2]) / alpha_sum / (1.0 + alpha_sum), // AG
+        2.0 * alpha[0]*(alpha[3]) / alpha_sum / (1.0 + alpha_sum), // AT
+        alpha[1]*(1.0 + alpha[1]) / alpha_sum / (1.0 + alpha_sum), // CC
+        2.0 * alpha[1]*(alpha[2]) / alpha_sum / (1.0 + alpha_sum), // CG
+        2.0 * alpha[1]*(alpha[3]) / alpha_sum / (1.0 + alpha_sum), // CT
+        alpha[2]*(1.0 + alpha[2]) / alpha_sum / (1.0 + alpha_sum), // GG
+        2.0 * alpha[2]*(alpha[3]) / alpha_sum / (1.0 + alpha_sum), // GT
+        alpha[3]*(1.0 + alpha[3]) / alpha_sum / (1.0 + alpha_sum); // GG
     return ret;
 }
 
