@@ -548,7 +548,7 @@ int Call::operator()(Call::argument_type &arg) {
                 int n1 = refalt_to_acgt_allele[i];
                 for(int j = 0; j <= i; ++j, ++k) {
                     int n2 = refalt_to_acgt_allele[j];
-                    genotype_index[k] = (j == 0 && ref_index == 4) ?
+                    genotype_index[k] = (n1 == 4 || n2 == 4) ?
                                         -1 : folded_diploid_genotypes_matrix[n1][n2];
                 }
             }
