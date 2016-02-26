@@ -1,8 +1,8 @@
 
 ###############################################################################
 # Testdata information
-SET(TESTDATA_COMMIT 6e82a87)
-SET(TESTDATA_MD5 956b2720e25bc4d30deb045d85f8b5d4)
+SET(TESTDATA_COMMIT c4ff355)
+SET(TESTDATA_MD5 354f44afbcf148fbc653f4e1b5231f85)
 SET(TESTDATA_REPO denovogear/testdata)
 SET(TESTDATA_URL "https://api.github.com/repos/${TESTDATA_REPO}/tarball/${TESTDATA_COMMIT}")
 SET(TESTDATA_DIR "${CMAKE_BINARY_DIR}/testdata")
