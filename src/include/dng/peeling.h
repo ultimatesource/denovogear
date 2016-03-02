@@ -29,6 +29,7 @@
 #include <boost/range/algorithm/fill_n.hpp>
 
 #include <dng/matrix.h>
+#include <dng/detail/unit_test.h>
 
 namespace dng {
 namespace peel {
