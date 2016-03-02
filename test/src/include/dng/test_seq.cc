@@ -1,10 +1,9 @@
 #define BOOST_TEST_MODULE "dng::util::seq.h"
 
-#include <boost/test/unit_test.hpp>
 #include <vector>
 #include <string>
 
-#include "dng/seq.h"
+#include <dng/seq.h>
 
 using namespace std;
 
