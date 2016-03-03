@@ -2,7 +2,7 @@
 ###############################################################################
 # Testdata information
 SET(TESTDATA_COMMIT c4ff355)
-SET(TESTDATA_MD5 354f44afbcf148fbc653f4e1b5231f85)
+SET(TESTDATA_SHA256 b8c2f82f6b6662d1826e99722e378b2e6af25499eed553c4ec451633ce45935d)
 SET(TESTDATA_REPO denovogear/testdata)
 SET(TESTDATA_URL "https://api.github.com/repos/${TESTDATA_REPO}/tarball/${TESTDATA_COMMIT}")
 SET(TESTDATA_DIR "${CMAKE_BINARY_DIR}/testdata")
@@ -22,7 +22,7 @@ IF(NOT TESTDATA)
     DOWNLOAD_NAME testdata.tar.gz
     DOWNLOAD_DIR "${CMAKE_BINARY_DIR}"
     URL "${TESTDATA_URL}"
-    URL_MD5 "${TESTDATA_MD5}"
+    URL_HASH SHA256=${TESTDATA_SHA256}
   )
 ELSE()
   SET(TESTDATA_DIR "${TESTDATA}")
@@ -35,6 +35,19 @@ ELSE()
     INSTALL_COMMAND ""
   )
 ENDIF()
+
+############################################################################
+# Create a make_testdata_sum target
+CONFIGURE_FILE(
+  "${CMAKE_SOURCE_DIR}/Modules/cmake_make_testdata_sum.cmake.in"
+  "${CMAKE_BINARY_DIR}/cmake_make_testdata_sum.cmake"
+  IMMEDIATE @ONLY)
+
+ADD_CUSTOM_TARGET(make_testdata_sum
+  "${CMAKE_COMMAND}" -P "${CMAKE_BINARY_DIR}/cmake_make_testdata_sum.cmake"
+  COMMENT "Calculating the checksum for testdata.tar.gz"
+)
+
 
 ################################################################################
 # Determine the location of the executables/scripts and any data sets required for full package testing
