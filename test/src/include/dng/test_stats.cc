@@ -1,0 +1,74 @@
+#define BOOST_TEST_MODULE "dng::stats.h"
+
+#include <cmath>
+#include <cstdlib>
+#include <iostream>
+#include <array>
+
+#include <dng/stats.h>
+
+// use many tests borrowed from python
+BOOST_AUTO_TEST_CASE(test_exact_sum) {
+    using dng::stats::ExactSum;
+    using dng::stats::exact_sum;
+    BOOST_CHECK(ExactSum() == 0.0);
+    {
+        ExactSum sum(1.0);
+        BOOST_CHECK(sum == 1.0);
+        sum += 1.0;
+        BOOST_CHECK(sum == 2.0);
+        sum += -1.0;
+        BOOST_CHECK(sum == 1.0);
+        sum(1.0);
+        BOOST_CHECK(sum == 2.0);
+        sum(-1.0);
+        BOOST_CHECK(sum == 1.0);
+        (sum(1.0) += 1.0).add(-1.0) += -1.0 ;
+        BOOST_CHECK(sum(-1.0).result() == 0.0);
+        BOOST_CHECK(sum == false && sum.failed() == false);
+    }
+    BOOST_CHECK(exact_sum({0.0}) == 0.0);
+    BOOST_CHECK(exact_sum(std::array<double,2>({1.0,-1.0})) == 0.0);
+    BOOST_CHECK(exact_sum({1e100, 1.0, -1e100, 1e-100, 1e50, -1.0, -1e50}) == 1e-100);
+    BOOST_CHECK(exact_sum({pow(2.0,53), -0.5, -pow(2.0,-54)}) == pow(2.0,53)-1.0);
+    BOOST_CHECK(exact_sum({pow(2.0,53), 1.0, pow(2.0,-100)}) == pow(2.0,53)+2.0);
+    BOOST_CHECK(exact_sum({pow(2.0,53)+10.0, 1.0, pow(2.0,-100)}) == pow(2.0,53)+12.0);
+    BOOST_CHECK(exact_sum({pow(2.0,53)-4.0, 0.5, pow(2.0,-54)}) == pow(2.0,53)-3.0);
+    BOOST_CHECK(exact_sum({1e16, 1.0, 1e-16}) == 10000000000000002.0);
+    BOOST_CHECK(exact_sum({1e16-2.0, 1.0-pow(2.0,-53), -(1e16-2.0), -(1.0-pow(2.0,-53))}) == 0.0);
+    {
+        ExactSum sum;
+        for(int i=1;i<1001;++i) {
+            sum(1.0/i);
+        }
+        BOOST_CHECK( sum == atof("0x1.df11f45f4e61ap+2") );
+    }
+    {
+        ExactSum sum;
+        for(int i=1;i<1001;++i) {
+            sum(pow(-1.0,i)/i);
+        }
+        BOOST_CHECK( sum == atof("-0x1.62a2af1bd3624p-1") );
+    }
+    {
+        ExactSum sum;
+        for(int i=0;i<1000;++i) {
+            sum(pow(1.7,i+1)-pow(1.7,i));
+        }
+        sum(-pow(1.7,1000));
+        BOOST_CHECK( sum == -1.0 );
+    }
+    {
+        ExactSum sum;
+        for(int i=-1074; i < 972; i += 2) {
+            sum(pow(2.0,i) - pow(2.0,i+50) + pow(2.0,i+52));
+        }
+        sum(-pow(2.0,1022));
+        BOOST_CHECK( sum == atof("0x1.5555555555555p+970") );
+    }
+    BOOST_CHECK(std::isnan(exact_sum({1.0,(double)NAN})));
+    BOOST_CHECK(std::isnan(exact_sum({(double)-INFINITY,(double)INFINITY})));
+    BOOST_CHECK(exact_sum({pow(2,1023),pow(2,1023)}) == HUGE_VAL);    
+    BOOST_CHECK(exact_sum({1.0, (double)INFINITY}) == INFINITY);    
+    BOOST_CHECK(exact_sum({1.0, (double)-INFINITY}) == -INFINITY);    
+}
