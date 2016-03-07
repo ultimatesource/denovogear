@@ -35,7 +35,7 @@
 
 #include <boost/tokenizer.hpp>
 
-#include <dng/utilities.h>
+#include <dng/utility.h>
 
 namespace dng {
 namespace io {
@@ -231,7 +231,7 @@ protected:
             {"female", Gender::Female},
             {"unknown", Gender::Unknown}
         };
-        return dng::util::key_switch_tuple(str, keys, keys[0]).second;
+        return dng::utility::key_switch_tuple(str, keys, keys[0]).second;
     }
 
     NameContainer names_;

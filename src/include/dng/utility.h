@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Reed A. Cartwright
+ * Copyright (c) 2014-2015 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -18,11 +18,12 @@
  */
 
 #pragma once
-#ifndef DNG_UTILITIES_H
-#define DNG_UTILITIES_H
+#ifndef DNG_UTILITY_H
+#define DNG_UTILITY_H
 
 #include <tuple>
 #include <cmath>
+#include <locale>
 
 #include <boost/spirit/include/support_ascii.hpp>
 #include <boost/spirit/include/qi_real.hpp>
@@ -36,7 +37,7 @@
 #include <dng/detail/unit_test.h>
 
 namespace dng {
-namespace util {
+namespace utility {
 
 template<class A, class B, std::size_t N>
 std::size_t key_switch(A &ss, const B(&key)[N]) {
@@ -46,7 +47,7 @@ std::size_t key_switch(A &ss, const B(&key)[N]) {
             return i;
         }
     }
-    return (std::size_t) - 1;
+    return static_cast<std::size_t>(-1);
 }
 
 template<class A, class B, std::size_t N>
@@ -95,7 +96,39 @@ inline T lphred(double p, T m = std::numeric_limits<T>::max()) {
     return (q > m) ? m : static_cast<T>(q);
 }
 
+// extracts extension and filename from both file.ext and ext:file.foo
+// returns {ext, filename.ext}
+// trims whitespace as well
+inline std::pair<std::string, std::string> extract_file_type(const std::string &path) {
+    if(path.empty())
+        return {};
+    std::locale loc;
+
+    auto last = path.length();
+    decltype(last) first = 0;
+    while(first < path.length() && std::isspace(path[first],loc)) {
+        ++first;
+    }
+    if(first == last) {
+        return {};
+    }
+    while(std::isspace(path[last-1],loc)) {
+        --last;
+    }
+
+    auto x = last-1;
+    for(auto u = first; u < last; ++u) {
+        if(path[u] == ':' && u > first+1) { // u > 1 skips windows drive letters
+            return {path.substr(first, u-first), path.substr(u+1,last-(u+1))};
+        }
+        if(path[u] == '.' && u > first) { // u > 0 skips unix .hidden files
+            x = u;
+        }
+    }
+    return {path.substr(x + 1, last - (x + 1)), path.substr(first,last-first)};
 }
-} // namespace dng::util
+
+}
+} // namespace dng::utility
 
 #endif
