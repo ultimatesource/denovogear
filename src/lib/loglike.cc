@@ -220,7 +220,8 @@ int LogLike::operator()(LogLike::argument_type &arg) {
     };
 
     // Treat sequence_data and variant data separately
-    double log_result = 0.0;
+    dng::stats::ExactSum sum_data;
+    dng::stats::ExactSum sum_scale;
     if(cat == sequence_data) {
         const bam_hdr_t *h = bamdata[0].header();
         dng::BamPileup mpileup{rgs.groups(), arg.min_qlen};
@@ -257,7 +258,8 @@ int LogLike::operator()(LogLike::argument_type &arg) {
             }
             size_t ref_index = seq::char_index(ref_base);
             auto loglike = calculate(read_depths, ref_index);
-            log_result += loglike.log_data;
+            sum_data += loglike.log_data;
+            sum_scale += loglike.log_scale;
         });
     } else if(cat == variant_data) {
         const char *fname = bcfdata[0].name();
@@ -315,12 +317,15 @@ int LogLike::operator()(LogLike::argument_type &arg) {
 
             size_t ref_index = seq::char_index(ref_base);
             auto loglike = calculate(read_depths, ref_index);
-            log_result += loglike.log_data;
+            sum_data += loglike.log_data;
+            sum_scale += loglike.log_scale;
         });
     } else {
         throw runtime_error("unsupported file category.");
     }
-    std::cout << setprecision(16) << log_result << std::endl; 
+    std::cout << "log_observed\t" << setprecision(16) << sum_scale.result() << std::endl;
+    std::cout << "log_hidden\t" << setprecision(16) << sum_data.result() << "\n";
+
     return EXIT_SUCCESS;
 }
 
