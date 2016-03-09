@@ -23,6 +23,7 @@
 #include <htslib/hts.h>
 #include <memory>
 #include <assert.h>
+#include <cstdlib>
 
 namespace hts {
 
