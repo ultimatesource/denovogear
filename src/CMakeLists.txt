@@ -10,6 +10,7 @@ ADD_EXECUTABLE(dng-call
   dng-call.cc
   lib/call.cc lib/likelihood.cc lib/newick.cc lib/pedigree.cc lib/peeling.cc
   lib/mutation.cc lib/stats.cc
+  lib/mutation_stats.cc lib/find_mutation.cc
 )
 
 # Some compilers have incomplete c++11 support provide a list of
