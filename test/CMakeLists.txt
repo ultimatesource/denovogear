@@ -63,61 +63,89 @@ SET_TESTS_PROPERTIES(build_gitkeep PROPERTIES
   PASS_REGULAR_EXPRESSION "d41d8cd98f00b204e9800998ecf8427e"
 )
 
+
+
 ################################################################################
 # Compile unit tests
-include_directories(../src/include)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src/include)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/src)
+INCLUDE_DIRECTORIES(./src/)
+SET(UNITTEST_LIBRARIES Threads::Threads
+        Boost::PROGRAM_OPTIONS
+        Boost::FILESYSTEM
+        Boost::SYSTEM
+        Boost::UNIT_TEST_FRAMEWORK
+        EIGEN3::EIGEN3
+        HTSLIB::HTSLIB
+        )
+
 
 # Make a test for each unit test file located in test/ dir
-file(GLOB_RECURSE TESTS test_*[cc|cpp])
-foreach(test ${TESTS})
-  get_filename_component(testName ${test} NAME_WE)
-  add_executable(${testName} EXCLUDE_FROM_ALL ${test})
-  target_link_libraries(${testName}
-    Threads::Threads
-    Boost::PROGRAM_OPTIONS
-    Boost::FILESYSTEM
-    Boost::SYSTEM
-    Boost::UNIT_TEST_FRAMEWORK
-    EIGEN3::EIGEN3
-    HTSLIB::HTSLIB
-  )
-  add_test(${testName}_build "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target ${testName})
-  add_test(${testName}_run ${testName})
-  set_tests_properties(${testName}_run PROPERTIES DEPENDS ${testName}_build)
-endforeach(test)
+FILE(GLOB_RECURSE TESTS test_*[cc|cpp])
+FOREACH(test ${TESTS})
+  GET_FILENAME_COMPONENT(testName ${test} NAME_WE)
+  ADD_EXECUTABLE(${testName} EXCLUDE_FROM_ALL ${test})
+  TARGET_LINK_LIBRARIES(${testName} ${UNITTEST_LIBRARIES})
+
+  ADD_TEST(${testName}_build "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target ${testName})
+  ADD_TEST(${testName}_run ${testName})
+  SET_TESTS_PROPERTIES(${testName}_run PROPERTIES DEPENDS ${testName}_build)
+ENDFOREACH(test)
 
 ################################################################################
 
 
-
 ################################################################################
-# temp Compile unit tests with *.cc
-# TODO: Use a different filename pattern for now (test2_* instead of test_*).
-# TODO: How to add min *.cc files instead of all *.cc later?
-include_directories(./)
+## TODO: How to build something like "make timetrail" and compile all time measuring files
+IF(DEVEL_MODE)
+  ADD_DEFINITIONS(-DDNG_DEVEL)
+ENDIF()
 
-file(GLOB_RECURSE TESTS2 "test2_*[cc|cpp]")
-foreach(test ${TESTS2})
-  get_filename_component(testName ${test} NAME_WE)
-  add_executable(${testName} EXCLUDE_FROM_ALL ${test}
+FILE(GLOB_RECURSE TESTS2 "testt_time*[cc|cpp]")
+FOREACH(test ${TESTS2})
+  GET_FILENAME_COMPONENT(testName ${test} NAME_WE)
+  ADD_EXECUTABLE(${testName} EXCLUDE_FROM_ALL ${test}
           ${CMAKE_SOURCE_DIR}/src/lib/peeling.cc
           ${CMAKE_SOURCE_DIR}/src/lib/regions.cc
-          ##            ../src/lib/likelihood.cc ../src/lib/newick.cc ../src/lib/pedigree.cc
-          ##            ../src/lib/mutation.cc ../src/lib/stats.cc
+          ${CMAKE_SOURCE_DIR}/src/lib/likelihood.cc
+          ${CMAKE_SOURCE_DIR}/src/lib/newick.cc
+          ${CMAKE_SOURCE_DIR}/src/lib/pedigree.cc
+          ${CMAKE_SOURCE_DIR}/src/lib/mutation.cc
+          ${CMAKE_SOURCE_DIR}/src/lib/stats.cc
           )
-  target_link_libraries(${testName}
-          Threads::Threads
-          Boost::PROGRAM_OPTIONS
-          Boost::FILESYSTEM
-          Boost::SYSTEM
-          Boost::UNIT_TEST_FRAMEWORK
-          EIGEN3::EIGEN3
-          HTSLIB::HTSLIB
-          )
-  add_test(${testName}_build "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target ${testName})
-  add_test(${testName}_run ${testName})
-  set_tests_properties(${testName}_run PROPERTIES DEPENDS ${testName}_build)
-endforeach(test)
+  TARGET_LINK_LIBRARIES(${testName} ${UNITTEST_LIBRARIES})
+
+  IF(DEVEL_MODE)
+    TARGET_LINK_LIBRARIES(${testName} Boost::TIMER)
+  ENDIF()
+#  add_test(${testName}_build "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target ${testName})
+#  add_test(${testName}_run ${testName})
+#  set_tests_properties(${testName}_run PROPERTIES DEPENDS ${testName}_build)
+ENDFOREACH(test)
+
+
+
+# TODO: Use a different filename pattern for now (test2_* instead of test_*).
+ADD_DEFINITIONS(-DTESTDATA_DIR=\"${TESTDATA_DIR}\")
+FILE(GLOB_RECURSE TESTS2 "test2_*[cc|cpp]")
+
+FILE(GLOB SOURCE_FILES "${CMAKE_SOURCE_DIR}/src/lib/*cc")
+LIST(REMOVE_ITEM SOURCE_FILES "${CMAKE_SOURCE_DIR}/src/lib/call.cc")
+
+FOREACH (test ${TESTS2})
+  GET_FILENAME_COMPONENT(testName ${test} NAME_WE)
+  ADD_EXECUTABLE(${testName} EXCLUDE_FROM_ALL ${test}
+          ${SOURCE_FILES})
+
+  TARGET_LINK_LIBRARIES(${testName} ${UNITTEST_LIBRARIES})
+
+  ADD_TEST(${testName}_build "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target ${testName})
+  ADD_TEST(${testName}_run ${testName})
+  SET_TESTS_PROPERTIES(${testName}_run PROPERTIES DEPENDS ${testName}_build)
+ENDFOREACH (test)
+
+
+
 
 ################################################################################
 
@@ -151,10 +179,10 @@ ADD_TEST(CALL_Sample5.3_VCF ${DNG_CALL_EXE} -p ${TESTDATA_DIR}/sample_5_3/ceu.pe
 SET_TESTS_PROPERTIES(CALL_Sample5.3_VCF PROPERTIES DEPENDS build_dng_call)
 SET_TESTS_PROPERTIES(CALL_Sample5.3_VCF PROPERTIES DEPENDS build_testdata)
 SET_TESTS_PROPERTIES(CALL_Sample5.3_VCF PROPERTIES PASS_REGULAR_EXPRESSION "MUP=0.116189[0-9]*\;LLD=-30.5967[0-9]*\;LLH=-6.68014[0-9]*\;MUX=0.116189[0-9]*\;MU1P=0.116189[0-9]*\;DNT=GGxGG>GT\;DNL=LB-NA12878:Solexa-135852\;DNQ=42\;DNC=100\;DP=189\;AD=158,30,1")
-SET_TESTS_PROPERTIES(CALL_Sample5.3_VCF PROPERTIES PASS_REGULAR_EXPRESSION "0/0:38:0.999833[0-9]*,0.000167058[0-9]*,1.78739[0-9]*e-12,2.75325[0-9]*e-11,3.57372[0-9]*e-16,4.51356[0-9]*e-20:.,.,.,.,.,.:.:.,.,.:.:.") 
+SET_TESTS_PROPERTIES(CALL_Sample5.3_VCF PROPERTIES PASS_REGULAR_EXPRESSION "0/0:38:0.999833[0-9]*,0.000167058[0-9]*,1.78739[0-9]*e-12,2.75325[0-9]*e-11,3.57372[0-9]*e-16,4.51356[0-9]*e-20:.,.,.,.,.,.:.:.,.,.:.:.")
 SET_TESTS_PROPERTIES(CALL_Sample5.3_VCF PROPERTIES PASS_REGULAR_EXPRESSION "0/0:18:0.984574[0-9]*,0.0154262[0-9]*,1.66835[0-9]*e-10,9.77602[0-9]*e-12,1.67414[0-9]*e-14,1.58815[0-9]*e-20")
 SET_TESTS_PROPERTIES(CALL_Sample5.3_VCF PROPERTIES PASS_REGULAR_EXPRESSION "0/0:9:0.868225[0-9]*,0.131775[0-9]*,7.45988[0-9]*e-16,1.99601[0-9]*e-09,2.97932[0-9]*e-17,3.704[0-9]*e-26:-6.74046[0-9]*,0,-6.07991[0-9]*,-7.58973[0-9]*,-7.5555[0-9]*,-15.93:55:25,29,1:0.999933[0-9]*:0.999933[0-9]*")
-SET_TESTS_PROPERTIES(CALL_Sample5.3_VCF PROPERTIES PASS_REGULAR_EXPRESSION "0/0:38:0.999837[0-9]*,0.000163186[0-9]*,2.11375[0-9]*e-15,2.7779[0-9]*e-11,4.22658[0-9]*e-19,5.33792[0-9]*e-23:0,-6.64246[0-9]*,-17.5301[0-9]*,-6.64246[0-9]*,-17.5301[0-9]*,-17.5301[0-9]*:57:57,0,0:3.33278[0-9]*e-05:3.33278[0-9]*e-05") 
+SET_TESTS_PROPERTIES(CALL_Sample5.3_VCF PROPERTIES PASS_REGULAR_EXPRESSION "0/0:38:0.999837[0-9]*,0.000163186[0-9]*,2.11375[0-9]*e-15,2.7779[0-9]*e-11,4.22658[0-9]*e-19,5.33792[0-9]*e-23:0,-6.64246[0-9]*,-17.5301[0-9]*,-6.64246[0-9]*,-17.5301[0-9]*,-17.5301[0-9]*:57:57,0,0:3.33278[0-9]*e-05:3.33278[0-9]*e-05")
 SET_TESTS_PROPERTIES(CALL_Sample5.3_VCF PROPERTIES PASS_REGULAR_EXPRESSION "0/0:18:0.984578[0-9]*,0.0154223[0-9]*,6.97054[0-9]*e-14,9.45085[0-9]*e-12,6.98069[0-9]*e-18,2.94856[0-9]*e-24:0,-4.667[0-9]*,-16.0119[0-9]*,-7.10524[0-9]*,-16.3122[0-9]*,-18.7879[0-9]*:77:76,1,0:3.33292e-05:3.33292e-05")
 
 ADD_TEST(CALL_Sample5.3_VCF_ALT ${DNG_CALL_EXE} -p ${TESTDATA_DIR}/sample_5_3/ceu.ped -m 0.001 ${TESTDATA_DIR}/sample_5_3/test2.vcf)
@@ -200,6 +228,7 @@ SET_TESTS_PROPERTIES(CALL_Sample5.3_SAM_SEP_HDR PROPERTIES
 
 ###########################################################################################
 # DNG-DNM Tests
+
 ADD_TEST(DNM_Help ${DNG_DNM_EXE} --h)
 SET_TESTS_PROPERTIES(DNM_Help PROPERTIES DEPENDS build_dng_dnm)
 SET_TESTS_PROPERTIES(DNM_Help PROPERTIES PASS_REGULAR_EXPRESSION "Usage:")
@@ -299,4 +328,3 @@ SET_TESTS_PROPERTIES(Phaser_Sample PROPERTIES PASS_REGULAR_EXPRESSION "DNM_pos 1
 SET_TESTS_PROPERTIES(Phaser_Sample PROPERTIES PASS_REGULAR_EXPRESSION "DNM_pos 1:182974758	INHERITED G	VARIANT A")
 SET_TESTS_PROPERTIES(Phaser_Sample PROPERTIES PASS_REGULAR_EXPRESSION "HAP POS 182974760 p1: GT p2: CA")
 SET_TESTS_PROPERTIES(Phaser_Sample PROPERTIES PASS_REGULAR_EXPRESSION "Base at DNM position: G Base at phasing position: G	 INFERRED PARENT OF ORIGIN for DNM: p2 SUPPORTING READ COUNT: 1")
-

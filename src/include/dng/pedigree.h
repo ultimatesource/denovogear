@@ -52,6 +52,11 @@ public:
 
     double PeelForwards(peel::workspace_t &work,
                         const TransitionVector &mat) const {
+#ifdef DEBUG_PEDIGREE
+    std::cerr << "PeelForward: index: " << i << "/" << peeling_functions_.size() <<
+        "\tfunction: " << peel::op::map_enum_string[peeling_functions_ops_[i]]  << std::endl;
+#endif
+
         if(work.dirty_lower) {
             work.CleanupFast();
         }
@@ -64,11 +69,18 @@ public:
         for(auto r : roots_) {
             ret += log((work.lower[r] * work.upper[r]).sum());
         }
+        work.forward_result = ret;
         return ret;
     }
 
+    //TODO: Some sort of check to make sure PeelBackwards use the same matrix as Forwards
     double PeelBackwards(peel::workspace_t &work,
                          const TransitionVector &mat) const {
+#ifdef DEBUG_PEDIGREE
+std::cerr << "Peel_reverse_function: index: " << (i-1) << "/" << peeling_reverse_functions_.size() <<
+    "\tfunction: " << peel::op::map_enum_string[peeling_functions_ops_[i - 1]] << std::endl;
+#endif
+
         double ret = 0.0;
         // Divide by the log-likelihood
         for(auto r : roots_) {
@@ -85,6 +97,7 @@ public:
         work.dirty_lower = true;
         return ret;
     }
+//TODO: The *_nodes.second is kind of confusing, you need to know the order of the node (maybe we should explain that somewhere)
 
     peel::workspace_t CreateWorkspace() const {
         peel::workspace_t work;
@@ -102,6 +115,7 @@ public:
 
     std::vector<std::string> BCFHeaderLines() const;
 
+    //TODO: transitions() and lables() are nevered used in vector form.
     const std::vector<transition_t> &transitions() const { return transitions_; }
 
     const std::vector<std::string> &labels() const { return labels_; }
@@ -109,6 +123,8 @@ public:
     size_t num_nodes() const { return num_nodes_; }
     std::pair<size_t, size_t> library_nodes() const { return {first_library_, num_nodes_}; }
 
+
+    
 protected:
     // node structure:
     // founder germline, non-founder germline, somatic, library
