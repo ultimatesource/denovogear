@@ -41,7 +41,7 @@ namespace qi = boost::spirit::qi;
 namespace phoenix = boost::phoenix;
 
 BOOST_FUSION_ADAPT_STRUCT(dng::regions::detail::raw_parsed_region_t,
-    (int,target),(int,beg),(int,end));
+    (int,target)(int,beg)(int,end));
 
 // uint_parser<unsigned, 10, 1, 3> uint3_p;        //  1..3 digits
 // uint_parser<unsigned, 10, 3, 3> uint3_3_p;      //  exactly 3 digits
