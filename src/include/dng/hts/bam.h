@@ -22,6 +22,13 @@
 
 #include "hts.h"
 
+#include <utility>
+#include <vector>
+#include <deque>
+#include <string>
+#include <cassert>
+#include <climits>
+
 #include <htslib/sam.h>
 
 namespace hts {
@@ -33,6 +40,13 @@ class File;
 
 typedef std::pair<const uint32_t *, const uint32_t *> cigar_t;
 typedef std::pair<const uint8_t *, const uint8_t *> data_t;
+
+struct region_t {
+    int tid;
+    int beg;
+    int end;
+};
+typedef std::deque<region_t> regions_t;
 
 class Alignment : protected BareAlignment {
 public:
@@ -128,10 +142,10 @@ protected:
 
 class File : public hts::File {
 public:
-    File(hts::File &&data, const char *region = nullptr,
-         const char *fasta = nullptr, int min_mapQ = 0, const char *header = nullptr) :
+    File(hts::File &&data, const char *fasta = nullptr, int min_mapQ = 0, const char *header = nullptr) :
         	 hts::File(std::move(data)), hdr_{nullptr, bam_hdr_destroy},
-        	 iter_{nullptr, hts_itr_destroy}, min_mapQ_(min_mapQ) {
+        	 iter_{nullptr, hts_itr_destroy}, idx_{nullptr, hts_idx_destroy},
+             min_mapQ_(min_mapQ) {
 
         if(!is_open()) {
         	return;
@@ -155,36 +169,30 @@ public:
                                              name()) + "'.");
             }
         }
-
-
-        if(region != nullptr && region[0] != '\0') {
-            std::unique_ptr<hts_idx_t, void(*)(hts_idx_t *)> idx{
-                sam_index_load(handle(), name()), hts_idx_destroy};
-            if(!idx) {
-                throw std::runtime_error("unable to load index for '" + std::string(
-                                             name()) + "'.");
-            }
-            iter_.reset(sam_itr_querys(idx.get(), hdr_.get(), region));
-
-            if(!iter_) {
-                throw std::runtime_error("unable to parse region '" + std::string(region) +
-                                         "' in file '" + std::string(name()) + "'.");
-            }
-        }
     }
 
-    File(const char *file, const char *mode, const char *region = nullptr,
+    File(const char *file, const char *mode,
          const char *fasta = nullptr,int min_mapQ = 0, const char *header = nullptr)  :
-            File(hts::File(file, mode), region, fasta, min_mapQ) {
+            File(hts::File(file, mode), fasta, min_mapQ) {
     }
 
     int Read(Alignment *p) {
+        assert(p != nullptr);
         int ret;
         for(;;) {
-            ret = (iter_) ? sam_itr_next(handle(), iter_.get(), p->base())
-                  : sam_read1(handle(), hdr_.get(), p->base());
-            if(ret < 0) {
-                break;
+            if(has_regions_) {
+                ret = sam_itr_next(handle(), iter_.get(), p->base());
+                if(ret < 0) {
+                    if(NextRegion()) {
+                        continue;
+                    }
+                    break;
+                }
+            } else {
+                ret = sam_read1(handle(), hdr_.get(), p->base());
+                if(ret < 0) {
+                    break;
+                }
             }
             if(p->is_any(BAM_FUNMAP | BAM_FSECONDARY | BAM_FQCFAIL | BAM_FDUP)) {
                 continue;
@@ -201,17 +209,78 @@ public:
     int Write(const bam1_t &b) {
         return sam_write1(handle(), hdr_.get(), &b);
     }
-
+    
     const bam_hdr_t *header() const { return hdr_.get(); }
+    const bam_hdr_t *header(const bam_hdr_t *hdr) {
+        bam_hdr_t *p = bam_hdr_dup(hdr);
+        hdr_.reset(p);
+        return hdr_.get();
+    }
+    const bam_hdr_t *header(const std::string &text) {
+        bam_hdr_t *p = sam_hdr_parse(text.length(), text.c_str());
+        hdr_.reset(p);
+        return hdr_.get();
+    }
+
     const hts_itr_t *iter() const { return iter_.get(); }
 
+    int TargetNameToID(const char* name) const {
+        if(!header()) {
+            return -1;
+        }
+        return bam_name2id(hdr_.get(), name);
+    }
+
+    const regions_t& regions() const {
+        return regions_;
+    }
+    const regions_t& regions(regions_t regions) {
+        regions_ = std::move(regions);
+        // Load index for the file
+        if(!idx_) {
+            idx_.reset(sam_index_load(handle(), name()));
+            if(!idx_) {
+                throw std::runtime_error("unable to load index for '" + std::string(name()) + "'.");
+            }
+        }
+
+        has_regions_ = UpdateRegion();
+        return regions_;
+    }
+
 protected:
-    std::unique_ptr<bam_hdr_t, void(*)(bam_hdr_t *)> hdr_; // the file header
-    std::unique_ptr<hts_itr_t, void(*)(hts_itr_t *)>
-    iter_; // NULL if a region not specified
+    bool NextRegion() {
+        regions_.pop_front();
+        return UpdateRegion();
+    }
+    bool UpdateRegion() {
+        if(regions_.empty()) {
+            iter_.reset(nullptr);
+            return false;
+        }
+        // Construct iterator for the active region
+        auto &r = regions_.front();
+        assert(0 <= r.tid && 0 <= r.beg && r.beg < r.end && r.end <= INT_MAX);
+        assert(idx_);
+        iter_.reset(sam_itr_queryi(idx_.get(), r.tid, r.beg, r.end));
+        if(!iter_) {
+            throw std::runtime_error("unable to construct iterator");
+        }
+        return true;
+    }
+
+    std::unique_ptr<bam_hdr_t, void(*)(bam_hdr_t *)> hdr_;  // the file header
+    std::unique_ptr<hts_itr_t, void(*)(hts_itr_t *)> iter_; // NULL if a region not specified
+    std::unique_ptr<hts_idx_t, void(*)(hts_idx_t *)> idx_;  // The current iterator
 
     int min_mapQ_; // mapQ filter
+
+    std::deque<region_t> regions_;
+    bool has_regions_{false};
 };
+
+
+
 
 } // namespace bam
 

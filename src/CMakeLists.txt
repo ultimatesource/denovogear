@@ -9,7 +9,7 @@ INCLUDE_DIRECTORIES(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/dnm")
 ADD_EXECUTABLE(dng-call
   dng-call.cc
   lib/call.cc lib/likelihood.cc lib/newick.cc lib/pedigree.cc lib/peeling.cc
-  lib/mutation.cc lib/stats.cc
+  lib/mutation.cc lib/stats.cc lib/regions.cc
 )
 
 ADD_EXECUTABLE(dng-loglike
