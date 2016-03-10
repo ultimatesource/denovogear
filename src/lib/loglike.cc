@@ -42,12 +42,13 @@
 #include <dng/read_group.h>
 #include <dng/likelihood.h>
 #include <dng/seq.h>
-#include <dng/utilities.h>
+#include <dng/utility.h>
 #include <dng/hts/bcf.h>
 #include <dng/hts/extra.h>
 #include <dng/vcfpileup.h>
 #include <dng/mutation.h>
 #include <dng/stats.h>
+#include <dng/io/utility.h>
 
 #include <htslib/faidx.h>
 #include <htslib/khash.h>
@@ -136,7 +137,7 @@ int LogLike::operator()(LogLike::argument_type &arg) {
     // Parse Nucleotide Frequencies
     std::array<double, 4> freqs;
     {
-        auto f = util::parse_double_list(arg.nuc_freqs, ',', 4);
+        auto f = utility::parse_double_list(arg.nuc_freqs, ',', 4);
         if(!f.second) {
             throw std::runtime_error("Unable to parse nuc-freq option. "
                                      "It must be a comma separated list of floating-point numbers.");
@@ -173,12 +174,21 @@ int LogLike::operator()(LogLike::argument_type &arg) {
         throw std::runtime_error("mixing sequence data and variant data as input is not supported.");
     }
 
+    // replace arg.region with the contents of a file if needed
+    io::at_slurp(arg.region);
+
     if(cat == sequence_data) {
         // Wrap input in hts::bam::File
         for(auto && f : indata) {
-       	    bamdata.emplace_back(std::move(f), arg.region.c_str(), arg.fasta.c_str(),
+       	    bamdata.emplace_back(std::move(f), arg.fasta.c_str(),
 				 arg.min_mapqual, arg.header.c_str());
         }
+        if(!arg.region.empty()) {
+            for(auto && f : bamdata) {
+                auto r = regions::bam_parse(arg.region, f);
+                f.regions(std::move(r));
+            }
+        }        
 
         // Add each genotype/sample column
         rgs.ParseHeaderText(bamdata, arg.rgtag);
@@ -228,8 +238,8 @@ int LogLike::operator()(LogLike::argument_type &arg) {
         mpileup(bamdata, [&](const dng::BamPileup::data_type & data, uint64_t loc) {
 
             // Calculate target position and fetch sequence name
-            int target_id = location_to_target(loc);
-            int position = location_to_position(loc);
+            int target_id = utility::location_to_target(loc);
+            int position = utility::location_to_position(loc);
 
             if(target_id != ref_target_id && fai) {
                 ref.reset(faidx_fetch_seq(fai.get(), h->target_name[target_id],

@@ -15,7 +15,7 @@ ADD_EXECUTABLE(dng-call
 ADD_EXECUTABLE(dng-loglike
   dng-loglike.cc
   lib/loglike.cc lib/likelihood.cc lib/newick.cc lib/pedigree.cc lib/peeling.cc
-  lib/mutation.cc
+  lib/mutation.cc lib/regions.cc
 )
 
 
