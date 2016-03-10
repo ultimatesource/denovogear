@@ -21,8 +21,15 @@
 #ifndef DNG_PILEUP_H
 #define DNG_PILEUP_H
 
+#include <dng/pool.h>
+#include <dng/fileio.h>
+#include <dng/cigar.h>
+#include <dng/read_group.h>
+#include <dng/utility.h>
+#include <dng/regions.h>
+
 #include <vector>
-#include <limits>
+#include <queue>
 #include <unordered_map>
 
 #include <dng/hts/bam.h>
@@ -35,30 +42,17 @@
 #include <boost/range/algorithm/lower_bound.hpp>
 #include <boost/range/algorithm/sort.hpp>
 
-#include <dng/pool.h>
-#include <dng/fileio.h>
-#include <dng/cigar.h>
-#include <dng/read_group.h>
-
 namespace dng {
-
-inline uint64_t make_location(int t, int p) {
-    return (static_cast<uint64_t>(t) << 32) | p;
-}
-inline int location_to_target(uint64_t u) {
-    return static_cast<int>(u >> 32);
-}
-inline int location_to_position(uint64_t u) {
-    return static_cast<int>(u & 0x7FFFFFFF);
-}
 
 namespace pileup {
 
+using dng::utility::location_t;
+
 struct Node : public PoolNode {
     hts::bam::Alignment aln;   // sequence record
-    uint64_t beg; // 0-based left-most edge, [beg,end)
-    uint64_t end; // 0-based right-most edge, [beg,end)
-    uint64_t pos; // current position of the pileup in this query/read
+    location_t beg; // 0-based left-most edge, [beg,end)
+    location_t end; // 0-based right-most edge, [beg,end)
+    location_t pos; // current position of the pileup in this query/read
     bool is_missing; // is there no base call at the pileup position?
 
     hts::bam::cigar_t cigar; // cigar
@@ -84,7 +78,8 @@ public:
     explicit BamScan(InFile &in, int min_qlen = 0) : in_(in), next_loc_{0},
         min_qlen_{min_qlen} {}
 
-    list_type operator()(uint64_t target_loc, pool_type &pool) {
+    list_type operator()(location_t target_loc, pool_type &pool) {
+        using utility::make_location;
         // Reads from in_ until it encounters the first read
         // that is right of pos.
         // TODO: check for proper read ordering???
@@ -94,7 +89,7 @@ public:
                 // Try to grab a read, if not return current buffer
                 if(in_(&p->aln) < 0) {
                     pool.Free(p);
-                    next_loc_ = std::numeric_limits<uint64_t>::max();
+                    next_loc_ = std::numeric_limits<location_t>::max();
                     return std::move(buffer_);
                 }
                 p->cigar = p->aln.cigar();
@@ -127,10 +122,10 @@ public:
         return ret;
     }
 
-    uint64_t next_loc() const { return next_loc_; }
+    location_t next_loc() const { return next_loc_; }
 
 private:
-    uint64_t next_loc_;
+    location_t next_loc_;
     InFile &in_;
     list_type buffer_;
     int min_qlen_;
@@ -145,7 +140,7 @@ public:
     typedef detail::NodePool pool_type;
 
     typedef std::vector<list_type> data_type;
-    typedef void (callback_type)(const data_type &, uint64_t);
+    typedef void (callback_type)(const data_type &, location_t);
 
     template<typename InFiles, typename Func>
     void operator()(InFiles &range, Func func);
@@ -160,8 +155,8 @@ public:
 
 protected:
     template<typename Scanners>
-    int Advance(Scanners &range, data_type *data, uint64_t *target_loc,
-                uint64_t *fast_forward_loc);
+    int Advance(Scanners &range, data_type *data, location_t *target_loc,
+                location_t *fast_forward_loc);
 
     template<typename STR>
     std::size_t ReadGroupIndex(const STR &s) {
@@ -182,6 +177,8 @@ template<typename InFiles, typename Func>
 void BamPileup::operator()(InFiles &range, Func func) {
     using namespace std;
     using namespace fileio;
+    using utility::make_location;
+    using dng::regions::region_t;
 
     // encapsulate input files into scanners
     vector<detail::BamScan<typename boost::range_value<InFiles>::type>> scanners;
@@ -194,8 +191,8 @@ void BamPileup::operator()(InFiles &range, Func func) {
 
     // data will hold our pileup information
     data_type data(read_groups_.size());
-    uint64_t current_loc = 0;
-    uint64_t fast_forward_loc = 0;
+    location_t current_loc = 0;
+    location_t fast_forward_loc = 0;
 
     // if we have no read_groups specified, use each file as a single group
     // TODO: check this
@@ -203,21 +200,35 @@ void BamPileup::operator()(InFiles &range, Func func) {
         data.resize(scanners.size());
     }
 
-    // If there is a parsed region, use it.
-    // TODO: check to see if the regions are all the same???
-    uint64_t beg_loc = 0, end_loc = std::numeric_limits<uint64_t>::max();
-    if(boost::begin(range)->iter() != nullptr) {
-        beg_loc = make_location(boost::begin(range)->iter()->tid,
-                                boost::begin(range)->iter()->beg);
-        end_loc = make_location(boost::begin(range)->iter()->tid,
-                                boost::begin(range)->iter()->end);
+    // If the first file has parsed regions, use them.
+    std::queue<region_t> region_queue;
+    for(auto && r : boost::begin(range)->regions()) {
+        // convert regions from bam format to dng format
+        region_queue.emplace(r);
     }
+    regions::region_t current_reg = {0, utility::LOCATION_MAX};
+    if(!region_queue.empty()) {
+        current_reg = region_queue.front();
+        region_queue.pop();
+    }
+
     for(;; current_loc += 1) {
         int res = Advance(scanners, &data, &current_loc, &fast_forward_loc);
         if(res < 0) {
             break;
+        } else if(res == 0) {
+            continue;
         }
-        if(res == 0 || beg_loc > current_loc || current_loc >= end_loc) {
+        // if we have advanced passed our current region, try to find the next one
+        while( current_reg.end <= current_loc ) {
+            if(region_queue.empty()) {
+                break;
+            }
+            current_reg = region_queue.front();
+            region_queue.pop();
+        }
+        // location does not overlap our region so skip it
+        if( current_loc < current_reg.beg || current_reg.end <= current_loc ) {
             continue;
         }
         //if (bed && bed_overlap(bed, h->target_name[tid], pos, pos + 1) == 0) continue; // not in BED; skip
@@ -229,10 +240,9 @@ void BamPileup::operator()(InFiles &range, Func func) {
 // Advance starts a pileup procedure at pos.
 // If there are no reads at pos, it forwards to the next pos and updates
 // current_pos
-
 template<typename Scanners>
-int BamPileup::Advance(Scanners &range, data_type *data, uint64_t *target_loc,
-                       uint64_t *fast_forward_loc) {
+int BamPileup::Advance(Scanners &range, data_type *data, location_t *target_loc,
+                       location_t *fast_forward_loc) {
     using namespace std;
     // enumerate through existing data set, updating location of reads and
     // purge reads that have expired
@@ -246,7 +256,7 @@ int BamPileup::Advance(Scanners &range, data_type *data, uint64_t *target_loc,
                 pool_.Free(p);
                 continue;
             }
-            uint64_t q = cigar::target_to_query(*target_loc, it->beg, it->cigar);
+            location_t q = cigar::target_to_query(*target_loc, it->beg, it->cigar);
             it->pos = cigar::query_pos(q);
             it->is_missing = cigar::query_del(q);
             ++it;
@@ -258,8 +268,9 @@ int BamPileup::Advance(Scanners &range, data_type *data, uint64_t *target_loc,
         *target_loc = *fast_forward_loc;
     }
     if(*target_loc >= *fast_forward_loc) {
-        uint64_t next_loc = numeric_limits<uint64_t>::max();
+        location_t next_loc = utility::LOCATION_MAX;
         std::size_t k = 0;
+        // Iterate over input files
         for(auto it = boost::begin(range); it != boost::end(range); ++it, ++k) {
             auto &scanner = *it;
             // Scan reads from file until target_loc
@@ -280,7 +291,7 @@ int BamPileup::Advance(Scanners &range, data_type *data, uint64_t *target_loc,
                     }
                 }
                 // process cigar string
-                uint64_t q = cigar::target_to_query(*target_loc, p->beg, p->cigar);
+                location_t q = cigar::target_to_query(*target_loc, p->beg, p->cigar);
                 p->pos = cigar::query_pos(q);
                 p->is_missing = cigar::query_del(q);
 
@@ -291,9 +302,13 @@ int BamPileup::Advance(Scanners &range, data_type *data, uint64_t *target_loc,
         }
         *fast_forward_loc = next_loc;
     }
-    if(fast_forward && *fast_forward_loc == numeric_limits<uint64_t>::max()) {
+    // fast_forward will be true if no reads overlap our current position
+    // return -1 if we are out of reads and at the end of our reference range
+    if(fast_forward && *fast_forward_loc == utility::LOCATION_MAX) {
         return -1;
     }
+    // return 1 if we have read data
+    // return 0 if we don't have read data at this location but we may have read data in the future 
     return (fast_forward ? 0 : 1);
 }
 } //namespace pileup
