@@ -46,6 +46,7 @@ bool region_parsing(std::string input, detail::raw_parsed_regions_t b ) {
     if(result.first == b) {
         return true;
     }
+	std::cerr << "  Error: output does not match expectation\n";
     for(auto &&aa : result.first) {
         std::cerr << "  result: " << aa.target << "\t" << aa.beg << "\t" << aa.end << "\n";
     }
