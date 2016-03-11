@@ -94,13 +94,6 @@ ENDFOREACH(test)
 
 ################################################################################
 
-  ADD_TEST(${testName}_build "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target ${testName})
-  ADD_TEST(${testName}_run ${testName})
-  SET_TESTS_PROPERTIES(${testName}_run PROPERTIES DEPENDS ${testName}_build)
-ENDFOREACH(test)
-
-################################################################################
-
 
 ################################################################################
 ## TODO: How to build something like "make timetrail" and compile all time measuring files
