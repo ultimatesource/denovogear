@@ -22,12 +22,12 @@
 #include <stdexcept>
 #include <string>
 #include <algorithm>
+#include <vector>
 
 #include <dng/regions.h>
 
 #include <boost/fusion/include/std_pair.hpp>
 #include <boost/fusion/include/vector.hpp>
-#include <boost/fusion/include/adapt_struct.hpp>
 
 #include <boost/spirit/include/qi.hpp>
 #include <boost/phoenix/core.hpp>
@@ -39,14 +39,6 @@ using namespace dng::regions;
 
 namespace qi = boost::spirit::qi;
 namespace phoenix = boost::phoenix;
-
-BOOST_FUSION_ADAPT_STRUCT(dng::regions::detail::raw_parsed_region_t,
-    (int,target)(int,beg)(int,end));
-
-// uint_parser<unsigned, 10, 1, 3> uint3_p;        //  1..3 digits
-// uint_parser<unsigned, 10, 3, 3> uint3_3_p;      //  exactly 3 digits
-// test_parser("12,345,678", uint3_p >> *(',' >> uint3_3_p));
-
 
 struct make_region_impl {
     typedef detail::raw_parsed_region_t result_type;
@@ -65,7 +57,7 @@ const phoenix::function<make_region_impl> make_region;
 
 template <typename Iterator, typename Skipper>
 struct regions_grammar :
-qi::grammar<Iterator, detail::raw_parsed_regions_t, Skipper> {
+qi::grammar<Iterator, detail::raw_parsed_regions_t(), Skipper> {
     typedef std::pair<int,int> pos_t;
     regions_grammar() : regions_grammar::base_type(start) {
         using qi::uint_; using qi::char_; using qi::as_string;
@@ -75,7 +67,7 @@ qi::grammar<Iterator, detail::raw_parsed_regions_t, Skipper> {
 
         start = region % no_skip[wsp];
         region = (label >> -(':' >> position))[_val = make_region(_1,_2)];
-        position %= 
+        position %=
             ((pos[_a = _1] >> ( ('-' >> ( pos | attr(INT_MAX)))
                               | ('+' >> pos)[_1 = _a+_1-1]
                               | attr(_a)
@@ -92,8 +84,8 @@ qi::grammar<Iterator, detail::raw_parsed_regions_t, Skipper> {
     qi::uint_parser<unsigned, 10, 1, 3> uint3_p;
     qi::uint_parser<unsigned, 10, 3, 3> uint3_3_p;
 
-    qi::rule<Iterator, detail::raw_parsed_regions_t, Skipper> start;
-    qi::rule<Iterator, detail::raw_parsed_region_t, Skipper> region;
+    qi::rule<Iterator, detail::raw_parsed_regions_t(), Skipper> start;
+    qi::rule<Iterator, detail::raw_parsed_region_t(), Skipper> region;
     qi::rule<Iterator, std::string(), Skipper> label;
     qi::rule<Iterator, int(), Skipper> pos, pos_end;
     qi::rule<Iterator, std::pair<int,int>(), qi::locals<int>, Skipper> position;
