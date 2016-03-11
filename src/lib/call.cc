@@ -22,6 +22,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <chrono>
+#include <chrono>
 
 #include <iostream>
 #include <iomanip>
@@ -53,8 +54,6 @@
 #include <dng/mutation_stats.h>
 #include <dng/find_mutation.h>
 
-#include <htslib/faidx.h>
-#include <htslib/khash.h>
 
 #include "version.h"
 
@@ -175,6 +174,7 @@ int task::Call::operator()(Call::argument_type &arg) {
     using dng::utility::phred;
     using dng::utility::location_to_target;
     using dng::utility::location_to_position;
+
 
 
     // Parse pedigree from file
