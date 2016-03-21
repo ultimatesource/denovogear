@@ -108,6 +108,46 @@ static int8_t nt4_table[256] = {
     4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4
 };
 
+static int get_pl_fields(const bcf_hdr_t *hdr, bcf1_t *rec, int pl_type, int n_samples, sample_vals_int &pl_fields) {
+  if(pl_type == BCF_HT_INT) {
+    int *pl_array = NULL;
+    int n_pl_array = 0;
+    int n_pl = bcf_get_format_int32(hdr, rec, "PL", &pl_array, &n_pl_array);
+    if(n_pl <= 0) {
+      return -6;
+    } else {
+      pl_fields.resize(n_samples);
+      int sample_len = n_pl / n_samples;
+      for(int a = 0; a < n_pl; a++) {
+	int sample_index = a / sample_len;
+	pl_fields[sample_index].push_back(pl_array[a]);
+      }
+      return 1;
+    }
+  } else if(pl_type == BCF_HT_REAL) {
+    float *pl_array = NULL;
+    int n_pl_array = 0;
+    int n_pl = bcf_get_format_float(hdr, rec, "PL", &pl_array, &n_pl_array);
+    if(n_pl <= 0) {
+      return -6;
+    } else {
+      pl_fields.resize(n_samples);
+      int sample_len = n_pl / n_samples;
+      for(int a = 0; a < n_pl; a++) {
+	int sample_index = a / sample_len;
+	// convert to integer with rounding
+	int val = int(pl_array[a] + 0.5);
+	pl_fields[sample_index].push_back(val);
+      }
+      return 1;
+    }
+
+
+  } else {
+    return -6;
+  }
+}
+
 
 // Check that "I16" value exists in INFO field
 static int read_I16(bcf1_t *rec, const bcf_hdr_t *hdr, std::array<int, 16> &anno) {
@@ -163,11 +203,10 @@ void writeToIndelObject(indel_t *mom_indel, const bcf_hdr_t *hdr, bcf1_t *rec,
 
 int bcf_2qcall(const bcf_hdr_t *h, bcf1_t *rec, Trio t, qcall_t *mom_snp,
                qcall_t *dad, qcall_t *child, indel_t *mom_indel,
-               indel_t *dad_indel, indel_t *child_indel, int &flag); // BCF to QCALL
+               indel_t *dad_indel, indel_t *child_indel, int &flag, int pl_type); // BCF to QCALL
 
 int bcf2Paired(const bcf_hdr_t *h, bcf1_t *b, Pair p, pair_t *tumor,
-               pair_t *normal,
-               int &flag);
+               pair_t *normal,int &flag, int pl_type);
 
 
 
