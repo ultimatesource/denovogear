@@ -267,17 +267,24 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
     // Get the header (should be only one input file)
     const bcf_hdr_t *hdr = bcf_sr_get_header(rec_reader, 0);
 
-    
+    // Check the PL field and if it's an int or float
+    int pl_tag = bcf_hdr_id2int(hdr, BCF_DT_ID, "PL");
+    if(!bcf_hdr_idinfo_exists(hdr, BCF_HL_FMT, pl_tag)) {
+      throw std::runtime_error("PL field is missing, unable to process records. Exiting!");
+    }
+    int pl_type = bcf_hdr_id2type(hdr, BCF_HL_FMT, pl_tag);
+   
     while(bcf_sr_next_line(rec_reader)) {
         bcf1_t *rec = bcf_sr_get_line(rec_reader, 0);
         int j = 0;
         int flag = 0;
+
         for(j = 0; j < trio_count; j++) {
             bcf_unpack(rec, BCF_UN_STR);
             int is_indel = bcf_2qcall(hdr, rec, trios[j],
                                       &mom_snp, &dad_snp, &child_snp,
                                       &mom_indel, &dad_indel, &child_indel,
-                                      flag);
+                                      flag, pl_type);
 
             if(is_indel == 0) {
                 snp_total_count++;
@@ -300,7 +307,7 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
         // PROCESS  PAIRS
         if(model == "auto") { // paired sample model not developed for XS, XD yet
             for(j = 0; j < pair_count; j++) {
-                int is_indel = bcf2Paired(hdr, rec, pairs[j], &tumor, &normal, flag);
+	      int is_indel = bcf2Paired(hdr, rec, pairs[j], &tumor, &normal, flag, pl_type);
                 if(is_indel == 0) {
                     pair_total_count++;
                     pair_like(tumor, normal, tgtPair, lookupPair, flag, output_vcf,
