@@ -123,7 +123,7 @@ void writeToIndelObject(indel_t *mom_indel, const bcf_hdr_t *hdr, bcf1_t *rec,
 // TODO: Merge function with bcf2Paired.bcf2Paired()
 int bcf_2qcall(const bcf_hdr_t *hdr, bcf1_t *rec, Trio t, qcall_t *mom_snp,
                qcall_t *dad_snp, qcall_t *child_snp, indel_t *mom_indel, indel_t *dad_indel,
-               indel_t *child_indel, int &flag) {
+               indel_t *child_indel, int &flag, int pl_type) {
 
     int a[4], k, g[10], l, map[4], k1, l1, j, i, i0, /*anno[16],*/ dp, mq, d_rest,
         /*indel = 0,*/ found_trio = 3;
@@ -143,20 +143,9 @@ int bcf_2qcall(const bcf_hdr_t *hdr, bcf1_t *rec, Trio t, qcall_t *mom_snp,
     // Make sure the PL fields (phred-scaled genotype likihoods) exists, then
     // store in pl_fields
     sample_vals_int pl_fields;
-    int *pl_array = NULL;
-    int n_pl_array = 0;
-    int n_pl = bcf_get_format_int32(hdr, rec, "PL", &pl_array, &n_pl_array);
-    if(n_pl == 0) {
-        return -6;
-    } else {
-        pl_fields.resize(n_samples);
-        int sample_len = n_pl / n_samples;
-        for(int a = 0; a < n_pl; a++) {
-            // htslib will return array of size (Num Samples)x(PL size)
-            int sample_index = a / sample_len;
-            pl_fields[sample_index].push_back(pl_array[a]);
-        }
-    }
+    int err = get_pl_fields(hdr, rec, pl_type, n_samples, pl_fields);
+    if(err <= 0)
+      return err;
 
     // get I16 values from INFO field
     std::array<int, 16> anno;
@@ -165,7 +154,6 @@ int bcf_2qcall(const bcf_hdr_t *hdr, bcf1_t *rec, Trio t, qcall_t *mom_snp,
     } else {
         d_rest = dp = anno[0] + anno[1] + anno[2] + anno[3];
     }
-
 
     // Calculate map quality from I16 fields 9 and 11
     mq = (int)(sqrt((double)(anno[9] + anno[11]) / dp) + .499);
@@ -180,7 +168,6 @@ int bcf_2qcall(const bcf_hdr_t *hdr, bcf1_t *rec, Trio t, qcall_t *mom_snp,
     if(rec->n_allele < 2) {
         return -11;
     }
-
 
     // Map the alternative alleles
     int s;
@@ -200,7 +187,6 @@ int bcf_2qcall(const bcf_hdr_t *hdr, bcf1_t *rec, Trio t, qcall_t *mom_snp,
             k1 = k + 1;
         }
     }
-
 
     for(k = 0; k < 4; ++k)
         if(map[k] < 0) { map[k] = k1; }
@@ -228,7 +214,10 @@ int bcf_2qcall(const bcf_hdr_t *hdr, bcf1_t *rec, Trio t, qcall_t *mom_snp,
 
         for(k = j = 0; k < 4; k++) {
             for(l = k; l < 4; l++) { //AA,AC,AG,AT,CC,CG,CT,GG,GT,TT
+	      //std::cout << "k = " << k << std::endl;
+ 
                 int t, x = map[k], y = map[l];
+		//std::cout << "l = " << l << std::endl;
                 if(x < 0 || y < 0) {
                 	// If PL field is not specified for a given genotype, just assume its likelihood is a close to 0 as possible.
                 	g[j++] = MAX_PL;

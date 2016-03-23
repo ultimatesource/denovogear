@@ -1,8 +1,8 @@
 
 ###############################################################################
 # Testdata information
-SET(TESTDATA_COMMIT e05554004e507fe8bc761b5b3d63641b2708e9db)
-SET(TESTDATA_SHA256 d75511572fdc8a68b60a9e1a4893573c250236a45cd1ca9104816812a347bb43)
+SET(TESTDATA_COMMIT 47aa293fb32)
+SET(TESTDATA_SHA256 630b06d466e48a76e1ce3b81d756ede034b1255e6e4a7a8130aab47f8b26f084)
 SET(TESTDATA_REPO denovogear/testdata)
 SET(TESTDATA_URL "https://api.github.com/repos/${TESTDATA_REPO}/tarball/${TESTDATA_COMMIT}")
 SET(TESTDATA_DIR "${CMAKE_BINARY_DIR}/testdata")
@@ -294,6 +294,10 @@ SET_TESTS_PROPERTIES(DNM_ATMutation PROPERTIES PASS_REGULAR_EXPRESSION "tgt_dnm(
 SET_TESTS_PROPERTIES(DNM_ATMutation PROPERTIES PASS_REGULAR_EXPRESSION "lookup: 5")
 SET_TESTS_PROPERTIES(DNM_ATMutation PROPERTIES PASS_REGULAR_EXPRESSION "flag: 0")
 
+ADD_TEST(DNM_SampleCEU_float ${DNG_DNM_EXE} auto --ped ${TESTDATA_DIR}/sample_CEU/sample_CEU.ped --bcf ${TESTDATA_DIR}/sample_CEU/sample_CEU_float.vcf --snp_mrate 2e-10 --indel_mrate 0.001)
+SET_TESTS_PROPERTIES(DNM_SampleCEU_float PROPERTIES DEPENDS build_dng_dnm)
+SET_TESTS_PROPERTIES(DNM_SampleCEU_float PROPERTIES DEPENDS build_testdata)
+SET_TESTS_PROPERTIES(DNM_SampleCEU_float PROPERTIES PASS_REGULAR_EXPRESSION "pos: 214668360")
 
 #########################################################################################
 # DNG-PHASER Tests
