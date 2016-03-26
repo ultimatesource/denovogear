@@ -70,7 +70,7 @@ void dng::peel::to_father(workspace_t &work, const family_members_t &family,
     }
     // Include Mom
     work.paired_buffer.resize(10, 10);
-    work.lower[dad] *= (work.paired_buffer.matrix() * (work.upper[mom] *
+    work.lower[dad] *= (work.paired_buffer.matrix().transpose() * (work.upper[mom] *
                         work.lower[mom]).matrix()).array();
     work.paired_buffer.resize(100, 1);
 }
@@ -88,7 +88,7 @@ void dng::peel::to_father_fast(workspace_t &work,
     }
     // Include Mom
     work.paired_buffer.resize(10, 10);
-    work.lower[dad] = (work.paired_buffer.matrix() * (work.upper[mom] *
+    work.lower[dad] = (work.paired_buffer.matrix().transpose() * (work.upper[mom] *
                        work.lower[mom]).matrix()).array();
     work.paired_buffer.resize(100, 1);
 }
@@ -106,7 +106,7 @@ void dng::peel::to_mother(workspace_t &work, const family_members_t &family,
     }
     // Include Dad
     work.paired_buffer.resize(10, 10);
-    work.lower[mom] *= (work.paired_buffer.matrix().transpose() * (work.upper[dad] *
+    work.lower[mom] *= (work.paired_buffer.matrix() * (work.upper[dad] *
                         work.lower[dad]).matrix()).array();
     work.paired_buffer.resize(100, 1);
 }
@@ -124,7 +124,7 @@ void dng::peel::to_mother_fast(workspace_t &work,
     }
     // Include Dad
     work.paired_buffer.resize(10, 10);
-    work.lower[mom] = (work.paired_buffer.matrix().transpose() * (work.upper[dad] *
+    work.lower[mom] = (work.paired_buffer.matrix() * (work.upper[dad] *
                        work.lower[dad]).matrix()).array();
     work.paired_buffer.resize(100, 1);
 }
@@ -204,14 +204,14 @@ void dng::peel::to_father_reverse(workspace_t &work,
     IndividualVector::value_type mom_v = work.upper[mom] * work.lower[mom];
 
     // Calculate P(dad-only data & dad = g)
-    work.paired_buffer.resize(10, 10);
+    work.paired_buffer.resize(10, 10); //TODO: FIXME: add transpose()
     IndividualVector::value_type dad_v = work.upper[dad] * (work.lower[dad] /
                                          ((work.paired_buffer.matrix() * mom_v.matrix()).array() +
                                           DNG_INDIVIDUAL_BUFFER_MIN));
 
     // Calculate P(dependent data | mom = g)
     work.lower[mom] *= (work.paired_buffer.matrix().transpose() *
-                        dad_v.matrix()).array();
+                        dad_v.matrix()).array(); //TODO: FIXME: remove transpose()
     work.paired_buffer.resize(100, 1);
 
     // Calculate P(data & dad & mom)
@@ -238,11 +238,11 @@ void dng::peel::to_mother_reverse(workspace_t &work,
     }
     IndividualVector::value_type dad_v = work.upper[dad] * work.lower[dad];
 
-    work.paired_buffer.resize(10, 10);
+    work.paired_buffer.resize(10, 10); //TODO: FIXME: remove transpose()
     IndividualVector::value_type mom_v = work.upper[mom] * (work.lower[mom] /
                                          ((work.paired_buffer.matrix().transpose() * dad_v.matrix()).array() +
                                           DNG_INDIVIDUAL_BUFFER_MIN));
-    work.lower[dad] *= (work.paired_buffer.matrix() * mom_v.matrix()).array();
+    work.lower[dad] *= (work.paired_buffer.matrix() * mom_v.matrix()).array(); //TODO: FIXME: add transpose()
     work.paired_buffer.resize(100, 1);
 
     work.paired_buffer *= kroneckerProduct(dad_v.matrix(), mom_v.matrix()).array();
@@ -271,9 +271,9 @@ void dng::peel::to_child_reverse(workspace_t &work,
     IndividualVector::value_type dad_v = work.upper[dad] * work.lower[dad];
     IndividualVector::value_type mom_v = work.upper[mom] * work.lower[mom];
     work.paired_buffer.resize(10, 10);
-    work.lower[dad] *= (work.paired_buffer.matrix() * mom_v.matrix()).array();
+    work.lower[dad] *= (work.paired_buffer.matrix() * mom_v.matrix()).array(); //TODO: FIXME: add transpose()
     work.lower[mom] *= (work.paired_buffer.matrix().transpose() *
-                        dad_v.matrix()).array();
+                        dad_v.matrix()).array(); //TODO: FIXME: remove transpose()
     work.paired_buffer.resize(100, 1);
 
     // Update Siblings
