@@ -1,6 +1,8 @@
 /*
  * Copyright (c) 2016 Steven H. Wu
+ * Copyright (c) 2016 Reed A. Cartwright
  * Authors:  Steven H. Wu <stevenwu@asu.edu>
+ *           Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
  *
@@ -18,7 +20,7 @@
  */
 
 
-#define BOOST_TEST_MODULE dng::lib::peeling
+#define BOOST_TEST_MODULE dng::peel
 
 #include <string>
 #include <cstdlib>
@@ -29,7 +31,7 @@
 #include <dng/peeling.h>
 #include <dng/mutation.h>
 
-#include "boost_test_helper.h"
+#include "../boost_test_helper.h"
 
 //#include <boost/test/data/test_case.hpp>
 ////#include <boost/test/data/monomorphic.hpp>

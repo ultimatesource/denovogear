@@ -1,0 +1,16 @@
+set(Help-CMD @DNG_DNM_EXE@ --help)
+set(Help-WD ".")
+set(Help-RESULT 0)
+set(Help-STDERR "Usage:\nAutosomes:\n\tdng dnm")
+
+set(InputErr-CMD @DNG_DNM_EXE@ auto)
+set(InputErr-WD ".")
+set(InputErr-RESULT 1)
+set(InputErr-STDERR "ERROR !")
+
+include("@CMAKE_CURRENT_SOURCE_DIR@/CheckProcessTest.cmake")
+
+CheckProcessTests(DngDnm.Run
+  Help
+  InputErr
+)
