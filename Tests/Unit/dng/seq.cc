@@ -1,4 +1,4 @@
-#define BOOST_TEST_MODULE "dng::util::seq.h"
+#define BOOST_TEST_MODULE dng::seq
 
 #include <vector>
 #include <string>
@@ -23,5 +23,4 @@ BOOST_AUTO_TEST_CASE(Test_indexed_char)
   BOOST_CHECK(dng::seq::indexed_char(1) == 'C');
   BOOST_CHECK(dng::seq::indexed_char(2) == 'G');
   BOOST_CHECK(dng::seq::indexed_char(3) == 'T');
-
 }

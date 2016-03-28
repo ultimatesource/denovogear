@@ -1,4 +1,4 @@
-#define BOOST_TEST_MODULE "dng::utility::utility.h"
+#define BOOST_TEST_MODULE dng::utility
 
 #include <vector>
 #include <string>

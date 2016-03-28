@@ -1,0 +1,8 @@
+set(Help-CMD @DNG_CALL_EXE@ --help)
+set(Help-WD ".")
+set(Help-RESULT 0)
+set(Help-STDERR "Usage:\n  dng call")
+
+include("@CMAKE_CURRENT_SOURCE_DIR@/CheckProcessTest.cmake")
+
+CheckProcessTests(DngCall.Run Help)
