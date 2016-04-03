@@ -3,6 +3,7 @@ include(CheckFunctionExists)
 include(CheckLibraryExists)
 
 add_subdirectory(lib)
+add_subdirectory(treecall)
 
 include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
 
@@ -26,22 +27,6 @@ configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/version.h.in"
   "${CMAKE_CURRENT_BINARY_DIR}/version.h"
   @ONLY)
-
-find_package(PythonInterp 2.7 REQUIRED)
-find_package(PythonLibs 2.7 REQUIRED)
-  
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/treecall2.py.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/treecall2.py" @ONLY)
-  
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/treecall/setup.py.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/treecall/setup.py" @ONLY)
-
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/py-editdist/setup.py.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/py-editdist/setup.py" @ONLY)
-
-add_custom_target(treecall ALL ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/treecall/setup.py build) 
-
-add_custom_target(py-ed ALL ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/py-editdist/setup.py build)
 
 if(USE_STATIC_LIBSTDCXX)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++")
@@ -72,9 +57,4 @@ endif()
 install(TARGETS dng-dnm RUNTIME DESTINATION ${CMAKE_INSTALL_LIBEXECDIR} ${PROJ_INSTALL_EXTRA_ARGS})
 install(TARGETS dng-phaser RUNTIME DESTINATION ${CMAKE_INSTALL_LIBEXECDIR} ${PROJ_INSTALL_EXTRA_ARGS})
 install(TARGETS dng-call RUNTIME DESTINATION ${CMAKE_INSTALL_LIBEXECDIR} ${PROJ_INSTALL_EXTRA_ARGS})
-install(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/dng.sh"
-  DESTINATION ${CMAKE_INSTALL_BINDIR} RENAME dng)
-install(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/treecall2.py"
-  DESTINATION ${CMAKE_INSTALL_LIBEXECDIR} RENAME dng-treecall)
-install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/treecall/setup.py install --install-purelib \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBEXECDIR})")
-install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/py-editdist/setup.py install --install-lib \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBEXECDIR})")
+install(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/dng.sh" DESTINATION ${CMAKE_INSTALL_BINDIR} RENAME dng)

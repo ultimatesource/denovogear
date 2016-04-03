@@ -14,12 +14,12 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include "Python.h"
+
 #include <sys/types.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-
-#include "Python.h"
 
 #if defined(_MSC_VER)
 typedef unsigned __int8 u_int8_t;
