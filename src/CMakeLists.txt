@@ -1,117 +1,66 @@
-INCLUDE(CheckIncludeFile)
-INCLUDE(CheckFunctionExists)
-INCLUDE(CheckLibraryExists)
+include(CheckIncludeFile)
+include(CheckFunctionExists)
+include(CheckLibraryExists)
 
-INCLUDE_DIRECTORIES(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
-INCLUDE_DIRECTORIES(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/include")
-INCLUDE_DIRECTORIES(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/dnm")
+add_subdirectory(lib)
+add_subdirectory(treecall)
 
-ADD_EXECUTABLE(dng-call
-  dng-call.cc
-  lib/call.cc lib/likelihood.cc lib/newick.cc lib/pedigree.cc lib/peeling.cc
-  lib/mutation.cc lib/stats.cc
-)
+include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
 
-# Some compilers have incomplete c++11 support provide a list of
-# common features to toss an error if someone tries to use
-# and early compiler
-TARGET_COMPILE_FEATURES(dng-call PRIVATE
-  cxx_auto_type
-  cxx_constexpr
-  cxx_decltype
-  cxx_deleted_functions
-  cxx_lambdas
-  cxx_nonstatic_member_init
-  cxx_nullptr
-  cxx_range_for
-  cxx_rvalue_references
-  cxx_strong_enums
-  cxx_trailing_return_types
-  cxx_attributes
-  cxx_reference_qualified_functions
-  cxx_decltype_incomplete_return_types
-)
+add_executable(dng-call dng-call.cc)
+add_executable(dng-loglike dng-loglike.cc)
 
-ADD_EXECUTABLE(dng-dnm
-  dng-dnm.cc
+add_executable(dng-dnm dng-dnm.cc
   dnm/snpLike.cc dnm/indelLike.cc dnm/pairLike.cc dnm/makeLookup.cc
   dnm/pedParser.cc dnm/bcf2Qcall.cc dnm/bcf2Paired.cc
 )
 
-ADD_EXECUTABLE(dng-phaser
-  dng-phaser.cc
-)
+target_include_directories(dng-dnm BEFORE PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/dnm")
 
-CONFIGURE_FILE(
+add_executable(dng-phaser dng-phaser.cc)
+
+configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/dng.sh.in"
   "${CMAKE_CURRENT_BINARY_DIR}/dng.sh"
   @ONLY)
 
-CONFIGURE_FILE(
+configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/version.h.in"
   "${CMAKE_CURRENT_BINARY_DIR}/version.h"
   @ONLY)
 
-find_package(PythonInterp 2.7 REQUIRED)
-find_package(PythonLibs 2.7 REQUIRED)
-  
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/treecall2.py.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/treecall2.py" @ONLY)
-  
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/treecall/setup.py.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/treecall/setup.py" @ONLY)
 
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/py-editdist/setup.py.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/py-editdist/setup.py" @ONLY)
+if(USE_STATIC_LIBSTDCXX)
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++")
+endif()
 
-add_custom_target(treecall ALL ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/treecall/setup.py build) 
+if(USE_STATIC_FLAG)
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
+  set_target_properties(dng-dnm    PROPERTIES LINK_SEARCH_START_STATIC On)
+  set_target_properties(dng-phaser PROPERTIES LINK_SEARCH_START_STATIC On)
+  set_target_properties(dng-call   PROPERTIES LINK_SEARCH_START_STATIC On)
+  set_target_properties(dng-loglike   PROPERTIES LINK_SEARCH_START_STATIC On)
 
-add_custom_target(py-ed ALL ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/py-editdist/setup.py build)
+  set_target_properties(dng-dnm    PROPERTIES LINK_SEARCH_END_STATIC On)
+  set_target_properties(dng-phaser PROPERTIES LINK_SEARCH_END_STATIC On)
+  set_target_properties(dng-call   PROPERTIES LINK_SEARCH_END_STATIC On)
+  set_target_properties(dng-loglike   PROPERTIES LINK_SEARCH_END_STATIC On)
+endif(USE_STATIC_FLAG)
 
-IF(USE_STATIC_LIBSTDCXX)
-  SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++")
-ENDIF()
+target_link_libraries(dng-call libdng)
+target_link_libraries(dng-loglike libdng)
+target_link_libraries(dng-dnm libdng)
+target_link_libraries(dng-phaser libdng)
 
-IF(USE_STATIC_FLAG)
-  SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
-  SET_TARGET_PROPERTIES(dng-dnm    PROPERTIES LINK_SEARCH_START_STATIC On)
-  SET_TARGET_PROPERTIES(dng-phaser PROPERTIES LINK_SEARCH_START_STATIC On)
-  SET_TARGET_PROPERTIES(dng-call   PROPERTIES LINK_SEARCH_START_STATIC On)
-
-  SET_TARGET_PROPERTIES(dng-dnm    PROPERTIES LINK_SEARCH_END_STATIC On)
-  SET_TARGET_PROPERTIES(dng-phaser PROPERTIES LINK_SEARCH_END_STATIC On)
-  SET_TARGET_PROPERTIES(dng-call   PROPERTIES LINK_SEARCH_END_STATIC On)
-ENDIF(USE_STATIC_FLAG)
-
-TARGET_LINK_LIBRARIES(dng-dnm Boost::PROGRAM_OPTIONS Boost::FILESYSTEM Boost::SYSTEM)
-TARGET_LINK_LIBRARIES(dng-dnm HTSLIB::HTSLIB Threads::Threads)
-TARGET_LINK_LIBRARIES(dng-dnm EIGEN3::EIGEN3)
-
-TARGET_LINK_LIBRARIES(dng-phaser Boost::PROGRAM_OPTIONS Boost::FILESYSTEM Boost::SYSTEM)
-TARGET_LINK_LIBRARIES(dng-phaser HTSLIB::HTSLIB Threads::Threads)
-
-TARGET_LINK_LIBRARIES(dng-call HTSLIB::HTSLIB Threads::Threads)
-TARGET_LINK_LIBRARIES(dng-call EIGEN3::EIGEN3)
-TARGET_LINK_LIBRARIES(dng-call Boost::PROGRAM_OPTIONS Boost::FILESYSTEM Boost::SYSTEM)
-
-IF(DEVEL_MODE)
-  TARGET_LINK_LIBRARIES(dng-call Boost::TIMER)
-ENDIF()
-
-IF(TARGET ext_eigen3)
-  ADD_DEPENDENCIES(dng-call ext_eigen3)
-  ADD_DEPENDENCIES(dng-dnm ext_eigen3)
-ENDIF()
+if(DEVEL_MODE)
+  target_link_libraries(dng-call Boost::TIMER)
+endif()
 
 ################################################################################
 # Install
 
-INSTALL(TARGETS dng-dnm RUNTIME DESTINATION ${CMAKE_INSTALL_LIBEXECDIR} ${PROJ_INSTALL_EXTRA_ARGS})
-INSTALL(TARGETS dng-phaser RUNTIME DESTINATION ${CMAKE_INSTALL_LIBEXECDIR} ${PROJ_INSTALL_EXTRA_ARGS})
-INSTALL(TARGETS dng-call RUNTIME DESTINATION ${CMAKE_INSTALL_LIBEXECDIR} ${PROJ_INSTALL_EXTRA_ARGS})
-INSTALL(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/dng.sh"
-  DESTINATION ${CMAKE_INSTALL_BINDIR} RENAME dng)
-INSTALL(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/treecall2.py"
-  DESTINATION ${CMAKE_INSTALL_LIBEXECDIR} RENAME dng-treecall)
-install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/treecall/setup.py install --install-purelib \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBEXECDIR})")
-install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/py-editdist/setup.py install --install-lib \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBEXECDIR})")
+install(TARGETS dng-dnm RUNTIME DESTINATION ${CMAKE_INSTALL_LIBEXECDIR} ${PROJ_INSTALL_EXTRA_ARGS})
+install(TARGETS dng-phaser RUNTIME DESTINATION ${CMAKE_INSTALL_LIBEXECDIR} ${PROJ_INSTALL_EXTRA_ARGS})
+install(TARGETS dng-call RUNTIME DESTINATION ${CMAKE_INSTALL_LIBEXECDIR} ${PROJ_INSTALL_EXTRA_ARGS})
+install(TARGETS dng-loglike RUNTIME DESTINATION ${CMAKE_INSTALL_LIBEXECDIR} ${PROJ_INSTALL_EXTRA_ARGS})
+install(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/dng.sh" DESTINATION ${CMAKE_INSTALL_BINDIR} RENAME dng)

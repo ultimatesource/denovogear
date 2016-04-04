@@ -1,0 +1,8 @@
+set(Help-CMD @DNG_LOGLIKE_EXE@ --help)
+set(Help-WD ".")
+set(Help-RESULT 0)
+set(Help-STDERR "Usage:\n  dng loglike")
+
+include("@CMAKE_CURRENT_SOURCE_DIR@/CheckProcessTest.cmake")
+
+CheckProcessTests(DngLoglike.Run Help)

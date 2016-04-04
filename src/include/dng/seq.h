@@ -22,6 +22,8 @@
 
 #include <htslib/hts.h>
 
+#include <dng/detail/unit_test.h>
+
 namespace dng {
 namespace seq {
 

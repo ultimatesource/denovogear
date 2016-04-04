@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015 Reed A. Cartwright
+ * Copyright (c) 2014-2016 Reed A. Cartwright
  * Copyright (c) 2015 Kael Dai
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *           Kael Dai <kdai1@asu.edu>
@@ -21,8 +21,6 @@
 
 #include <cstdlib>
 #include <fstream>
-#include <iterator>
-#include <iosfwd>
 
 #include <iostream>
 #include <iomanip>
@@ -31,7 +29,6 @@
 #include <sstream>
 #include <string>
 
-#include <boost/range/iterator_range.hpp>
 #include <boost/range/algorithm/replace.hpp>
 #include <boost/range/algorithm/max_element.hpp>
 
@@ -50,28 +47,19 @@
 #include <dng/vcfpileup.h>
 #include <dng/mutation.h>
 #include <dng/stats.h>
+#include <dng/io/utility.h>
 
 #include <htslib/faidx.h>
 #include <htslib/khash.h>
 
 #include "version.h"
 
-using namespace dng::task;
 using namespace dng;
-
-// Helper function that mimics boost::istream_range
-template<class Elem, class Traits> inline
-boost::iterator_range<std::istreambuf_iterator<Elem, Traits> >
-istreambuf_range(std::basic_istream<Elem, Traits> &in) {
-    return boost::iterator_range<std::istreambuf_iterator<Elem, Traits>>(
-               std::istreambuf_iterator<Elem, Traits>(in),
-               std::istreambuf_iterator<Elem, Traits>());
-}
 
 // Helper function to determines if output should be bcf file, vcf file, or stdout. Also
 // parses filename "bcf:<file>" --> "<file>"
 std::pair<std::string, std::string> vcf_get_output_mode(
-    Call::argument_type &arg) {
+    task::Call::argument_type &arg) {
     using boost::algorithm::iequals;
 
     if(arg.output.empty() || arg.output == "-")
@@ -125,7 +113,7 @@ std::string vcf_command_line_text(const char *arg, std::string val) {
 }
 
 // Helper function for writing the vcf header information
-void vcf_add_header_text(hts::bcf::File &vcfout, Call::argument_type &arg) {
+void vcf_add_header_text(hts::bcf::File &vcfout, task::Call::argument_type &arg) {
     using namespace std;
     string line{"##DeNovoGearCommandLine=<ID=dng-call,Version="
                 PACKAGE_VERSION ","};
@@ -286,7 +274,7 @@ std::vector<std::string> extract_contigs(const bcf_hdr_t *hdr) {
 
 // The main loop for dng-call application
 // argument_type arg holds the processed command line arguments
-int Call::operator()(Call::argument_type &arg) {
+int task::Call::operator()(Call::argument_type &arg) {
     using namespace std;
     using namespace hts::bcf;
     using dng::utility::lphred;
@@ -302,7 +290,7 @@ int Call::operator()(Call::argument_type &arg) {
             throw std::runtime_error(
                 "unable to open pedigree file '" + arg.ped + "'.");
         }
-        ped.Parse(istreambuf_range(ped_file));
+        ped.Parse(io::istreambuf_range(ped_file));
     } else {
         throw std::runtime_error("pedigree file was not specified.");
     }
@@ -367,11 +355,20 @@ int Call::operator()(Call::argument_type &arg) {
     hts::bcf::File vcfout(out_file.first.c_str(), out_file.second.c_str());
     vcf_add_header_text(vcfout, arg);
 
+    // replace arg.region with the contents of a file if needed
+    io::at_slurp(arg.region);
+
     if(cat == sequence_data) {
         // Wrap input in hts::bam::File
         for(auto && f : indata) {
-       	    bamdata.emplace_back(std::move(f), arg.region.c_str(), arg.fasta.c_str(),
+       	    bamdata.emplace_back(std::move(f), arg.fasta.c_str(),
 				 arg.min_mapqual, arg.header.c_str());
+        }
+        if(!arg.region.empty()) {
+            for(auto && f : bamdata) {
+                auto r = regions::bam_parse(arg.region, f);
+                f.regions(std::move(r));
+            }
         }
 
         // Read header from first file
@@ -388,8 +385,6 @@ int Call::operator()(Call::argument_type &arg) {
         bcfdata.emplace_back(std::move(indata[0]));
         // Read header from first file
         const bcf_hdr_t *h = bcfdata[0].header();
-
-
 
         // Add contigs to header
         for(auto && contig : extract_contigs(h)) {
@@ -416,8 +411,8 @@ int Call::operator()(Call::argument_type &arg) {
         vcfout.AddHeaderMetadata(line.c_str());
     }
 
-    FindMutations calculate { min_prob, pedigree,
-        { arg.theta, freqs, arg.ref_weight, arg.gamma[0], arg.gamma[1] } };
+    FindMutations calculate ( min_prob, pedigree,
+        { arg.theta, freqs, arg.ref_weight, arg.gamma[0], arg.gamma[1] } );
 
     // Pileup data
     std::vector<depth_t> read_depths(rgs.libraries().size());
@@ -550,7 +545,7 @@ int Call::operator()(Call::argument_type &arg) {
                 int n1 = refalt_to_acgt_allele[i];
                 for(int j = 0; j <= i; ++j, ++k) {
                     int n2 = refalt_to_acgt_allele[j];
-                    genotype_index[k] = (j == 0 && ref_index == 4) ?
+                    genotype_index[k] = (n1 == 4 || n2 == 4) ?
                                         -1 : folded_diploid_genotypes_matrix[n1][n2];
                 }
             }
@@ -798,7 +793,7 @@ int Call::operator()(Call::argument_type &arg) {
                 int n1 = refalt_to_acgt_allele[i];
                 for(int j = 0; j <= i; ++j, ++k) {
                     int n2 = refalt_to_acgt_allele[j];
-                    genotype_index[k] = (j == 0 && ref_index == 4) ?
+                    genotype_index[k] = (n1 == 4 || n2 == 4) ?
                                         -1 : folded_diploid_genotypes_matrix[n1][n2];
                 }
             }
@@ -879,7 +874,7 @@ int Call::operator()(Call::argument_type &arg) {
 
 FindMutations::FindMutations(double min_prob, const Pedigree &pedigree,
                              params_t params) :
-    pedigree_{pedigree}, min_prob_{min_prob},
+    pedigree_(pedigree), min_prob_(min_prob),
     params_(params), genotype_likelihood_{params.params_a, params.params_b},
     work_(pedigree.CreateWorkspace()) {
 

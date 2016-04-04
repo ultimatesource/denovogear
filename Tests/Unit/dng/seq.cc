@@ -1,10 +1,9 @@
-#define BOOST_TEST_MODULE "dng::util::seq.h"
+#define BOOST_TEST_MODULE dng::seq
 
-#include <boost/test/unit_test.hpp>
 #include <vector>
 #include <string>
 
-#include "dng/seq.h"
+#include <dng/seq.h>
 
 using namespace std;
 
@@ -24,5 +23,4 @@ BOOST_AUTO_TEST_CASE(Test_indexed_char)
   BOOST_CHECK(dng::seq::indexed_char(1) == 'C');
   BOOST_CHECK(dng::seq::indexed_char(2) == 'G');
   BOOST_CHECK(dng::seq::indexed_char(3) == 'T');
-
 }

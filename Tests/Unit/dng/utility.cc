@@ -1,11 +1,10 @@
-#define BOOST_TEST_MODULE "dng::utility::utility.h"
+#define BOOST_TEST_MODULE dng::utility
 
-#include <boost/test/unit_test.hpp>
 #include <vector>
 #include <string>
 #include <utility>
 
-#include "dng/utility.h"
+#include <dng/utility.h>
 
 using namespace std;
 

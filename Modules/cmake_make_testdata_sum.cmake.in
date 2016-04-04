@@ -1,0 +1,10 @@
+set(tarfile  "@CMAKE_BINARY_DIR@/testdata.tar.gz")
+if(NOT EXISTS "${tarfile}")
+  message(STATUS "Downloading @TESTDATA_URL@ as ${tarfile}")
+  file(DOWNLOAD "@TESTDATA_URL@" "${tarfile}" SHOW_PROGRESS)
+  message("")
+endif()
+
+file(SHA256 ${tarfile} value)
+
+message("    ${value}  testdata.tar.gz")

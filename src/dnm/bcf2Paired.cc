@@ -125,7 +125,7 @@ static int read_I16(bcf1_t *rec, bcf_hdr_t *hdr, std::vector<int> &anno) {
 // TODO: Merge first part of code with bcf2QCall.bcf_2qcall()
 // Convert BCF to PairedSample - for each line iterate through samples and look for particular pair
 int bcf2Paired(const bcf_hdr_t *hdr, bcf1_t *rec, Pair pair1, pair_t *tumor,
-               pair_t *normal, int &flag) {
+               pair_t *normal, int &flag, int pl_type) {
     int a[4], k, g[10], l, map[4], k1, l1, j, i, i0, /*anno[16],*/ dp, mq, d_rest,
         is_indel = 0;
     int found_pair = 2;// found_pair becomes zero when both samples are found.
@@ -138,6 +138,7 @@ int bcf2Paired(const bcf_hdr_t *hdr, bcf1_t *rec, Pair pair1, pair_t *tumor,
 
     char **alleles = rec->d.allele;
     uint32_t n_alleles = rec->n_allele;
+    uint32_t n_samples = bcf_hdr_nsamples(hdr);
     //TODO: conditional was empty, should we remove or implement?
     /*
     if(b->ref[1] != 0 || b->n_alleles > 4) {  // ref is not a single base ***
@@ -149,22 +150,9 @@ int bcf2Paired(const bcf_hdr_t *hdr, bcf1_t *rec, Pair pair1, pair_t *tumor,
 
     // Make sure the PL fields (phred-scaled genotype likihoods) exists
     sample_vals_int pl_fields;
-    int *res_array = NULL;
-    int n_res_array = 0;
-    int n_res = bcf_get_format_int32(hdr, rec, "PL", &res_array, &n_res_array);
-    if(n_res == 0) {
-        return -6;
-    } else {
-        pl_fields.resize(bcf_hdr_nsamples(hdr));
-        int sample_len = n_res / bcf_hdr_nsamples(hdr);
-        for(int a = 0; a < n_res; a++) {
-            int sample_index = a / sample_len;
-            pl_fields[sample_index].push_back(res_array[a]);
-        }
-    }
-
-
-
+    int err = get_pl_fields(hdr, rec, pl_type, n_samples, pl_fields);
+    if(err <= 0)
+      return err;
 
     // get I16 values from INFO field
     std::array<int, 16> anno;

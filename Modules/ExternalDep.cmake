@@ -78,8 +78,8 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT ZLIB_FOUND)
   ENDIF()
 
   SET(ZLIB_FOUND TRUE)
-  SET(ZLIB_INCLUDE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/zlib/include/")
-  SET(ZLIB_LIBRARIES "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/zlib/lib/libz.a")
+  SET(ZLIB_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/${EXT_PREFIX}/zlib/include/")
+  SET(ZLIB_LIBRARIES "${CMAKE_BINARY_DIR}/${EXT_PREFIX}/zlib/lib/libz.a")
   if(NOT TARGET ZLIB::ZLIB)
     add_library(ZLIB::ZLIB UNKNOWN IMPORTED)
     set_target_properties(ZLIB::ZLIB PROPERTIES
@@ -134,10 +134,10 @@ IF(NOT BUILD_EXTERNAL_PROJECTS_FORCED)
 ENDIF()
 
 IF(BUILD_EXTERNAL_PROJECTS AND NOT Boost_FOUND)
-  SET(boost_ext_libdir "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/boost/lib")
+  SET(boost_ext_libdir "${CMAKE_BINARY_DIR}/${EXT_PREFIX}/boost/lib")
   SET(Boost_FOUND TRUE)
-  SET(Boost_VERSION 1.57)
-  SET(Boost_INCLUDE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/boost/include/")
+  SET(Boost_VERSION 1.60.0)
+  SET(Boost_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/${EXT_PREFIX}/boost/include/")
   FILE(MAKE_DIRECTORY "${Boost_INCLUDE_DIRS}")
   SET(Boost_LIBRARY_DIRS "")
   SET(BOOST_EXT_TARGET ext_boost)
@@ -176,13 +176,13 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT Boost_FOUND)
   SET(EXT_BOOST_BOOTSTRAP_TOOLSET "cc" CACHE STRING "Toolset to use when bootstrapping ext_boost.")
 
   CONFIGURE_FILE(
-    "${CMAKE_CURRENT_SOURCE_DIR}/Modules/cmake_ext_boost_bootstrap.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/cmake_ext_boost_bootstrap.cmake"
+    "${CMAKE_SOURCE_DIR}/Modules/cmake_ext_boost_bootstrap.cmake.in"
+    "${CMAKE_BINARY_DIR}/${EXT_PREFIX}/cmake_ext_boost_bootstrap.cmake"
     IMMEDIATE @ONLY
   )
 
   SET(boost_bootstrap
-    "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/cmake_ext_boost_bootstrap.cmake"
+    "${CMAKE_COMMAND}" -P "${CMAKE_BINARY_DIR}/${EXT_PREFIX}/cmake_ext_boost_bootstrap.cmake"
   )
 
   MARK_AS_ADVANCED(EXT_BOOST_TOOLSET EXT_BOOST_BOOTSTRAP_TOOLSET)
@@ -210,9 +210,11 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT Boost_FOUND)
     ${boost_variant}
   )
 
+  string(REPLACE "." "_" boost_file_version "${Boost_VERSION}")
+
   ExternalProject_add(ext_boost
-    URL http://downloads.sourceforge.net/project/boost/boost/1.57.0/boost_1_57_0.tar.bz2
-    URL_MD5 1be49befbdd9a5ce9def2983ba3e7b76
+    URL http://downloads.sourceforge.net/project/boost/boost/${Boost_VERSION}/boost_${boost_file_version}.tar.bz2
+    URL_MD5 65a840e1a0b13a558ff19eeb2c4f0cbe
     PREFIX ext_deps/boost
     BUILD_IN_SOURCE TRUE
     CONFIGURE_COMMAND ${boost_bootstrap}
@@ -258,8 +260,8 @@ ENDIF()
 
 IF(BUILD_EXTERNAL_PROJECTS AND NOT EIGEN3_FOUND)
   SET(EIGEN3_FOUND TRUE)
-  SET(EIGEN3_VERSION 3.2.4)
-  SET(EIGEN3_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/eigen3/include/eigen3/")
+  SET(EIGEN3_VERSION 3.2.8)
+  SET(EIGEN3_INCLUDE_DIR "${CMAKE_BINARY_DIR}/${EXT_PREFIX}/eigen3/src/ext_eigen3/")
   if(NOT TARGET EIGEN3::EIGEN3)
     add_library(EIGEN3::EIGEN3 INTERFACE IMPORTED)
     set_target_properties(EIGEN3::EIGEN3 PROPERTIES
@@ -270,11 +272,15 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT EIGEN3_FOUND)
 
   ExternalProject_Add(ext_eigen3
     PREFIX "${EXT_PREFIX}/eigen3"
-    URL http://bitbucket.org/eigen/eigen/get/3.2.4.tar.bz2
-    URL_MD5 4c4b5ed9a388a1e475166d575af25477
-    CMAKE_CACHE_ARGS "-DCMAKE_INSTALL_PREFIX:string=<INSTALL_DIR>"
-     "-DCMAKE_CXX_COMPILER:filepath=${CMAKE_CXX_COMPILER}"
-     "-DCMAKE_C_COMPILER:filepath=${CMAKE_C_COMPILER}"
+    URL http://bitbucket.org/eigen/eigen/get/${EIGEN3_VERSION}.tar.bz2
+    URL_MD5 9e3bfaaab3db18253cfd87ea697b3ab1
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND ""
+    INSTALL_COMMAND ""
+
+    # CMAKE_CACHE_ARGS "-DCMAKE_INSTALL_PREFIX:string=<INSTALL_DIR>"
+    #  "-DCMAKE_CXX_COMPILER:filepath=${CMAKE_CXX_COMPILER}"
+    #  "-DCMAKE_C_COMPILER:filepath=${CMAKE_C_COMPILER}"
   )
   ADD_DEPENDENCIES(ext_projects ext_eigen3)
 
@@ -299,9 +305,9 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT HTSLIB_FOUND)
   ENDIF()
 
   SET(HTSLIB_FOUND true)
-  SET(HTSLIB_VERSION 1.2.1)
-  SET(HTSLIB_INCLUDE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/htslib/include/")
-  SET(HTSLIB_LIBRARIES "${CMAKE_CURRENT_BINARY_DIR}/${EXT_PREFIX}/htslib/lib/libhts.a") 
+  SET(HTSLIB_VERSION 1.3)
+  SET(HTSLIB_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/${EXT_PREFIX}/htslib/include/")
+  SET(HTSLIB_LIBRARIES "${CMAKE_BINARY_DIR}/${EXT_PREFIX}/htslib/lib/libhts.a") 
   if(NOT TARGET HTSLIB::HTSLIB)
     add_library(HTSLIB::HTSLIB UNKNOWN IMPORTED)
     set_target_properties(HTSLIB::HTSLIB PROPERTIES
@@ -321,8 +327,8 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT HTSLIB_FOUND)
 
   ExternalProject_Add(ext_htslib
     PREFIX "${EXT_PREFIX}/htslib"
-    URL https://github.com/samtools/htslib/releases/download/1.2.1/htslib-1.2.1.tar.bz2
-    URL_MD5 88eec909855abd98032bc2f9c3e83271
+    URL http://github.com/samtools/htslib/releases/download/${HTSLIB_VERSION}/htslib-${HTSLIB_VERSION}.tar.bz2
+    URL_MD5 39d475730a66401e4d45398c95c414f7
     PATCH_COMMAND ""
     UPDATE_COMMAND ""
     CONFIGURE_COMMAND "./configure" "--prefix=<INSTALL_DIR>"

@@ -21,8 +21,15 @@
 #ifndef DNG_PILEUP_H
 #define DNG_PILEUP_H
 
+#include <dng/pool.h>
+#include <dng/fileio.h>
+#include <dng/cigar.h>
+#include <dng/read_group.h>
+#include <dng/utility.h>
+#include <dng/regions.h>
+
 #include <vector>
-#include <limits>
+#include <queue>
 #include <unordered_map>
 
 #include <dng/hts/bam.h>
@@ -177,6 +184,7 @@ void BamPileup::operator()(InFiles &range, Func func) {
     using namespace std;
     using namespace fileio;
     using utility::make_location;
+    using dng::regions::region_t;
 
     // encapsulate input files into scanners
     vector<detail::BamScan<typename boost::range_value<InFiles>::type>> scanners;
@@ -198,21 +206,35 @@ void BamPileup::operator()(InFiles &range, Func func) {
         data.resize(scanners.size());
     }
 
-    // If there is a parsed region, use it.
-    // TODO: check to see if the regions are all the same???
-    location_t beg_loc = 0, end_loc = std::numeric_limits<location_t>::max();
-    if(boost::begin(range)->iter() != nullptr) {
-        beg_loc = make_location(boost::begin(range)->iter()->tid,
-                                boost::begin(range)->iter()->beg);
-        end_loc = make_location(boost::begin(range)->iter()->tid,
-                                boost::begin(range)->iter()->end);
+    // If the first file has parsed regions, use them.
+    std::queue<region_t> region_queue;
+    for(auto && r : boost::begin(range)->regions()) {
+        // convert regions from bam format to dng format
+        region_queue.emplace(r);
     }
+    regions::region_t current_reg = {0, utility::LOCATION_MAX};
+    if(!region_queue.empty()) {
+        current_reg = region_queue.front();
+        region_queue.pop();
+    }
+
     for(;; current_loc += 1) {
         int res = Advance(scanners, &data, &current_loc, &fast_forward_loc);
         if(res < 0) {
             break;
+        } else if(res == 0) {
+            continue;
         }
-        if(res == 0 || beg_loc > current_loc || current_loc >= end_loc) {
+        // if we have advanced passed our current region, try to find the next one
+        while( current_reg.end <= current_loc ) {
+            if(region_queue.empty()) {
+                break;
+            }
+            current_reg = region_queue.front();
+            region_queue.pop();
+        }
+        // location does not overlap our region so skip it
+        if( current_loc < current_reg.beg || current_reg.end <= current_loc ) {
             continue;
         }
         //if (bed && bed_overlap(bed, h->target_name[tid], pos, pos + 1) == 0) continue; // not in BED; skip
@@ -224,7 +246,6 @@ void BamPileup::operator()(InFiles &range, Func func) {
 // Advance starts a pileup procedure at pos.
 // If there are no reads at pos, it forwards to the next pos and updates
 // current_pos
-
 template<typename Scanners>
 int BamPileup::Advance(Scanners &range, data_type *data, location_t *target_loc,
                        location_t *fast_forward_loc) {
@@ -253,8 +274,9 @@ int BamPileup::Advance(Scanners &range, data_type *data, location_t *target_loc,
         *target_loc = *fast_forward_loc;
     }
     if(*target_loc >= *fast_forward_loc) {
-        location_t next_loc = numeric_limits<location_t>::max();
+        location_t next_loc = utility::LOCATION_MAX;
         std::size_t k = 0;
+        // Iterate over input files
         for(auto it = boost::begin(range); it != boost::end(range); ++it, ++k) {
             auto &scanner = *it;
             // Scan reads from file until target_loc
@@ -286,9 +308,13 @@ int BamPileup::Advance(Scanners &range, data_type *data, location_t *target_loc,
         }
         *fast_forward_loc = next_loc;
     }
-    if(fast_forward && *fast_forward_loc == numeric_limits<location_t>::max()) {
+    // fast_forward will be true if no reads overlap our current position
+    // return -1 if we are out of reads and at the end of our reference range
+    if(fast_forward && *fast_forward_loc == utility::LOCATION_MAX) {
         return -1;
     }
+    // return 1 if we have read data
+    // return 0 if we don't have read data at this location but we may have read data in the future 
     return (fast_forward ? 0 : 1);
 }
 } //namespace pileup

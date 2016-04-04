@@ -62,7 +62,7 @@ void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
     Matrix T(9, 3);
     Matrix DN(9, 3);
     Matrix PP(9, 3);
-    int i, j, k, l;
+    //int i, j, k, l;
     int coor = child->pos;
     char ref_name[50];
     strcpy(ref_name, child->chr);  // Name of the reference sequence
@@ -97,62 +97,47 @@ void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
 
     indel_mrate = mu_scale * indel_mrate;
 
-    for(int j = 1; j <= 9; j++) {
-        for(int l = 1; l <= 3; l++) {
-            new_indel_mrate = pow(indel_mrate, lookupIndel.hit(j,
-                                  l)); // hit is 0,1 or 2 (number of indels in the trio config)
+    for(int j = 0; j < 9; j++) {
+        for(int l = 0; l < 3; l++) {
+            // hit is 0, 1 or 2 (number of indels in the trio config)
+            new_indel_mrate = pow(indel_mrate, lookupIndel.hit(j, l));
             lookupIndel.mrate(j, l) = new_indel_mrate;
         }
     }
 
     //Load likelihood vectors
-    for(j = 0; j != 3; ++j) {
+    for(int j = 0; j < 3; ++j) {
         M(0, j) = pow(10, -mom->lk[j] / 10.);
-        //a[j] = pow(10, -mom->lk[j] / 10.);
     }
-    //M << a;
-
-    for(j = 0; j != 3; ++j) {
+    for(int j = 0; j < 3; ++j) {
         D(j, 0) = pow(10, -dad->lk[j] / 10.);
-        //a[j] = pow(10, -dad->lk[j] / 10.);
     }
-    //D << a;
-
-    for(j = 0; j != 3; ++j) {
-        D(j, 0) = pow(10, -child->lk[j] / 10.);
-        //a[j] = pow(10, -child->lk[j] / 10.);
+    for(int j = 0; j < 3; ++j) {
+        C(j, 0) = pow(10, -child->lk[j] / 10.);
     }
-    //C << a;
-
 
     P = kroneckerProduct(M, D);
     F = kroneckerProduct(P, C);
-    //P = KP(M, D);
-    //F = KP(P, C);
 
     // combine with transmission probs
     T = F.cwiseProduct(lookupIndel.tp);
-    //T = SP(F, lookupIndel.tp);
 
     // combine with priors
     L = T.cwiseProduct(lookupIndel.priors);
-    //L = SP(T, lookupIndel.priors);
 
     // combine with mutation rate
     DN = L.cwiseProduct(lookupIndel.mrate);
-    //DN = SP(L, lookupIndel.mrate);
 
     // Find max likelihood of null configuration
     PP = DN.cwiseProduct(lookupIndel.norm);
+    int i, j;
     maxlike_null = PP.maxCoeff(&i, &j);
-    //PP = SP(DN, lookupIndel.norm);  //zeroes out configurations with mendelian error
-    //maxlike_null = PP.maximum2(i, j);
+
 
     //Find max likelihood of de novo trio configuration
     PP = DN.cwiseProduct(lookupIndel.denovo);
+    int k, l;
     maxlike_denovo = PP.maxCoeff(&k, &l);
-    //PP = SP(DN, lookupIndel.denovo);  //zeroes out configurations with mendelian inheritance
-    //maxlike_denovo = PP.maximum2(k, l);
 
     //make proper posterior probs
     denom = DN.sum();
@@ -164,27 +149,38 @@ void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
 
         //remove ",X" from alt, helps with VCF op.
         string alt = mom->alt;
-        size_t start = alt.find(",X");
-        if(start != std::string::npos) {
-            alt.replace(start, 2, "");
+        size_t posX = alt.find(",X");
+        size_t posN = alt.find(",N");
+        if(posX != std::string::npos) {
+            alt.replace(posX, 2, "");
+        }
+        else if(posN != std::string::npos) {
+            alt.replace(posN, 2, "");
         }
 
-        cout << "DENOVO-INDEL CHILD_ID: " << child->id;
-        cout << " chr: " << ref_name << " pos: " << coor << " ref: " << mom->ref_base <<
-             " alt: " << alt;
-        cout << " maxlike_null: " << maxlike_null << " pp_null: " << pp_null << " tgt: "
-             << tgtIndel[i - 1][j - 1];
-        cout << " snpcode: " << lookupIndel.snpcode(i,
-                j) << " code: " << lookupIndel.code(i, j);
-        cout << " maxlike_dnm: " << maxlike_denovo << " pp_dnm: " << pp_denovo;
-        cout << " tgt: " << tgtIndel[k - 1][l - 1] << " lookup: " << lookupIndel.code(k,
-                l) << " flag: " << flag;
-        cout << " READ_DEPTH child: " << child->depth << " dad: " << dad->depth <<
-             " mom: " << mom->depth;
-        cout << " MAPPING_QUALITY child: " << child->rms_mapQ << " dad: " <<
-             dad->rms_mapQ << " mom: " << mom->rms_mapQ;
+        cout << "DENOVO-INDEL CHILD_ID: " << child->id;       
+        cout << " chr: " << ref_name;
+        cout << " pos: " << coor; 
+        cout << " ref: " << mom->ref_base;
+        cout << " alt: " << mom->alt;
+        cout << " maxlike_null: " << maxlike_null;
+        cout << " pp_null: " << pp_null;
+        cout << " tgt_null(child/mom/dad): " << tgtIndel[i][j];
+        cout << " snpcode: " << lookupIndel.snpcode(i, j);
+        cout << " code: " << lookupIndel.code(i, j);
+        cout << " maxlike_dnm: " << maxlike_denovo;
+        cout << " pp_dnm: " << pp_denovo;       
+        cout << " tgt_dnm(child/mom/dad): " << tgtIndel[k][l];
+        cout << " lookup: " << lookupIndel.code(k, l);
+        cout << " flag: " << flag;
+        cout << " READ_DEPTH child: " << child->depth; 
+        cout << " dad: " << dad->depth;
+        cout << " mom: " << mom->depth;
+        cout << " MAPPING_QUALITY child: " << child->rms_mapQ;
+        cout << " dad: " << dad->rms_mapQ;
+        cout << " mom: " << mom->rms_mapQ;
         cout << endl;
-
+        
 
         if(!vcfout.empty()) {
             auto rec = vcfout[0].InitVariant();
@@ -222,25 +218,5 @@ void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
 #endif
             vcfout[0].WriteRecord(rec);
         }
-
-        /*
-            if(op_vcf_f != "EMPTY") {
-                fo_vcf << ref_name << "\t";
-                fo_vcf << coor << "\t";
-                fo_vcf << ".\t"; // Don't know the rsID
-                fo_vcf << mom->ref_base << "\t";
-                fo_vcf << alt << "\t";
-                fo_vcf << "0\t"; // Quality of the Call
-                fo_vcf << "PASS\t"; // passed the read depth filter
-                fo_vcf << "RD_MOM=" << mom->depth << ";RD_DAD=" << dad->depth;
-                fo_vcf << ";MQ_MOM=" << mom->rms_mapQ << ";MQ_DAD=" << dad->rms_mapQ;
-                fo_vcf << ";INDELcode=" << lookupIndel.snpcode(i, j) << ";\t";
-                fo_vcf << "NULL_CONFIG(child/mom/dad):PP_NULL:DNM_CONFIG(child/mom/dad):PP_DNM:RD:MQ\t";
-                fo_vcf << tgtIndel[i - 1][j - 1] << ":" << pp_null << ":";
-                fo_vcf << tgtIndel[k - 1][l - 1] << ":" << pp_denovo << ":" << child->depth <<
-                       ":" << child->rms_mapQ;
-                fo_vcf << "\n";
-            }
-        */
     }
 }

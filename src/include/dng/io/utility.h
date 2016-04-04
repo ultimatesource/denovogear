@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Reed A. Cartwright
+ * Copyright (c) 2015-2016 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -22,14 +22,19 @@
 #define DNG_IO_UTILITY_H
 
 #include <string>
+#include <iterator>
+#include <iosfwd>
 #include <istream>
+#include <fstream>
+
+#include <boost/range/iterator_range.hpp>
 
 namespace dng {
 namespace io {
 
-template<typename X, typename T = std::char_traits<X>, typename A = std::allocator<X> >
+template<typename X, typename T = std::char_traits<X>, typename A = std::allocator<X>>
 inline
-std::basic_string<X,T,A> slurp_file(std::istream<X,T>& input) {
+std::basic_string<X,T,A> slurp(std::basic_ifstream<X,T>& input) {
     std::basic_string<X,T,A> ret;
     if(!input) {
         return {};
@@ -43,22 +48,42 @@ std::basic_string<X,T,A> slurp_file(std::istream<X,T>& input) {
     return ret;
 }
 
-inline std::string slurp_file(const char *filename, std::ios_base::openmode mode = std::ios_base::in) {
-    return slurp_file(std::ifstream{filename,mode});
+inline std::string slurp(const char *filename, std::ios_base::openmode mode = std::ios_base::in) {
+    std::ifstream in{filename,mode};
+    return slurp(in);
 }
 
-inline std::string slurp_file(const std::string& filename, std::ios_base::openmode mode = std::ios_base::in) {
-    return slurp_file(std::ifstream{filename,mode});
+inline std::string slurp(const std::string& filename, std::ios_base::openmode mode = std::ios_base::in) {
+    std::ifstream in{filename,mode};
+    return slurp(in);
 }
 
-inline std::wstring wslurp_file(const char *filename, std::ios_base::openmode mode = std::ios_base::in) {
-    return slurp_file(std::wifstream{filename,mode});
+inline std::wstring wslurp(const char *filename, std::ios_base::openmode mode = std::ios_base::in) {
+    std::wifstream in{filename,mode};
+    return slurp(in);
 }
 
-inline std::wstring wslurp_file(const std::string& filename, std::ios_base::openmode mode = std::ios_base::in) {
-    return slurp_file(std::wifstream{filename,mode});
+inline std::wstring wslurp(const std::string& filename, std::ios_base::openmode mode = std::ios_base::in) {
+    std::wifstream in{filename,mode};
+    return slurp(in);
 }
 
+// Helper function that mimics boost::istream_range
+template<class Elem, class Traits> inline
+boost::iterator_range<std::istreambuf_iterator<Elem, Traits> >
+istreambuf_range(std::basic_istream<Elem, Traits> &in) {
+    return boost::iterator_range<std::istreambuf_iterator<Elem, Traits>>(
+               std::istreambuf_iterator<Elem, Traits>(in),
+               std::istreambuf_iterator<Elem, Traits>());
+}
+
+bool at_slurp(std::string &ss, std::ios_base::openmode mode = std::ios_base::in) {
+    if(ss.empty() || ss[0] != '@')
+        return false;
+    std::ifstream in{ss.c_str()+1, mode};
+    ss = slurp(in);
+    return true;
+}
 
 }
 } //namespace dng::io
