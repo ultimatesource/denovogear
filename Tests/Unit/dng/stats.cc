@@ -1,4 +1,4 @@
-#define BOOST_TEST_MODULE "dng::stats.h"
+#define BOOST_TEST_MODULE dng::stats
 
 #include <cmath>
 #include <cstdlib>

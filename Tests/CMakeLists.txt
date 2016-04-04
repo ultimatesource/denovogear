@@ -53,10 +53,11 @@ add_custom_target(make_testdata_sum
 set(DNG_DNM_EXE ${CMAKE_BINARY_DIR}/src/dng-dnm)
 set(DNG_PHASER_EXE ${CMAKE_BINARY_DIR}/src/dng-phaser)
 set(DNG_CALL_EXE ${CMAKE_BINARY_DIR}/src/dng-call)
+set(DNG_LOGLIKE_EXE ${CMAKE_BINARY_DIR}/src/dng-loglike)
 
 ###############################################################################
 # Add tests for various build targets so we can depend on them
-set(build_test_targets testdata dng-call dng-dnm dng-phaser)
+set(build_test_targets testdata dng-call dng-loglike dng-dnm dng-phaser)
 foreach(target ${build_test_targets})
   add_test(Build.${target} "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target ${target})
 endforeach()
@@ -95,6 +96,8 @@ add_subdirectory(Unit)
 AddCMakeTest(DngCall.Run "" "Build.dng-call")
 AddCMakeTest(DngCall.Bam "" "Build.dng-call;Build.testdata")
 AddCMakeTest(DngCall.Vcf "" "Build.dng-call;Build.testdata")
+
+AddCMakeTest(DngLoglike.Run "" "Build.dng-loglike")
 
 AddCMakeTest(DngDnm.Run "" "Build.dng-dnm")
 AddCMakeTest(DngDnm.Auto "" "Build.dng-dnm;Build.testdata")
