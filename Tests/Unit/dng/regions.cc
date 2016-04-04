@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-#define BOOST_TEST_MODULE dng::lib::regions
+#define BOOST_TEST_MODULE dng::regions
 
 #include <dng/regions.h>
 

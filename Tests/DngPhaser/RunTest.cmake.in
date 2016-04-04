@@ -1,0 +1,16 @@
+set(Help-CMD @DNG_PHASER_EXE@ --help)
+set(Help-WD ".")
+set(Help-RESULT 0)
+set(Help-STDERR "Usage:\n  dng phaser")
+
+set(InputErr-CMD @DNG_PHASER_EXE@)
+set(InputErr-WD ".")
+set(InputErr-RESULT 1)
+set(InputErr-STDERR "INPUT ERROR!")
+
+include("@CMAKE_CURRENT_SOURCE_DIR@/CheckProcessTest.cmake")
+
+CheckProcessTests(DngPhaser.Run
+  Help
+  InputErr
+)
