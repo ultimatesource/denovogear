@@ -8,6 +8,7 @@ add_subdirectory(treecall)
 include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
 
 add_executable(dng-call dng-call.cc)
+add_executable(dng-loglike dng-loglike.cc)
 
 add_executable(dng-dnm dng-dnm.cc
   dnm/snpLike.cc dnm/indelLike.cc dnm/pairLike.cc dnm/makeLookup.cc
@@ -28,6 +29,7 @@ configure_file(
   "${CMAKE_CURRENT_BINARY_DIR}/version.h"
   @ONLY)
 
+
 if(USE_STATIC_LIBSTDCXX)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++")
 endif()
@@ -37,13 +39,16 @@ if(USE_STATIC_FLAG)
   set_target_properties(dng-dnm    PROPERTIES LINK_SEARCH_START_STATIC On)
   set_target_properties(dng-phaser PROPERTIES LINK_SEARCH_START_STATIC On)
   set_target_properties(dng-call   PROPERTIES LINK_SEARCH_START_STATIC On)
+  set_target_properties(dng-loglike   PROPERTIES LINK_SEARCH_START_STATIC On)
 
   set_target_properties(dng-dnm    PROPERTIES LINK_SEARCH_END_STATIC On)
   set_target_properties(dng-phaser PROPERTIES LINK_SEARCH_END_STATIC On)
   set_target_properties(dng-call   PROPERTIES LINK_SEARCH_END_STATIC On)
+  set_target_properties(dng-loglike   PROPERTIES LINK_SEARCH_END_STATIC On)
 endif(USE_STATIC_FLAG)
 
 target_link_libraries(dng-call libdng)
+target_link_libraries(dng-loglike libdng)
 target_link_libraries(dng-dnm libdng)
 target_link_libraries(dng-phaser libdng)
 
@@ -57,4 +62,5 @@ endif()
 install(TARGETS dng-dnm RUNTIME DESTINATION ${CMAKE_INSTALL_LIBEXECDIR} ${PROJ_INSTALL_EXTRA_ARGS})
 install(TARGETS dng-phaser RUNTIME DESTINATION ${CMAKE_INSTALL_LIBEXECDIR} ${PROJ_INSTALL_EXTRA_ARGS})
 install(TARGETS dng-call RUNTIME DESTINATION ${CMAKE_INSTALL_LIBEXECDIR} ${PROJ_INSTALL_EXTRA_ARGS})
+install(TARGETS dng-loglike RUNTIME DESTINATION ${CMAKE_INSTALL_LIBEXECDIR} ${PROJ_INSTALL_EXTRA_ARGS})
 install(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/dng.sh" DESTINATION ${CMAKE_INSTALL_BINDIR} RENAME dng)

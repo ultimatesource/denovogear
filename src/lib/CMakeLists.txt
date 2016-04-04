@@ -7,6 +7,7 @@ add_library(libdng STATIC
   mutation.cc
   stats.cc
   regions.cc
+  loglike.cc
 )
 target_include_directories(libdng PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../include")
 target_include_directories(libdng PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/..")
