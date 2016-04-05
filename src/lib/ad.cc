@@ -19,6 +19,8 @@
 
 #include <dng/depths.h>
 
+#include <algorithm>
+
 const AlleleDepths::type_info_t AlleleDepths::type_info_table[128] = {
     {0,   1, "A",     "a",     0, {0,3,2,1}},
     {1,   1, "C",     "c",     1, {1,3,2,0}},
@@ -149,6 +151,25 @@ const AlleleDepths::type_info_t AlleleDepths::type_info_table[128] = {
     {126, 4, "NTGAC", "ntgac", 4, {3,2,0,1}},
     {127, 4, "NTGCA", "ntgca", 4, {3,2,1,0}}
 };
+
+static int8_t AlleleDepth::LookupType(const std::vector<std::size_t> &indexes, bool ref_is_n) {
+    static size_t starts[] = {0, 4, 16, 40, 64};
+
+    assert(1 <= indexes.size() && indexes.size() <= 4);
+    size_t start = type_info_table + starts[indexes.size()-1] + (ref_is_n ? 64 : 0);
+    size_t end =   type_info_table + starts[indexes.size()] + (ref_is_n ? 64 : 0);
+
+    auto it = std::find_if(start, end, [&](const type_info_t& type) {
+        for(size_t u = 0; u < indexes.size(); ++u) {
+            if(type.indexes[u] != indexes[u]) {
+                return false;
+            }
+        }
+        return true;
+    });
+    return (it != end) it->type : -1;
+}
+
 
 int itf8_put(char *cp, int32_t val);
 int ltf8_put(char *cp, int64_t val);
