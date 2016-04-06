@@ -96,6 +96,7 @@ add_subdirectory(Unit)
 AddCMakeTest(DngCall.Run "" "Build.dng-call")
 AddCMakeTest(DngCall.Bam "" "Build.dng-call;Build.testdata")
 AddCMakeTest(DngCall.Vcf "" "Build.dng-call;Build.testdata")
+AddCmakeTest(DngCall.Cram "" "Build.dng-call;Build.testdata")
 
 AddCMakeTest(DngLoglike.Run "" "Build.dng-loglike")
 
