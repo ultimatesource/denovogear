@@ -184,107 +184,222 @@ int dng::io::Ad::Write(const AlleleDepths& line) {
     }
 }
 
-int itf8_put(char *out, int32_t n) {
-    assert(n >= 0);
+int ntf8_put32(char *out, uint32_t n) {
     if(n <= 0x7F) {
+        // 0bbb bbbb
         *out = n;
         return 1;
-    } else if(n <= 0x7FF)
-}
-
-
-int itf8_put(char *cp, int32_t val) {
-    if        (!(val & ~0x00000007f)) { // 1 byte
-    *cp = val;
-    return 1;
-    } else if (!(val & ~0x00003fff)) { // 2 byte
-    *cp++ = (val >> 8 ) | 0x80;
-    *cp   = val & 0xff;
-    return 2;
-    } else if (!(val & ~0x01fffff)) { // 3 byte
-    *cp++ = (val >> 16) | 0xc0;
-    *cp++ = (val >> 8 ) & 0xff;
-    *cp   = val & 0xff;
-    return 3;
-    } else if (!(val & ~0x0fffffff)) { // 4 byte
-    *cp++ = (val >> 24) | 0xe0;
-    *cp++ = (val >> 16) & 0xff;
-    *cp++ = (val >> 8 ) & 0xff;
-    *cp   = val & 0xff;
-    return 4;
-    } else {                           // 5 byte
-    *cp++ = 0xf0 | ((val>>28) & 0xff);
-    *cp++ = (val >> 20) & 0xff;
-    *cp++ = (val >> 12) & 0xff;
-    *cp++ = (val >> 4 ) & 0xff;
-    *cp = val & 0x0f;
-    return 5;
+    } else if(n <= 0x03FFFF) {
+        // 10bb bbbb bbbb bbbb
+        *out++ = (n >> 8) | 0x80;
+        *out   = n & 0xFF;
+        return 2;        
+    } else if(n <= 0x01FFFFFF) {
+        // 110b bbbb bbbb bbbb bbbb bbbb
+        *out++ = (n >> 16) | 0xC0;
+        *out++ = (n >> 8)  & 0xFF;
+        *out = n  & 0xFF;
+        return 3;
+    } else if(n <= 0x0FFFFFFF) {
+        // 1110 bbbb bbbb bbbb bbbb bbbb bbbb bbbb
+        *out++ = (n >> 24) | 0xE0;
+        *out++ = (n >> 16) & 0xFF;
+        *out++ = (n >> 8)  & 0xFF;
+        *out = n & 0xFF;
+        return 4;
+    } else {
+        // 1111 0000 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
+        *out++ = 0xF0;
+        *out++ = (n >> 24) & 0xFF;
+        *out++ = (n >> 16) & 0xFF;
+        *out++ = (n >> 8)  & 0xFF;
+        *out = n & 0xFF;
+        return 5;
     }
 }
 
-int ltf8_put(char *cp, int64_t val) {
-    if        (!(val & ~((1LL<<7)-1))) {
-    *cp = val;
-    return 1;
-    } else if (!(val & ~((1LL<<(6+8))-1))) {
-    *cp++ = (val >> 8 ) | 0x80;
-    *cp   = val & 0xff;
-    return 2;
-    } else if (!(val & ~((1LL<<(5+2*8))-1))) {
-    *cp++ = (val >> 16) | 0xc0;
-    *cp++ = (val >> 8 ) & 0xff;
-    *cp   = val & 0xff;
-    return 3;
-    } else if (!(val & ~((1LL<<(4+3*8))-1))) {
-    *cp++ = (val >> 24) | 0xe0;
-    *cp++ = (val >> 16) & 0xff;
-    *cp++ = (val >> 8 ) & 0xff;
-    *cp   = val & 0xff;
-    return 4;
-    } else if (!(val & ~((1LL<<(3+4*8))-1))) {
-    *cp++ = (val >> 32) | 0xf0;
-    *cp++ = (val >> 24) & 0xff;
-    *cp++ = (val >> 16) & 0xff;
-    *cp++ = (val >> 8 ) & 0xff;
-    *cp   = val & 0xff;
-    return 5;
-    } else if (!(val & ~((1LL<<(2+5*8))-1))) {
-    *cp++ = (val >> 40) | 0xf8;
-    *cp++ = (val >> 32) & 0xff;
-    *cp++ = (val >> 24) & 0xff;
-    *cp++ = (val >> 16) & 0xff;
-    *cp++ = (val >> 8 ) & 0xff;
-    *cp   = val & 0xff;
-    return 6;
-    } else if (!(val & ~((1LL<<(1+6*8))-1))) {
-    *cp++ = (val >> 48) | 0xfc;
-    *cp++ = (val >> 40) & 0xff;
-    *cp++ = (val >> 32) & 0xff;
-    *cp++ = (val >> 24) & 0xff;
-    *cp++ = (val >> 16) & 0xff;
-    *cp++ = (val >> 8 ) & 0xff;
-    *cp   = val & 0xff;
-    return 7;
-    } else if (!(val & ~((1LL<<(7*8))-1))) {
-    *cp++ = (val >> 56) | 0xfe;
-    *cp++ = (val >> 48) & 0xff;
-    *cp++ = (val >> 40) & 0xff;
-    *cp++ = (val >> 32) & 0xff;
-    *cp++ = (val >> 24) & 0xff;
-    *cp++ = (val >> 16) & 0xff;
-    *cp++ = (val >> 8 ) & 0xff;
-    *cp   = val & 0xff;
-    return 8;
+int ztf8_put32(char *out, uint32_t n) {
+    uint32_t u = 0;
+    char v = 0
+    if(n <= 0x7F) {
+        // 0bbb bbbb
+        *out = n;
+        return 1;
+    } else if(n <= 0x03FFFF) {
+        // 10bb bbbb bbbb bbbb
+        *out++ = (n >> 8) | 0x80;
+        *out   = n & 0xFF;
+        return 2;        
+    }
+}
+
+
+std::pair<uint32_t,int> ntf8_get32(char *in) {
+    char x = in[0];
+    if(x < 0x80) {
+        // 0bbb bbbb
+        uint32_t r = x;
+        return {r,1};
+    } else if(x < 0xC0) {
+        // 10bb bbbb bbbb bbbb
+        uint32_t r = ((x << 8) | in[1]) & 0x03FFFF;
+        return {r,2};
+    } else if(x < 0xE0) {
+        // 110b bbbb bbbb bbbb bbbb bbbb
+        uint32_t r = ((x << 16) | (in[1] << 8) | in[2]) & 0x01FFFFFF;
+        return {r,3};
+    } else if(x < 0xF0) {
+        // 1110 bbbb bbbb bbbb bbbb bbbb bbbb bbbb
+        uint32_t r = ((x << 24) | (in[1] << 16) | (in[2] << 8) | in[3]) & 0x0FFFFFFF;
+        return {r,4};
     } else {
-    *cp++ = 0xff;
-    *cp++ = (val >> 56) & 0xff;
-    *cp++ = (val >> 48) & 0xff;
-    *cp++ = (val >> 40) & 0xff;
-    *cp++ = (val >> 32) & 0xff;
-    *cp++ = (val >> 24) & 0xff;
-    *cp++ = (val >> 16) & 0xff;
-    *cp++ = (val >> 8 ) & 0xff;
-    *cp   = val & 0xff;
-    return 9;
+        // 1111 0000 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
+        uint32_t r = ((in[1] << 24) | (in[2] << 16) | (in[3] << 8) | in[4]) & 0xFFFFFFFF;
+        return {r,5};
+    }
+}
+
+int ntf8_put64(char *out, uint64_t n) {
+    if(n <= 0x7F) {
+        // 0bbb bbbb
+        *out = n;
+        return 1;
+    } else if(n <= 0x03FFFF) {
+        // 10bb bbbb bbbb bbbb
+        *out++ = (n >> 8) | 0x80;
+        *out   = n & 0xFF;
+        return 2;        
+    } else if(n <= 0x01FFFFFF) {
+        // 110b bbbb bbbb bbbb bbbb bbbb
+        *out++ = (n >> 16) | 0xC0;
+        *out++ = (n >> 8)  & 0xFF;
+        *out = n  & 0xFF;
+        return 3;
+    } else if(n <= 0x0FFFFFFF) {
+        // 1110 bbbb bbbb bbbb bbbb bbbb bbbb bbbb
+        *out++ = (n >> 24) | 0xE0;
+        *out++ = (n >> 16) & 0xFF;
+        *out++ = (n >> 8)  & 0xFF;
+        *out = n & 0xFF;
+        return 4;
+    } else if(n <= 0x07FFFFFFFF) {
+        // 1111 0bbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
+        *out++ = (n >> 32) | 0xF0;
+        *out++ = (n >> 24) & 0xFF;
+        *out++ = (n >> 16) & 0xFF;
+        *out++ = (n >> 8)  & 0xFF;
+        *out = n & 0xFF;
+        return 5;
+    } else if(n <= 0x03FFFFFFFFFF) {
+        // 1111 10bb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
+        *out++ = (n >> 40) | 0xF8;
+        *out++ = (n >> 32) & 0xFF;
+        *out++ = (n >> 24) & 0xFF;
+        *out++ = (n >> 16) & 0xFF;
+        *out++ = (n >> 8)  & 0xFF;
+        *out = n & 0xFF;
+        return 6;
+    } else if(n <= 0x01FFFFFFFFFFFF) {
+        // 1111 110b bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
+        *out++ = (n >> 48) | 0xFC;
+        *out++ = (n >> 40) & 0xFF;
+        *out++ = (n >> 32) & 0xFF;
+        *out++ = (n >> 24) & 0xFF;
+        *out++ = (n >> 16) & 0xFF;
+        *out++ = (n >> 8)  & 0xFF;
+        *out = n & 0xFF;
+        return 7;
+    } else if(n <= 0x00FFFFFFFFFFFFFF) {
+        // 1111 1110 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
+        *out++ = (n >> 56) | 0xFE;
+        *out++ = (n >> 48) & 0xFF;
+        *out++ = (n >> 40) & 0xFF;
+        *out++ = (n >> 32) & 0xFF;
+        *out++ = (n >> 24) & 0xFF;
+        *out++ = (n >> 16) & 0xFF;
+        *out++ = (n >> 8)  & 0xFF;
+        *out = n & 0xFF;
+        return 8;
+    } else {
+        // 1111 1111 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
+        *out++ = 0xFF;
+        *out++ = (n >> 56) & 0xFF;
+        *out++ = (n >> 48) & 0xFF;
+        *out++ = (n >> 40) & 0xFF;
+        *out++ = (n >> 32) & 0xFF;
+        *out++ = (n >> 24) & 0xFF;
+        *out++ = (n >> 16) & 0xFF;
+        *out++ = (n >> 8)  & 0xFF;
+        *out = n & 0xFF;
+        return 9;
+    }
+}
+
+std::pair<uint64_t,int> ntf8_get64(char *in) {
+    char x = in[0];
+    if(x < 0x80) {
+        // 0bbb bbbb
+        uint64_t r = x;
+        return {r,1};
+    } else if(x < 0xC0) {
+        // 10bb bbbb bbbb bbbb
+        uint64_t r = ((x << 8) | in[1]) & 0x03FFFF;
+        return {r,2};
+    } else if(x < 0xE0) {
+        // 110b bbbb bbbb bbbb bbbb bbbb
+        uint64_t r = ((x << 16) | (in[1] << 8) | in[2]) & 0x01FFFFFF;
+        return {r,3};
+    } else if(x < 0xF0) {
+        // 1110 bbbb bbbb bbbb bbbb bbbb bbbb bbbb
+        uint64_t r = ((x << 24) | (in[1] << 16) | (in[2] << 8) | in[3]) & 0x0FFFFFFF;
+        return {r,4};
+    } else if(x < 0xF8) {
+        // 1111 0bbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
+        uint64_t r = ((x << 32) | (in[1] << 24) | (in[2] << 16) | (in[3] << 8) | in[4]) & 0x07FFFFFFFF;
+        return {r,5};
+    } else if(x < 0xFC) {
+        // 1111 10bb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
+        uint64_t r = x << 40;
+        r |= in[1] << 32;
+        r |= in[2] << 24;
+        r |= in[3] << 16;
+        r |= in[4] << 8;
+        r |= in[5];
+        r &= 0x03FFFFFFFFFF;
+        return {r,6};
+    } else if(x < 0xFE) {
+        // 1111 110b bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
+        uint64_t r = x << 48;
+        r |= in[1] << 40;
+        r |= in[2] << 32;
+        r |= in[3] << 24;
+        r |= in[4] << 16;
+        r |= in[5] << 8;
+        r |= in[6];
+        r &= 0x01FFFFFFFFFFFF;
+        return {r,7};
+    } else if(x < 0xFF) {
+        // 1111 1110 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
+        uint64_t r = x << 56;
+        r |= in[1] << 48;
+        r |= in[2] << 40;
+        r |= in[3] << 32;
+        r |= in[4] << 24;
+        r |= in[5] << 16;
+        r |= in[6] << 8;
+        r |= in[7];
+        r &= 0x00FFFFFFFFFFFFFF;
+        return {r,8};
+    } else {
+        // 1111 1111 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
+        uint64_t r = in[1] << 56;
+        r |= in[2] << 48;
+        r |= in[3] << 40;
+        r |= in[4] << 32;
+        r |= in[5] << 24;
+        r |= in[6] << 16;
+        r |= in[7] << 8;
+        r |= in[8];
+       return {r,9};
     }
 }
