@@ -20,6 +20,7 @@
 #include <dng/depths.h>
 
 #include <algorithm>
+#include <endian.h>
 
 const AlleleDepths::type_info_t AlleleDepths::type_info_table[128] = {
     {0,   1, "A",     "a",     0, {0,3,2,1}},
@@ -189,73 +190,60 @@ int ntf8_put32(char *out, uint32_t n) {
         // 0bbb bbbb
         *out = n;
         return 1;
-    } else if(n <= 0x03FFFF) {
+    } else if(n <= 0x3FFF) {
         // 10bb bbbb bbbb bbbb
-        *out++ = (n >> 8) | 0x80;
-        *out   = n & 0xFF;
-        return 2;        
-    } else if(n <= 0x01FFFFFF) {
+    	uint16_t u = htobe16(n | 0x8000);
+    	memcpy(out, &u, 2);
+        return 2;
+    } else if(n <= 0x1FFFFF) {
         // 110b bbbb bbbb bbbb bbbb bbbb
-        *out++ = (n >> 16) | 0xC0;
-        *out++ = (n >> 8)  & 0xFF;
-        *out = n  & 0xFF;
+        uint32_t u = htobe32((n << 8) | 0xC0000000);
+    	memcpy(out, &u, 3);
         return 3;
     } else if(n <= 0x0FFFFFFF) {
         // 1110 bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        *out++ = (n >> 24) | 0xE0;
-        *out++ = (n >> 16) & 0xFF;
-        *out++ = (n >> 8)  & 0xFF;
-        *out = n & 0xFF;
+        uint32_t u = htobe32(n | 0xE0000000);
+    	memcpy(out, &u, 4);
         return 4;
     } else {
         // 1111 0000 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        *out++ = 0xF0;
-        *out++ = (n >> 24) & 0xFF;
-        *out++ = (n >> 16) & 0xFF;
-        *out++ = (n >> 8)  & 0xFF;
-        *out = n & 0xFF;
+        *out = 0xF0;
+        uint32_t u = htobe32(n);
+        memcpy(out+1, &u, 4);
         return 5;
     }
 }
 
-int ztf8_put32(char *out, uint32_t n) {
-    uint32_t u = 0;
-    char v = 0
-    if(n <= 0x7F) {
-        // 0bbb bbbb
-        *out = n;
-        return 1;
-    } else if(n <= 0x03FFFF) {
-        // 10bb bbbb bbbb bbbb
-        *out++ = (n >> 8) | 0x80;
-        *out   = n & 0xFF;
-        return 2;        
-    }
-}
-
-
-std::pair<uint32_t,int> ntf8_get32(char *in) {
-    char x = in[0];
+int ntf8_get32(char *in, uint32_t *r) {
+	assert(r != nullptr)
+    uint8_t x = in[0];
     if(x < 0x80) {
         // 0bbb bbbb
-        uint32_t r = x;
-        return {r,1};
+        *r = x;
+        return 1;
     } else if(x < 0xC0) {
         // 10bb bbbb bbbb bbbb
-        uint32_t r = ((x << 8) | in[1]) & 0x03FFFF;
-        return {r,2};
+        uint16_t u = 0;
+        memcpy(&u,in,2);
+        *r = be16toh(u) & 0x3FFF;
+        return 2;
     } else if(x < 0xE0) {
         // 110b bbbb bbbb bbbb bbbb bbbb
-        uint32_t r = ((x << 16) | (in[1] << 8) | in[2]) & 0x01FFFFFF;
-        return {r,3};
+        uint32_t u = 0;
+        memcpy(&u,in,3);
+        *r = (be32toh(u) & 0x1FFFFFFF) >> 8;
+        return 3;
     } else if(x < 0xF0) {
         // 1110 bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        uint32_t r = ((x << 24) | (in[1] << 16) | (in[2] << 8) | in[3]) & 0x0FFFFFFF;
-        return {r,4};
+        uint32_t u = 0;
+        memcpy(&u,in,4);
+        *r = be32toh(u) & 0x0FFFFFFF;
+        return 4;
     } else {
         // 1111 0000 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        uint32_t r = ((in[1] << 24) | (in[2] << 16) | (in[3] << 8) | in[4]) & 0xFFFFFFFF;
-        return {r,5};
+        uint32_t u = 0;
+        memcpy(&u,in+1,4);
+        return 5;
     }
 }
 
@@ -264,73 +252,46 @@ int ntf8_put64(char *out, uint64_t n) {
         // 0bbb bbbb
         *out = n;
         return 1;
-    } else if(n <= 0x03FFFF) {
+    } else if(n <= 0x3FFF) {
         // 10bb bbbb bbbb bbbb
-        *out++ = (n >> 8) | 0x80;
-        *out   = n & 0xFF;
-        return 2;        
-    } else if(n <= 0x01FFFFFF) {
+    	uint16_t u = htobe16(n | 0x8000);
+    	memcpy(out, &u, 2);
+        return 2;
+    } else if(n <= 0x1FFFFF) {
         // 110b bbbb bbbb bbbb bbbb bbbb
-        *out++ = (n >> 16) | 0xC0;
-        *out++ = (n >> 8)  & 0xFF;
-        *out = n  & 0xFF;
+        uint32_t u = htobe32((n << 8) | 0xC0000000);
+    	memcpy(out, &u, 3);
         return 3;
     } else if(n <= 0x0FFFFFFF) {
         // 1110 bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        *out++ = (n >> 24) | 0xE0;
-        *out++ = (n >> 16) & 0xFF;
-        *out++ = (n >> 8)  & 0xFF;
-        *out = n & 0xFF;
+        uint32_t u = htobe32(n | 0xE0000000);
+    	memcpy(out, &u, 4);
         return 4;
     } else if(n <= 0x07FFFFFFFF) {
         // 1111 0bbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        *out++ = (n >> 32) | 0xF0;
-        *out++ = (n >> 24) & 0xFF;
-        *out++ = (n >> 16) & 0xFF;
-        *out++ = (n >> 8)  & 0xFF;
-        *out = n & 0xFF;
+        uint64_t u = htobe64((n << 24) | 0xF000000000000000);
+        memcpy(out, &u, 5);
         return 5;
     } else if(n <= 0x03FFFFFFFFFF) {
         // 1111 10bb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        *out++ = (n >> 40) | 0xF8;
-        *out++ = (n >> 32) & 0xFF;
-        *out++ = (n >> 24) & 0xFF;
-        *out++ = (n >> 16) & 0xFF;
-        *out++ = (n >> 8)  & 0xFF;
-        *out = n & 0xFF;
+        uint64_t u = htobe64((n << 16) | 0xF800000000000000);
+        memcpy(out, &u, 6);
         return 6;
     } else if(n <= 0x01FFFFFFFFFFFF) {
         // 1111 110b bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        *out++ = (n >> 48) | 0xFC;
-        *out++ = (n >> 40) & 0xFF;
-        *out++ = (n >> 32) & 0xFF;
-        *out++ = (n >> 24) & 0xFF;
-        *out++ = (n >> 16) & 0xFF;
-        *out++ = (n >> 8)  & 0xFF;
-        *out = n & 0xFF;
+        uint64_t u = htobe64((n << 8) | 0xFC00000000000000);
+        memcpy(out, &u, 7);
         return 7;
     } else if(n <= 0x00FFFFFFFFFFFFFF) {
         // 1111 1110 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        *out++ = (n >> 56) | 0xFE;
-        *out++ = (n >> 48) & 0xFF;
-        *out++ = (n >> 40) & 0xFF;
-        *out++ = (n >> 32) & 0xFF;
-        *out++ = (n >> 24) & 0xFF;
-        *out++ = (n >> 16) & 0xFF;
-        *out++ = (n >> 8)  & 0xFF;
-        *out = n & 0xFF;
+        uint64_t u = htobe64( n | 0xFE00000000000000);
+        memcpy(out, &u, 8);
         return 8;
     } else {
         // 1111 1111 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        *out++ = 0xFF;
-        *out++ = (n >> 56) & 0xFF;
-        *out++ = (n >> 48) & 0xFF;
-        *out++ = (n >> 40) & 0xFF;
-        *out++ = (n >> 32) & 0xFF;
-        *out++ = (n >> 24) & 0xFF;
-        *out++ = (n >> 16) & 0xFF;
-        *out++ = (n >> 8)  & 0xFF;
-        *out = n & 0xFF;
+        *out = 0xFF;
+        uint64_t u = htobe64(n);
+        memcpy(out+1, &u, 8);
         return 9;
     }
 }
