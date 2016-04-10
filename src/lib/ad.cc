@@ -185,7 +185,7 @@ int dng::io::Ad::Write(const AlleleDepths& line) {
     }
 }
 
-int ntf8_put32(char *out, uint32_t n) {
+int ntf8_put32(uint32_t n, char *out) {
     if(n <= 0x7F) {
         // 0bbb bbbb
         *out = n;
@@ -197,7 +197,7 @@ int ntf8_put32(char *out, uint32_t n) {
         return 2;
     } else if(n <= 0x1FFFFF) {
         // 110b bbbb bbbb bbbb bbbb bbbb
-        uint32_t u = htobe32((n << 8) | 0xC0000000);
+        uint32_t u = htobe32((n | 0xC00000) << 8);
     	memcpy(out, &u, 3);
         return 3;
     } else if(n <= 0x0FFFFFFF) {
@@ -214,8 +214,8 @@ int ntf8_put32(char *out, uint32_t n) {
     }
 }
 
-int ntf8_get32(char *in, uint32_t *r) {
-	assert(r != nullptr)
+int ntf8_get32(const char *in, uint32_t *r) {
+	assert(r != nullptr);
     uint8_t x = in[0];
     if(x < 0x80) {
         // 0bbb bbbb
@@ -231,7 +231,7 @@ int ntf8_get32(char *in, uint32_t *r) {
         // 110b bbbb bbbb bbbb bbbb bbbb
         uint32_t u = 0;
         memcpy(&u,in,3);
-        *r = (be32toh(u) & 0x1FFFFFFF) >> 8;
+        *r = (be32toh(u) >> 8) & 0x1FFFFF;
         return 3;
     } else if(x < 0xF0) {
         // 1110 bbbb bbbb bbbb bbbb bbbb bbbb bbbb
@@ -240,14 +240,16 @@ int ntf8_get32(char *in, uint32_t *r) {
         *r = be32toh(u) & 0x0FFFFFFF;
         return 4;
     } else {
+        assert(x == 0xF0); // If this fails then we may be reading a 64-bit number
         // 1111 0000 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
         uint32_t u = 0;
         memcpy(&u,in+1,4);
+        *r = be32toh(u);
         return 5;
     }
 }
 
-int ntf8_put64(char *out, uint64_t n) {
+int ntf8_put64(uint64_t n, char *out) {
     if(n <= 0x7F) {
         // 0bbb bbbb
         *out = n;
@@ -259,7 +261,7 @@ int ntf8_put64(char *out, uint64_t n) {
         return 2;
     } else if(n <= 0x1FFFFF) {
         // 110b bbbb bbbb bbbb bbbb bbbb
-        uint32_t u = htobe32((n << 8) | 0xC0000000);
+        uint32_t u = htobe32((n | 0xC00000) << 8);
     	memcpy(out, &u, 3);
         return 3;
     } else if(n <= 0x0FFFFFFF) {
@@ -269,17 +271,17 @@ int ntf8_put64(char *out, uint64_t n) {
         return 4;
     } else if(n <= 0x07FFFFFFFF) {
         // 1111 0bbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        uint64_t u = htobe64((n << 24) | 0xF000000000000000);
+        uint64_t u = htobe64((n | 0xF000000000) << 24);
         memcpy(out, &u, 5);
         return 5;
     } else if(n <= 0x03FFFFFFFFFF) {
         // 1111 10bb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        uint64_t u = htobe64((n << 16) | 0xF800000000000000);
+        uint64_t u = htobe64((n | 0xF80000000000) << 16);
         memcpy(out, &u, 6);
         return 6;
     } else if(n <= 0x01FFFFFFFFFFFF) {
         // 1111 110b bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        uint64_t u = htobe64((n << 8) | 0xFC00000000000000);
+        uint64_t u = htobe64((n | 0xFC000000000000) << 8);
         memcpy(out, &u, 7);
         return 7;
     } else if(n <= 0x00FFFFFFFFFFFFFF) {
@@ -289,78 +291,67 @@ int ntf8_put64(char *out, uint64_t n) {
         return 8;
     } else {
         // 1111 1111 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        *out = 0xFF;
+        *out = 0xF0;
         uint64_t u = htobe64(n);
         memcpy(out+1, &u, 8);
         return 9;
     }
 }
 
-std::pair<uint64_t,int> ntf8_get64(char *in) {
-    char x = in[0];
+int ntf8_get64(const char *in, uint32_t *r) {
+    assert(r != nullptr);
+    uint8_t x = in[0];
     if(x < 0x80) {
         // 0bbb bbbb
-        uint64_t r = x;
-        return {r,1};
+        *r = x;
+        return 1;
     } else if(x < 0xC0) {
         // 10bb bbbb bbbb bbbb
-        uint64_t r = ((x << 8) | in[1]) & 0x03FFFF;
-        return {r,2};
+        uint16_t u = 0;
+        memcpy(&u,in,2);
+        *r = be16toh(u) & 0x3FFF;
+        return 2;
     } else if(x < 0xE0) {
         // 110b bbbb bbbb bbbb bbbb bbbb
-        uint64_t r = ((x << 16) | (in[1] << 8) | in[2]) & 0x01FFFFFF;
-        return {r,3};
+        uint32_t u = 0;
+        memcpy(&u,in,3);
+        *r = (be32toh(u) >> 8) & 0x1FFFFF;
+        return 3;
     } else if(x < 0xF0) {
         // 1110 bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        uint64_t r = ((x << 24) | (in[1] << 16) | (in[2] << 8) | in[3]) & 0x0FFFFFFF;
-        return {r,4};
+        uint32_t u = 0;
+        memcpy(&u,in,4);
+        *r = be32toh(u) & 0x0FFFFFFF;
+        return 4;
     } else if(x < 0xF8) {
         // 1111 0bbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        uint64_t r = ((x << 32) | (in[1] << 24) | (in[2] << 16) | (in[3] << 8) | in[4]) & 0x07FFFFFFFF;
-        return {r,5};
+        uint64_t u = 0;
+        memcpy(&u,in,5);
+        *r = (be64toh(u) >> 24) & 0x07FFFFFFFF;
+        return 5;
     } else if(x < 0xFC) {
         // 1111 10bb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        uint64_t r = x << 40;
-        r |= in[1] << 32;
-        r |= in[2] << 24;
-        r |= in[3] << 16;
-        r |= in[4] << 8;
-        r |= in[5];
-        r &= 0x03FFFFFFFFFF;
-        return {r,6};
+        uint64_t u = 0;
+        memcpy(&u,in,6);
+        *r = (be64toh(u) >> 16) & 0x03FFFFFFFFFF;
+        return 6;
     } else if(x < 0xFE) {
         // 1111 110b bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        uint64_t r = x << 48;
-        r |= in[1] << 40;
-        r |= in[2] << 32;
-        r |= in[3] << 24;
-        r |= in[4] << 16;
-        r |= in[5] << 8;
-        r |= in[6];
-        r &= 0x01FFFFFFFFFFFF;
-        return {r,7};
+        uint64_t u = 0;
+        memcpy(&u,in,7);
+        *r = (be64toh(u) >> 8) & 0x01FFFFFFFFFFFF;
+        return 7;
     } else if(x < 0xFF) {
         // 1111 1110 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        uint64_t r = x << 56;
-        r |= in[1] << 48;
-        r |= in[2] << 40;
-        r |= in[3] << 32;
-        r |= in[4] << 24;
-        r |= in[5] << 16;
-        r |= in[6] << 8;
-        r |= in[7];
-        r &= 0x00FFFFFFFFFFFFFF;
-        return {r,8};
+        uint64_t u = 0;
+        memcpy(&u,in,8);
+        *r = be64toh(u) & 0x00FFFFFFFFFFFFFF;
+        return 8;
     } else {
         // 1111 1111 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        uint64_t r = in[1] << 56;
-        r |= in[2] << 48;
-        r |= in[3] << 40;
-        r |= in[4] << 32;
-        r |= in[5] << 24;
-        r |= in[6] << 16;
-        r |= in[7] << 8;
-        r |= in[8];
-       return {r,9};
+        uint64_t u = 0;
+        memcpy(&u,in+1,8);
+        *r = be64toh(u);
+        return 9;
     }
 }
