@@ -18,11 +18,16 @@
  */
 
 #include <dng/depths.h>
+#include <dng/utility.h>
+#include <dng/io/ad.h>
 
 #include <algorithm>
 #include <endian.h>
 
-const AlleleDepths::type_info_t AlleleDepths::type_info_table[128] = {
+using namespace dng::pileup;
+
+const AlleleDepths::type_info_t
+    AlleleDepths::type_info_table[128] = {
     {0,   1, "A",     "a",     0, {0,3,2,1}},
     {1,   1, "C",     "c",     1, {1,3,2,0}},
     {2,   1, "G",     "g",     2, {2,3,1,0}},
@@ -153,12 +158,12 @@ const AlleleDepths::type_info_t AlleleDepths::type_info_table[128] = {
     {127, 4, "NTGCA", "ntgca", 4, {3,2,1,0}}
 };
 
-static int8_t AlleleDepth::LookupType(const std::vector<std::size_t> &indexes, bool ref_is_n) {
+int8_t AlleleDepths::LookupType(const std::vector<std::size_t> &indexes, bool ref_is_n) {
     static size_t starts[] = {0, 4, 16, 40, 64};
 
     assert(1 <= indexes.size() && indexes.size() <= 4);
-    size_t start = type_info_table + starts[indexes.size()-1] + (ref_is_n ? 64 : 0);
-    size_t end =   type_info_table + starts[indexes.size()] + (ref_is_n ? 64 : 0);
+    auto start = &type_info_table[0] + starts[indexes.size()-1] + (ref_is_n ? 64 : 0);
+    auto end =   &type_info_table[0] + starts[indexes.size()] + (ref_is_n ? 64 : 0);
 
     auto it = std::find_if(start, end, [&](const type_info_t& type) {
         for(size_t u = 0; u < indexes.size(); ++u) {
@@ -168,21 +173,50 @@ static int8_t AlleleDepth::LookupType(const std::vector<std::size_t> &indexes, b
         }
         return true;
     });
-    return (it != end) it->type : -1;
+    return (it != end) ? it->type : -1;
 }
-
-
-int itf8_put(char *cp, int32_t val);
-int ltf8_put(char *cp, int64_t val);
-int ad_write_line(dng::location_t last_location, const dng::io::Ad::AlleleDepths& line);
-int tad_write_line(const dng::io::Ad::AlleleDepths& line);
 
 int dng::io::Ad::Write(const AlleleDepths& line) {
     if(is_binary_ad_) {
-        return ad_write_line(last_location_, line);
+        return WriteAd(line);
     } else {
-        return tad_write_line(line);
+        return WriteTad(line);
     }
+}
+
+int dng::io::Ad::WriteTad(const AlleleDepths& line) {
+    using dng::utility::location_to_contig;
+    using dng::utility::location_to_position;
+    typedef AlleleDepths::size_type size_type;
+
+    if(line.data_size() == 0) {
+        return 0;
+    }
+    const location_t loc = line.location();
+    const size_type nlib = line.num_libraries();
+    const size_type nnuc = line.num_nucleotides();
+    auto contig = location_to_contig(loc);
+    if(contig >= contig_names_.size()) {
+        return 1;
+    }
+    stream_ << contig_names_[contig] << '\t';
+    stream_ << location_to_position(loc)+1 << '\t';
+    stream_ << line.type_info().label_upper;
+    for(AlleleDepths::size_type y = 0; y != nlib; ++y) {
+        stream_  << '\t';
+        size_type x = 0;
+        for(; x != nnuc-1; ++x) {
+            stream_  << line(x,y) << ',';
+        }
+        stream_  << line(x,y);
+    }
+    stream_ << '\n';
+    return 0;
+}
+
+int dng::io::Ad::WriteAd(const AlleleDepths& line) {
+    assert(false); // Not implemented yet.
+    return 0;
 }
 
 int ntf8_put32(uint32_t n, char *out) {

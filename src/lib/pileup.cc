@@ -102,7 +102,7 @@ int Pileup::operator()(Call::argument_type &arg) {
     dng::BamPileup mpileup{rgs.groups(), arg.min_qlen};
     mpileup(bamdata, [ref_target_id, ref, ref_sz, h, &](const dng::BamPileup::data_type & data, uint64_t loc) {
         // Calculate target position and fetch sequence name
-        int target_id = location_to_target(loc);
+        int target_id = location_to_contig(loc);
         int position = location_to_position(loc);
 
         if(target_id != ref_target_id && reference) {

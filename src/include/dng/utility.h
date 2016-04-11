@@ -49,7 +49,7 @@ inline location_t make_location(int t, int p) {
     assert((t & INT32_MAX) == t && (p & INT32_MAX) == p);
     return (static_cast<location_t>(t) << 32) | p;
 }
-inline int location_to_target(location_t u) {
+inline int location_to_contig(location_t u) {
     int x = static_cast<int>(u >> 32);
     assert((x & INT32_MAX) == x);
     return x;

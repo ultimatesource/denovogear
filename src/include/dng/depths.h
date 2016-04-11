@@ -44,17 +44,18 @@ public:
     static int8_t LookupType(const std::vector<std::size_t> &indexes, bool ref_is_n);
 
     typedef std::vector<int32_t> data_t;
+    typedef data_t::size_type size_type;
 
-    AlleleDepths(location_t location, int8_t type, size_type num_libraries, data_t data) :
-        location_(location), type_(type), num_libraries_(num_libraries),
+    AlleleDepths(location_t location, int8_t type, size_type num_lib, data_t data) :
+        location_(location), type_(type), num_libraries_(num_lib),
         data_(std::move(data))
     {
         assert(data_.size() == num_libraries()*num_nucleotides());
     }
 
-    AlleleDepths(location_t location, int8_t type, size_type num_libraries) :
-        location_(location), type_(type), num_nucleotides_(num_nucleotides),
-        data_(num_libraries*type_info_table[type].width, 0)
+    AlleleDepths(location_t location, int8_t type, size_type num_lib) :
+        location_(location), type_(type), num_libraries_(num_lib),
+        data_(num_lib*type_info_table[type].width, 0)
     {
     }
 
@@ -63,7 +64,7 @@ public:
         assert(0 <= nuc && nuc < num_nucleotides() && 0 <= lib && lib < num_libraries());
         return data_[nuc*num_libraries_ + lib];
     }
-    data_t::reference operator()(data_t::size_type nuc, data_t::size_type set) {
+    data_t::reference operator()(data_t::size_type nuc, data_t::size_type lib) {
         // storage is nucleotide major
         assert(0 <= nuc && nuc < num_nucleotides() && 0 <= lib && lib < num_libraries());
         return data_[nuc*num_libraries_ + lib];
@@ -71,14 +72,15 @@ public:
 
     location_t location() const { return location_; }
     void location(location_t location) { location_ = location; }
-    void location(int target, int position) { location_ = make_location(target, position); }
+    void location(int target, int position) { location_ = utility::make_location(target, position); }
 
     int8_t type() const { return type_; }
     void type(int8_t type) { type_ = type; }
-    const type_info_t& type_info() { return type_info_table[type_]; }
+    const type_info_t& type_info() const { return type_info_table[type_]; }
 
 
-    const data_t& data() const { return data_t; }
+    const data_t& data() const { return data_; }
+    size_type data_size() const { return data_.size(); };
     void data(data_t data) {
         assert(data.size() == data_.size());
         data_ = std::move(data);
@@ -95,12 +97,12 @@ public:
     size_type num_libraries() const { return num_libraries_; }
     size_type num_nucleotides() const { return type_info().width; }
     std::pair<size_type,size_type> dimensions() const { return {num_nucleotides(), num_libraries()}; }
-    void resize(size_type num_libraries) {
-        num_nucleotides_ = num_nucleotides;
+    void resize(size_type num_lib) {
+        num_libraries_ = num_lib;
         data_.resize(num_nucleotides()*num_libraries());
     }
-    void resize(int8_t type, size_type num_libraries) {
-        num_nucleotides_ = num_nucleotides;
+    void resize(int8_t type, size_type num_lib) {
+        num_libraries_ = num_lib;
         type_ = type;
         data_.resize(num_nucleotides()*num_libraries());
     }

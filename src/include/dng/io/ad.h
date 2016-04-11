@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Reed A. Cartwright
+ * Copyright (c) 2015-2016 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -26,14 +26,16 @@
 #include <boost/filesystem.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 
+#include <dng/io/file.h>
 #include <dng/io/utility.h>
 #include <dng/utility.h>
 #include <dng/depths.h>
 
+
 namespace dng {
 namespace io {
 
-class Ad {
+class Ad : public BinaryFile {
 public:
     typedef dng::pileup::AlleleDepths AlleleDepths;
 
@@ -43,26 +45,24 @@ public:
     explicit Ad(const char *filename, std::ios_base::openmode mode = std::ios_base::in) : Ad(std::string{filename},mode) { }
 
     void Open(const std::string &filename, std::ios_base::openmode mode = std::ios_base::in) {
-        auto split = extract_file_type(filename);
-        // assume anything not marked as ad is in text/tad format
-        is_binary_ad_ = boost::iequals(split.first, "ad");
-        if(is_binary_ad_) {
-            mode |= std::ios::bin;
-        }
-        path_ = split.second;
-        file_.open(path_, mode);
+        BinaryFile::Open(filename, mode);
+        is_binary_ad_ = boost::iequals(type_, "ad");
     }
-
-    bool is_open() const { return file_.is_open() };
-    operator bool() const { return is_open(); }
 
     int Write(const AlleleDepths& line);
 
-protected:
-    boost::filesystem::path path_;
-    boost::filesystem::fstream file_;
+    void contigs(std::vector<std::string> names) {
+        contig_names_ = std::move(names);
+    }
+
+private:
+    int WriteAd(const AlleleDepths& line);
+    int WriteTad(const AlleleDepths& line);
+
     bool is_binary_ad_{false};
     location_t last_location_{0};
+
+    std::vector<std::string> contig_names_;
 };
 
 }}
