@@ -47,6 +47,7 @@ public:
     void Open(const std::string &filename, std::ios_base::openmode mode = std::ios_base::in) {
         BinaryFile::Open(filename, mode);
         is_binary_ad_ = boost::iequals(type_, "ad");
+        counter_ = 0;
     }
 
     int Write(const AlleleDepths& line);
@@ -61,6 +62,9 @@ private:
 
     bool is_binary_ad_{false};
     location_t last_location_{0};
+
+    // Use rollover to trigger counter 
+    uint16_t counter_{0};
 
     std::vector<std::string> contig_names_;
 };

@@ -176,6 +176,11 @@ int8_t AlleleDepths::LookupType(const std::vector<std::size_t> &indexes, bool re
     return (it != end) ? it->type : -1;
 }
 
+int ntf8_put32(uint32_t n, char *out);
+int ntf8_put64(uint64_t n, char *out);
+int ntf8_get32(const char *in, uint32_t *r);
+int ntf8_get64(const char *in, uint64_t *r);
+
 int dng::io::Ad::Write(const AlleleDepths& line) {
     if(is_binary_ad_) {
         return WriteAd(line);
@@ -215,7 +220,53 @@ int dng::io::Ad::WriteTad(const AlleleDepths& line) {
 }
 
 int dng::io::Ad::WriteAd(const AlleleDepths& line) {
-    assert(false); // Not implemented yet.
+    static_assert(sizeof(AlleleDepths::type_info_table) / sizeof(AlleleDepths::type_info_t) == 128,
+        "AlleleDepths::type_info_table does not have 128 elements.");
+    static_assert(sizeof(location_t) == 8, "location_t is not a 64-bit value.");
+
+    using dng::utility::location_to_contig;
+    using dng::utility::location_to_position;
+    typedef AlleleDepths::size_type size_type;
+
+    const size_type nlib = line.num_libraries();
+    if(line.data_size() == 0) {
+        return 0;
+    }
+    location_t loc = line.location();
+    // The Ad format only holds up to 2^25-2 contigs 
+    if(location_to_contig(loc) > 0x01FFFFFE) {
+        return 1;
+    }
+
+    if(counter_ == 0 || location_to_contig(loc) != location_to_contig(last_location_)) {
+        // use absolute positioning
+        // Adjust the contig number by 1
+        last_location_ = loc;
+        loc += (1LL << 32);
+    } else {
+        // Make sure we are sorted here
+        assert(loc > last_location_);
+        location_t diff = loc - last_location_ - 1;
+        last_location_ = loc;
+        loc = diff;
+    }
+    // set counter
+    counter_ += 1;
+
+    // Fetch type and check if it is positive
+    int8_t type = line.type();
+    assert(type >= 0);
+    int64_t u = (loc << 7) | type; 
+    char buffer[9];
+    // write out contig, position, and location
+    int sz = ntf8_put64(u, buffer);
+    stream_.write(buffer, sz);
+    // write out data
+    for(size_type i = 0; i < line.data_size(); ++i) {
+        sz = ntf8_put32(line.data()[i], buffer);
+        stream_.write(buffer,sz);
+    }
+
     return 0;
 }
 
@@ -325,14 +376,14 @@ int ntf8_put64(uint64_t n, char *out) {
         return 8;
     } else {
         // 1111 1111 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        *out = 0xF0;
+        *out = 0xFF;
         uint64_t u = htobe64(n);
         memcpy(out+1, &u, 8);
         return 9;
     }
 }
 
-int ntf8_get64(const char *in, uint32_t *r) {
+int ntf8_get64(const char *in, uint64_t *r) {
     assert(r != nullptr);
     uint8_t x = in[0];
     if(x < 0x80) {
