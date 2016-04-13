@@ -95,16 +95,16 @@ bool ad_write(std::vector<AlleleDepths> lines, std::vector<uint8_t> match) {
     return true;
 }
 
-int ntf8_put32(uint32_t n, char *out);
-int ntf8_put64(uint64_t n, char *out);
-int ntf8_get32(const char *in, uint32_t *r);
-int ntf8_get64(const char *in, uint64_t *r);
+int ntf8_put32(uint32_t n, char *out, size_t count);
+int ntf8_put64(uint64_t n, char *out, size_t count);
+int ntf8_get32(const char *in, size_t count, uint32_t *r);
+int ntf8_get64(const char *in, size_t count, uint64_t *r);
 
 bool ntf8_convert32(uint32_t n) {
     char buffer[5];
-    int sz1 = ntf8_put32(n,buffer);
+    int sz1 = ntf8_put32(n,buffer,5);
     uint32_t u;
-    int sz2 = ntf8_get32(buffer,&u);
+    int sz2 = ntf8_get32(buffer,5,&u);
     if(sz1 != sz2 || u != n) {
         std::cerr << "  NTF8 32 conversion of " << n << "failed.\n";
         std::cerr << "    Output: " << u << ", size written = " << sz1 << ", size read = " << sz2 << ".\n";
@@ -117,9 +117,9 @@ bool ntf8_convert32(uint32_t n) {
 
 bool ntf8_convert64(uint64_t n) {
     char buffer[9];
-    int sz1 = ntf8_put64(n,buffer);
+    int sz1 = ntf8_put64(n,buffer,9);
     uint64_t u;
-    int sz2 = ntf8_get64(buffer,&u);
+    int sz2 = ntf8_get64(buffer,9,&u);
     if(sz1 != sz2 || u != n) {
         std::cerr << "  NTF8 64 conversion of " << n << "failed.\n";
         std::cerr << "    Output: " << u << ", size written = " << sz1 << ", size read = " << sz2 << ".\n";
