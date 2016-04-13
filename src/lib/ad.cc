@@ -270,6 +270,16 @@ int dng::io::Ad::WriteAd(const AlleleDepths& line) {
     return 0;
 }
 
+/* NTF8 Format
+NTF8 is a multi-byte, big-endian numeric format.
+The binary format consists of a prefix of 0 or more 1s,
+followed by a zero, followed by the value in big-endian format.
+The maximum amount of data that a single NTF8 number can hold
+is 64-bits. The number of leading 1s in the first byte tells
+the user how many extra bytes need to be read to decode
+the value.
+*/
+
 int ntf8_put32(uint32_t n, char *out, size_t count) {
     if(n <= 0x7F) {
         // 0bbb bbbb
