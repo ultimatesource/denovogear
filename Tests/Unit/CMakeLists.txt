@@ -14,6 +14,8 @@ macro(AddUnitTest NAME)
   add_executable("${target}" EXCLUDE_FROM_ALL "${head}.cc")
   # TODO WIN64: add .exe if needed
   set_target_properties("${target}" PROPERTIES OUTPUT_NAME "${head}")
+  get_filename_component(dir "${head}" DIRECTORY)
+  file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${dir}")
 
   target_include_directories("${target}" BEFORE PRIVATE "${CMAKE_SOURCE_DIR}/src/include")
   target_link_libraries("${target}"
