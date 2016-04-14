@@ -44,56 +44,9 @@ inline HexCharStruct hex(unsigned char u)
   return HexCharStruct(u);
 }
 
-bool tad_write(std::vector<AlleleDepths> lines, std::string text) {
-    std::stringstream buffer;
-    Ad adfile("tad:", std::ios_base::out);
-    adfile.contigs({"seq1", "seq2", "seq3"});
-    adfile.Attach(buffer.rdbuf());
-    for(auto line : lines) {
-        if(adfile.Write(line) != 0) {
-            std::cerr << "  Error: adfile.Write failed\n";
-            return false;
-        }
-    }
-    std::string ss = buffer.str();
-    if(ss != text) {
-        std::cerr << "  Error: output does not match expectation\n";
-        std::cerr << "  Result:   " << ss << "\n";
-        std::cerr << "  Expected: " << text << "\n";
-        return false;
-    }
-    return true;
-}
-
-bool ad_write(std::vector<AlleleDepths> lines, std::vector<uint8_t> match) {
-    std::stringstream buffer;
-    Ad adfile("ad:", std::ios_base::out);
-    adfile.contigs({"seq1", "seq2", "seq3"});
-    adfile.Attach(buffer.rdbuf());
-    for(auto line : lines) {
-        if(adfile.Write(line) != 0) {
-            std::cerr << "  Error: adfile.Write failed\n";
-            return false;
-        }
-    }    
-    std::string result = buffer.str();
-
-    if(result != std::string(match.begin(),match.end())) {
-        std::cerr << "  Error: output does not match expectation\n";
-        std::cerr << "  Result:   ";
-        for(int i=0; i < result.size(); ++i) {
-            std::cerr << hex(result[i]) << (i+1 < result.size() ? "," : "\n");
-        }
-
-        std::cerr << "  Expected: ";
-        for(int i=0; i < match.size(); ++i) {
-            std::cerr << hex(match[i]) << (i+1 < match.size() ? "," : "\n");
-        }
-
-        return false;
-    }
-    return true;
-}
+/*****************************************************************************
+ Test the NTF8 format
+ *****************************************************************************/
 
 int ntf8_put32(uint32_t n, char *out, size_t count);
 int ntf8_put64(uint64_t n, char *out, size_t count);
@@ -167,7 +120,6 @@ BOOST_AUTO_TEST_CASE(test_ntf8) {
         BOOST_CHECK(ntf8_convert64(i));
     }
 
-
     for(int i=0;i<64;++i) {
         BOOST_CHECK(ntf8_convert64((1LL<<i)-1));
         BOOST_CHECK(ntf8_convert64(1LL<<i));
@@ -181,6 +133,40 @@ BOOST_AUTO_TEST_CASE(test_ntf8) {
     }
 
 }
+
+bool ad_write(std::vector<AlleleDepths> lines, std::vector<uint8_t> match) {
+    std::stringstream buffer;
+    Ad adfile("ad:", std::ios_base::out);
+    adfile.contigs({"seq1", "seq2", "seq3"});
+    adfile.Attach(buffer.rdbuf());
+    for(auto line : lines) {
+        if(adfile.Write(line) != 0) {
+            std::cerr << "  Error: adfile.Write failed\n";
+            return false;
+        }
+    }    
+    std::string result = buffer.str();
+
+    if(result != std::string(match.begin(),match.end())) {
+        std::cerr << "  Error: output does not match expectation\n";
+        std::cerr << "  Result:   ";
+        for(int i=0; i < result.size(); ++i) {
+            std::cerr << hex(result[i]) << (i+1 < result.size() ? "," : "\n");
+        }
+
+        std::cerr << "  Expected: ";
+        for(int i=0; i < match.size(); ++i) {
+            std::cerr << hex(match[i]) << (i+1 < match.size() ? "," : "\n");
+        }
+
+        return false;
+    }
+    return true;
+}
+
+/*****************************************************************************
+ Test the writing of a binary ad file
+ *****************************************************************************/
 
 BOOST_AUTO_TEST_CASE(test_ad_write) {
     BOOST_CHECK(ad_write({{make_location(0,0), 0, 2, {0,0}}}, {0xF8,0x80,0x00,0x00,0x00,0x00,0x00,0x00}));
@@ -200,6 +186,31 @@ BOOST_AUTO_TEST_CASE(test_ad_write) {
     }));
 }
 
+/*****************************************************************************
+ Test the writing of a tad file
+ *****************************************************************************/
+
+bool tad_write(std::vector<AlleleDepths> lines, std::string text) {
+    std::stringstream buffer;
+    Ad adfile("tad:", std::ios_base::out);
+    adfile.contigs({"seq1", "seq2", "seq3"});
+    adfile.Attach(buffer.rdbuf());
+    for(auto line : lines) {
+        if(adfile.Write(line) != 0) {
+            std::cerr << "  Error: adfile.Write failed\n";
+            return false;
+        }
+    }
+    std::string ss = buffer.str();
+    if(ss != text) {
+        std::cerr << "  Error: output does not match expectation\n";
+        std::cerr << "  Result:   " << ss << "\n";
+        std::cerr << "  Expected: " << text << "\n";
+        return false;
+    }
+    return true;
+}
+
 BOOST_AUTO_TEST_CASE(test_tad_write) {
     BOOST_CHECK(tad_write({{make_location(0,0), 0, 2, {0,0}}}, "seq1\t1\tA\t0\t0\n"));
     BOOST_CHECK(tad_write({{make_location(1,9), 4, 2, {10,11,3,4}}}, "seq2\t10\tAC\t10,3\t11,4\n"));
@@ -208,4 +219,31 @@ BOOST_AUTO_TEST_CASE(test_tad_write) {
     BOOST_CHECK(tad_write({
         {make_location(0,0), 1, 2, {100,1001}}, {make_location(0,1), 5, 2, {200,201,0,10}} 
     }, "seq1\t1\tC\t100\t1001\n" "seq1\t2\tAG\t200,0\t201,10\n"));
+}
+
+/*****************************************************************************
+ Test the writing of a tad file
+ *****************************************************************************/
+
+bool tad_read(std::string text) {
+    std::stringstream buffer;
+    Ad adfile("tad:", std::ios_base::in);
+    adfile.Attach(buffer.rdbuf());
+    adfile.ReadHeader();
+}
+
+BOOST_AUTO_TEST_CASE(test_tad_write) {
+    BOOST_CHECK(tad_read(
+        "@ID\tFF:TAD\tVN:0.1\n"
+        "@SQ\tSN:scaffold_1\tLN:100\n"
+        "@SQ\tSN:scaffold_2\tLN:200\n"
+        "@SQ\tSN:scaffold_3\tLN:300\n"
+        "@AD\tID:A\n"
+        "@AD\tID:B\n"
+        "scaffold_1\t1\tA\t10\t9\n"
+        "scaffold_1\t2\tC\t8\t7\n"
+        "scaffold_1\t3\tGC\t6,0\t0,2\n"
+        "scaffold_2\t1\tT\t4\t0\n"
+        "scaffold_3\t1\tA\t0\t4\n"
+    ));
 }

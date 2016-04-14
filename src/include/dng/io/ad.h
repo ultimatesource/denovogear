@@ -35,6 +35,15 @@
 namespace dng {
 namespace io {
 
+/*
+@ID FF:TAD VN:0.1 SO:coordinate
+@SQ SN:scaffold_1 LN:100
+@RG ID:A AD:A
+@AD ID:A
+@CO This is a comment
+@CO POS TYPE A B C D
+*/
+
 class Ad : public BinaryFile {
 public:
     typedef dng::pileup::AlleleDepths AlleleDepths;
@@ -51,6 +60,7 @@ public:
     }
 
     int Write(const AlleleDepths& line);
+    int WriteHeader();
 
     void contigs(std::vector<std::string> names) {
         contig_names_ = std::move(names);
@@ -62,6 +72,21 @@ public:
 private:
     int WriteAd(const AlleleDepths& line);
     int WriteTad(const AlleleDepths& line);
+
+    struct contig_t {
+        std::string name;
+        int length;
+        std::string attributes;
+    };
+    struct library_t {
+        std::string name;
+        std::string attributes;        
+    };
+    struct format_t {
+        std::string name;
+        uint16_t version;
+        std::string attributes;        
+    };
 
     bool is_binary_ad_{false};
     location_t last_location_{0};
