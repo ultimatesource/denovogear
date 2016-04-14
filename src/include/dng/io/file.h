@@ -32,40 +32,44 @@ namespace io {
 
 class BinaryFile {
 public:
-    BinaryFile() : stream_{nullptr} { }
+    BinaryFile() { }
 
     void Open(const std::string &filename, std::ios_base::openmode mode = std::ios_base::in) {
         mode |= std::ios::binary;
         std::tie(type_,path_) = utility::extract_file_type(filename);
-        std::streambuf *buffer = nullptr;
+        buffer_ = nullptr;
         if(path_.empty()) {
-            // don't do anything
+            // don't do anything, just setup type
         } else if(path_ != "-") {
             // if path is not "-" open a file
             file_.open(path_, mode);
             // if file is open, associate it with the stream
             if(file_.is_open()) {
-                buffer = file_.rdbuf();
+                buffer_ = file_.rdbuf();
             }
         } else if((mode & std::ios_base::in) == (mode & std::ios_base::out)) {
             // can't do anything if both are set or none are set
         } else if(mode & std::ios_base::in) {
-            buffer = std::cin.rdbuf();
+            buffer_ = std::cin.rdbuf();
         } else {
-            buffer = std::cout.rdbuf();
+            buffer_ = std::cout.rdbuf();
         }
-        Attach(buffer);
+        Attach();
     }
     void Attach(std::streambuf *buffer) {
         is_open_ = (buffer != nullptr);
         stream_.rdbuf(buffer);
+    }
+    void Attach() {
+        Attach(buffer_);
     }
 
     bool is_open() const { return is_open_; };
     operator bool() const { return is_open(); }
 
 protected:
-    std::iostream stream_;
+    std::iostream stream_{nullptr};
+    std::streambuf *buffer_{nullptr};
     boost::filesystem::path path_;
     std::string type_;
 

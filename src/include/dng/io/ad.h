@@ -55,6 +55,9 @@ public:
     void contigs(std::vector<std::string> names) {
         contig_names_ = std::move(names);
     }
+    const std::vector<std::string>& contigs() const {
+        return contig_names_;
+    }
 
 private:
     int WriteAd(const AlleleDepths& line);
