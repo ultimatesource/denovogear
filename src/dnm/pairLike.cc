@@ -102,17 +102,22 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
         //    alt.replace(start, 2, "");
         //}
 
-        cout << "DENOVO-PAIR-SNP TUMOR_ID: " << tumor.id << " NORMAL_ID: " << normal.id;
-        cout << " chr: " << ref_name << " pos: " << coor << " ref: " << tumor.ref_base
-             << " alt: " << alt;
-        cout << " maxlike_null: " << maxlike_null << " pp_null: " << pp_null <<
-             " tgt_null(normal/tumor): " << tgtPair[i - 1][j - 1];
-        cout << " maxlike_dnm: " << maxlike_denovo << " pp_dnm: " << pp_denovo;
-        cout << " tgt_dnm(normal/tumor): " << tgtPair[k - 1][l -
-                1]; //<<" flag: "<<flag; // flag is a variable that could be set in denovogear.cc(site specific info)
-        cout << " READ_DEPTH tumor: " << tumor.depth << " normal: " << normal.depth;
-        cout << " MAPPING_QUALITY tumor: " << tumor.rms_mapQ << " normal: " <<
-             normal.rms_mapQ;
+        cout << "DENOVO-PAIR-SNP TUMOR_ID: " << tumor.id;
+	cout << " NORMAL_ID: " << normal.id;
+        cout << " chr: " << ref_name;
+	cout << " pos: " << coor;
+	cout << " ref: " << tumor.ref_base;
+	cout << " alt: " << alt;
+        cout << " maxlike_null: " << maxlike_null;
+	cout << " pp_null: " << pp_null;
+	cout << " tgt_null(normal/tumor): " << tgtPair[i][j];
+        cout << " maxlike_dnm: " << maxlike_denovo;
+	cout << " pp_dnm: " << pp_denovo;
+        cout << " tgt_dnm(normal/tumor): " << tgtPair[k][l]; 
+        cout << " READ_DEPTH tumor: " << tumor.depth;
+	cout << " normal: " << normal.depth;
+        cout << " MAPPING_QUALITY tumor: " << tumor.rms_mapQ;
+	cout << " normal: " << normal.rms_mapQ;
         cout << " null_snpcode: " << lookupPair.snpcode(i, j);
         cout << " dnm_snpcode: " << lookupPair.snpcode(k, l);
         cout << endl;
@@ -128,10 +133,10 @@ void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
             // Old vcf output format
             rec.info("RD_NORMAL", normal.depth);
             rec.info("MQ_NORMAL", normal.rms_mapQ);
-            rec.samples("NULL_CONFIG(normal/tumor)", std::vector<std::string> {tgtPair[i - 1][j - 1]});
+            rec.samples("NULL_CONFIG(normal/tumor)", std::vector<std::string> {tgtPair[i][j]});
             rec.samples("pair_null_code", std::vector<float> {static_cast<float>(lookupPair.snpcode(i, j))});
             rec.samples("PP_NULL", std::vector<float> {static_cast<float>(pp_null)});
-            rec.samples("DNM_CONFIG(tumor/normal)", std::vector<std::string> {tgtPair[k - 1][l - 1]});
+            rec.samples("DNM_CONFIG(tumor/normal)", std::vector<std::string> {tgtPair[k][l]});
             rec.samples("pair_denovo_code", std::vector<float> {static_cast<float>(lookupPair.snpcode(k, l))});
             rec.samples("PP_DNM", std::vector<float> {static_cast<float>(pp_denovo)});
             rec.samples("RD_T", std::vector<int32_t> {tumor.depth});
