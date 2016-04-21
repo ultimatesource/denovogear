@@ -29,6 +29,7 @@
 
 #include <boost/tokenizer.hpp>
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/spirit/include/qi.hpp>
 
 using namespace dng::pileup;
 
@@ -214,6 +215,12 @@ int dng::io::Ad::ReadHeaderTad() {
     using namespace boost;
     using namespace std;
     using boost::algorithm::starts_with;
+    namespace ss = boost::spirit::standard;
+    namespace qi = boost::spirit::qi;
+    using ss::space;
+    using qi::uint_;
+    using qi::phrase_parse;
+
     // Construct the tokenizer
     typedef tokenizer<char_separator<char>,
             std::istreambuf_iterator<char>> tokenizer;
@@ -226,18 +233,30 @@ int dng::io::Ad::ReadHeaderTad() {
             break;
         }
     }
+    // Clear header information
+    contigs_.clear();
+
+    // Setup header information
     for(auto it = store.begin(); it != store.end(); ++it) {
         if(*it == "@SQ") {
             contig_t sq;
-            for(++it;it != store.end();++it) {
+            for(++it; it != store.end() && *it != "\n"; ++it) {
                 if(starts_with(*it, "SN:")) {
                     sq.name = it->substr(3);
                 } else if(starts_with(*it, "LN:")) {
-                    char *p = nullptr;
-                    sq.length = strtol(it->c_str()+3,&p,10);
-                    if(p - it->c_str())
+                    const char *first = it->c_str()+3;
+                    const char *last  = it->c_str()+it->length();
+                    if(!phrase_parse(first, last, uint_, space, sq.length) || first != last) {
+                        throw(runtime_error("Unable to parse sequence length from header attribute '" + *it + "'"));
+                    }
+                } else if(sq.attributes.empty()) {
+                    sq.attributes = *it;
+                } else {
+                    sq.attributes += '\t';
+                    sq.attributes += *it;
                 }
             }
+            contigs_.push_back(sq);
         }
     }
 

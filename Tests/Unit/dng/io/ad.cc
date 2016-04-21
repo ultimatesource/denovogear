@@ -137,9 +137,9 @@ BOOST_AUTO_TEST_CASE(test_ntf8) {
 bool ad_write(std::vector<AlleleDepths> lines, std::vector<uint8_t> match) {
     std::stringstream buffer;
     Ad adfile("ad:", std::ios_base::out);
-    adfile.AddContigs("seq1",100);
-    adfile.AddContigs("seq2",1000, "");
-    adfile.AddContigs("seq3",10000, "M5:aaaaaaaa");
+    adfile.AddContig("seq1",100);
+    adfile.AddContig("seq2",1000, "");
+    adfile.AddContig("seq3",10000, "M5:aaaaaaaa");
     adfile.Attach(buffer.rdbuf());
     for(auto line : lines) {
         if(adfile.Write(line) != 0) {
@@ -195,9 +195,9 @@ BOOST_AUTO_TEST_CASE(test_ad_write) {
 bool tad_write(std::vector<AlleleDepths> lines, std::string text) {
     std::stringstream buffer;
     Ad adfile("tad:", std::ios_base::out);
-    adfile.AddContigs("seq1",100);
-    adfile.AddContigs("seq2",1000, "");
-    adfile.AddContigs("seq3",10000, "M5:aaaaaaaa");
+    adfile.AddContig("seq1",100);
+    adfile.AddContig("seq2",1000, "");
+    adfile.AddContig("seq3",10000, "M5:aaaaaaaa");
     adfile.Attach(buffer.rdbuf());
     for(auto line : lines) {
         if(adfile.Write(line) != 0) {
@@ -234,20 +234,37 @@ bool tad_read(std::string text) {
     Ad adfile("tad:", std::ios_base::in);
     adfile.Attach(buffer.rdbuf());
     adfile.ReadHeader();
+
 }
 
+const char tad_test1[] = 
+    "@ID\tFF:TAD\tVN:0.1\n"
+    "@SQ\tSN:scaffold_1\tLN:100\n"
+    "@SQ\tSN:scaffold_2\tLN:200\tM5:aaaaaaaa\n"
+    "@SQ\tSN:scaffold_3\tLN:300\tM5:aaaaaaab\tUR:blah\n"
+    "@AD\tID:A\n"
+    "@AD\tID:B\n"
+    "scaffold_1\t1\tA\t10\t9\n"
+    "scaffold_1\t2\tC\t8\t7\n"
+    "scaffold_1\t3\tGC\t6,0\t0,2\n"
+    "scaffold_2\t1\tT\t4\t0\n"
+    "scaffold_3\t1\tA\t0\t4\n"
+;
+
 BOOST_AUTO_TEST_CASE(test_tad_read) {
-    BOOST_CHECK(tad_read(
-        "@ID\tFF:TAD\tVN:0.1\n"
-        "@SQ\tSN:scaffold_1\tLN:100\n"
-        "@SQ\tSN:scaffold_2\tLN:200\n"
-        "@SQ\tSN:scaffold_3\tLN:300\n"
-        "@AD\tID:A\n"
-        "@AD\tID:B\n"
-        "scaffold_1\t1\tA\t10\t9\n"
-        "scaffold_1\t2\tC\t8\t7\n"
-        "scaffold_1\t3\tGC\t6,0\t0,2\n"
-        "scaffold_2\t1\tT\t4\t0\n"
-        "scaffold_3\t1\tA\t0\t4\n"
-    ));
+    std::stringstream buffer(tad_test1);
+    Ad adfile("tad:", std::ios_base::in);
+    adfile.Attach(buffer.rdbuf());
+    adfile.ReadHeader();   
+
+    BOOST_CHECK(adfile.contigs().size() == 3);
+    BOOST_CHECK(adfile.contig(0).name == "scaffold_1");
+    BOOST_CHECK(adfile.contig(1).name == "scaffold_2");
+    BOOST_CHECK(adfile.contig(2).name == "scaffold_3");
+    BOOST_CHECK(adfile.contig(0).length == 100);
+    BOOST_CHECK(adfile.contig(1).length == 200);
+    BOOST_CHECK(adfile.contig(2).length == 300);
+    BOOST_CHECK(adfile.contig(0).attributes.empty());
+    BOOST_CHECK(adfile.contig(1).attributes == "M5:aaaaaaaa");
+    BOOST_CHECK(adfile.contig(2).attributes == "M5:aaaaaaab\tUR:blah");
 }
