@@ -36,7 +36,7 @@ public:
 
     void Open(const std::string &filename, std::ios_base::openmode mode = std::ios_base::in) {
         mode |= std::ios::binary;
-        std::tie(type_,path_) = utility::extract_file_type(filename);
+        std::tie(type_label_, path_) = utility::extract_file_type(filename);
         buffer_ = nullptr;
         if(path_.empty()) {
             // don't do anything, just setup type
@@ -71,7 +71,7 @@ protected:
     std::iostream stream_{nullptr};
     std::streambuf *buffer_{nullptr};
     boost::filesystem::path path_;
-    std::string type_;
+    std::string type_label_;
 
 private:
     bool is_open_{false};

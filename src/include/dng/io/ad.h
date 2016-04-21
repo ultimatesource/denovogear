@@ -22,6 +22,7 @@
 #define DNG_IO_AD_H
 
 #include <string>
+#include <utility>
 
 #include <boost/filesystem.hpp>
 #include <boost/algorithm/string/predicate.hpp>
@@ -48,6 +49,20 @@ class Ad : public BinaryFile {
 public:
     typedef dng::pileup::AlleleDepths AlleleDepths;
 
+    enum class Format {
+        AD = 0, TAD = 1
+    };
+
+    struct contig_t {
+        contig_t() {}
+        contig_t(std::string n, int l, std::string a = {}) :
+            name{std::move(n)}, length{l}, attributes{std::move(a)} {}
+
+        std::string name;
+        int length;
+        std::string attributes;
+    };
+
     explicit Ad(const std::string &filename, std::ios_base::openmode mode = std::ios_base::in) {
         Open(filename,mode);
     }
@@ -55,46 +70,58 @@ public:
 
     void Open(const std::string &filename, std::ios_base::openmode mode = std::ios_base::in) {
         BinaryFile::Open(filename, mode);
-        is_binary_ad_ = boost::iequals(type_, "ad");
+        if(boost::iequals(type_label_, "ad")) {
+            format_ = Format::AD;
+        } else {
+            format_ = Format::TAD;
+        }
         counter_ = 0;
     }
 
     int Write(const AlleleDepths& line);
     int WriteHeader();
 
-    void contigs(std::vector<std::string> names) {
-        contig_names_ = std::move(names);
+    int ReadHeader();
+
+    const std::vector<contig_t>& contigs() const {
+        return contigs_;
     }
-    const std::vector<std::string>& contigs() const {
-        return contig_names_;
+
+    const contig_t& contig(std::vector<contig_t>::size_type pos) const {
+        return contigs_[pos];
+    }
+
+    std::vector<contig_t>::size_type
+    AddContig(std::string name, int length, std::string attributes = {} ) {
+        contigs_.emplace_back(name, length, attributes);
+        return contigs_.size()-1;
     }
 
 private:
     int WriteAd(const AlleleDepths& line);
     int WriteTad(const AlleleDepths& line);
 
-    struct contig_t {
-        std::string name;
-        int length;
-        std::string attributes;
-    };
-    struct library_t {
-        std::string name;
-        std::string attributes;        
-    };
-    struct format_t {
-        std::string name;
-        uint16_t version;
-        std::string attributes;        
-    };
+    int ReadHeaderTad();
+    int ReadHeaderAd();
 
-    bool is_binary_ad_{false};
+    // struct format_t {
+    //     std::string name;
+    //     uint16_t version;
+    //     std::string attributes;        
+    // };
+    // struct library_t {
+    //     std::string id;
+    //     std::string sample;
+    //     std::string attributes;        
+    // };
+
+    Format format_{Format::AD};
     location_t last_location_{0};
 
     // Use rollover to trigger counter 
     uint16_t counter_{0};
 
-    std::vector<std::string> contig_names_;
+    std::vector<contig_t> contigs_;
 };
 
 }}

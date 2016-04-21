@@ -137,7 +137,9 @@ BOOST_AUTO_TEST_CASE(test_ntf8) {
 bool ad_write(std::vector<AlleleDepths> lines, std::vector<uint8_t> match) {
     std::stringstream buffer;
     Ad adfile("ad:", std::ios_base::out);
-    adfile.contigs({"seq1", "seq2", "seq3"});
+    adfile.AddContigs("seq1",100);
+    adfile.AddContigs("seq2",1000, "");
+    adfile.AddContigs("seq3",10000, "M5:aaaaaaaa");
     adfile.Attach(buffer.rdbuf());
     for(auto line : lines) {
         if(adfile.Write(line) != 0) {
@@ -193,7 +195,9 @@ BOOST_AUTO_TEST_CASE(test_ad_write) {
 bool tad_write(std::vector<AlleleDepths> lines, std::string text) {
     std::stringstream buffer;
     Ad adfile("tad:", std::ios_base::out);
-    adfile.contigs({"seq1", "seq2", "seq3"});
+    adfile.AddContigs("seq1",100);
+    adfile.AddContigs("seq2",1000, "");
+    adfile.AddContigs("seq3",10000, "M5:aaaaaaaa");
     adfile.Attach(buffer.rdbuf());
     for(auto line : lines) {
         if(adfile.Write(line) != 0) {
@@ -222,7 +226,7 @@ BOOST_AUTO_TEST_CASE(test_tad_write) {
 }
 
 /*****************************************************************************
- Test the writing of a tad file
+ Test the reading of a tad file
  *****************************************************************************/
 
 bool tad_read(std::string text) {
@@ -232,7 +236,7 @@ bool tad_read(std::string text) {
     adfile.ReadHeader();
 }
 
-BOOST_AUTO_TEST_CASE(test_tad_write) {
+BOOST_AUTO_TEST_CASE(test_tad_read) {
     BOOST_CHECK(tad_read(
         "@ID\tFF:TAD\tVN:0.1\n"
         "@SQ\tSN:scaffold_1\tLN:100\n"

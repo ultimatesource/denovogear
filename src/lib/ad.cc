@@ -20,9 +20,15 @@
 #include <dng/depths.h>
 #include <dng/utility.h>
 #include <dng/io/ad.h>
+#include <dng/io/utility.h>
 
 #include <algorithm>
+#include <cstdlib>
+
 #include <endian.h>
+
+#include <boost/tokenizer.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 
 using namespace dng::pileup;
 
@@ -182,11 +188,65 @@ int ntf8_get32(const char *in, size_t count, uint32_t *r);
 int ntf8_get64(const char *in, size_t count, uint64_t *r);
 
 int dng::io::Ad::Write(const AlleleDepths& line) {
-    if(is_binary_ad_) {
+    if(format_ == Format::AD) {
         return WriteAd(line);
     } else {
         return WriteTad(line);
     }
+}
+
+int dng::io::Ad::ReadHeader() {
+    // Seek to the beginning of the stream
+    stream_.seekg(0);
+    if(!stream_) {
+        return -1;
+    }
+    if(format_ == Format::AD) {
+        return ReadHeaderAd();
+    } else {
+        return ReadHeaderTad();
+    }
+}
+
+
+
+int dng::io::Ad::ReadHeaderTad() {
+    using namespace boost;
+    using namespace std;
+    using boost::algorithm::starts_with;
+    // Construct the tokenizer
+    typedef tokenizer<char_separator<char>,
+            std::istreambuf_iterator<char>> tokenizer;
+    char_separator<char> sep("\t", "\n");
+    tokenizer tokens(istreambuf_range(stream_), sep);
+    vector<string> store;
+    for(auto it = tokens.begin(); it != tokens.end(); ++it) {
+        store.push_back(*it);
+        if(*it == "\n" && stream_.peek() != '@') {
+            break;
+        }
+    }
+    for(auto it = store.begin(); it != store.end(); ++it) {
+        if(*it == "@SQ") {
+            contig_t sq;
+            for(++it;it != store.end();++it) {
+                if(starts_with(*it, "SN:")) {
+                    sq.name = it->substr(3);
+                } else if(starts_with(*it, "LN:")) {
+                    char *p = nullptr;
+                    sq.length = strtol(it->c_str()+3,&p,10);
+                    if(p - it->c_str())
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+int dng::io::Ad::ReadHeaderAd() {
+    assert(false); // not implemented yet
+    return 1;
 }
 
 int dng::io::Ad::WriteTad(const AlleleDepths& line) {
@@ -200,11 +260,11 @@ int dng::io::Ad::WriteTad(const AlleleDepths& line) {
     const location_t loc = line.location();
     const size_type nlib = line.num_libraries();
     const size_type nnuc = line.num_nucleotides();
-    auto contig = location_to_contig(loc);
-    if(contig >= contig_names_.size()) {
+    auto contig_num = location_to_contig(loc);
+    if(contig_num >= contigs_.size()) {
         return 1;
     }
-    stream_ << contig_names_[contig] << '\t';
+    stream_ << contigs_[contig_num].name << '\t';
     stream_ << location_to_position(loc)+1 << '\t';
     stream_ << line.type_info().label_upper;
     for(AlleleDepths::size_type y = 0; y != nlib; ++y) {
