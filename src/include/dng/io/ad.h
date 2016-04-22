@@ -26,6 +26,7 @@
 
 #include <boost/filesystem.hpp>
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/spirit/home/qi/string/tst.hpp>
 
 #include <dng/io/file.h>
 #include <dng/io/utility.h>
@@ -80,10 +81,56 @@ public:
         counter_ = 0;
     }
 
-    int Write(const AlleleDepths& line);
-    int WriteHeader();
+    int ReadHeader() {
+        // Seek to the beginning of the stream
+        stream_.seekg(0);
+        if(!stream_) {
+            return -1;
+        }
+        if(format_ == Format::AD) {
+            return ReadHeaderAd();
+        } else {
+            return ReadHeaderTad();
+        }
+    }
 
-    int ReadHeader();
+    int WriteHeader() {
+        // Seek to the beginning of the stream
+        stream_.seekg(0);
+        if(!stream_) {
+            return -1;
+        }
+        if(format_ == Format::AD) {
+            return WriteHeaderAd();
+        } else {
+            return WriteHeaderTad();
+        }
+    }
+
+    int Read(AlleleDepths *pline) {
+        // If stream_ has issues, i.e. eof, return -1.
+        if(!stream_) {
+            return -1;
+        }
+        if(format_ == Format::AD) {
+            return ReadAd(pline);
+        } else {
+            return ReadTad(pline);
+        }
+    }
+
+    int Write(const AlleleDepths& line) {
+        // If stream_ has issues, return -1.
+        if(!stream_) {
+            return -1;
+        }
+        if(format_ == Format::AD) {
+            return WriteAd(line);
+        } else {
+            return WriteTad(line);
+        }
+    }
+
 
     const std::vector<contig_t>& contigs() const {
         return contigs_;
@@ -95,16 +142,24 @@ public:
 
     std::vector<contig_t>::size_type
     AddContig(std::string name, int length, std::string attributes = {} ) {
+        std::vector<contig_t>::size_type pos = contigs_.size();
+        contig_tst_.add(name.begin(), name.end(), pos);
         contigs_.emplace_back(name, length, attributes);
-        return contigs_.size()-1;
+        return pos;
     }
 
 private:
+    int ReadHeaderAd();
+    int WriteHeaderAd();
+    int ReadAd(AlleleDepths *line);
     int WriteAd(const AlleleDepths& line);
-    int WriteTad(const AlleleDepths& line);
 
     int ReadHeaderTad();
-    int ReadHeaderAd();
+    int WriteHeaderTad();
+    int ReadTad(AlleleDepths *line);
+    int WriteTad(const AlleleDepths& line);
+
+    void Clear();
 
     struct format_t {
          std::string name;
@@ -125,6 +180,9 @@ private:
 
     std::vector<contig_t> contigs_;
     format_t id_;
+    std::vector<std::string> extra_headers_;
+
+    boost::spirit::qi::tst<char, int> contig_tst_;
 
     DNG_UNIT_TEST(::unittest_dng_io_ad);
 };

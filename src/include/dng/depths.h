@@ -42,9 +42,12 @@ public:
     };
     static const type_info_t type_info_table[128];
     static int8_t LookupType(const std::vector<std::size_t> &indexes, bool ref_is_n);
+    static int8_t LookupType(const std::string& ss);
 
     typedef std::vector<int32_t> data_t;
     typedef data_t::size_type size_type;
+
+    AlleleDepths() : location_{0}, type_{0}, num_libraries_{0} { }
 
     AlleleDepths(location_t location, int8_t type, size_type num_lib, data_t data) :
         location_(location), type_(type), num_libraries_(num_lib),
@@ -77,7 +80,6 @@ public:
     int8_t type() const { return type_; }
     void type(int8_t type) { type_ = type; }
     const type_info_t& type_info() const { return type_info_table[type_]; }
-
 
     const data_t& data() const { return data_; }
     size_type data_size() const { return data_.size(); };

@@ -59,6 +59,7 @@ public:
     void Attach(std::streambuf *buffer) {
         is_open_ = (buffer != nullptr);
         stream_.rdbuf(buffer);
+        stream_.unsetf(std::ios_base::skipws);
     }
     void Attach() {
         Attach(buffer_);

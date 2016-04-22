@@ -236,14 +236,6 @@ BOOST_AUTO_TEST_CASE(test_tad_write) {
  Test the reading of a tad file
  *****************************************************************************/
 
-bool tad_read(std::string text) {
-    std::stringstream buffer;
-    Ad adfile("tad:", std::ios_base::in);
-    adfile.Attach(buffer.rdbuf());
-    adfile.ReadHeader();
-
-}
-
 const char tad_test1[] = 
     "@ID\tFF:TAD\tVN:0.1\n"
     "@SQ\tSN:scaffold_1\tLN:100\n"
@@ -256,7 +248,7 @@ const char tad_test1[] =
     "scaffold_1\t2\tC\t8\t7\n"
     "scaffold_1\t3\tGC\t6,0\t0,2\n"
     "scaffold_2\t1\tT\t4\t0\n"
-    "scaffold_3\t1\tA\t0\t4\n"
+    "scaffold_3\t1\tntgca\t0,0,0,1\t4,0,0,0\n"
 ;
 
 BOOST_AUTO_TEST_CASE(test_tad_read) {
@@ -278,4 +270,25 @@ BOOST_AUTO_TEST_CASE(test_tad_read) {
     BOOST_CHECK(adfile.contig(0).attributes.empty());
     BOOST_CHECK(adfile.contig(1).attributes == "M5:aaaaaaaa");
     BOOST_CHECK(adfile.contig(2).attributes == "M5:aaaaaaab\tUR:blah");
+
+    AlleleDepths depths;
+    adfile.Read(&depths);
+    BOOST_CHECK(depths.location() == make_location(0,0));
+    BOOST_CHECK(depths.type() == 0);
+
+    adfile.Read(&depths);
+    BOOST_CHECK(depths.location() == make_location(0,1));
+    BOOST_CHECK(depths.type() == 1);
+
+    adfile.Read(&depths);
+    BOOST_CHECK(depths.location() == make_location(0,2));
+    BOOST_CHECK(depths.type() == 11);
+
+    adfile.Read(&depths);
+    BOOST_CHECK(depths.location() == make_location(1,0));
+    BOOST_CHECK(depths.type() == 3);
+
+    adfile.Read(&depths);
+    BOOST_CHECK(depths.location() == make_location(2,0));
+    BOOST_CHECK(depths.type() == 127);
 }

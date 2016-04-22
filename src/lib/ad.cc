@@ -167,6 +167,35 @@ const AlleleDepths::type_info_t
     {127, 4, "NTGCA", "ntgca", 4, {3,2,1,0}}
 };
 
+constexpr int type_info_table_length = 128;
+static_assert(sizeof(AlleleDepths::type_info_table) / sizeof(AlleleDepths::type_info_t) == type_info_table_length,
+    "AlleleDepths::type_info_table does not have 128 elements.");
+
+struct tad_label_lookup_t {
+    boost::spirit::qi::tst<char, int> tst_;
+    tad_label_lookup_t() {
+        for(int i=0; i<type_info_table_length; ++i) {
+            auto & slot = AlleleDepths::type_info_table[i];
+            tst_.add(slot.label_upper, slot.label_upper+strlen(slot.label_upper),i);
+        }
+    }
+    int operator()(const std::string &s) {
+        auto first = s.cbegin();
+        auto last = s.cend();
+
+        int *p = tst_.find(first,last, [](char ch) -> char { return std::toupper(ch); });
+        if(first != last || p == nullptr) {
+            return -1;
+        }
+        return *p;
+    }
+};
+
+int8_t AlleleDepths::LookupType(const std::string& ss) {
+    static tad_label_lookup_t db;
+    return db(ss);
+}
+
 int8_t AlleleDepths::LookupType(const std::vector<std::size_t> &indexes, bool ref_is_n) {
     static size_t starts[] = {0, 4, 16, 40, 64};
 
@@ -190,28 +219,14 @@ int ntf8_put64(uint64_t n, char *out, size_t count);
 int ntf8_get32(const char *in, size_t count, uint32_t *r);
 int ntf8_get64(const char *in, size_t count, uint64_t *r);
 
-int dng::io::Ad::Write(const AlleleDepths& line) {
-    if(format_ == Format::AD) {
-        return WriteAd(line);
-    } else {
-        return WriteTad(line);
-    }
+void dng::io::Ad::Clear() {
+    contigs_.clear();
+    id_.name.clear();
+    id_.version = 0;
+    id_.attributes.clear();
+    extra_headers_.clear();
+    contig_tst_.clear();    
 }
-
-int dng::io::Ad::ReadHeader() {
-    // Seek to the beginning of the stream
-    stream_.seekg(0);
-    if(!stream_) {
-        return -1;
-    }
-    if(format_ == Format::AD) {
-        return ReadHeaderAd();
-    } else {
-        return ReadHeaderTad();
-    }
-}
-
-
 
 int dng::io::Ad::ReadHeaderTad() {
     using namespace boost;
@@ -240,17 +255,14 @@ int dng::io::Ad::ReadHeaderTad() {
         }
     }
     // Clear header information
-    contigs_.clear();
+    Clear();
 
     // Setup header information
     auto it = store.begin();
     if(*it != "@ID") {
-        throw(runtime_error("Unable to parse TAD format: @ID missing from first line."));
+        throw(runtime_error("Unable to parse TAD header: @ID missing from first line."));
     }
     // Parse @ID line which identifies the file format and version.
-    id_.name.clear();
-    id_.version = 0;
-    id_.attributes.clear();
     for(++it; it != store.end() && *it != "\n"; ++it) {
         if(starts_with(*it, "FF:")) {
             id_.name = it->substr(3);
@@ -260,9 +272,9 @@ int dng::io::Ad::ReadHeaderTad() {
             const char *last  = it->c_str()+it->length();
             std:pair<uint8_t,uint8_t> bytes;
             if(!phrase_parse(first, last, uint8_ >> ( '.' >> uint8_ || lit('\0')), space, bytes) || first != last) {
-                throw(runtime_error("Unable to parse TAD format: File format version information not found in '" + *it + "'"));
+                throw(runtime_error("Unable to parse TAD header: File format version information '" + *it + "' not major.minor."));
             }
-            id_.version = ((uint16_t)bytes.first << 8) | bytes.second;  
+            id_.version = ((uint16_t)bytes.first << 8) | bytes.second;
         } else if(id_.attributes.empty()) {
             id_.attributes = *it;
         } else {
@@ -270,10 +282,13 @@ int dng::io::Ad::ReadHeaderTad() {
             id_.attributes += *it;
         }
     }
-    if(id_.name != "TAD") {
-        throw(runtime_error("Unable to parse TAD format: Unknown file format '" + id_.name + "'"));
+    // if we ended at "\n", advance the iterator
+    if(it != store.end()) {
+        ++it;
     }
-
+    if(id_.name != "TAD") {
+        throw(runtime_error("Unable to parse TAD header: Unknown file format '" + id_.name + "'"));
+    }
     for(; it != store.end(); ++it) {
         if(*it == "@SQ") {
             contig_t sq;
@@ -285,7 +300,7 @@ int dng::io::Ad::ReadHeaderTad() {
                     const char *last  = it->c_str()+it->length();
 
                     if(!phrase_parse(first, last, uint_ , space, sq.length) || first != last) {
-                        throw(runtime_error("Unable to parse sequence length from header attribute '" + *it + "'"));
+                        throw(runtime_error("Unable to parse TAD header: Unable to parse sequence length from header attribute '" + *it + "'"));
                     }
                 } else if(sq.attributes.empty()) {
                     sq.attributes = *it;
@@ -295,15 +310,82 @@ int dng::io::Ad::ReadHeaderTad() {
                 }
             }
             contigs_.push_back(sq);
+        } else if(*it == "@ID") {
+            throw(runtime_error("Unable to parse TAD header: @ID can only be specified once."));
+        } else if((*it)[0] == '@') {
+            // store all the information for this line into the extra_headers_ field
+            extra_headers_.push_back(*it);
+            for(++it; it != store.end() && *it != "\n"; ++it) {
+                extra_headers_.push_back(*it);
+            }
+            extra_headers_.push_back("\n");
+        } else {
+            throw(runtime_error("Unable to parse TAD header: Something went wrong. "
+                "Expected the @TAG at the beginning of a header line but got '" + *it +"'."));            
         }
+    }
+    for(int i=0; i < contigs_.size(); ++i) {
+        contig_tst_.add(contigs_[i].name.begin(), contigs_[i].name.end(),i);
     }
 
     return 0;
 }
 
-int dng::io::Ad::ReadHeaderAd() {
-    assert(false); // not implemented yet
-    return 1;
+int dng::io::Ad::ReadTad(AlleleDepths *pline) {
+    using namespace std;
+    using namespace boost;
+    namespace ss = boost::spirit::standard;
+    namespace qi = boost::spirit::qi;
+    using ss::space;
+    using qi::uint_;
+    using qi::phrase_parse;
+
+    if(pline == nullptr) {
+        // discard this line
+        while(stream_ && stream_.get() != '\n') {
+            /*noop*/;
+        }
+        return 0;
+    }
+    // Construct the tokenizer
+    typedef tokenizer<char_separator<char>,
+            std::istreambuf_iterator<char>> tokenizer;
+    char_separator<char> sep("\t", "\n");
+    tokenizer tokens(istreambuf_range(stream_), sep);
+    vector<string> store;
+    for(auto it = tokens.begin(); it != tokens.end(); ++it) {
+        store.push_back(*it);
+        if(*it == "\n") {
+            break;
+        }
+    }
+    // parse contig
+    auto first = store[0].cbegin();
+    auto last = store[0].cend();
+
+    int *p = contig_tst_.find(first,last);
+    if(first != last || p == nullptr) {
+        throw(runtime_error("Unable to parse TAD record: Contig Name '" + store[0] + "' is unknown."));
+    }
+    int contig_num = *p;
+    int position;
+    // parse position
+    first = store[1].cbegin();
+    last  = store[1].cend();
+
+    if(!phrase_parse(first, last, uint_, space, position) || first != last) {
+        throw(runtime_error("Unable to parse TAD record: Unable to parse position '" + store[1] + "' as integer."));
+    }
+    pline->location(dng::utility::make_location(contig_num,position-1));
+
+    // parse type
+    int8_t t = AlleleDepths::LookupType(store[2]);
+    if(t == -1) {
+        throw(runtime_error("Unable to parse TAD record: Type '" + store[2] + "' is unknown."));        
+    }
+    pline->type(t);
+
+    return 0;
 }
 
 int dng::io::Ad::WriteTad(const AlleleDepths& line) {
@@ -335,6 +417,17 @@ int dng::io::Ad::WriteTad(const AlleleDepths& line) {
     stream_ << '\n';
     return 0;
 }
+
+int dng::io::Ad::ReadHeaderAd() {
+    assert(false); // not implemented yet
+    return 1;
+}
+
+int dng::io::Ad::ReadAd(AlleleDepths *pline) {
+    assert(false); // not implemented yet
+    return 1;
+}
+
 
 int dng::io::Ad::WriteAd(const AlleleDepths& line) {
     static_assert(sizeof(AlleleDepths::type_info_table) / sizeof(AlleleDepths::type_info_t) == 128,
