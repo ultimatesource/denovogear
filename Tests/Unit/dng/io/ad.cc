@@ -263,7 +263,7 @@ BOOST_AUTO_TEST_CASE(test_tad_read) {
     std::stringstream buffer(tad_test1);
     Ad adfile("tad:", std::ios_base::in);
     adfile.Attach(buffer.rdbuf());
-    adfile.ReadHeader();   
+    adfile.ReadHeader();
 
     BOOST_CHECK(unittest_dng_io_ad::get_version_number(adfile) == 0x0001);
     BOOST_CHECK(unittest_dng_io_ad::get_format_string(adfile) == "TAD");
