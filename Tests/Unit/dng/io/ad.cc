@@ -18,6 +18,8 @@
  */
 #define BOOST_TEST_MODULE dng::io::ad
 
+struct unittest_dng_io_ad;
+
 #include <dng/io/ad.h>
 #include <sstream>
 #include <iostream>
@@ -26,6 +28,11 @@
 using namespace dng::io;
 using namespace dng::pileup;
 using namespace dng::utility;
+
+struct unittest_dng_io_ad {
+    static int get_version_number(const dng::io::Ad &a) { return a.id_.version; }
+    static std::string get_format_string(const dng::io::Ad &a) { return a.id_.name; }
+};
 
 // http://stackoverflow.com/a/673389
 struct HexCharStruct
@@ -242,8 +249,9 @@ const char tad_test1[] =
     "@SQ\tSN:scaffold_1\tLN:100\n"
     "@SQ\tSN:scaffold_2\tLN:200\tM5:aaaaaaaa\n"
     "@SQ\tSN:scaffold_3\tLN:300\tM5:aaaaaaab\tUR:blah\n"
-    "@AD\tID:A\n"
-    "@AD\tID:B\n"
+    "@AD\tID:A\tSM:A\n"
+    "@AD\tID:B\tSM:B\tLB:B\tRG:B\n"
+    "@CO\tThis is a comment that is ignored\n"
     "scaffold_1\t1\tA\t10\t9\n"
     "scaffold_1\t2\tC\t8\t7\n"
     "scaffold_1\t3\tGC\t6,0\t0,2\n"
@@ -256,6 +264,9 @@ BOOST_AUTO_TEST_CASE(test_tad_read) {
     Ad adfile("tad:", std::ios_base::in);
     adfile.Attach(buffer.rdbuf());
     adfile.ReadHeader();   
+
+    BOOST_CHECK(unittest_dng_io_ad::get_version_number(adfile) == 0x0001);
+    BOOST_CHECK(unittest_dng_io_ad::get_format_string(adfile) == "TAD");
 
     BOOST_CHECK(adfile.contigs().size() == 3);
     BOOST_CHECK(adfile.contig(0).name == "scaffold_1");

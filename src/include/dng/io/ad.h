@@ -32,6 +32,8 @@
 #include <dng/utility.h>
 #include <dng/depths.h>
 
+#include <dng/detail/unit_test.h>
+
 
 namespace dng {
 namespace io {
@@ -104,11 +106,11 @@ private:
     int ReadHeaderTad();
     int ReadHeaderAd();
 
-    // struct format_t {
-    //     std::string name;
-    //     uint16_t version;
-    //     std::string attributes;        
-    // };
+    struct format_t {
+         std::string name;
+         uint16_t version;
+         std::string attributes;        
+    };
     // struct library_t {
     //     std::string id;
     //     std::string sample;
@@ -122,6 +124,9 @@ private:
     uint16_t counter_{0};
 
     std::vector<contig_t> contigs_;
+    format_t id_;
+
+    DNG_UNIT_TEST(::unittest_dng_io_ad);
 };
 
 }}

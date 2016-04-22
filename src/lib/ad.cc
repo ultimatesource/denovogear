@@ -29,7 +29,9 @@
 
 #include <boost/tokenizer.hpp>
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/algorithm/string/case_conv.hpp>
 #include <boost/spirit/include/qi.hpp>
+#include <boost/fusion/include/std_pair.hpp>
 
 using namespace dng::pileup;
 
@@ -215,11 +217,15 @@ int dng::io::Ad::ReadHeaderTad() {
     using namespace boost;
     using namespace std;
     using boost::algorithm::starts_with;
+    using boost::algorithm::iequals;
+    using boost::algorithm::to_upper;
     namespace ss = boost::spirit::standard;
     namespace qi = boost::spirit::qi;
     using ss::space;
     using qi::uint_;
+    using qi::lit;
     using qi::phrase_parse;
+    qi::uint_parser<uint8_t> uint8_;
 
     // Construct the tokenizer
     typedef tokenizer<char_separator<char>,
@@ -237,7 +243,38 @@ int dng::io::Ad::ReadHeaderTad() {
     contigs_.clear();
 
     // Setup header information
-    for(auto it = store.begin(); it != store.end(); ++it) {
+    auto it = store.begin();
+    if(*it != "@ID") {
+        throw(runtime_error("Unable to parse TAD format: @ID missing from first line."));
+    }
+    // Parse @ID line which identifies the file format and version.
+    id_.name.clear();
+    id_.version = 0;
+    id_.attributes.clear();
+    for(++it; it != store.end() && *it != "\n"; ++it) {
+        if(starts_with(*it, "FF:")) {
+            id_.name = it->substr(3);
+            to_upper(id_.name);
+        } else if(starts_with(*it, "VN:")) {
+            const char *first = it->c_str()+3;
+            const char *last  = it->c_str()+it->length();
+            std:pair<uint8_t,uint8_t> bytes;
+            if(!phrase_parse(first, last, uint8_ >> ( '.' >> uint8_ || lit('\0')), space, bytes) || first != last) {
+                throw(runtime_error("Unable to parse TAD format: File format version information not found in '" + *it + "'"));
+            }
+            id_.version = ((uint16_t)bytes.first << 8) | bytes.second;  
+        } else if(id_.attributes.empty()) {
+            id_.attributes = *it;
+        } else {
+            id_.attributes += '\t';
+            id_.attributes += *it;
+        }
+    }
+    if(id_.name != "TAD") {
+        throw(runtime_error("Unable to parse TAD format: Unknown file format '" + id_.name + "'"));
+    }
+
+    for(; it != store.end(); ++it) {
         if(*it == "@SQ") {
             contig_t sq;
             for(++it; it != store.end() && *it != "\n"; ++it) {
@@ -246,7 +283,8 @@ int dng::io::Ad::ReadHeaderTad() {
                 } else if(starts_with(*it, "LN:")) {
                     const char *first = it->c_str()+3;
                     const char *last  = it->c_str()+it->length();
-                    if(!phrase_parse(first, last, uint_, space, sq.length) || first != last) {
+
+                    if(!phrase_parse(first, last, uint_ , space, sq.length) || first != last) {
                         throw(runtime_error("Unable to parse sequence length from header attribute '" + *it + "'"));
                     }
                 } else if(sq.attributes.empty()) {
