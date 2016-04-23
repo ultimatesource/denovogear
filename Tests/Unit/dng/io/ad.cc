@@ -271,24 +271,31 @@ BOOST_AUTO_TEST_CASE(test_tad_read) {
     BOOST_CHECK(adfile.contig(1).attributes == "M5:aaaaaaaa");
     BOOST_CHECK(adfile.contig(2).attributes == "M5:aaaaaaab\tUR:blah");
 
+    typedef std::vector<int> V;
+
     AlleleDepths depths;
     adfile.Read(&depths);
     BOOST_CHECK(depths.location() == make_location(0,0));
     BOOST_CHECK(depths.type() == 0);
+    BOOST_CHECK(depths.data() == V({10,9}));
 
     adfile.Read(&depths);
     BOOST_CHECK(depths.location() == make_location(0,1));
     BOOST_CHECK(depths.type() == 1);
+    BOOST_CHECK(depths.data() == V({8,7}));
 
     adfile.Read(&depths);
     BOOST_CHECK(depths.location() == make_location(0,2));
     BOOST_CHECK(depths.type() == 11);
+    BOOST_CHECK(depths.data() == V({6,0,0,2}));
 
     adfile.Read(&depths);
     BOOST_CHECK(depths.location() == make_location(1,0));
     BOOST_CHECK(depths.type() == 3);
+    BOOST_CHECK(depths.data() == V({4,0}));    
 
     adfile.Read(&depths);
     BOOST_CHECK(depths.location() == make_location(2,0));
     BOOST_CHECK(depths.type() == 127);
+    BOOST_CHECK(depths.data() == V({0,4,0,0,0,0,1,0}));
 }

@@ -228,6 +228,16 @@ void dng::io::Ad::Clear() {
     contig_tst_.clear();    
 }
 
+void tab_append(std::string *out, const std::string &in, char d='\t') {
+    assert(out != nullptr);
+    if(out->empty()) {
+        *out = in;
+    } else {
+        *out += d;
+        *out += in;
+    }
+}
+
 int dng::io::Ad::ReadHeaderTad() {
     using namespace boost;
     using namespace std;
@@ -247,6 +257,8 @@ int dng::io::Ad::ReadHeaderTad() {
             std::istreambuf_iterator<char>> tokenizer;
     char_separator<char> sep("\t", "\n");
     tokenizer tokens(istreambuf_range(stream_), sep);
+
+    // Store all the tokens in the header until we reach the first data line
     vector<string> store;
     for(auto it = tokens.begin(); it != tokens.end(); ++it) {
         store.push_back(*it);
@@ -259,12 +271,15 @@ int dng::io::Ad::ReadHeaderTad() {
 
     // Setup header information
     auto it = store.begin();
-    if(*it != "@ID") {
+    if(it == store.end() || *it != "@ID") {
         throw(runtime_error("Unable to parse TAD header: @ID missing from first line."));
     }
     // Parse @ID line which identifies the file format and version.
-    for(++it; it != store.end() && *it != "\n"; ++it) {
-        if(starts_with(*it, "FF:")) {
+    for(++it; it != store.end(); ++it) {
+        if(*it == "\n") {
+            ++it;
+            break;
+        } else if(starts_with(*it, "FF:")) {
             id_.name = it->substr(3);
             to_upper(id_.name);
         } else if(starts_with(*it, "VN:")) {
@@ -275,16 +290,9 @@ int dng::io::Ad::ReadHeaderTad() {
                 throw(runtime_error("Unable to parse TAD header: File format version information '" + *it + "' not major.minor."));
             }
             id_.version = ((uint16_t)bytes.first << 8) | bytes.second;
-        } else if(id_.attributes.empty()) {
-            id_.attributes = *it;
         } else {
-            id_.attributes += '\t';
-            id_.attributes += *it;
+            tab_append(&id_.attributes, *it);
         }
-    }
-    // if we ended at "\n", advance the iterator
-    if(it != store.end()) {
-        ++it;
     }
     if(id_.name != "TAD") {
         throw(runtime_error("Unable to parse TAD header: Unknown file format '" + id_.name + "'"));
@@ -302,14 +310,23 @@ int dng::io::Ad::ReadHeaderTad() {
                     if(!phrase_parse(first, last, uint_ , space, sq.length) || first != last) {
                         throw(runtime_error("Unable to parse TAD header: Unable to parse sequence length from header attribute '" + *it + "'"));
                     }
-                } else if(sq.attributes.empty()) {
-                    sq.attributes = *it;
                 } else {
-                    sq.attributes += '\t';
-                    sq.attributes += *it;
+                    tab_append(&sq.attributes, *it);
                 }
             }
-            contigs_.push_back(sq);
+            contigs_.push_back(std::move(sq));
+        } else if(*it == "@AD") {
+            library_t ad;
+            for(++it; it != store.end() && *it != "\n"; ++it) {
+                if(starts_with(*it, "ID:")) {
+                    ad.name = it->substr(3);
+                } else if(starts_with(*it, "SM:")) {
+                    ad.sample = it->substr(3);
+                } else {
+                    tab_append(&ad.attributes, *it);
+                }
+            }
+            libraries_.push_back(std::move(ad));
         } else if(*it == "@ID") {
             throw(runtime_error("Unable to parse TAD header: @ID can only be specified once."));
         } else if((*it)[0] == '@') {
@@ -324,10 +341,6 @@ int dng::io::Ad::ReadHeaderTad() {
                 "Expected the @TAG at the beginning of a header line but got '" + *it +"'."));            
         }
     }
-    for(int i=0; i < contigs_.size(); ++i) {
-        contig_tst_.add(contigs_[i].name.begin(), contigs_[i].name.end(),i);
-    }
-
     return 0;
 }
 
@@ -354,11 +367,17 @@ int dng::io::Ad::ReadTad(AlleleDepths *pline) {
     tokenizer tokens(istreambuf_range(stream_), sep);
     vector<string> store;
     for(auto it = tokens.begin(); it != tokens.end(); ++it) {
-        store.push_back(*it);
         if(*it == "\n") {
             break;
-        }
+        }        
+        store.push_back(*it);
     }
+    // check to make sure store has the proper size
+    if(store.size() != 3+num_libraries_) {
+        throw(runtime_error("Unable to parse TAD record: Expected " + utility::to_pretty(3+num_libraries_) 
+            + " columns. Found " + utility::to_pretty(store.size()) + " columns."));
+    }
+
     // parse contig
     auto first = store[0].cbegin();
     auto last = store[0].cend();
@@ -376,15 +395,24 @@ int dng::io::Ad::ReadTad(AlleleDepths *pline) {
     if(!phrase_parse(first, last, uint_, space, position) || first != last) {
         throw(runtime_error("Unable to parse TAD record: Unable to parse position '" + store[1] + "' as integer."));
     }
-    pline->location(dng::utility::make_location(contig_num,position-1));
+    pline->location(utility::make_location(contig_num,position-1));
 
     // parse type
-    int8_t t = AlleleDepths::LookupType(store[2]);
-    if(t == -1) {
+    int8_t ty = AlleleDepths::LookupType(store[2]);
+    if(ty == -1) {
         throw(runtime_error("Unable to parse TAD record: Type '" + store[2] + "' is unknown."));        
     }
-    pline->type(t);
+    pline->resize(ty,num_libraries_);
 
+    // parse data
+    vector<int> data;
+    bool success;
+    for(size_t i=3;i<store.size();++i) {
+        tie(data,success) = utility::parse_int_list(store[i]);
+        for(size_t j=0;j<data.size();++j) {
+            (*pline)(j,i-3) = data[j];
+        }
+    }
     return 0;
 }
 
@@ -427,7 +455,6 @@ int dng::io::Ad::ReadAd(AlleleDepths *pline) {
     assert(false); // not implemented yet
     return 1;
 }
-
 
 int dng::io::Ad::WriteAd(const AlleleDepths& line) {
     static_assert(sizeof(AlleleDepths::type_info_table) / sizeof(AlleleDepths::type_info_t) == 128,

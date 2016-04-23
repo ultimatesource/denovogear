@@ -66,6 +66,16 @@ public:
         std::string attributes;
     };
 
+    struct library_t {
+        library_t() {}
+        library_t(std::string n, std::string s, std::string a = {}) :
+            name{std::move(n)}, sample{std::move(s)}, attributes{std::move(a)} {}
+
+         std::string name;
+         std::string sample;
+         std::string attributes;
+    };
+
     explicit Ad(const std::string &filename, std::ios_base::openmode mode = std::ios_base::in) {
         Open(filename,mode);
     }
@@ -87,11 +97,21 @@ public:
         if(!stream_) {
             return -1;
         }
+        int result = 0;
         if(format_ == Format::AD) {
-            return ReadHeaderAd();
+            result = ReadHeaderAd();
         } else {
-            return ReadHeaderTad();
+            result = ReadHeaderTad();
         }
+        if(result != 0) {
+            return result;
+        }
+        // Insert contigs into the search tree
+        for(int i=0; i < contigs_.size(); ++i) {
+            contig_tst_.add(contigs_[i].name.begin(), contigs_[i].name.end(),i);
+        }
+        num_libraries_ = libraries_.size();
+        return 0;
     }
 
     int WriteHeader() {
@@ -131,7 +151,6 @@ public:
         }
     }
 
-
     const std::vector<contig_t>& contigs() const {
         return contigs_;
     }
@@ -166,11 +185,6 @@ private:
          uint16_t version;
          std::string attributes;        
     };
-    // struct library_t {
-    //     std::string id;
-    //     std::string sample;
-    //     std::string attributes;        
-    // };
 
     Format format_{Format::AD};
     location_t last_location_{0};
@@ -178,8 +192,12 @@ private:
     // Use rollover to trigger counter 
     uint16_t counter_{0};
 
-    std::vector<contig_t> contigs_;
+    // Header Information
     format_t id_;
+    std::vector<contig_t> contigs_;
+    std::vector<library_t> libraries_;
+    std::size_t num_libraries_;
+
     std::vector<std::string> extra_headers_;
 
     boost::spirit::qi::tst<char, int> contig_tst_;

@@ -29,6 +29,7 @@
 
 #include <boost/spirit/include/support_ascii.hpp>
 #include <boost/spirit/include/qi_real.hpp>
+#include <boost/spirit/include/qi_int.hpp>
 #include <boost/spirit/include/qi_parse.hpp>
 #include <boost/spirit/include/qi_list.hpp>
 #include <boost/spirit/include/qi_char.hpp>
@@ -87,13 +88,30 @@ template<typename S>
 std::pair<std::vector<double>, bool> parse_double_list(const S &str,
         char sep = ',', size_t sz_hint = 4) {
     namespace qi = boost::spirit::qi;
+    namespace ss = boost::spirit::standard;
+    using ss::blank;
+
     std::vector<double> f;
     f.reserve(sz_hint);
-    boost::spirit::standard::space_type space;
     auto b = boost::begin(str);
     auto e = boost::end(str);
-    bool r = qi::phrase_parse(b, e, qi::double_ % sep, space, f);
-    return {f, (r &&b == e) };
+    bool r = qi::phrase_parse(b, e, qi::double_ % sep, blank, f);
+    return {f, (r && b == e) };
+}
+
+template<typename S>
+std::pair<std::vector<int>, bool> parse_int_list(const S &str,
+        char sep = ',', size_t sz_hint = 4) {
+    namespace qi = boost::spirit::qi;
+    namespace ss = boost::spirit::standard;
+    using ss::blank;
+
+    std::vector<int> f;
+    f.reserve(sz_hint);
+    auto b = boost::begin(str);
+    auto e = boost::end(str);
+    bool r = qi::phrase_parse(b, e, qi::int_ % sep, blank, f);
+    return {f, (r && b == e) };
 }
 
 template<typename T>
