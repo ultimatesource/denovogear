@@ -387,8 +387,9 @@ int dng::io::Ad::ReadTad(AlleleDepths *pline) {
         throw(runtime_error("Unable to parse TAD record: Contig Name '" + store[0] + "' is unknown."));
     }
     int contig_num = *p;
-    int position;
+    
     // parse position
+    int position;
     first = store[1].cbegin();
     last  = store[1].cend();
 
@@ -397,7 +398,7 @@ int dng::io::Ad::ReadTad(AlleleDepths *pline) {
     }
     pline->location(utility::make_location(contig_num,position-1));
 
-    // parse type
+    // parse type and resize
     int8_t ty = AlleleDepths::LookupType(store[2]);
     if(ty == -1) {
         throw(runtime_error("Unable to parse TAD record: Type '" + store[2] + "' is unknown."));        
@@ -409,6 +410,13 @@ int dng::io::Ad::ReadTad(AlleleDepths *pline) {
     bool success;
     for(size_t i=3;i<store.size();++i) {
         tie(data,success) = utility::parse_int_list(store[i]);
+        if(!success) {
+            throw(runtime_error("Unable to parse TAD record: unable to parse comma-separated depths '" + store[i] + "'."));
+        } else if(data.size() != pline->num_nucleotides()) {
+            throw(runtime_error("Unable to parse TAD record: incorrect number of depths parsed from '" + store[i]
+                + "'. Expected " + utility::to_pretty(pline->num_nucleotides())
+                + " columns. Found " + utility::to_pretty(data.size())));
+        }
         for(size_t j=0;j<data.size();++j) {
             (*pline)(j,i-3) = data[j];
         }
