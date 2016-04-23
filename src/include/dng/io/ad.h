@@ -63,7 +63,7 @@ public:
 
         std::string name;
         int length;
-        std::string attributes;
+        std::vector<std::string> attributes;
     };
 
     struct library_t {
@@ -73,7 +73,7 @@ public:
 
          std::string name;
          std::string sample;
-         std::string attributes;
+         std::vector<std::string> attributes;
     };
 
     explicit Ad(const std::string &filename, std::ios_base::openmode mode = std::ios_base::in) {
@@ -95,30 +95,35 @@ public:
         // Seek to the beginning of the stream
         stream_.seekg(0);
         if(!stream_) {
-            return -1;
+            return 0;
         }
+        // Clear header information
+        Clear();
+
         int result = 0;
         if(format_ == Format::AD) {
             result = ReadHeaderAd();
         } else {
             result = ReadHeaderTad();
         }
-        if(result != 0) {
-            return result;
+        if(result == 0) {
+            return 0;
         }
         // Insert contigs into the search tree
         for(int i=0; i < contigs_.size(); ++i) {
             contig_tst_.add(contigs_[i].name.begin(), contigs_[i].name.end(),i);
         }
+        // Save the number of libraries
         num_libraries_ = libraries_.size();
-        return 0;
+        last_location_ = 0;
+        return result;
     }
 
     int WriteHeader() {
         // Seek to the beginning of the stream
         stream_.seekg(0);
         if(!stream_) {
-            return -1;
+            return 0;
         }
         if(format_ == Format::AD) {
             return WriteHeaderAd();
@@ -128,9 +133,9 @@ public:
     }
 
     int Read(AlleleDepths *pline) {
-        // If stream_ has issues, i.e. eof, return -1.
+        // If stream_ has issues, i.e. eof, return 0.
         if(!stream_) {
-            return -1;
+            return 0;
         }
         if(format_ == Format::AD) {
             return ReadAd(pline);
@@ -140,9 +145,9 @@ public:
     }
 
     int Write(const AlleleDepths& line) {
-        // If stream_ has issues, return -1.
+        // If stream_ has issues, return 0.
         if(!stream_) {
-            return -1;
+            return 0;
         }
         if(format_ == Format::AD) {
             return WriteAd(line);
@@ -167,6 +172,14 @@ public:
         return pos;
     }
 
+    std::vector<contig_t>::size_type
+    AddLibrary(std::string name, std::string sample, std::string attributes = {} ) {
+        std::vector<contig_t>::size_type pos = contigs_.size();
+        libraries_.emplace_back(name, sample, attributes);
+        return pos;
+    }
+
+
 private:
     int ReadHeaderAd();
     int WriteHeaderAd();
@@ -183,7 +196,7 @@ private:
     struct format_t {
          std::string name;
          uint16_t version;
-         std::string attributes;        
+         std::vector<std::string> attributes;        
     };
 
     Format format_{Format::AD};

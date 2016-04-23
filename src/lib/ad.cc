@@ -258,16 +258,23 @@ int dng::io::Ad::ReadHeaderTad() {
     char_separator<char> sep("\t", "\n");
     tokenizer tokens(istreambuf_range(stream_), sep);
 
+    // Error if the first character isn't '@'
+    if(stream_.peek() != '@') {
+        return 0;
+    }
+
     // Store all the tokens in the header until we reach the first data line
     vector<string> store;
+    size_t num_lines = 0;
     for(auto it = tokens.begin(); it != tokens.end(); ++it) {
         store.push_back(*it);
-        if(*it == "\n" && stream_.peek() != '@') {
-            break;
+        if(*it == "\n") {
+            num_lines += 1;
+            if(stream_.peek() != '@') {
+                break;
+            }
         }
     }
-    // Clear header information
-    Clear();
 
     // Setup header information
     auto it = store.begin();
@@ -282,6 +289,9 @@ int dng::io::Ad::ReadHeaderTad() {
         } else if(starts_with(*it, "FF:")) {
             id_.name = it->substr(3);
             to_upper(id_.name);
+            if(id_.name != "TAD") {
+                throw(runtime_error("Unable to parse TAD header: Unknown file format '" + id_.name + "'"));
+            }
         } else if(starts_with(*it, "VN:")) {
             const char *first = it->c_str()+3;
             const char *last  = it->c_str()+it->length();
@@ -291,11 +301,8 @@ int dng::io::Ad::ReadHeaderTad() {
             }
             id_.version = ((uint16_t)bytes.first << 8) | bytes.second;
         } else {
-            tab_append(&id_.attributes, *it);
+            id_.attributes.push_back(std::move(*it));
         }
-    }
-    if(id_.name != "TAD") {
-        throw(runtime_error("Unable to parse TAD header: Unknown file format '" + id_.name + "'"));
     }
     for(; it != store.end(); ++it) {
         if(*it == "@SQ") {
@@ -311,7 +318,7 @@ int dng::io::Ad::ReadHeaderTad() {
                         throw(runtime_error("Unable to parse TAD header: Unable to parse sequence length from header attribute '" + *it + "'"));
                     }
                 } else {
-                    tab_append(&sq.attributes, *it);
+                    sq.attributes.push_back(std::move(*it));
                 }
             }
             contigs_.push_back(std::move(sq));
@@ -323,7 +330,7 @@ int dng::io::Ad::ReadHeaderTad() {
                 } else if(starts_with(*it, "SM:")) {
                     ad.sample = it->substr(3);
                 } else {
-                    tab_append(&ad.attributes, *it);
+                    ad.attributes.push_back(std::move(*it));
                 }
             }
             libraries_.push_back(std::move(ad));
@@ -331,17 +338,63 @@ int dng::io::Ad::ReadHeaderTad() {
             throw(runtime_error("Unable to parse TAD header: @ID can only be specified once."));
         } else if((*it)[0] == '@') {
             // store all the information for this line into the extra_headers_ field
-            extra_headers_.push_back(*it);
-            for(++it; it != store.end() && *it != "\n"; ++it) {
-                extra_headers_.push_back(*it);
+            extra_headers_.push_back(std::move(*it));
+            for(++it; it != store.end(); ++it) {
+                if(*it == "\n") {
+                    extra_headers_.push_back(std::move(*it));
+                    break;
+                }
+                extra_headers_.push_back(std::move(*it));
             }
-            extra_headers_.push_back("\n");
         } else {
             throw(runtime_error("Unable to parse TAD header: Something went wrong. "
                 "Expected the @TAG at the beginning of a header line but got '" + *it +"'."));            
         }
     }
-    return 0;
+    return num_lines;
+}
+
+int dng::io::Ad::WriteHeaderTad() {
+    // Write Header Line
+    int num_lines;
+    stream_ << "@ID\tFF:" << id_.name << "\tVN:" << (id_.version >> 8) << "." << (id_.version & 0xFF);
+    for(auto && a : id_.attributes) {
+        stream_ << '\t' << a;
+    }
+    stream_ << '\n';
+    num_lines += 1;
+
+    // Write Contig Lines
+    for(auto && sq : contigs_) {
+        stream_ << "@SQ\tSN:" << sq.name << "\tLN:" << sq.length;
+        for(auto && a : sq.attributes) {
+            stream_ << '\t' << a;
+        }
+        stream_ << '\n';
+        num_lines += 1;
+    }
+
+    // Write Library Lines
+    for(auto && ad : libraries_) {
+        stream_ << "@AD\tID:" << ad.name << "\tSM:" << ad.sample;
+        for(auto && a : ad.attributes) {
+            stream_ << '\t' << a;
+        }
+        stream_ << '\n';
+        num_lines += 1;
+    }
+
+    // Write the rest of the tokens
+    for(auto it = extra_headers_.begin(); it != extra_headers_.end(); ++it) {
+        stream_ << *it;
+        for(++it; it != extra_headers_.end() && *it != "\n"; ++it) {
+            stream_ << '\t' << *it;
+        }
+        stream_ << '\n';
+        num_lines += 1;        
+    }
+
+    return num_lines;
 }
 
 int dng::io::Ad::ReadTad(AlleleDepths *pline) {
@@ -358,7 +411,7 @@ int dng::io::Ad::ReadTad(AlleleDepths *pline) {
         while(stream_ && stream_.get() != '\n') {
             /*noop*/;
         }
-        return 0;
+        return 1;
     }
     // Construct the tokenizer
     typedef tokenizer<char_separator<char>,
@@ -366,11 +419,19 @@ int dng::io::Ad::ReadTad(AlleleDepths *pline) {
     char_separator<char> sep("\t", "\n");
     tokenizer tokens(istreambuf_range(stream_), sep);
     vector<string> store;
-    for(auto it = tokens.begin(); it != tokens.end(); ++it) {
+    auto it = tokens.begin();
+    for(; it != tokens.end() && *it == "\n"; ++it) {
+        /* skip empty lines */;
+    }
+    for(; it != tokens.end(); ++it) {
         if(*it == "\n") {
             break;
-        }        
+        }
         store.push_back(*it);
+    }
+    // end of file, so read nothing
+    if(store.empty()) {
+        return 0;
     }
     // check to make sure store has the proper size
     if(store.size() != 3+num_libraries_) {
@@ -421,7 +482,7 @@ int dng::io::Ad::ReadTad(AlleleDepths *pline) {
             (*pline)(j,i-3) = data[j];
         }
     }
-    return 0;
+    return 1;
 }
 
 int dng::io::Ad::WriteTad(const AlleleDepths& line) {
@@ -437,7 +498,7 @@ int dng::io::Ad::WriteTad(const AlleleDepths& line) {
     const size_type nnuc = line.num_nucleotides();
     auto contig_num = location_to_contig(loc);
     if(contig_num >= contigs_.size()) {
-        return 1;
+        return 0;
     }
     stream_ << contigs_[contig_num].name << '\t';
     stream_ << location_to_position(loc)+1 << '\t';
@@ -451,17 +512,22 @@ int dng::io::Ad::WriteTad(const AlleleDepths& line) {
         stream_  << line(x,y);
     }
     stream_ << '\n';
-    return 0;
+    return 1;
 }
 
 int dng::io::Ad::ReadHeaderAd() {
     assert(false); // not implemented yet
-    return 1;
+    return 0;
+}
+
+int dng::io::Ad::WriteHeaderAd() {
+    assert(false); // not implemented yet
+    return 0;
 }
 
 int dng::io::Ad::ReadAd(AlleleDepths *pline) {
     assert(false); // not implemented yet
-    return 1;
+    return 0;
 }
 
 int dng::io::Ad::WriteAd(const AlleleDepths& line) {
@@ -480,7 +546,7 @@ int dng::io::Ad::WriteAd(const AlleleDepths& line) {
     location_t loc = line.location();
     // The Ad format only holds up to 2^25-2 contigs 
     if(location_to_contig(loc) > 0x01FFFFFE) {
-        return 1;
+        return 0;
     }
 
     if(counter_ == 0 || location_to_contig(loc) != location_to_contig(last_location_)) {
@@ -512,7 +578,7 @@ int dng::io::Ad::WriteAd(const AlleleDepths& line) {
         stream_.write(buffer,sz);
     }
 
-    return 0;
+    return 1;
 }
 
 /* NTF8 Format

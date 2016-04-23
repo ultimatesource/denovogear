@@ -147,10 +147,12 @@ bool ad_write(std::vector<AlleleDepths> lines, std::vector<uint8_t> match) {
     adfile.AddContig("seq1",100);
     adfile.AddContig("seq2",1000, "");
     adfile.AddContig("seq3",10000, "M5:aaaaaaaa");
+    adfile.AddLibrary("A","A");
+    adfile.AddLibrary("B","B");
     adfile.Attach(buffer.rdbuf());
     for(auto line : lines) {
-        if(adfile.Write(line) != 0) {
-            std::cerr << "  Error: adfile.Write failed\n";
+        if(adfile.Write(line) != 1) {
+            std::cerr << "  Error: dng::io::Ad::Write failed\n";
             return false;
         }
     }    
@@ -205,10 +207,13 @@ bool tad_write(std::vector<AlleleDepths> lines, std::string text) {
     adfile.AddContig("seq1",100);
     adfile.AddContig("seq2",1000, "");
     adfile.AddContig("seq3",10000, "M5:aaaaaaaa");
+    adfile.AddLibrary("A","A");
+    adfile.AddLibrary("B","B");
+
     adfile.Attach(buffer.rdbuf());
     for(auto line : lines) {
-        if(adfile.Write(line) != 0) {
-            std::cerr << "  Error: adfile.Write failed\n";
+        if(adfile.Write(line) != 1) {
+            std::cerr << "  Error: Ad::Write failed\n";
             return false;
         }
     }
@@ -244,6 +249,7 @@ const char tad_test1[] =
     "@AD\tID:A\tSM:A\n"
     "@AD\tID:B\tSM:B\tLB:B\tRG:B\n"
     "@CO\tThis is a comment that is ignored\n"
+    "\n"
     "scaffold_1\t1\tA\t10\t9\n"
     "scaffold_1\t2\tC\t8\t7\n"
     "scaffold_1\t3\tGC\t6,0\t0,2\n"
@@ -257,6 +263,10 @@ BOOST_AUTO_TEST_CASE(test_tad_read) {
     adfile.Attach(buffer.rdbuf());
     adfile.ReadHeader();
 
+    typedef std::vector<int> V;
+    typedef std::vector<std::string> S;
+
+
     BOOST_CHECK(unittest_dng_io_ad::get_version_number(adfile) == 0x0001);
     BOOST_CHECK(unittest_dng_io_ad::get_format_string(adfile) == "TAD");
 
@@ -268,10 +278,8 @@ BOOST_AUTO_TEST_CASE(test_tad_read) {
     BOOST_CHECK(adfile.contig(1).length == 200);
     BOOST_CHECK(adfile.contig(2).length == 300);
     BOOST_CHECK(adfile.contig(0).attributes.empty());
-    BOOST_CHECK(adfile.contig(1).attributes == "M5:aaaaaaaa");
-    BOOST_CHECK(adfile.contig(2).attributes == "M5:aaaaaaab\tUR:blah");
-
-    typedef std::vector<int> V;
+    BOOST_CHECK(adfile.contig(1).attributes == S({"M5:aaaaaaaa"}));
+    BOOST_CHECK(adfile.contig(2).attributes == S({"M5:aaaaaaab","UR:blah"}));
 
     AlleleDepths depths;
     adfile.Read(&depths);
@@ -298,4 +306,48 @@ BOOST_AUTO_TEST_CASE(test_tad_read) {
     BOOST_CHECK(depths.location() == make_location(2,0));
     BOOST_CHECK(depths.type() == 127);
     BOOST_CHECK(depths.data() == V({0,4,0,0,0,0,1,0}));
+}
+
+bool string_equal(const std::string &a, const std::string &b) {
+    if(a == b) {
+        return true;
+    }
+    std::cerr << "  Error: output does not match expectation\n";
+    std::cerr << "  Result:\n" << a << "\n";
+    std::cerr << "  Expected:\n" << b << "\n";
+    return false;
+}
+
+const char tad_test2[] = 
+    "@ID\tFF:TAD\tVN:0.1\n"
+    "@SQ\tSN:scaffold_1\tLN:100\n"
+    "@SQ\tSN:scaffold_2\tLN:200\tM5:aaaaaaaa\n"
+    "@SQ\tSN:scaffold_3\tLN:300\tM5:aaaaaaab\tUR:blah\n"
+    "@AD\tID:A\tSM:A\n"
+    "@AD\tID:B\tSM:B\tLB:B\tRG:B\n"
+    "@CO\tThis is a comment that is ignored\n"
+    "scaffold_1\t1\tA\t10\t9\n"
+    "scaffold_1\t2\tC\t8\t7\n"
+    "scaffold_1\t3\tGC\t6,0\t0,2\n"
+    "scaffold_2\t1\tT\t4\t0\n"
+    "scaffold_3\t1\tNTGCA\t0,0,0,1\t4,0,0,0\n"
+;
+
+BOOST_AUTO_TEST_CASE(test_tad_read_and_write) {
+    std::stringstream buffer(tad_test2);
+    std::stringstream buffer_out;
+    Ad adfile("tad:", std::ios_base::in | std::ios_base::out);
+    adfile.Attach(buffer.rdbuf());
+    adfile.ReadHeader();
+    std::vector<AlleleDepths> depths_store;
+    AlleleDepths depths;
+    while(adfile.Read(&depths)) {
+        depths_store.push_back(depths);
+    }
+    adfile.Attach(buffer_out.rdbuf());
+    adfile.WriteHeader();
+    for(auto &&a : depths_store) {
+        adfile.Write(a);
+    }
+    BOOST_CHECK(string_equal(buffer_out.str(), tad_test2));
 }
