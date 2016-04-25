@@ -31,6 +31,7 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/spirit/include/qi.hpp>
+#include <boost/spirit/include/karma.hpp>
 #include <boost/fusion/include/std_pair.hpp>
 
 using namespace dng::pileup;
@@ -354,47 +355,53 @@ int dng::io::Ad::ReadHeaderTad() {
     return num_lines;
 }
 
-int dng::io::Ad::WriteHeaderTad() {
+std::pair<std::string,int> dng::io::Ad::HeaderString() const {
     // Write Header Line
-    int num_lines;
-    stream_ << "@ID\tFF:" << id_.name << "\tVN:" << (id_.version >> 8) << "." << (id_.version & 0xFF);
+    int num_lines = 0;
+    std::ostringstream output;
+    output << "@ID\tFF:" << id_.name << "\tVN:" << (id_.version >> 8) << "." << (id_.version & 0xFF);
     for(auto && a : id_.attributes) {
-        stream_ << '\t' << a;
+        output << '\t' << a;
     }
-    stream_ << '\n';
+    output << '\n';
     num_lines += 1;
 
     // Write Contig Lines
     for(auto && sq : contigs_) {
-        stream_ << "@SQ\tSN:" << sq.name << "\tLN:" << sq.length;
+        output << "@SQ\tSN:" << sq.name << "\tLN:" << sq.length;
         for(auto && a : sq.attributes) {
-            stream_ << '\t' << a;
+            output << '\t' << a;
         }
-        stream_ << '\n';
+        output << '\n';
         num_lines += 1;
     }
 
     // Write Library Lines
     for(auto && ad : libraries_) {
-        stream_ << "@AD\tID:" << ad.name << "\tSM:" << ad.sample;
+        output << "@AD\tID:" << ad.name << "\tSM:" << ad.sample;
         for(auto && a : ad.attributes) {
-            stream_ << '\t' << a;
+            output << '\t' << a;
         }
-        stream_ << '\n';
+        output << '\n';
         num_lines += 1;
     }
 
     // Write the rest of the tokens
     for(auto it = extra_headers_.begin(); it != extra_headers_.end(); ++it) {
-        stream_ << *it;
+        output << *it;
         for(++it; it != extra_headers_.end() && *it != "\n"; ++it) {
-            stream_ << '\t' << *it;
+            output << '\t' << *it;
         }
-        stream_ << '\n';
+        output << '\n';
         num_lines += 1;        
     }
+    return {output.str(),num_lines};
+}
 
-    return num_lines;
+int dng::io::Ad::WriteHeaderTad() {
+    auto ret = HeaderString();
+    stream_.write(ret.first.data(), ret.first.size());
+    return ret.second;
 }
 
 int dng::io::Ad::ReadTad(AlleleDepths *pline) {
@@ -515,14 +522,27 @@ int dng::io::Ad::WriteTad(const AlleleDepths& line) {
     return 1;
 }
 
+const char ad_header[] = "\255AD\001\r\n\032\n";
+
 int dng::io::Ad::ReadHeaderAd() {
     assert(false); // not implemented yet
     return 0;
 }
 
 int dng::io::Ad::WriteHeaderAd() {
-    assert(false); // not implemented yet
-    return 0;
+    // Write out magic header
+    stream_.write(ad_header,8);
+
+    auto ret = HeaderString();
+    if(ret.first.size() > INT_MAX) {
+        // Header is too big to write
+        return 0;
+    }
+    // Write 4 bytes to represent header size in little-endian format
+    int32_t sz = ret.first.size();
+    stream_.write(&sz, 4);
+    stream_.write(ret.first.data(), sz);
+    return ret.second;
 }
 
 int dng::io::Ad::ReadAd(AlleleDepths *pline) {
@@ -634,6 +654,26 @@ int ntf8_put32(uint32_t n, char *out, size_t count) {
         return 5;
     }
 }
+
+/*
+int ntf8_put32u(uint32_t n, char *out, size_t count) {
+    if( n <= 0x7F) {
+        *out = n;
+        return 1;
+    }
+    int b = (32-__builtin_clz(n))/7+1;
+    if(b == 5) {
+        *out = 0xF0;
+        memcpy(out+1, &n, b);
+    } else {
+        int m = (-1 << (33-b));
+        n = m | (n << (32-8*b));
+        n = __builtin_bswap32(n);
+        memcpy(out, &n, b);
+    }
+    return b;
+}
+*/
 
 int ntf8_get32(const char *in, size_t count, uint32_t *r) {
 	assert(r != nullptr);

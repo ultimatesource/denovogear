@@ -191,6 +191,8 @@ private:
     int ReadTad(AlleleDepths *line);
     int WriteTad(const AlleleDepths& line);
 
+    std::pair<std::string,int> HeaderString() const;
+
     void Clear();
 
     struct format_t {
