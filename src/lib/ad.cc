@@ -239,6 +239,103 @@ void tab_append(std::string *out, const std::string &in, char d='\t') {
     }
 }
 
+std::string dng::io::Ad::HeaderString() const {    
+    // Write Header Line
+    std::ostringstream output;
+    // Write Contig Lines
+    for(auto && sq : contigs_) {
+        output << "@SQ\tSN:" << sq.name << "\tLN:" << sq.length;
+        for(auto && a : sq.attributes) {
+            output << '\t' << a;
+        }
+        output << '\n';
+    }
+
+    // Write Library Lines
+    for(auto && ad : libraries_) {
+        output << "@AD\tID:" << ad.name << "\tSM:" << ad.sample;
+        for(auto && a : ad.attributes) {
+            output << '\t' << a;
+        }
+        output << '\n';
+    }
+
+    // Write the rest of the tokens
+    for(auto it = extra_headers_.begin(); it != extra_headers_.end(); ++it) {
+        output << *it;
+        for(++it; it != extra_headers_.end() && *it != "\n"; ++it) {
+            output << '\t' << *it;
+        }
+        output << '\n';
+    }
+    return output.str();
+}
+
+
+template<typename It>
+void dng::io::Ad::ParseHeaderTokens(It it, It it_last) {
+    using namespace boost;
+    using namespace std;
+    using boost::algorithm::starts_with;
+    using boost::algorithm::iequals;
+    using boost::algorithm::to_upper;
+    namespace ss = boost::spirit::standard;
+    namespace qi = boost::spirit::qi;
+    using ss::space;
+    using qi::uint_;
+    using qi::lit;
+    using qi::phrase_parse;
+    qi::uint_parser<uint8_t> uint8_;
+
+    for(; it != it_last; ++it) {
+        if(*it == "@SQ") {
+            contig_t sq;
+            for(++it; it != it_last && *it != "\n"; ++it) {
+                if(starts_with(*it, "SN:")) {
+                    sq.name = it->substr(3);
+                } else if(starts_with(*it, "LN:")) {
+                    const char *first = it->c_str()+3;
+                    const char *last  = it->c_str()+it->length();
+
+                    if(!phrase_parse(first, last, uint_ , space, sq.length) || first != last) {
+                        throw(runtime_error("Unable to parse TAD header: Unable to parse sequence length from header attribute '" + *it + "'"));
+                    }
+                } else {
+                    sq.attributes.push_back(std::move(*it));
+                }
+            }
+            contigs_.push_back(std::move(sq));
+        } else if(*it == "@AD") {
+            library_t ad;
+            for(++it; it != it_last && *it != "\n"; ++it) {       
+                if(starts_with(*it, "ID:")) {
+                    ad.name = it->substr(3);
+                } else if(starts_with(*it, "SM:")) {
+                    ad.sample = it->substr(3);
+                } else {
+                    ad.attributes.push_back(std::move(*it));
+                }
+            }
+            libraries_.push_back(std::move(ad));
+        } else if(*it == "@ID") {
+            throw(runtime_error("Unable to parse TAD header: @ID can only be specified once."));
+        } else if((*it)[0] == '@') {
+            // store all the information for this line into the extra_headers_ field
+            extra_headers_.push_back(std::move(*it));
+            for(++it; it != it_last; ++it) {
+                if(*it == "\n") {
+                    extra_headers_.push_back(std::move(*it));
+                    break;
+                }
+                extra_headers_.push_back(std::move(*it));
+            }
+        } else {
+            throw(runtime_error("Unable to parse TAD header: Something went wrong. "
+                "Expected the @TAG at the beginning of a header line but got '" + *it +"'."));            
+        }
+    }
+}
+
 int dng::io::Ad::ReadHeaderTad() {
     using namespace boost;
     using namespace std;
@@ -266,11 +363,9 @@ int dng::io::Ad::ReadHeaderTad() {
 
     // Store all the tokens in the header until we reach the first data line
     vector<string> store;
-    size_t num_lines = 0;
-    for(auto it = tokens.begin(); it != tokens.end(); ++it) {
-        store.push_back(*it);
-        if(*it == "\n") {
-            num_lines += 1;
+    for(auto tok = tokens.begin(); tok != tokens.end(); ++tok) {
+        store.push_back(std::move(*tok));
+        if(*tok == "\n") {
             if(stream_.peek() != '@') {
                 break;
             }
@@ -305,103 +400,19 @@ int dng::io::Ad::ReadHeaderTad() {
             id_.attributes.push_back(std::move(*it));
         }
     }
-    for(; it != store.end(); ++it) {
-        if(*it == "@SQ") {
-            contig_t sq;
-            for(++it; it != store.end() && *it != "\n"; ++it) {
-                if(starts_with(*it, "SN:")) {
-                    sq.name = it->substr(3);
-                } else if(starts_with(*it, "LN:")) {
-                    const char *first = it->c_str()+3;
-                    const char *last  = it->c_str()+it->length();
-
-                    if(!phrase_parse(first, last, uint_ , space, sq.length) || first != last) {
-                        throw(runtime_error("Unable to parse TAD header: Unable to parse sequence length from header attribute '" + *it + "'"));
-                    }
-                } else {
-                    sq.attributes.push_back(std::move(*it));
-                }
-            }
-            contigs_.push_back(std::move(sq));
-        } else if(*it == "@AD") {
-            library_t ad;
-            for(++it; it != store.end() && *it != "\n"; ++it) {
-                if(starts_with(*it, "ID:")) {
-                    ad.name = it->substr(3);
-                } else if(starts_with(*it, "SM:")) {
-                    ad.sample = it->substr(3);
-                } else {
-                    ad.attributes.push_back(std::move(*it));
-                }
-            }
-            libraries_.push_back(std::move(ad));
-        } else if(*it == "@ID") {
-            throw(runtime_error("Unable to parse TAD header: @ID can only be specified once."));
-        } else if((*it)[0] == '@') {
-            // store all the information for this line into the extra_headers_ field
-            extra_headers_.push_back(std::move(*it));
-            for(++it; it != store.end(); ++it) {
-                if(*it == "\n") {
-                    extra_headers_.push_back(std::move(*it));
-                    break;
-                }
-                extra_headers_.push_back(std::move(*it));
-            }
-        } else {
-            throw(runtime_error("Unable to parse TAD header: Something went wrong. "
-                "Expected the @TAG at the beginning of a header line but got '" + *it +"'."));            
-        }
-    }
-    return num_lines;
-}
-
-std::pair<std::string,int> dng::io::Ad::HeaderString() const {
-    // Write Header Line
-    int num_lines = 0;
-    std::ostringstream output;
-    output << "@ID\tFF:" << id_.name << "\tVN:" << (id_.version >> 8) << "." << (id_.version & 0xFF);
-    for(auto && a : id_.attributes) {
-        output << '\t' << a;
-    }
-    output << '\n';
-    num_lines += 1;
-
-    // Write Contig Lines
-    for(auto && sq : contigs_) {
-        output << "@SQ\tSN:" << sq.name << "\tLN:" << sq.length;
-        for(auto && a : sq.attributes) {
-            output << '\t' << a;
-        }
-        output << '\n';
-        num_lines += 1;
-    }
-
-    // Write Library Lines
-    for(auto && ad : libraries_) {
-        output << "@AD\tID:" << ad.name << "\tSM:" << ad.sample;
-        for(auto && a : ad.attributes) {
-            output << '\t' << a;
-        }
-        output << '\n';
-        num_lines += 1;
-    }
-
-    // Write the rest of the tokens
-    for(auto it = extra_headers_.begin(); it != extra_headers_.end(); ++it) {
-        output << *it;
-        for(++it; it != extra_headers_.end() && *it != "\n"; ++it) {
-            output << '\t' << *it;
-        }
-        output << '\n';
-        num_lines += 1;        
-    }
-    return {output.str(),num_lines};
+    ParseHeaderTokens(it, store.end());
+    return 1;
 }
 
 int dng::io::Ad::WriteHeaderTad() {
-    auto ret = HeaderString();
-    stream_.write(ret.first.data(), ret.first.size());
-    return ret.second;
+    std::string header = HeaderString();
+    stream_ << "@ID\tFF:" << id_.name << "\tVN:" << (id_.version >> 8) << "." << (id_.version & 0xFF);
+    for(auto && a : id_.attributes) {
+        stream_ << '\t' << a;
+    }
+    stream_ << '\n';
+    stream_.write(header.data(), header.size());
+    return 1;
 }
 
 int dng::io::Ad::ReadTad(AlleleDepths *pline) {
@@ -522,27 +533,74 @@ int dng::io::Ad::WriteTad(const AlleleDepths& line) {
     return 1;
 }
 
-const char ad_header[] = "\255AD\001\r\n\032\n";
+const char ad_header[9] = "\255AD\001\r\n\032\n";
 
 int dng::io::Ad::ReadHeaderAd() {
-    assert(false); // not implemented yet
-    return 0;
+    using namespace std;
+    using namespace boost;
+    // read beginning of header number
+    char buffer[8+2+4+8];
+    stream_.read(buffer, sizeof(buffer));
+    if(!stream_) {
+        throw(runtime_error("Unable to parse AD header: missing beginning values."));
+    }
+    // test magic
+    if(strncmp(&buffer[0], ad_header, 8) != 0) {
+        throw(runtime_error("Unable to parse AD header: identifying number (magic) not found."));
+    }
+    // test version
+    uint16_t version = 0;
+    memcpy(&version, &buffer[8], 2);
+    if(version != 0x0001) {
+        throw(runtime_error("Unable to parse AD header: unknown version " + to_string(version >> 8) + '.' + to_string(version & 0xFF) + '.'));
+    }
+    id_.name = "AD";
+    id_.version = version;
+
+    // Read size of header
+    int32_t tad_sz = 0;
+    memcpy(&tad_sz, &buffer[10], 4);
+    // Read Header
+    std::string tad_header(tad_sz,'\0');
+    stream_.read(&tad_header[0], tad_sz);
+    if(!stream_) {
+        throw(runtime_error("Unable to parse AD header: TAD header block missing."));
+    }
+    // Shrink header in case it is null padded
+    auto pos = tad_header.find_first_of('\0');
+    if(pos != string::npos) {
+        tad_header.resize(pos);
+    }
+
+    // Tokenize header
+    typedef tokenizer<char_separator<char>,
+            string::const_iterator> tokenizer;
+    char_separator<char> sep("\t", "\n");
+    tokenizer tokens(tad_header.begin(), tad_header.end(), sep);
+    // Parse Tokens
+    ParseHeaderTokens(tokens.begin(), tokens.end());
+    return 1;
 }
 
 int dng::io::Ad::WriteHeaderAd() {
-    // Write out magic header
-    stream_.write(ad_header,8);
-
-    auto ret = HeaderString();
-    if(ret.first.size() > INT_MAX) {
+    auto header = HeaderString();
+    if(header.size() > INT_MAX) {
         // Header is too big to write
         return 0;
     }
+    // Write out magic header
+    stream_.write(ad_header,8);
+    // Write out 2-bytes to represent file format version information in little-endian
+    stream_.write((const char*)&id_.version, 2);
     // Write 4 bytes to represent header size in little-endian format
-    int32_t sz = ret.first.size();
-    stream_.write(&sz, 4);
-    stream_.write(ret.first.data(), sz);
-    return ret.second;
+    int32_t sz = header.size();
+    stream_.write((const char*)&sz, 4);
+    // Write out 8-bytes to represent future flags
+    uint64_t zero = 0;
+    stream_.write((const char*)&zero, 8);
+    // Write the header
+    stream_.write(header.data(), sz);
+    return 1;
 }
 
 int dng::io::Ad::ReadAd(AlleleDepths *pline) {

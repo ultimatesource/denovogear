@@ -191,7 +191,9 @@ private:
     int ReadTad(AlleleDepths *line);
     int WriteTad(const AlleleDepths& line);
 
-    std::pair<std::string,int> HeaderString() const;
+    std::string HeaderString() const;
+    template<typename It>
+    void ParseHeaderTokens(It it, It it_last);
 
     void Clear();
 
@@ -211,7 +213,7 @@ private:
     format_t id_;
     std::vector<contig_t> contigs_;
     std::vector<library_t> libraries_;
-    std::size_t num_libraries_;
+    std::size_t num_libraries_{0};
 
     std::vector<std::string> extra_headers_;
 
