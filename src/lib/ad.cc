@@ -22,10 +22,10 @@
 #include <dng/io/ad.h>
 #include <dng/io/utility.h>
 
+#include <dng/detail/ntf8.h>
+
 #include <algorithm>
 #include <cstdlib>
-
-#include <endian.h>
 
 #include <boost/tokenizer.hpp>
 #include <boost/algorithm/string/predicate.hpp>
@@ -229,6 +229,7 @@ int ntf8_get64(std::basic_streambuf<CharT,Traits> *in, int64_t *r);
 
 void dng::io::Ad::Clear() {
     contigs_.clear();
+    libraries_.clear();
     id_.name.clear();
     id_.version = 0;
     id_.attributes.clear();
@@ -578,7 +579,7 @@ int dng::io::Ad::ReadHeaderAd() {
     if(pos != string::npos) {
         tad_header.resize(pos);
     }
-
+ 
     // Tokenize header
     typedef tokenizer<char_separator<char>,
             string::const_iterator> tokenizer;
@@ -611,8 +612,10 @@ int dng::io::Ad::WriteHeaderAd() {
 }
 
 int dng::io::Ad::ReadAd(AlleleDepths *pline) {
+    namespace ntf8 = dng::detail::ntf8;
+
     int64_t u;
-    if(ntf8_get64(stream_.rdbuf(),&u) == 0) {
+    if(ntf8::get64(stream_.rdbuf(),&u) == 0) {
         return 0;
     }
     // read location ant type
@@ -630,20 +633,20 @@ int dng::io::Ad::ReadAd(AlleleDepths *pline) {
         int width = AlleleDepths::type_info_table[rec_type].width;
         for(size_t i=0; i < num_libraries_*width; ++i) {
             int32_t d;
-            if(ntf8_get32(stream_.rdbuf(),&d) == 0) {
+            if(ntf8::get32(stream_.rdbuf(),&d) == 0) {
                 return 0;
             }
         }
         return 1;
     }
     pline->location(loc);
-    pline->resize(rec_type);
+    pline->resize(rec_type,num_libraries_);
     for(size_t i=0; i<pline->data_size(); ++i) {
-        if(ntf8_get32(stream_.rdbuf(), &pline->data()[i]) == 0) {
+        if(ntf8::get32(stream_.rdbuf(), &pline->data()[i]) == 0) {
             return 0;
         }
     }
-    return 0;
+    return 1;
 }
 
 int dng::io::Ad::WriteAd(const AlleleDepths& line) {
@@ -822,57 +825,6 @@ int ntf8_get32(const char *in, size_t count, int32_t *r) {
     }
 }
 
-template<typename CharT, typename Traits>
-int ntf8_get32(std::basic_streambuf<CharT,Traits> *in, int32_t *r) {
-    typedef typename std::basic_streambuf<CharT,Traits> buf_type;
-    assert(r != nullptr);
-    typename buf_type::int_type x = in->sgetc();
-    if(x == buf_type::traits_type::eof()) {
-        return 0;
-    }
-    if(x < 0x80) {
-        // 0bbb bbbb
-        in->sbumpc();
-        *r = x;
-        return 1;
-    } else if(x < 0xC0) {
-        // 10bb bbbb bbbb bbbb
-        uint16_t u = 0;
-        if(in->sgetn((char*)&u,2) != 2) {
-            return 0;
-        }
-        *r = be16toh(u) & 0x3FFF;
-        return 2;
-    } else if(x < 0xE0) {
-        // 110b bbbb bbbb bbbb bbbb bbbb
-        uint32_t u = 0;
-        if(in->sgetn((char*)&u,3) != 3) {
-            return 0;
-        }
-        *r = (be32toh(u) >> 8) & 0x1FFFFF;
-        return 3;
-    } else if(x < 0xF0) {
-        // 1110 bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        uint32_t u = 0;
-        if(in->sgetn((char*)&u,4) != 4) {
-            return 0;
-        }
-        *r = be32toh(u) & 0x0FFFFFFF;
-        return 4;
-    } else {
-        assert(x == 0xF0); // If this fails then we may be reading a 64-bit number
-        // 1111 0000 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        in->sbumpc();
-        uint32_t u = 0;        
-        if(in->sgetn((char*)&u,4) != 4) {
-            return 0;
-        }
-        *r = be32toh(u);
-        return 5;
-    }
-}
-
-
 int ntf8_put64(int64_t x, char *out, size_t count) {
     uint64_t n = x;
     if(n <= 0x7F) {
@@ -1035,83 +987,3 @@ int ntf8_get64(const char *in, size_t count, int64_t *r) {
     }    
 }
 
-template<typename CharT, typename Traits>
-int ntf8_get64(std::basic_streambuf<CharT,Traits> *in, int64_t *r) {
-    typedef typename std::basic_streambuf<CharT,Traits> buf_type;    
-    assert(r != nullptr);
-    typename buf_type::int_type x = in->sgetc();
-    if(x == buf_type::traits_type::eof()) {
-        return 0;
-    }
-    if(x < 0x80) {
-        // 0bbb bbbb
-        in->sbumpc();
-        *r = x;
-        return 1;
-    } else if(x < 0xC0) {
-        // 10bb bbbb bbbb bbbb
-        uint16_t u = 0;
-        if(in->sgetn((char*)&u,2) != 2) {
-            return 0;
-        }
-        *r = be16toh(u) & 0x3FFF;
-        return 2;
-    } else if(x < 0xE0) {
-        // 110b bbbb bbbb bbbb bbbb bbbb
-        uint32_t u = 0;
-        if(in->sgetn((char*)&u,3) != 3) {
-            return 0;
-        }
-        *r = (be32toh(u) >> 8) & 0x1FFFFF;
-        return 3;
-    } else if(x < 0xF0) {
-        // 1110 bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        uint32_t u = 0;
-        if(in->sgetn((char*)&u,4) != 4) {
-            return 0;
-        }
-        *r = be32toh(u) & 0x0FFFFFFF;
-        return 4;
-    } else if(x < 0xF8) {
-        // 1111 0bbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        uint64_t u = 0;
-        if(in->sgetn((char*)&u,5) != 5) {
-            return 0;
-        }
-        *r = (be64toh(u) >> 24) & 0x07FFFFFFFF;
-        return 5;
-    } else if(x < 0xFC) {
-        // 1111 10bb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        uint64_t u = 0;
-        if(in->sgetn((char*)&u,6) != 6) {
-            return 0;
-        }
-        *r = (be64toh(u) >> 16) & 0x03FFFFFFFFFF;
-        return 6;
-    } else if(x < 0xFE) {
-        // 1111 110b bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        uint64_t u = 0;
-        if(in->sgetn((char*)&u,7) != 7) {
-            return 0;
-        }
-        *r = (be64toh(u) >> 8) & 0x01FFFFFFFFFFFF;
-        return 7;
-    } else if(x < 0xFF) {
-        // 1111 1110 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        uint64_t u = 0;
-        if(in->sgetn((char*)&u,8) != 8) {
-            return 0;
-        }
-        *r = be64toh(u) & 0x00FFFFFFFFFFFFFF;
-        return 8;
-    } else {
-        // 1111 1111 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
-        in->sbumpc();
-        uint64_t u = 0;        
-        if(in->sgetn((char*)&u,8) != 8) {
-            return 0;
-        }
-        *r = be64toh(u);
-        return 9;
-    }
-}

@@ -21,6 +21,8 @@
 struct unittest_dng_io_ad;
 
 #include <dng/io/ad.h>
+#include <dng/detail/ntf8.h>
+
 #include <sstream>
 #include <iostream>
 #include <iomanip>
@@ -60,13 +62,13 @@ int ntf8_put64(int64_t n, char *out, size_t count);
 int ntf8_get32(const char *in, size_t count, int32_t *r);
 int ntf8_get64(const char *in, size_t count, int64_t *r);
 
-bool ntf8_convert32(uint32_t n) {
+bool ntf8_convert32(int32_t n) {
     char buffer[5];
     int sz1 = ntf8_put32(n,buffer,5);
     int32_t u;
     int sz2 = ntf8_get32(buffer,5,&u);
     if(sz1 != sz2 || u != n) {
-        std::cerr << "  NTF8 32 conversion of " << n << "failed.\n";
+        std::cerr << "  NTF8 32 conversion of " << n << " failed.\n";
         std::cerr << "    Output: " << u << ", size written = " << sz1 << ", size read = " << sz2 << ".\n";
         return false;
     }
@@ -75,13 +77,47 @@ bool ntf8_convert32(uint32_t n) {
     return true;
 }
 
-bool ntf8_convert64(uint64_t n) {
+bool ntf8_convert64(int64_t n) {
     char buffer[9];
     int sz1 = ntf8_put64(n,buffer,9);
     int64_t u;
     int sz2 = ntf8_get64(buffer,9,&u);
     if(sz1 != sz2 || u != n) {
-        std::cerr << "  NTF8 64 conversion of " << n << "failed.\n";
+        std::cerr << "  NTF8 64 conversion of " << n << " failed.\n";
+        std::cerr << "    Output: " << u << ", size written = " << sz1 << ", size read = " << sz2 << ".\n";
+        return false;
+    }
+
+    //std::cerr << "  NTF8 64 conversion of " << n << ", size read/written = " << sz1 << " successful.\n";
+    return true;    
+}
+
+bool ntf8_convert32s(int32_t n) {
+    namespace ntf8 = dng::detail::ntf8;
+    char buffer[5];
+    int sz1 = ntf8_put32(n,buffer,5);
+    std::istringstream in(std::string{&buffer[0],&buffer[5]});
+    int32_t u = -1;
+    int sz2 = ntf8::get32(in.rdbuf(),&u);
+    if(sz1 != sz2 || u != n) {
+        std::cerr << "  NTF8 32 conversion of " << n << " via streambuf failed.\n";
+        std::cerr << "    Output: " << u << ", size written = " << sz1 << ", size read = " << sz2 << ".\n";
+        return false;
+    }
+
+    //std::cerr << "  NTF8 32 conversion of " << n << ", size read/written = " << sz1 << " successful.\n";
+    return true;
+}
+
+bool ntf8_convert64s(int64_t n) {
+    namespace ntf8 = dng::detail::ntf8;
+    char buffer[9];
+    int sz1 = ntf8_put64(n,buffer,9);
+    std::istringstream in(std::string{&buffer[0],&buffer[9]});
+    int64_t u = -1;
+    int sz2 = ntf8::get64(in.rdbuf(),&u);
+    if(sz1 != sz2 || u != n) {
+        std::cerr << "  NTF8 64 conversion of " << n << " via streambuf failed.\n";
         std::cerr << "    Output: " << u << ", size written = " << sz1 << ", size read = " << sz2 << ".\n";
         return false;
     }
@@ -107,6 +143,7 @@ BOOST_AUTO_TEST_CASE(test_ntf8) {
         }
     }
 
+    // ntf8_convert32
     for(int i=0;i<65536;++i) {
         BOOST_CHECK(ntf8_convert32(i));
     }
@@ -122,7 +159,24 @@ BOOST_AUTO_TEST_CASE(test_ntf8) {
             BOOST_CHECK(ntf8_convert32(n & ((1LL<<i)-1)));
         }
     }
+    // ntf8_convert32s
+    for(int i=0;i<65536;++i) {
+        BOOST_CHECK(ntf8_convert32s(i));
+    }
 
+    for(int i=0;i<32;++i) {
+        BOOST_CHECK(ntf8_convert32s((1<<i)-1));
+        BOOST_CHECK(ntf8_convert32s(1<<i));
+        BOOST_CHECK(ntf8_convert32s((1<<i)+1));
+    }
+
+    for(int i=17;i<=32;++i) {
+        for(auto n : numbers) {
+            BOOST_CHECK(ntf8_convert32s(n & ((1LL<<i)-1)));
+        }
+    }
+
+    // ntf8_convert64
     for(int i=0;i<65536;++i) {
         BOOST_CHECK(ntf8_convert64(i));
     }
@@ -135,7 +189,24 @@ BOOST_AUTO_TEST_CASE(test_ntf8) {
 
     for(int i=17;i<=64;++i) {
         for(auto n : numbers) {
-            BOOST_CHECK(ntf8_convert32(n & ((1LL<<i)-1)));
+            BOOST_CHECK(ntf8_convert64(n & ((1LL<<i)-1)));
+        }
+    }
+
+    // ntf8_convert64s
+    for(int i=0;i<65536;++i) {
+        BOOST_CHECK(ntf8_convert64s(i));
+    }
+
+    for(int i=0;i<64;++i) {
+        BOOST_CHECK(ntf8_convert64s((1LL<<i)-1));
+        BOOST_CHECK(ntf8_convert64s(1LL<<i));
+        BOOST_CHECK(ntf8_convert64s((1LL<<i)+1));
+    }
+
+    for(int i=17;i<=64;++i) {
+        for(auto n : numbers) {
+            BOOST_CHECK(ntf8_convert64s(n & ((1LL<<i)-1)));
         }
     }
 }
@@ -197,19 +268,95 @@ BOOST_AUTO_TEST_CASE(test_ad_write) {
 }
 
 /*****************************************************************************
+ Test the writing and read of an ad file
+ *****************************************************************************/
+BOOST_AUTO_TEST_CASE(test_ad_write_and_read) {
+    std::stringstream buffer;
+    Ad adfile("ad:", std::ios_base::out | std::ios_base::in);
+    adfile.Attach(buffer.rdbuf());
+
+    adfile.AddContig("scaffold_1",1000);
+    adfile.AddContig("scaffold_2",10000, "");
+    adfile.AddContig("scaffold_3",100000, "M5:aaaaaaaa");
+    adfile.AddLibrary("A","A");
+    adfile.AddLibrary("B","B");
+
+    std::vector<AlleleDepths> outdepths, indepths;
+    int x=0;
+    for(int i=0;i<128;++i) {
+        AlleleDepths line;
+        line.resize(i,2);
+        line.location(0,10+(i+1));
+        for(auto && d : line.data()) {
+            d = x;
+            x += 31;
+        }
+        outdepths.push_back(std::move(line));
+    }
+    for(int i=0;i<128;++i) {
+        AlleleDepths line;
+        line.resize(i,2);
+        line.location(1,100+(i+1));
+        for(auto && d : line.data()) {
+            d = x;
+            x += 31;
+        }
+        outdepths.push_back(std::move(line));
+    }
+
+    adfile.WriteHeader();
+    for(auto && line : outdepths) {
+        adfile.Write(line);
+    }
+
+    adfile.ReadHeader();
+
+    BOOST_CHECK(unittest_dng_io_ad::get_version_number(adfile) == 0x0001);
+    BOOST_CHECK(unittest_dng_io_ad::get_format_string(adfile) == "AD");
+
+    BOOST_CHECK(adfile.contigs().size() == 3);
+    BOOST_CHECK(adfile.contig(0).name == "scaffold_1");
+    BOOST_CHECK(adfile.contig(1).name == "scaffold_2");
+    BOOST_CHECK(adfile.contig(2).name == "scaffold_3");
+    BOOST_CHECK(adfile.contig(0).length == 1000);
+    BOOST_CHECK(adfile.contig(1).length == 10000);
+    BOOST_CHECK(adfile.contig(2).length == 100000);
+
+    BOOST_CHECK(adfile.libraries().size() == 2);
+    BOOST_CHECK(adfile.library(0).name == "A");
+    BOOST_CHECK(adfile.library(1).name == "B");
+    BOOST_CHECK(adfile.library(0).sample == "A");
+    BOOST_CHECK(adfile.library(1).sample == "B");
+
+    AlleleDepths input;
+    while(adfile.Read(&input)) {
+        indepths.push_back(input);
+    }
+    BOOST_CHECK(outdepths.size() == indepths.size());
+    for(int i=0;i<128;++i) {
+        const AlleleDepths &a = outdepths[i];
+        const AlleleDepths &b = indepths[i];
+        BOOST_CHECK(a.location() == b.location());
+        BOOST_CHECK(a.type() == b.type());
+        BOOST_CHECK(a.data() == b.data());        
+    }
+}
+
+/*****************************************************************************
  Test the writing of a tad file
  *****************************************************************************/
 
 bool tad_write(std::vector<AlleleDepths> lines, std::string text) {
     std::stringstream buffer;
     Ad adfile("tad:", std::ios_base::out);
+    adfile.Attach(buffer.rdbuf());
+
     adfile.AddContig("seq1",100);
     adfile.AddContig("seq2",1000, "");
     adfile.AddContig("seq3",10000, "M5:aaaaaaaa");
     adfile.AddLibrary("A","A");
     adfile.AddLibrary("B","B");
 
-    adfile.Attach(buffer.rdbuf());
     for(auto line : lines) {
         if(adfile.Write(line) != 1) {
             std::cerr << "  Error: Ad::Write failed\n";

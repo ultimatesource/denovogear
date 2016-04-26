@@ -85,8 +85,12 @@ public:
         BinaryFile::Open(filename, mode);
         if(boost::iequals(type_label_, "ad")) {
             format_ = Format::AD;
+            id_.version = 0x0001;
+            id_.name = "AD";
         } else {
             format_ = Format::TAD;
+            id_.version = 0x0001;
+            id_.name = "TAD";
         }
         counter_ = 0;
     }
@@ -162,6 +166,14 @@ public:
 
     const contig_t& contig(std::vector<contig_t>::size_type pos) const {
         return contigs_[pos];
+    }
+
+    const std::vector<library_t>& libraries() const {
+        return libraries_;
+    }
+
+    const library_t& library(std::vector<library_t>::size_type pos) const {
+        return libraries_[pos];
     }
 
     std::vector<contig_t>::size_type

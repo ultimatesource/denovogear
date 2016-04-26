@@ -75,7 +75,7 @@ public:
 
     location_t location() const { return location_; }
     void location(location_t location) { location_ = location; }
-    void location(int target, int position) { location_ = utility::make_location(target, position); }
+    void location(int contig, int position) { location_ = utility::make_location(contig, position); }
 
     int8_t type() const { return type_; }
     void type(int8_t type) { type_ = type; }
