@@ -215,10 +215,17 @@ int8_t AlleleDepths::LookupType(const std::vector<std::size_t> &indexes, bool re
     return (it != end) ? it->type : -1;
 }
 
-int ntf8_put32(uint32_t n, char *out, size_t count);
-int ntf8_put64(uint64_t n, char *out, size_t count);
-int ntf8_get32(const char *in, size_t count, uint32_t *r);
-int ntf8_get64(const char *in, size_t count, uint64_t *r);
+int ntf8_put32(int32_t n, char *out, size_t count);
+int ntf8_put64(int64_t n, char *out, size_t count);
+int ntf8_get32(const char *in, size_t count, int32_t *r);
+int ntf8_get64(const char *in, size_t count, int64_t *r);
+
+template<typename CharT, typename Traits = std::char_traits<CharT>>
+int ntf8_get32(std::basic_streambuf<CharT,Traits> *in, int32_t *r);
+
+template<typename CharT, typename Traits = std::char_traits<CharT>>
+int ntf8_get64(std::basic_streambuf<CharT,Traits> *in, int64_t *r);
+
 
 void dng::io::Ad::Clear() {
     contigs_.clear();
@@ -604,7 +611,38 @@ int dng::io::Ad::WriteHeaderAd() {
 }
 
 int dng::io::Ad::ReadAd(AlleleDepths *pline) {
-    assert(false); // not implemented yet
+    int64_t u;
+    if(ntf8_get64(stream_.rdbuf(),&u) == 0) {
+        return 0;
+    }
+    // read location ant type
+    location_t loc = (u >> 7);
+    int8_t rec_type = u & 0x7F;
+    if(utility::location_to_contig(loc) > 0) {
+        // absolute positioning
+        loc -= (1LL << 32);
+    } else {
+        loc += last_location_ + 1;
+    }
+    last_location_ = loc;
+
+    if(pline == nullptr) {
+        int width = AlleleDepths::type_info_table[rec_type].width;
+        for(size_t i=0; i < num_libraries_*width; ++i) {
+            int32_t d;
+            if(ntf8_get32(stream_.rdbuf(),&d) == 0) {
+                return 0;
+            }
+        }
+        return 1;
+    }
+    pline->location(loc);
+    pline->resize(rec_type);
+    for(size_t i=0; i<pline->data_size(); ++i) {
+        if(ntf8_get32(stream_.rdbuf(), &pline->data()[i]) == 0) {
+            return 0;
+        }
+    }
     return 0;
 }
 
@@ -669,18 +707,19 @@ the user how many extra bytes need to be read to decode
 the value.
 */
 
-int ntf8_put32(uint32_t n, char *out, size_t count) {
+int ntf8_put32(int32_t x, char *out, size_t count) {
+    uint64_t n = x;
     if(n <= 0x7F) {
         // 0bbb bbbb
         if(count < 1) {
-            return -1;
+            return 0;
         }
         *out = n;
         return 1;
     } else if(n <= 0x3FFF) {
         // 10bb bbbb bbbb bbbb
         if(count < 2) {
-            return -1;
+            return 0;
         }
     	uint16_t u = htobe16(n | 0x8000);
     	memcpy(out, &u, 2);
@@ -688,7 +727,7 @@ int ntf8_put32(uint32_t n, char *out, size_t count) {
     } else if(n <= 0x1FFFFF) {
         // 110b bbbb bbbb bbbb bbbb bbbb
         if(count < 3) {
-            return -1;
+            return 0;
         }
         uint32_t u = htobe32((n | 0xC00000) << 8);
     	memcpy(out, &u, 3);
@@ -696,7 +735,7 @@ int ntf8_put32(uint32_t n, char *out, size_t count) {
     } else if(n <= 0x0FFFFFFF) {
         // 1110 bbbb bbbb bbbb bbbb bbbb bbbb bbbb
         if(count < 4) {
-            return -1;
+            return 0;
         }
         uint32_t u = htobe32(n | 0xE0000000);
     	memcpy(out, &u, 4);
@@ -704,7 +743,7 @@ int ntf8_put32(uint32_t n, char *out, size_t count) {
     } else {
         // 1111 0000 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
         if(count < 5) {
-            return -1;
+            return 0;
         }
         *out = 0xF0;
         uint32_t u = htobe32(n);
@@ -724,7 +763,7 @@ int ntf8_put32u(uint32_t n, char *out, size_t count) {
         *out = 0xF0;
         memcpy(out+1, &n, b);
     } else {
-        int m = (-1 << (33-b));
+        int m = (0 << (33-b));
         n = m | (n << (32-8*b));
         n = __builtin_bswap32(n);
         memcpy(out, &n, b);
@@ -733,10 +772,10 @@ int ntf8_put32u(uint32_t n, char *out, size_t count) {
 }
 */
 
-int ntf8_get32(const char *in, size_t count, uint32_t *r) {
+int ntf8_get32(const char *in, size_t count, int32_t *r) {
 	assert(r != nullptr);
     if(count == 0) {
-        return -1;
+        return 0;
     }
     uint8_t x = in[0];
     if(x < 0x80) {
@@ -746,7 +785,7 @@ int ntf8_get32(const char *in, size_t count, uint32_t *r) {
     } else if(x < 0xC0) {
         // 10bb bbbb bbbb bbbb
         if(count < 2) {
-            return -1;
+            return 0;
         }
         uint16_t u = 0;
         memcpy(&u,in,2);
@@ -755,7 +794,7 @@ int ntf8_get32(const char *in, size_t count, uint32_t *r) {
     } else if(x < 0xE0) {
         // 110b bbbb bbbb bbbb bbbb bbbb
         if(count < 3) {
-            return -1;
+            return 0;
         }
         uint32_t u = 0;
         memcpy(&u,in,3);
@@ -764,7 +803,7 @@ int ntf8_get32(const char *in, size_t count, uint32_t *r) {
     } else if(x < 0xF0) {
         // 1110 bbbb bbbb bbbb bbbb bbbb bbbb bbbb
         if(count < 4) {
-            return -1;
+            return 0;
         }
         uint32_t u = 0;
         memcpy(&u,in,4);
@@ -774,7 +813,7 @@ int ntf8_get32(const char *in, size_t count, uint32_t *r) {
         assert(x == 0xF0); // If this fails then we may be reading a 64-bit number
         // 1111 0000 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
         if(count < 5) {
-            return -1;
+            return 0;
         }        
         uint32_t u = 0;
         memcpy(&u,in+1,4);
@@ -783,18 +822,70 @@ int ntf8_get32(const char *in, size_t count, uint32_t *r) {
     }
 }
 
-int ntf8_put64(uint64_t n, char *out, size_t count) {
+template<typename CharT, typename Traits>
+int ntf8_get32(std::basic_streambuf<CharT,Traits> *in, int32_t *r) {
+    typedef typename std::basic_streambuf<CharT,Traits> buf_type;
+    assert(r != nullptr);
+    typename buf_type::int_type x = in->sgetc();
+    if(x == buf_type::traits_type::eof()) {
+        return 0;
+    }
+    if(x < 0x80) {
+        // 0bbb bbbb
+        in->sbumpc();
+        *r = x;
+        return 1;
+    } else if(x < 0xC0) {
+        // 10bb bbbb bbbb bbbb
+        uint16_t u = 0;
+        if(in->sgetn((char*)&u,2) != 2) {
+            return 0;
+        }
+        *r = be16toh(u) & 0x3FFF;
+        return 2;
+    } else if(x < 0xE0) {
+        // 110b bbbb bbbb bbbb bbbb bbbb
+        uint32_t u = 0;
+        if(in->sgetn((char*)&u,3) != 3) {
+            return 0;
+        }
+        *r = (be32toh(u) >> 8) & 0x1FFFFF;
+        return 3;
+    } else if(x < 0xF0) {
+        // 1110 bbbb bbbb bbbb bbbb bbbb bbbb bbbb
+        uint32_t u = 0;
+        if(in->sgetn((char*)&u,4) != 4) {
+            return 0;
+        }
+        *r = be32toh(u) & 0x0FFFFFFF;
+        return 4;
+    } else {
+        assert(x == 0xF0); // If this fails then we may be reading a 64-bit number
+        // 1111 0000 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
+        in->sbumpc();
+        uint32_t u = 0;        
+        if(in->sgetn((char*)&u,4) != 4) {
+            return 0;
+        }
+        *r = be32toh(u);
+        return 5;
+    }
+}
+
+
+int ntf8_put64(int64_t x, char *out, size_t count) {
+    uint64_t n = x;
     if(n <= 0x7F) {
         // 0bbb bbbb
         if(count < 1) {
-            return -1;
+            return 0;
         }
         *out = n;
         return 1;
     } else if(n <= 0x3FFF) {
         // 10bb bbbb bbbb bbbb
         if(count < 2) {
-            return -1;
+            return 0;
         }
     	uint16_t u = htobe16(n | 0x8000);
     	memcpy(out, &u, 2);
@@ -802,7 +893,7 @@ int ntf8_put64(uint64_t n, char *out, size_t count) {
     } else if(n <= 0x1FFFFF) {
         // 110b bbbb bbbb bbbb bbbb bbbb
         if(count < 3) {
-            return -1;
+            return 0;
         }
         uint32_t u = htobe32((n | 0xC00000) << 8);
     	memcpy(out, &u, 3);
@@ -810,7 +901,7 @@ int ntf8_put64(uint64_t n, char *out, size_t count) {
     } else if(n <= 0x0FFFFFFF) {
         // 1110 bbbb bbbb bbbb bbbb bbbb bbbb bbbb
         if(count < 4) {
-            return -1;
+            return 0;
         }
         uint32_t u = htobe32(n | 0xE0000000);
     	memcpy(out, &u, 4);
@@ -818,7 +909,7 @@ int ntf8_put64(uint64_t n, char *out, size_t count) {
     } else if(n <= 0x07FFFFFFFF) {
         // 1111 0bbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
         if(count < 5) {
-            return -1;
+            return 0;
         }
         uint64_t u = htobe64((n | 0xF000000000) << 24);
         memcpy(out, &u, 5);
@@ -826,7 +917,7 @@ int ntf8_put64(uint64_t n, char *out, size_t count) {
     } else if(n <= 0x03FFFFFFFFFF) {
         // 1111 10bb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
         if(count < 6) {
-            return -1;
+            return 0;
         }
         uint64_t u = htobe64((n | 0xF80000000000) << 16);
         memcpy(out, &u, 6);
@@ -834,7 +925,7 @@ int ntf8_put64(uint64_t n, char *out, size_t count) {
     } else if(n <= 0x01FFFFFFFFFFFF) {
         // 1111 110b bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
         if(count < 7) {
-            return -1;
+            return 0;
         }
         uint64_t u = htobe64((n | 0xFC000000000000) << 8);
         memcpy(out, &u, 7);
@@ -842,7 +933,7 @@ int ntf8_put64(uint64_t n, char *out, size_t count) {
     } else if(n <= 0x00FFFFFFFFFFFFFF) {
         // 1111 1110 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
         if(count < 8) {
-            return -1;
+            return 0;
         }
         uint64_t u = htobe64( n | 0xFE00000000000000);
         memcpy(out, &u, 8);
@@ -850,7 +941,7 @@ int ntf8_put64(uint64_t n, char *out, size_t count) {
     } else {
         // 1111 1111 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
         if(count < 9) {
-            return -1;
+            return 0;
         }
         *out = 0xFF;
         uint64_t u = htobe64(n);
@@ -859,10 +950,10 @@ int ntf8_put64(uint64_t n, char *out, size_t count) {
     }
 }
 
-int ntf8_get64(const char *in, size_t count, uint64_t *r) {
+int ntf8_get64(const char *in, size_t count, int64_t *r) {
     assert(r != nullptr);
     if(count == 0) {
-        return -1;
+        return 0;
     }
     uint8_t x = in[0];
     if(x < 0x80) {
@@ -872,7 +963,7 @@ int ntf8_get64(const char *in, size_t count, uint64_t *r) {
     } else if(x < 0xC0) {
         // 10bb bbbb bbbb bbbb
         if(count < 2) {
-            return -1;
+            return 0;
         }
         uint16_t u = 0;
         memcpy(&u,in,2);
@@ -881,7 +972,7 @@ int ntf8_get64(const char *in, size_t count, uint64_t *r) {
     } else if(x < 0xE0) {
         // 110b bbbb bbbb bbbb bbbb bbbb
         if(count < 3) {
-            return -1;
+            return 0;
         }
         uint32_t u = 0;
         memcpy(&u,in,3);
@@ -890,7 +981,7 @@ int ntf8_get64(const char *in, size_t count, uint64_t *r) {
     } else if(x < 0xF0) {
         // 1110 bbbb bbbb bbbb bbbb bbbb bbbb bbbb
         if(count < 4) {
-            return -1;
+            return 0;
         }
         uint32_t u = 0;
         memcpy(&u,in,4);
@@ -899,7 +990,7 @@ int ntf8_get64(const char *in, size_t count, uint64_t *r) {
     } else if(x < 0xF8) {
         // 1111 0bbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
         if(count < 5) {
-            return -1;
+            return 0;
         }
         uint64_t u = 0;
         memcpy(&u,in,5);
@@ -908,7 +999,7 @@ int ntf8_get64(const char *in, size_t count, uint64_t *r) {
     } else if(x < 0xFC) {
         // 1111 10bb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
         if(count < 6) {
-            return -1;
+            return 0;
         }
         uint64_t u = 0;
         memcpy(&u,in,6);
@@ -917,7 +1008,7 @@ int ntf8_get64(const char *in, size_t count, uint64_t *r) {
     } else if(x < 0xFE) {
         // 1111 110b bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
         if(count < 7) {
-            return -1;
+            return 0;
         }
         uint64_t u = 0;
         memcpy(&u,in,7);
@@ -926,7 +1017,7 @@ int ntf8_get64(const char *in, size_t count, uint64_t *r) {
     } else if(x < 0xFF) {
         // 1111 1110 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
         if(count < 8) {
-            return -1;
+            return 0;
         }
         uint64_t u = 0;
         memcpy(&u,in,8);
@@ -935,10 +1026,91 @@ int ntf8_get64(const char *in, size_t count, uint64_t *r) {
     } else {
         // 1111 1111 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
         if(count < 9) {
-            return -1;
+            return 0;
         }
         uint64_t u = 0;
         memcpy(&u,in+1,8);
+        *r = be64toh(u);
+        return 9;
+    }    
+}
+
+template<typename CharT, typename Traits>
+int ntf8_get64(std::basic_streambuf<CharT,Traits> *in, int64_t *r) {
+    typedef typename std::basic_streambuf<CharT,Traits> buf_type;    
+    assert(r != nullptr);
+    typename buf_type::int_type x = in->sgetc();
+    if(x == buf_type::traits_type::eof()) {
+        return 0;
+    }
+    if(x < 0x80) {
+        // 0bbb bbbb
+        in->sbumpc();
+        *r = x;
+        return 1;
+    } else if(x < 0xC0) {
+        // 10bb bbbb bbbb bbbb
+        uint16_t u = 0;
+        if(in->sgetn((char*)&u,2) != 2) {
+            return 0;
+        }
+        *r = be16toh(u) & 0x3FFF;
+        return 2;
+    } else if(x < 0xE0) {
+        // 110b bbbb bbbb bbbb bbbb bbbb
+        uint32_t u = 0;
+        if(in->sgetn((char*)&u,3) != 3) {
+            return 0;
+        }
+        *r = (be32toh(u) >> 8) & 0x1FFFFF;
+        return 3;
+    } else if(x < 0xF0) {
+        // 1110 bbbb bbbb bbbb bbbb bbbb bbbb bbbb
+        uint32_t u = 0;
+        if(in->sgetn((char*)&u,4) != 4) {
+            return 0;
+        }
+        *r = be32toh(u) & 0x0FFFFFFF;
+        return 4;
+    } else if(x < 0xF8) {
+        // 1111 0bbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
+        uint64_t u = 0;
+        if(in->sgetn((char*)&u,5) != 5) {
+            return 0;
+        }
+        *r = (be64toh(u) >> 24) & 0x07FFFFFFFF;
+        return 5;
+    } else if(x < 0xFC) {
+        // 1111 10bb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
+        uint64_t u = 0;
+        if(in->sgetn((char*)&u,6) != 6) {
+            return 0;
+        }
+        *r = (be64toh(u) >> 16) & 0x03FFFFFFFFFF;
+        return 6;
+    } else if(x < 0xFE) {
+        // 1111 110b bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
+        uint64_t u = 0;
+        if(in->sgetn((char*)&u,7) != 7) {
+            return 0;
+        }
+        *r = (be64toh(u) >> 8) & 0x01FFFFFFFFFFFF;
+        return 7;
+    } else if(x < 0xFF) {
+        // 1111 1110 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
+        uint64_t u = 0;
+        if(in->sgetn((char*)&u,8) != 8) {
+            return 0;
+        }
+        *r = be64toh(u) & 0x00FFFFFFFFFFFFFF;
+        return 8;
+    } else {
+        // 1111 1111 bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb
+        in->sbumpc();
+        uint64_t u = 0;        
+        if(in->sgetn((char*)&u,8) != 8) {
+            return 0;
+        }
         *r = be64toh(u);
         return 9;
     }

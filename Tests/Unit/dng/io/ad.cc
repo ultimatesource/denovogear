@@ -55,15 +55,15 @@ inline HexCharStruct hex(unsigned char u)
  Test the NTF8 format
  *****************************************************************************/
 
-int ntf8_put32(uint32_t n, char *out, size_t count);
-int ntf8_put64(uint64_t n, char *out, size_t count);
-int ntf8_get32(const char *in, size_t count, uint32_t *r);
-int ntf8_get64(const char *in, size_t count, uint64_t *r);
+int ntf8_put32(int32_t n, char *out, size_t count);
+int ntf8_put64(int64_t n, char *out, size_t count);
+int ntf8_get32(const char *in, size_t count, int32_t *r);
+int ntf8_get64(const char *in, size_t count, int64_t *r);
 
 bool ntf8_convert32(uint32_t n) {
     char buffer[5];
     int sz1 = ntf8_put32(n,buffer,5);
-    uint32_t u;
+    int32_t u;
     int sz2 = ntf8_get32(buffer,5,&u);
     if(sz1 != sz2 || u != n) {
         std::cerr << "  NTF8 32 conversion of " << n << "failed.\n";
@@ -78,7 +78,7 @@ bool ntf8_convert32(uint32_t n) {
 bool ntf8_convert64(uint64_t n) {
     char buffer[9];
     int sz1 = ntf8_put64(n,buffer,9);
-    uint64_t u;
+    int64_t u;
     int sz2 = ntf8_get64(buffer,9,&u);
     if(sz1 != sz2 || u != n) {
         std::cerr << "  NTF8 64 conversion of " << n << "failed.\n";
@@ -94,7 +94,7 @@ bool ntf8_convert64(uint64_t n) {
 BOOST_AUTO_TEST_CASE(test_ntf8) {
     std::vector<uint64_t> numbers;
     {
-        // user the lab's xorshift64 random generator
+        // use the lab's xorshift64 random generator
         uint64_t u = 15191868757011070976ULL;
         uint64_t w = 0x61C8864680B583EBLL;
         for(int i=0;i<10100;++i) {
@@ -138,7 +138,6 @@ BOOST_AUTO_TEST_CASE(test_ntf8) {
             BOOST_CHECK(ntf8_convert32(n & ((1LL<<i)-1)));
         }
     }
-
 }
 
 bool ad_write(std::vector<AlleleDepths> lines, std::vector<uint8_t> match) {
@@ -351,3 +350,5 @@ BOOST_AUTO_TEST_CASE(test_tad_read_and_write) {
     }
     BOOST_CHECK(string_equal(buffer_out.str(), tad_test2));
 }
+
+

@@ -82,6 +82,7 @@ public:
     const type_info_t& type_info() const { return type_info_table[type_]; }
 
     const data_t& data() const { return data_; }
+    data_t& data() { return data_; }
     size_type data_size() const { return data_.size(); };
     void data(data_t data) {
         assert(data.size() == data_.size());
@@ -99,8 +100,8 @@ public:
     size_type num_libraries() const { return num_libraries_; }
     size_type num_nucleotides() const { return type_info().width; }
     std::pair<size_type,size_type> dimensions() const { return {num_nucleotides(), num_libraries()}; }
-    void resize(size_type num_lib) {
-        num_libraries_ = num_lib;
+    void resize(int8_t type) {
+        type_ = type;
         data_.resize(num_nucleotides()*num_libraries());
     }
     void resize(int8_t type, size_type num_lib) {
