@@ -30,14 +30,14 @@
 #include <boost/range/algorithm_ext/erase.hpp>
 #include <boost/container/flat_set.hpp>
 
+
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/identity.hpp>
 #include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/random_access_index.hpp>
 #include <boost/multi_index/member.hpp>
 
 #include <unordered_set>
-
-#include <htslib/vcf.h>
 
 namespace dng {
 

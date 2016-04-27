@@ -34,6 +34,9 @@
 #include <boost/spirit/include/karma.hpp>
 #include <boost/fusion/include/std_pair.hpp>
 
+#include <boost/range/begin.hpp>
+#include <boost/range/end.hpp>
+
 using namespace dng::pileup;
 
 const AlleleDepths::type_info_t
@@ -168,52 +171,10 @@ const AlleleDepths::type_info_t
     {127, 4, "NTGCA", "ntgca", 4, {3,2,1,0}}
 };
 
-constexpr int type_info_table_length = 128;
-static_assert(sizeof(AlleleDepths::type_info_table) / sizeof(AlleleDepths::type_info_t) == type_info_table_length,
-    "AlleleDepths::type_info_table does not have 128 elements.");
-
-struct tad_label_lookup_t {
-    boost::spirit::qi::tst<char, int> tst_;
-    tad_label_lookup_t() {
-        for(int i=0; i<type_info_table_length; ++i) {
-            auto & slot = AlleleDepths::type_info_table[i];
-            tst_.add(slot.label_upper, slot.label_upper+strlen(slot.label_upper),i);
-        }
-    }
-    int operator()(const std::string &s) {
-        auto first = s.cbegin();
-        auto last = s.cend();
-
-        int *p = tst_.find(first,last, [](char ch) -> char { return std::toupper(ch); });
-        if(first != last || p == nullptr) {
-            return -1;
-        }
-        return *p;
-    }
-};
-
-int8_t AlleleDepths::LookupType(const std::string& ss) {
-    static tad_label_lookup_t db;
-    return db(ss);
-}
-
-int8_t AlleleDepths::LookupType(const std::vector<std::size_t> &indexes, bool ref_is_n) {
-    static size_t starts[] = {0, 4, 16, 40, 64};
-
-    assert(1 <= indexes.size() && indexes.size() <= 4);
-    auto start = &type_info_table[0] + starts[indexes.size()-1] + (ref_is_n ? 64 : 0);
-    auto end =   &type_info_table[0] + starts[indexes.size()] + (ref_is_n ? 64 : 0);
-
-    auto it = std::find_if(start, end, [&](const type_info_t& type) {
-        for(size_t u = 0; u < indexes.size(); ++u) {
-            if(type.indexes[u] != indexes[u]) {
-                return false;
-            }
-        }
-        return true;
-    });
-    return (it != end) ? it->type : -1;
-}
+namespace dng { namespace pileup {
+AlleleDepths::match_labels_t AlleleDepths::MatchLabel;
+AlleleDepths::match_indexes_t AlleleDepths::MatchIndexes;
+}}
 
 int ntf8_put32(int32_t n, char *out, size_t count);
 int ntf8_put64(int64_t n, char *out, size_t count);
@@ -230,21 +191,18 @@ int ntf8_get64(std::basic_streambuf<CharT,Traits> *in, int64_t *r);
 void dng::io::Ad::Clear() {
     contigs_.clear();
     libraries_.clear();
-    id_.name.clear();
-    id_.version = 0;
-    id_.attributes.clear();
     extra_headers_.clear();
-    contig_tst_.clear();    
-}
+    contig_tst_.clear();
 
-void tab_append(std::string *out, const std::string &in, char d='\t') {
-    assert(out != nullptr);
-    if(out->empty()) {
-        *out = in;
+    if(format_ == Format::AD) {
+        id_.version = 0x0001;
+        id_.name = "AD";        
     } else {
-        *out += d;
-        *out += in;
+        id_.version = 0x0001;
+        id_.name = "TAD";
     }
+    id_.attributes.clear();
+    counter_ = 0;
 }
 
 std::string dng::io::Ad::HeaderString() const {    
@@ -342,6 +300,18 @@ void dng::io::Ad::ParseHeaderTokens(It it, It it_last) {
                 "Expected the @TAG at the beginning of a header line but got '" + *it +"'."));            
         }
     }
+}
+
+void dng::io::Ad::AddHeaderLines(const std::string& lines) {
+    // Tokenize header
+    using namespace boost;
+    using namespace std;
+    typedef tokenizer<char_separator<char>,
+            string::const_iterator> tokenizer;
+    char_separator<char> sep("\t", "\n");
+    tokenizer tokens(lines.begin(), lines.end(), sep);
+    // Parse Tokens
+    ParseHeaderTokens(tokens.begin(), tokens.end());
 }
 
 int dng::io::Ad::ReadHeaderTad() {
@@ -486,7 +456,7 @@ int dng::io::Ad::ReadTad(AlleleDepths *pline) {
     pline->location(utility::make_location(contig_num,position-1));
 
     // parse type and resize
-    int8_t ty = AlleleDepths::LookupType(store[2]);
+    int8_t ty = AlleleDepths::MatchLabel(store[2]);
     if(ty == -1) {
         throw(runtime_error("Unable to parse TAD record: Type '" + store[2] + "' is unknown."));        
     }
@@ -579,14 +549,8 @@ int dng::io::Ad::ReadHeaderAd() {
     if(pos != string::npos) {
         tad_header.resize(pos);
     }
- 
-    // Tokenize header
-    typedef tokenizer<char_separator<char>,
-            string::const_iterator> tokenizer;
-    char_separator<char> sep("\t", "\n");
-    tokenizer tokens(tad_header.begin(), tad_header.end(), sep);
-    // Parse Tokens
-    ParseHeaderTokens(tokens.begin(), tokens.end());
+    
+    AddHeaderLines(tad_header); 
     return 1;
 }
 
@@ -683,10 +647,10 @@ int dng::io::Ad::WriteAd(const AlleleDepths& line) {
     // set counter
     counter_ += 1;
 
-    // Fetch type and check if it is positive
-    int8_t type = line.type();
-    assert(type >= 0);
-    int64_t u = (loc << 7) | type; 
+    // Fetch color and check if it is positive
+    int8_t color = line.color();
+    assert(color >= 0);
+    int64_t u = (loc << 7) | color; 
     char buffer[9];
     // write out contig, position, and location
     int sz = ntf8_put64(u, buffer,sizeof(buffer));

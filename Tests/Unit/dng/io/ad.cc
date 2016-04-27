@@ -337,7 +337,7 @@ BOOST_AUTO_TEST_CASE(test_ad_write_and_read) {
         const AlleleDepths &a = outdepths[i];
         const AlleleDepths &b = indepths[i];
         BOOST_CHECK(a.location() == b.location());
-        BOOST_CHECK(a.type() == b.type());
+        BOOST_CHECK(a.color() == b.color());
         BOOST_CHECK(a.data() == b.data());        
     }
 }
@@ -430,27 +430,27 @@ BOOST_AUTO_TEST_CASE(test_tad_read) {
     AlleleDepths depths;
     adfile.Read(&depths);
     BOOST_CHECK(depths.location() == make_location(0,0));
-    BOOST_CHECK(depths.type() == 0);
+    BOOST_CHECK(depths.color() == 0);
     BOOST_CHECK(depths.data() == V({10,9}));
 
     adfile.Read(&depths);
     BOOST_CHECK(depths.location() == make_location(0,1));
-    BOOST_CHECK(depths.type() == 1);
+    BOOST_CHECK(depths.color() == 1);
     BOOST_CHECK(depths.data() == V({8,7}));
 
     adfile.Read(&depths);
     BOOST_CHECK(depths.location() == make_location(0,2));
-    BOOST_CHECK(depths.type() == 11);
+    BOOST_CHECK(depths.color() == 11);
     BOOST_CHECK(depths.data() == V({6,0,0,2}));
 
     adfile.Read(&depths);
     BOOST_CHECK(depths.location() == make_location(1,0));
-    BOOST_CHECK(depths.type() == 3);
+    BOOST_CHECK(depths.color() == 3);
     BOOST_CHECK(depths.data() == V({4,0}));    
 
     adfile.Read(&depths);
     BOOST_CHECK(depths.location() == make_location(2,0));
-    BOOST_CHECK(depths.type() == 127);
+    BOOST_CHECK(depths.color() == 127);
     BOOST_CHECK(depths.data() == V({0,4,0,0,0,0,1,0}));
 }
 

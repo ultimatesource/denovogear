@@ -85,14 +85,11 @@ public:
         BinaryFile::Open(filename, mode);
         if(boost::iequals(type_label_, "ad")) {
             format_ = Format::AD;
-            id_.version = 0x0001;
-            id_.name = "AD";
         } else {
             format_ = Format::TAD;
-            id_.version = 0x0001;
-            id_.name = "TAD";
         }
-        counter_ = 0;
+        // Clear header information
+        Clear();
     }
 
     int ReadHeader() {
@@ -135,6 +132,8 @@ public:
             return WriteHeaderTad();
         }
     }
+
+    void AddHeaderLines(const std::string& lines);
 
     int Read(AlleleDepths *pline) {
         // If stream_ has issues, i.e. eof, return 0.

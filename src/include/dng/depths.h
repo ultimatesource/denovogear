@@ -26,6 +26,8 @@
 
 #include <dng/utility.h>
 
+#include <boost/spirit/home/qi/string/tst.hpp>
+
 namespace dng {
 namespace pileup {
 
@@ -33,32 +35,46 @@ class AlleleDepths {
 public:
     // information used to decode/encode AlleleDepths types
     struct type_info_t {
-        char type;  // binary id of the type
+        char color; // binary id of the type
         char width; // the number of nucleotides in the type
         char label_upper[6]; // upper_case text version of the type
         char label_lower[6]; // lower_case text version of the type
         char reference; // the value of the reference base
-        char indexes[4]; // the value of the alleles.  Only use .width many.
+        char indexes[4]; // the value of the alleles. Only use .width many. 
     };
     static const type_info_t type_info_table[128];
-    static int8_t LookupType(const std::vector<std::size_t> &indexes, bool ref_is_n);
-    static int8_t LookupType(const std::string& ss);
+    static constexpr int type_info_table_length = 128;
+
+    struct match_labels_t {
+        boost::spirit::qi::tst<char, int> tree;
+        match_labels_t();
+        template<typename Range> int operator()(const Range &rng) const;
+  
+    };
+    static match_labels_t MatchLabel;
+
+    struct match_indexes_t {
+        boost::spirit::qi::tst<char, int> tree;
+        match_indexes_t();
+        template<typename Range> int operator()(const Range &rng) const;
+    };
+    static match_indexes_t MatchIndexes;
 
     typedef std::vector<int32_t> data_t;
     typedef data_t::size_type size_type;
 
-    AlleleDepths() : location_{0}, type_{0}, num_libraries_{0} { }
+    AlleleDepths() : location_{0}, color_{0}, num_libraries_{0} { }
 
-    AlleleDepths(location_t location, int8_t type, size_type num_lib, data_t data) :
-        location_(location), type_(type), num_libraries_(num_lib),
+    AlleleDepths(location_t location, int8_t color, size_type num_lib, data_t data) :
+        location_(location), color_(color), num_libraries_(num_lib),
         data_(std::move(data))
     {
         assert(data_.size() == num_libraries()*num_nucleotides());
     }
 
-    AlleleDepths(location_t location, int8_t type, size_type num_lib) :
-        location_(location), type_(type), num_libraries_(num_lib),
-        data_(num_lib*type_info_table[type].width, 0)
+    AlleleDepths(location_t location, int8_t color, size_type num_lib) :
+        location_(location), color_(color), num_libraries_(num_lib),
+        data_(num_lib*type_info_table[color].width, 0)
     {
     }
 
@@ -77,9 +93,9 @@ public:
     void location(location_t location) { location_ = location; }
     void location(int contig, int position) { location_ = utility::make_location(contig, position); }
 
-    int8_t type() const { return type_; }
-    void type(int8_t type) { type_ = type; }
-    const type_info_t& type_info() const { return type_info_table[type_]; }
+    int8_t color() const { return color_; }
+    void color(int8_t color) { color_ = color; }
+    const type_info_t& type_info() const { return type_info_table[color_]; }
 
     const data_t& data() const { return data_; }
     data_t& data() { return data_; }
@@ -100,13 +116,13 @@ public:
     size_type num_libraries() const { return num_libraries_; }
     size_type num_nucleotides() const { return type_info().width; }
     std::pair<size_type,size_type> dimensions() const { return {num_nucleotides(), num_libraries()}; }
-    void resize(int8_t type) {
-        type_ = type;
+    void resize(int8_t color) {
+        color_ = color;
         data_.resize(num_nucleotides()*num_libraries());
     }
-    void resize(int8_t type, size_type num_lib) {
+    void resize(int8_t color, size_type num_lib) {
+        color_ = color;
         num_libraries_ = num_lib;
-        type_ = type;
         data_.resize(num_nucleotides()*num_libraries());
     }
     void zero() {
@@ -114,7 +130,7 @@ public:
     }
     void swap(AlleleDepths& other) {
         std::swap(location_, other.location_);
-        std::swap(type_, other.type_);
+        std::swap(color_, other.color_);
         std::swap(num_libraries_, other.num_libraries_);
         data_.swap(other.data_);
     }
@@ -123,8 +139,54 @@ protected:
     location_t location_;
     size_type num_libraries_;
     data_t data_;
-    int8_t  type_;
+    int color_;
 };
+
+static_assert(sizeof(AlleleDepths::type_info_table) / sizeof(AlleleDepths::type_info_t) == AlleleDepths::type_info_table_length,
+    "AlleleDepths::type_info_table does not have 128 elements.");
+
+inline
+AlleleDepths::match_labels_t::match_labels_t() {
+    for(int i=0; i<type_info_table_length; ++i) {
+        auto & slot = AlleleDepths::type_info_table[i];
+        tree.add(slot.label_upper, slot.label_upper+strlen(slot.label_upper), i);
+    }    
+}
+
+template<typename Range>
+inline
+int AlleleDepths::match_labels_t::operator()(const Range &rng) const {
+    auto first = boost::begin(rng);
+    auto last =  boost::end(rng);
+
+    int *p = tree.find(first,last, [](char ch) -> char { return std::toupper(ch); });
+    if(first != last || p == nullptr) {
+        return -1;
+    }
+    return *p;
+}
+
+inline
+AlleleDepths::match_indexes_t::match_indexes_t() {
+    // only add the first half of the table
+    for(int i=0; i<type_info_table_length/2; ++i) {
+        auto & slot = AlleleDepths::type_info_table[i];
+        tree.add(&slot.indexes[0], &slot.indexes[slot.width], i);
+    }    
+}
+
+template<typename Range>
+inline
+int AlleleDepths::match_indexes_t::operator()(const Range &rng) const {
+    auto first = boost::begin(rng);
+    auto last =  boost::end(rng);
+
+    int *p = tree.find(first,last);
+    if(first != last || p == nullptr) {
+        return -1;
+    }
+    return *p;
+}
 
 } // namespace pileup
 } // namespace dng

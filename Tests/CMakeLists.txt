@@ -54,10 +54,11 @@ set(DNG_DNM_EXE ${CMAKE_BINARY_DIR}/src/dng-dnm)
 set(DNG_PHASER_EXE ${CMAKE_BINARY_DIR}/src/dng-phaser)
 set(DNG_CALL_EXE ${CMAKE_BINARY_DIR}/src/dng-call)
 set(DNG_LOGLIKE_EXE ${CMAKE_BINARY_DIR}/src/dng-loglike)
+set(DNG_PILEUP_EXE ${CMAKE_BINARY_DIR}/src/dng-pileup)
 
 ###############################################################################
 # Add tests for various build targets so we can depend on them
-set(build_test_targets testdata dng-call dng-loglike dng-dnm dng-phaser)
+set(build_test_targets testdata dng-call dng-loglike dng-dnm dng-phaser dng-pileup)
 foreach(target ${build_test_targets})
   add_test(Build.${target} "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target ${target})
 endforeach()
@@ -106,3 +107,5 @@ AddCMakeTest(DngDnm.Auto "" "Build.dng-dnm;Build.testdata")
 AddCMakeTest(DngPhaser.Run "" "Build.dng-phaser")
 AddCMakeTest(DngPhaser.Data "" "Build.dng-phaser;Build.testdata")
 
+AddCMakeTest(DngPileup.Run "" "Build.dng-pileup")
+AddCMakeTest(DngPileup.Bam "" "Build.dng-pileup;Build.testdata")

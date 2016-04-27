@@ -134,6 +134,7 @@ bool Fasta::UpdateBuffer(int contig, int first, int last) {
         last = len-1;
     }
 
+    std::cerr << contig << " " << name(contig) << std::endl;
     buffer_.reset(faidx_fetch_seq(fai_.get(), name(contig), first, last, &buffer_length_));
     if(buffer_length_ < 0) {
         buffer_contig_ = -1;
