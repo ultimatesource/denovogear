@@ -191,7 +191,6 @@ public:
         return pos;
     }
 
-
 private:
     int ReadHeaderAd();
     int WriteHeaderAd();

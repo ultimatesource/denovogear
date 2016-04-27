@@ -31,28 +31,45 @@
 #include <boost/filesystem.hpp>
 
 #include <dng/io/utility.h>
+#include <dng/utility.h>
 
 namespace dng {
 namespace io {
 
 class Fasta {
 public:
+    typedef dng::utility::location_t location_t;
+
     explicit Fasta(const char* path);
 
-    const std::string& name() const { return filename_; }
-    bool is_open() const { return fai_; }
+    const std::string& path() const { return path_.native(); }
+    bool is_open() const { return (bool)fai_; }
 
-    operator bool() const { return is_open(); }
+    explicit operator bool() const { return is_open(); }
 
-    std::pair<const char*,int> FetchSequence(const char* target_name, int first_pos=0, int last_pos=0x7FFFFFFF);
-    std::string FetchSequenceAsString(const char* target_name, int first_pos=0, int last_pos=0x7FFFFFFF);
+    const char* FetchSequence(int contig, int first_pos=0, int last_pos=0x80000000);
+    std::pair<int, int> FetchRange() const;
+
+    char FetchBase(location_t loc);
+
+    const char* name(int i) const;
+    int length(int i) const;
+    int count() const;
+    bool contains(const char *seq) const;
 
     std::string FetchDictionary() const;
 
 protected:
+    bool UpdateBuffer(int contig, int first, int last);
+
     std::unique_ptr<faidx_t, void(*)(faidx_t *)> fai_{nullptr, fai_destroy};
-    std::unique_ptr<char[], void(*)(void *)> ref_{nullptr, free};
-    int ref_length_{0};
+
+    // Buffer to hold fetched sequences so that they are freed
+    std::unique_ptr<char[], void(*)(void *)> buffer_{nullptr, free};
+    int buffer_length_{0};
+    int buffer_contig_{-1};
+    int buffer_first_{-1};
+    int buffer_last_{-1};
 
     boost::filesystem::path path_;
 };
@@ -61,23 +78,98 @@ inline Fasta::Fasta(const char* path) : path_{path} {
     if(path_.empty())
         return;
     fai_.reset(fai_load(path_.c_str()));
-    if(!fai) {
+    if(!fai_) {
         throw std::runtime_error("unable to open faidx-indexed reference file '"
-                                     + filename_ + "'.");
+                                     + path_.native() + "'.");
     }
 }
 
-inline 
-std::pair<const char*,int> Fasta::FetchSeq(const char* target_name, int first, int last) {
+inline
+const char* Fasta::name(int i) const {
     assert(fai_);
-    ref_.reset(faidx_fetch_seq(fai.get(), target_name, first, last, &ref_length_));
-    return {ref_.get(), ref_length_};
+    return faidx_iseq(fai_.get(), i);
 }
 
 inline
-std::string Fasta::FetchSeqAsString(const char* target_name, int first_pos, int last_pos) {
-    auto result = FetchSeq(target_name, first_pos, last_pos);
-    return {result.first, result.second};
+int Fasta::length(int i) const {
+    assert(fai_);
+    return faidx_seq_len(fai_.get(), name(i));
+}
+
+inline
+int Fasta::count() const {
+    assert(fai_);
+    return faidx_nseq(fai_.get());
+}
+
+inline
+bool Fasta::contains(const char *seq) const {
+    assert(fai_);
+    assert(seq != nullptr);
+    return faidx_has_seq(fai_.get(),seq);
+}
+
+inline
+bool Fasta::UpdateBuffer(int contig, int first, int last) {
+    assert(fai_);
+    assert(contig >= 0);
+    if(buffer_contig_ == contig && buffer_first_ <= first && last <= buffer_last_) {
+        return true;
+    }
+    // faidx_fetch_seq assumes inclusive
+    last = last-1;
+    if(last < first) {
+        first = last;
+    }
+    // update first and last to reflect htslib rules
+    int len = length(contig);
+    if(first < 0) {
+        first = 0;
+    } else if(first >= len) {
+        first = len-1;
+    }
+    if(last < 0) {
+        last = 0;
+    } else if(last >= len) {
+        last = len-1;
+    }
+
+    buffer_.reset(faidx_fetch_seq(fai_.get(), name(contig), first, last, &buffer_length_));
+    if(buffer_length_ < 0) {
+        buffer_contig_ = -1;
+        return false;
+    }
+    buffer_contig_ = contig;
+    buffer_first_ = first;
+    buffer_last_ = last+1;
+    return true;
+}
+
+inline
+char Fasta::FetchBase(location_t loc) {
+    if(!UpdateBuffer(utility::location_to_contig(loc), 0, 0x80000000)) {
+        return 'N';
+    }
+    int pos = utility::location_to_position(loc);
+    if(pos >= buffer_last_ || pos < buffer_first_) {
+        return 'N';
+    }
+    return *(buffer_.get()+pos);
+}
+
+inline 
+const char* Fasta::FetchSequence(int contig, int first, int last) {
+    assert(fai_);
+    assert(first <= last);
+    if(!UpdateBuffer(contig,first,last) || first < buffer_first_ || (first-buffer_first_) > buffer_length_) {
+        return nullptr;
+    }
+    return buffer_.get()+(first-buffer_first_);
+}
+
+inline
+std::pair<int, int> Fasta::FetchRange() const {
+    return {buffer_first_, buffer_last_};
 }
 
 inline
@@ -87,10 +179,10 @@ std::string Fasta::FetchDictionary() const {
         dict.replace_extension();
     }
     dict.replace_extension(".dict");
-    return slurp_file(boost::filesystem::ifstream{dict});
+    boost::filesystem::ifstream file{dict};
+    return slurp(file);
 }
 
-}
-} // namespace dng::io
+}} // namespace dng::io
 
 #endif // DNG_IO_FASTA_H

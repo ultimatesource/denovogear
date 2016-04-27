@@ -1,5 +1,6 @@
 add_library(libdng STATIC
   call.cc
+  pileup.cc
   likelihood.cc
   newick.cc
   pedigree.cc

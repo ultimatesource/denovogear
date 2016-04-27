@@ -44,7 +44,6 @@ std::basic_string<X,T,A> slurp(std::basic_ifstream<X,T>& input) {
     ret.resize(input.tellg());
     input.seekg(0, std::ios::beg);
     input.read(&ret[0], ret.size());
-    input.close();
     return ret;
 }
 
