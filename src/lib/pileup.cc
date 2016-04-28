@@ -192,8 +192,8 @@ int Pileup::operator()(Pileup::argument_type &arg) {
         if( (*first & 0xFF) >= 4 ) {
             first_is_N = 64;
         }
-        auto rng = boost::make_iterator_range(first,last);
-        boost::for_each(rng, [](unsigned long long &x) { x &= 0xFF; });
+        string rng(first, last);
+        //boost::for_each(rng, [](unsigned long long &x) { x &= 0xFF; });
         int color = AlleleDepths::MatchIndexes(rng)+first_is_N;
         assert(0 <= color && color < 128);
         line.location(loc);

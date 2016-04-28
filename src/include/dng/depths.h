@@ -26,7 +26,9 @@
 
 #include <dng/utility.h>
 
-#include <boost/spirit/home/qi/string/tst.hpp>
+#include <unordered_map>
+
+#include <boost/algorithm/string/case_conv.hpp>
 
 namespace dng {
 namespace pileup {
@@ -46,17 +48,18 @@ public:
     static constexpr int type_info_table_length = 128;
 
     struct match_labels_t {
-        boost::spirit::qi::tst<char, int> tree;
+        std::unordered_map<std::string,int> tree;
         match_labels_t();
-        template<typename Range> int operator()(const Range &rng) const;
+        int operator()(std::string str) const;
   
     };
     static match_labels_t MatchLabel;
 
     struct match_indexes_t {
-        boost::spirit::qi::tst<char, int> tree;
+        std::unordered_map<std::string,int> tree;
         match_indexes_t();
-        template<typename Range> int operator()(const Range &rng) const;
+
+        int operator()(const std::string &rng) const;
     };
     static match_indexes_t MatchIndexes;
 
@@ -149,21 +152,15 @@ inline
 AlleleDepths::match_labels_t::match_labels_t() {
     for(int i=0; i<type_info_table_length; ++i) {
         auto & slot = AlleleDepths::type_info_table[i];
-        tree.add(slot.label_upper, slot.label_upper+strlen(slot.label_upper), i);
-    }    
+        tree.emplace(slot.label_upper, i);
+    }
 }
 
-template<typename Range>
 inline
-int AlleleDepths::match_labels_t::operator()(const Range &rng) const {
-    auto first = boost::begin(rng);
-    auto last =  boost::end(rng);
-
-    int *p = tree.find(first,last, [](char ch) -> char { return std::toupper(ch); });
-    if(first != last || p == nullptr) {
-        return -1;
-    }
-    return *p;
+int AlleleDepths::match_labels_t::operator()(std::string str) const {
+    boost::to_upper(str);
+    auto it = tree.find(str);
+    return (it != tree.end()) ? it->second : -1;
 }
 
 inline
@@ -171,21 +168,14 @@ AlleleDepths::match_indexes_t::match_indexes_t() {
     // only add the first half of the table
     for(int i=0; i<type_info_table_length/2; ++i) {
         auto & slot = AlleleDepths::type_info_table[i];
-        tree.add(&slot.indexes[0], &slot.indexes[slot.width], i);
+        tree.emplace(std::string(&slot.indexes[0], &slot.indexes[slot.width]), i);
     }    
 }
 
-template<typename Range>
 inline
-int AlleleDepths::match_indexes_t::operator()(const Range &rng) const {
-    auto first = boost::begin(rng);
-    auto last =  boost::end(rng);
-
-    int *p = tree.find(first,last);
-    if(first != last || p == nullptr) {
-        return -1;
-    }
-    return *p;
+int AlleleDepths::match_indexes_t::operator()(const std::string &rng) const {
+    auto it = tree.find(rng);
+    return (it != tree.end()) ? it->second : -1;
 }
 
 } // namespace pileup
