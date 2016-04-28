@@ -44,16 +44,6 @@ using namespace std;
 using namespace dng;
 using namespace dng::task;
 
-void tab_append(std::string *out, const std::string &in, char d='\t') {
-    assert(out != nullptr);
-    if(out->empty()) {
-        *out = in;
-    } else {
-        *out += d;
-        *out += in;
-    }
-}
-
 // The main loop for dng-pileup application
 // argument_type arg holds the processed command line arguments
 int Pileup::operator()(Pileup::argument_type &arg) {
