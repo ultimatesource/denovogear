@@ -25,6 +25,7 @@
 #include <memory>
 #include <utility>
 #include <string>
+#include <algorithm>
 
 #include <htslib/faidx.h>
 
@@ -47,11 +48,12 @@ public:
 
     explicit operator bool() const { return is_open(); }
 
-    const char* FetchSequence(int contig, int first_pos=0, int last_pos=0x80000000);
+    const char* FetchSequence(const char* contig, int first=0, int last=0x80000000);
     std::pair<int, int> FetchRange() const;
 
-    char FetchBase(location_t loc);
+    char FetchBase(const char* contig, int pos);
 
+    int length(const char *seq) const;
     const char* name(int i) const;
     int length(int i) const;
     int count() const;
@@ -60,16 +62,18 @@ public:
     std::string FetchDictionary() const;
 
 protected:
-    bool UpdateBuffer(int contig, int first, int last);
+    bool UpdateBuffer(const char* contig, int first, int length);
+    bool BufferContains(const char* contig, int first, int last);
+    bool BufferContains(const char* contig, int pos);
 
     std::unique_ptr<faidx_t, void(*)(faidx_t *)> fai_{nullptr, fai_destroy};
 
     // Buffer to hold fetched sequences so that they are freed
     std::unique_ptr<char[], void(*)(void *)> buffer_{nullptr, free};
-    int buffer_length_{0};
-    int buffer_contig_{-1};
-    int buffer_first_{-1};
-    int buffer_last_{-1};
+    const char *buffer_contig_{nullptr};
+    int buffer_length_;
+    int buffer_first_;
+    int buffer_last_;
 
     boost::filesystem::path path_;
 };
@@ -85,15 +89,30 @@ inline Fasta::Fasta(const char* path) : path_{path} {
 }
 
 inline
+bool Fasta::contains(const char *seq) const {
+    assert(fai_);
+    return (seq != nullptr) ? faidx_has_seq(fai_.get(),seq) : false;
+}
+
+inline
+int Fasta::length(const char *seq) const {
+    return (seq != nullptr) ? faidx_seq_len(fai_.get(), seq) : -1;
+}
+
+inline
 const char* Fasta::name(int i) const {
     assert(fai_);
+    if(i < 0 || count() <= i) {
+        return nullptr;
+    }
     return faidx_iseq(fai_.get(), i);
 }
 
 inline
 int Fasta::length(int i) const {
     assert(fai_);
-    return faidx_seq_len(fai_.get(), name(i));
+    const char* seq =  name(i);
+    return (seq != nullptr) ? faidx_seq_len(fai_.get(), seq) : -1;
 }
 
 inline
@@ -103,41 +122,39 @@ int Fasta::count() const {
 }
 
 inline
-bool Fasta::contains(const char *seq) const {
-    assert(fai_);
-    assert(seq != nullptr);
-    return faidx_has_seq(fai_.get(),seq);
+bool Fasta::BufferContains(const char* contig, int first, int last) {
+    return (contig != nullptr && buffer_contig_ == contig && last <= buffer_last_ && buffer_first_ <= first && first < last );
 }
 
 inline
-bool Fasta::UpdateBuffer(int contig, int first, int last) {
+bool Fasta::BufferContains(const char* contig, int pos) {
+    return (pos < buffer_last_ && contig != nullptr && buffer_contig_ == contig && buffer_first_ <= pos);
+}
+
+inline
+bool Fasta::UpdateBuffer(const char* contig, int first, int buffer_length) {
     assert(fai_);
-    assert(contig >= 0);
-    if(buffer_contig_ == contig && buffer_first_ <= first && last <= buffer_last_) {
-        return true;
-    }
-    // faidx_fetch_seq assumes inclusive
-    last = last-1;
-    if(last < first) {
-        first = last;
+    if(contig == nullptr || buffer_length < 0) {
+        return false;
     }
     // update first and last to reflect htslib rules
     int len = length(contig);
+    if(len < 0) {
+        return false;
+    }
     if(first < 0) {
         first = 0;
     } else if(first >= len) {
         first = len-1;
     }
-    if(last < 0) {
-        last = 0;
-    } else if(last >= len) {
-        last = len-1;
-    }
+    buffer_length = std::min(buffer_length,len-first);
 
-    std::cerr << contig << " " << name(contig) << std::endl;
-    buffer_.reset(faidx_fetch_seq(fai_.get(), name(contig), first, last, &buffer_length_));
+    // faidx_fetch_seq assumes inclusive
+    int last = first+buffer_length-1;
+
+    buffer_.reset(faidx_fetch_seq(fai_.get(), contig, first, last, &buffer_length_));
     if(buffer_length_ < 0) {
-        buffer_contig_ = -1;
+        buffer_contig_ = nullptr;
         return false;
     }
     buffer_contig_ = contig;
@@ -147,22 +164,25 @@ bool Fasta::UpdateBuffer(int contig, int first, int last) {
 }
 
 inline
-char Fasta::FetchBase(location_t loc) {
-    if(!UpdateBuffer(utility::location_to_contig(loc), 0, 0x80000000)) {
+char Fasta::FetchBase(const char* contig, int pos) {
+    if(BufferContains(contig,pos)) {
+        return *(buffer_.get()+(pos-buffer_first_));
+    }
+    if(!UpdateBuffer(contig, pos, 262144)) {
         return 'N';
     }
-    int pos = utility::location_to_position(loc);
     if(pos >= buffer_last_ || pos < buffer_first_) {
         return 'N';
     }
-    return *(buffer_.get()+pos);
+    return *(buffer_.get()+(pos-buffer_first_));
 }
 
 inline 
-const char* Fasta::FetchSequence(int contig, int first, int last) {
-    assert(fai_);
-    assert(first <= last);
-    if(!UpdateBuffer(contig,first,last) || first < buffer_first_ || (first-buffer_first_) > buffer_length_) {
+const char* Fasta::FetchSequence(const char* contig, int first, int last) {
+    if(BufferContains(contig,first,last)) {
+        return buffer_.get()+(first-buffer_first_);
+    }
+    if(!UpdateBuffer(contig,first,last-first) || first < buffer_first_ || (first-buffer_first_) > buffer_length_) {
         return nullptr;
     }
     return buffer_.get()+(first-buffer_first_);

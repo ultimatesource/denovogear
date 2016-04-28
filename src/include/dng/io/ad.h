@@ -95,9 +95,10 @@ public:
     int ReadHeader() {
         // Seek to the beginning of the stream
         stream_.seekg(0);
-        if(!stream_) {
+        if(stream_.bad()) {
             return 0;
         }
+        stream_.clear();    
         // Clear header information
         Clear();
 
@@ -122,10 +123,11 @@ public:
 
     int WriteHeader() {
         // Seek to the beginning of the stream
-        stream_.seekg(0);
-        if(!stream_) {
+        stream_.seekp(0);
+        if(stream_.bad()) {
             return 0;
         }
+        stream_.clear();
         if(format_ == Format::AD) {
             return WriteHeaderAd();
         } else {

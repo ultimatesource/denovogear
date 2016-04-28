@@ -102,9 +102,11 @@ int Pileup::operator()(Pileup::argument_type &arg) {
     };
 
     // Outputfile
-    AlleleDepths line;
     io::Ad output{arg.output, std::ios_base::out};
     string dict = reference.FetchDictionary();
+    if(dict.empty()) {
+        throw(runtime_error("Dictionary for reference " + reference.path() + " is missing."));
+    }
     output.AddHeaderLines(dict);
 
     // Construct Library Information
@@ -132,11 +134,30 @@ int Pileup::operator()(Pileup::argument_type &arg) {
     }
     output.WriteHeader();
 
+    // setup initial line buffer
+    AlleleDepths line;
+    line.resize(63,rgs.libraries().size());
+
     // Do pileup
+    const bam_hdr_t *h = bamdata[0].header();
+    assert(h != nullptr);
+    if(h->n_targets != output.contigs().size()) {
+        throw(runtime_error("Different number of @SQ lines in reference dictionary and first sam/bam/cram file."));
+    }
+    for(int n = 0; n < h->n_targets; ++n) {
+        if(output.contig(n).name != h->target_name[n] ||
+           output.contig(n).length != h->target_len[n]) {
+            throw(runtime_error("Disagreement between @SQ lines in reference dictionary and first sam/bam/cram file." ));
+        }
+    }
+
     dng::BamPileup mpileup{rgs.groups(), arg.min_qlen};
-    mpileup(bamdata, [&](const dng::BamPileup::data_type & data, utility::location_t loc) {
+    mpileup(bamdata, [&,h](const dng::BamPileup::data_type & data, utility::location_t loc) {
         // Calculate target position and fetch sequence name
-        char ref_base = reference.FetchBase(loc);
+        int contig = utility::location_to_contig(loc);
+        int pos = utility::location_to_position(loc);
+        assert(0 <= contig && contig < h->n_targets);
+        char ref_base = reference.FetchBase(h->target_name[contig],pos);
         size_t ref_index = seq::char_index(ref_base);
 
         // reset all depth counters
@@ -162,8 +183,13 @@ int Pileup::operator()(Pileup::argument_type &arg) {
         // since depths must fit into a signed int, this is safe, check anyways
         static_assert(sizeof(int)*CHAR_BIT+8 <= sizeof(unsigned long long)*CHAR_BIT,
             "Data model may produce unexpected results.");
+        unsigned long long dp = 0;
         for(int i=0;i<total_depths.size();++i) {
+            dp |= total_depths[i];
             total_depths[i] = (total_depths[i] << 8) | (i & 0xFF);
+        }
+        if(dp == 0) {
+            return; // no data at this site
         }
         // make sure the ref base will come first
         total_depths[ref_index] |= (1ULL << (sizeof(unsigned long long)*CHAR_BIT-1));
@@ -173,20 +199,22 @@ int Pileup::operator()(Pileup::argument_type &arg) {
         auto first = total_depths.begin();
         auto last = boost::find_if(total_depths, [](unsigned long long x) { return ((x >> 8) == 0);});
         int first_is_N = 0;
-        if(first == last) {
-            return; // no data at this site
-        } else if( (*first & 0xFF) >= 4 ) {
+        if( (*first & 0xFF) >= 4 ) {
             first_is_N = 64;
-            if(++first == last) {
-                return; // no data at this site
-            }
         }
         auto rng = boost::make_iterator_range(first,last);
         boost::for_each(rng, [](unsigned long long &x) { x &= 0xFF; });
         int color = AlleleDepths::MatchIndexes(rng)+first_is_N;
         assert(0 <= color && color < 128);
-
-
+        line.location(loc);
+        line.resize(color);
+        int n=0;
+        for(auto it = rng.begin(); it != rng.end(); ++it,++n) {
+            for(int lib = 0; lib < line.num_libraries(); ++lib) {
+                line(n,lib) = read_depths[lib].counts[*it];
+            }
+        }
+        output.Write(line);
     });
 
     return EXIT_SUCCESS;

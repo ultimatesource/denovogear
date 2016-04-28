@@ -283,6 +283,11 @@ void dng::io::Ad::ParseHeaderTokens(It it, It it_last) {
                 }
             }
             libraries_.push_back(std::move(ad));
+        } else if(*it == "@HD") {
+            // sequence dictionaries may contain HD tags, drop them
+            for(++it; it != it_last && *it != "\n"; ++it) {
+                /*noop*/;
+            }
         } else if(*it == "@ID") {
             throw(runtime_error("Unable to parse TAD header: @ID can only be specified once."));
         } else if((*it)[0] == '@') {
@@ -489,6 +494,7 @@ int dng::io::Ad::WriteTad(const AlleleDepths& line) {
     if(line.data_size() == 0) {
         return 0;
     }
+
     const location_t loc = line.location();
     const size_type nlib = line.num_libraries();
     const size_type nnuc = line.num_nucleotides();
@@ -496,6 +502,7 @@ int dng::io::Ad::WriteTad(const AlleleDepths& line) {
     if(contig_num >= contigs_.size()) {
         return 0;
     }
+
     stream_ << contigs_[contig_num].name << '\t';
     stream_ << location_to_position(loc)+1 << '\t';
     stream_ << line.type_info().label_upper;

@@ -1,5 +1,7 @@
+set(OUTPUT_DIR @CMAKE_CURRENT_BINARY_DIR@/DngPileup)
+
 ###############################################################################
-# Test if dng-call can identify mutations correctly from a bam file
+# Test if dng-pileup from a bam file (tad)
 
 set(Trio-CMD @DNG_PILEUP_EXE@ -f sample-5.3_ref.fasta.gz test1.bam)
 set(Trio-WD "@TESTDATA_DIR@/sample_5_3/")
@@ -16,9 +18,17 @@ set(Trio-STDOUT
 
 
 ###############################################################################
+# Test if dng-pileup from a bam file (ad)
+
+set(TrioAD-CMD @DNG_PILEUP_EXE@ -f sample-5.3_ref.fasta.gz -o ${OUTPUT_DIR}/test1.ad test1.bam)
+set(TrioAD-WD "@TESTDATA_DIR@/sample_5_3/")
+set(TrioAD-RESULT 0)
+
+###############################################################################
 # Add Tests
 include("@CMAKE_CURRENT_SOURCE_DIR@/CheckProcessTest.cmake")
 
-CheckProcessTests(DngCall.Bam
+CheckProcessTests(DngPileup.Bam
   Trio
+  TrioAD
 )
