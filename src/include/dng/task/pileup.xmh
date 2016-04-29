@@ -27,7 +27,9 @@
  * XM((long)(name), (shortname), "description", typename, defaultvalue)    *
  ***************************************************************************/
 
+XM((body)(only),  (B), "only print body of tad file.", bool, DL(false, "off"))
 XM((fasta), (f), "faidx indexed reference sequence file", std::string, "")
+XM((header)(only),  (H), "only print header of tad file.", bool, DL(false, "off"))
 XM((min)(qlen), (l), "minimum query length", int, 0)
 XM((min)(basequal), (Q), "minimum base quality", int, 13)
 XM((min)(mapqual), (q), "minimum mapping quality", int, 0)

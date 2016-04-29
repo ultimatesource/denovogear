@@ -192,6 +192,8 @@ public:
         return pos;
     }
 
+    Format format() const { return format_; }
+
 private:
     int ReadHeaderAd();
     int WriteHeaderAd();

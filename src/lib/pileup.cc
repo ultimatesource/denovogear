@@ -25,7 +25,7 @@
 
 #include <boost/range/iterator_range_core.hpp>
 #include <boost/range/algorithm/find_if.hpp>
-#include <boost/range/algorithm/sort.hpp>
+#include <boost/range/algorithm/stable_sort.hpp>
 #include <boost/range/algorithm/for_each.hpp>
 
 #include <dng/task/pileup.h>
@@ -122,7 +122,19 @@ int Pileup::operator()(Pileup::argument_type &arg) {
             output.AddLibrary(std::move(l[0]), std::move(l[1]), std::move(l[2]));
         }
     }
-    output.WriteHeader();
+
+    if(arg.body_only && output.format() == io::Ad::Format::AD) {
+        throw(runtime_error("Argument Error: -B / --body-only not supported with binary output (.ad)."));
+    }
+    if(arg.header_only && output.format() == io::Ad::Format::AD) {
+        throw(runtime_error("Argument Error: -H / --header-only not supported with binary output (.ad)."));
+    }
+    if(!arg.body_only) {
+        output.WriteHeader();
+    }
+    if(arg.header_only) {
+        return EXIT_SUCCESS;
+    }
 
     // setup initial line buffer
     AlleleDepths line;
@@ -154,7 +166,7 @@ int Pileup::operator()(Pileup::argument_type &arg) {
         read_depths.assign(read_depths.size(), {});
 
         // construct values for depth sorting
-        std::array<unsigned long long,5> total_depths;
+        std::array<uint64_t,5> total_depths;
         total_depths.fill(0);
         // pileup on read counts
         for(std::size_t u = 0; u < data.size(); ++u) {
@@ -171,29 +183,40 @@ int Pileup::operator()(Pileup::argument_type &arg) {
         }
         // shift and pack the nucleotide number at the lowest bits
         // since depths must fit into a signed int, this is safe, check anyways
-        static_assert(sizeof(int)*CHAR_BIT+8 <= sizeof(unsigned long long)*CHAR_BIT,
-            "Data model may produce unexpected results.");
-        unsigned long long dp = 0;
+        {
+            for(auto a : total_depths) {
+                cerr << a << " ";
+            }
+            cerr << "\n";
+        }        
+        uint64_t dp = -0x0800000000000000ULL;
+        total_depths[ref_index] += 0x0800000000000000ULL;
         for(int i=0;i<total_depths.size();++i) {
             dp |= total_depths[i];
-            total_depths[i] = (total_depths[i] << 8) | (i & 0xFF);
+            total_depths[i] = ((0x0FFFFFFFFFFFFFFFULL-total_depths[i]) << 8) | (i & 0xFF);
         }
+        {
+            cerr << dp << " ";
+            for(auto a : total_depths) {
+                cerr << a << " ";
+            }
+            cerr << "\n";
+        }
+
         if(dp == 0) {
             return; // no data at this site
         }
         // make sure the ref base will come first
-        total_depths[ref_index] |= (1ULL << (sizeof(unsigned long long)*CHAR_BIT-1));
         // sort in decreasing order
-        boost::sort(total_depths, greater<uint64_t>());
+        boost::sort(total_depths);
         // find the color of the site
         auto first = total_depths.begin();
-        auto last = boost::find_if(total_depths, [](unsigned long long x) { return ((x >> 8) == 0);});
+        auto last = boost::find_if(total_depths, [](int64_t x) { return ((x >> 8) == 0);});
         int first_is_N = 0;
         if( (*first & 0xFF) >= 4 ) {
             first_is_N = 64;
         }
         string rng(first, last);
-        //boost::for_each(rng, [](unsigned long long &x) { x &= 0xFF; });
         int color = AlleleDepths::MatchIndexes(rng)+first_is_N;
         assert(0 <= color && color < 128);
         line.location(loc);
