@@ -17,11 +17,11 @@ set(TrioAD-RESULT 0)
 ###############################################################################
 # Test unfiltered output vs expected
 
-set(TrioDiff-CMD @DNG_PILEUP_EXE@ -B -q 0 -Q 0 -f trio.fasta.gz -o ${OUTPUT_DIR}/trio_unfiltered.tad trio.bam
-#COMMAND @CMAKE_COMMAND@ -E compare_files trio_unfiltered.tad ${OUTPUT_DIR}/trio_unfiltered.tad
+set(TrioBody-CMD @DNG_PILEUP_EXE@ -B -q 0 -Q 0 -f trio.fasta.gz -o ${OUTPUT_DIR}/trio_unfiltered.tad trio.bam
+COMMAND @CMAKE_COMMAND@ -E compare_files trio_unfiltered.tad ${OUTPUT_DIR}/trio_unfiltered.tad
 )
-set(TrioDiff-WD "@TESTDATA_DIR@/human_trio/")
-set(TrioDiff-RESULT 1)
+set(TrioBody-WD "@TESTDATA_DIR@/human_trio/")
+set(TrioBody-RESULT 0)
 
 ###############################################################################
 # Add Tests
@@ -30,5 +30,5 @@ include("@CMAKE_CURRENT_SOURCE_DIR@/CheckProcessTest.cmake")
 CheckProcessTests(DngPileup.Bam
   Trio
   TrioAD
-  TrioDiff
+  TrioBody
 )

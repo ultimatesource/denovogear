@@ -182,36 +182,24 @@ int Pileup::operator()(Pileup::argument_type &arg) {
             }
         }
         // shift and pack the nucleotide number at the lowest bits
-        // since depths must fit into a signed int, this is safe, check anyways
-        {
-            for(auto a : total_depths) {
-                cerr << a << " ";
-            }
-            cerr << "\n";
-        }        
-        uint64_t dp = -0x0800000000000000ULL;
-        total_depths[ref_index] += 0x0800000000000000ULL;
+        // In second lowest byte, pack 4-i to ensure that sorting in descending order
+        // doesn't change the order of ties.
+        uint64_t dp = 0;
         for(int i=0;i<total_depths.size();++i) {
             dp |= total_depths[i];
-            total_depths[i] = ((0x0FFFFFFFFFFFFFFFULL-total_depths[i]) << 8) | (i & 0xFF);
+            total_depths[i] = (total_depths[i] << 16) | (((total_depths.size()-1-i) & 0xFF) << 8) | (i & 0xFF);
         }
-        {
-            cerr << dp << " ";
-            for(auto a : total_depths) {
-                cerr << a << " ";
-            }
-            cerr << "\n";
-        }
-
         if(dp == 0) {
             return; // no data at this site
         }
+        
         // make sure the ref base will come first
+        total_depths[ref_index] |= (1ULL << 63);
         // sort in decreasing order
-        boost::sort(total_depths);
+        boost::sort(total_depths,std::greater<uint64_t>{});
         // find the color of the site
         auto first = total_depths.begin();
-        auto last = boost::find_if(total_depths, [](int64_t x) { return ((x >> 8) == 0);});
+        auto last = boost::find_if(total_depths, [](uint64_t x) { return ((x >> 16) == 0);});
         int first_is_N = 0;
         if( (*first & 0xFF) >= 4 ) {
             first_is_N = 64;
