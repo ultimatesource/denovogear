@@ -22,6 +22,7 @@
 #define DNG_IO_FILE_H
 
 #include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
 #include <tuple>
 #include <iostream>
 
