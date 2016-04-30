@@ -81,85 +81,15 @@ public:
     }
     explicit Ad(const char *filename, std::ios_base::openmode mode = std::ios_base::in) : Ad(std::string{filename},mode) { }
 
-    void Open(const std::string &filename, std::ios_base::openmode mode = std::ios_base::in) {
-        BinaryFile::Open(filename, mode);
-        if(boost::iequals(type_label_, "ad")) {
-            format_ = Format::AD;
-        } else {
-            format_ = Format::TAD;
-        }
-        // Clear header information
-        Clear();
-    }
+    void Open(const std::string &filename, std::ios_base::openmode mode = std::ios_base::in);
 
-    int ReadHeader() {
-        // Seek to the beginning of the stream
-        stream_.seekg(0);
-        if(stream_.bad()) {
-            return 0;
-        }
-        stream_.clear();    
-        // Clear header information
-        Clear();
-
-        int result = 0;
-        if(format_ == Format::AD) {
-            result = ReadHeaderAd();
-        } else {
-            result = ReadHeaderTad();
-        }
-        if(result == 0) {
-            return 0;
-        }
-        // Insert contigs into the search tree
-        for(int i=0; i < contigs_.size(); ++i) {
-            contig_tst_.add(contigs_[i].name.begin(), contigs_[i].name.end(),i);
-        }
-        // Save the number of libraries
-        num_libraries_ = libraries_.size();
-        last_location_ = 0;
-        return result;
-    }
-
-    int WriteHeader() {
-        // Seek to the beginning of the stream
-        stream_.seekp(0);
-        if(stream_.bad()) {
-            return 0;
-        }
-        stream_.clear();
-        if(format_ == Format::AD) {
-            return WriteHeaderAd();
-        } else {
-            return WriteHeaderTad();
-        }
-    }
-
+    int ReadHeader();
+    int WriteHeader();
+    void CopyHeader(const Ad& other);
     void AddHeaderLines(const std::string& lines);
 
-    int Read(AlleleDepths *pline) {
-        // If stream_ has issues, i.e. eof, return 0.
-        if(!stream_) {
-            return 0;
-        }
-        if(format_ == Format::AD) {
-            return ReadAd(pline);
-        } else {
-            return ReadTad(pline);
-        }
-    }
-
-    int Write(const AlleleDepths& line) {
-        // If stream_ has issues, return 0.
-        if(!stream_) {
-            return 0;
-        }
-        if(format_ == Format::AD) {
-            return WriteAd(line);
-        } else {
-            return WriteTad(line);
-        }
-    }
+    int Read(AlleleDepths *pline);
+    int Write(const AlleleDepths& line);
 
     const std::vector<contig_t>& contigs() const {
         return contigs_;
@@ -235,6 +165,102 @@ private:
 
     DNG_UNIT_TEST(::unittest_dng_io_ad);
 };
+
+inline
+void Ad::Open(const std::string &filename, std::ios_base::openmode mode) {
+    BinaryFile::Open(filename, mode);
+    if(boost::iequals(type_label_, "ad")) {
+        format_ = Format::AD;
+    } else {
+        format_ = Format::TAD;
+    }
+    // Clear header information
+    Clear();
+}
+
+inline
+int Ad::ReadHeader() {
+    // Seek to the beginning of the stream
+    stream_.seekg(0);
+    if(stream_.bad()) {
+        return 0;
+    }
+    stream_.clear();    
+    // Clear header information
+    Clear();
+
+    int result = 0;
+    if(format_ == Format::AD) {
+        result = ReadHeaderAd();
+    } else {
+        result = ReadHeaderTad();
+    }
+    if(result == 0) {
+        return 0;
+    }
+    // Insert contigs into the search tree
+    for(int i=0; i < contigs_.size(); ++i) {
+        contig_tst_.add(contigs_[i].name.begin(), contigs_[i].name.end(),i);
+    }
+    // Save the number of libraries
+    num_libraries_ = libraries_.size();
+    last_location_ = 0;
+    return result;
+}
+
+inline
+int Ad::WriteHeader() {
+    // Seek to the beginning of the stream
+    stream_.seekp(0);
+    if(stream_.bad()) {
+        return 0;
+    }
+    stream_.clear();
+    if(format_ == Format::AD) {
+        return WriteHeaderAd();
+    } else {
+        return WriteHeaderTad();
+    }
+}
+
+inline
+void Ad::CopyHeader(const Ad& ad) {
+    Clear();
+
+    contigs_ = ad.contigs_;
+    libraries_ = ad.libraries_;
+    num_libraries_ = ad.num_libraries_;
+    contig_tst_ = ad.contig_tst_;
+    extra_headers_ = ad.extra_headers_;
+}
+
+inline
+int Ad::Read(AlleleDepths *pline) {
+    // If stream_ has issues, i.e. eof, return 0.
+    if(!stream_) {
+        return 0;
+    }
+    if(format_ == Format::AD) {
+        return ReadAd(pline);
+    } else {
+        return ReadTad(pline);
+    }
+}
+
+inline
+int Ad::Write(const AlleleDepths& line) {
+    // If stream_ has issues, return 0.
+    if(!stream_) {
+        return 0;
+    }
+    if(format_ == Format::AD) {
+        return WriteAd(line);
+    } else {
+        return WriteTad(line);
+    }
+}
+
+
 
 }}
 

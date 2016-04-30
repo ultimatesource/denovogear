@@ -65,8 +65,10 @@ public:
         Attach(buffer_);
     }
 
-    bool is_open() const { return is_open_; };
+    bool is_open() const { return is_open_; }
     operator bool() const { return is_open(); }
+
+    std::string path() const { return path_.native(); }
 
 protected:
     std::iostream stream_{nullptr};

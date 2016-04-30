@@ -83,6 +83,17 @@ const B &key_switch_tuple(A &ss, const B(&key)[N], const B &default_value) {
     return default_value;
 }
 
+template<class A, class B, std::size_t N>
+std::size_t key_switch_iequals(A &ss, const B(&key)[N]) {
+    using boost::algorithm::iequals;
+    for(std::size_t i = 0; i < N; ++i) {
+        if(iequals(key[i], ss)) {
+            return i;
+        }
+    }
+    return static_cast<std::size_t>(-1);
+}
+
 // TODO: make the separator more generic
 template<typename S>
 std::pair<std::vector<double>, bool> parse_double_list(const S &str,

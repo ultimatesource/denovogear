@@ -44,22 +44,69 @@ using namespace std;
 using namespace dng;
 using namespace dng::task;
 
+// Sub-tasks
+int process_bam(Pileup::argument_type &arg);
+int process_ad(Pileup::argument_type &arg);
+
+inline
+size_t get_mode(const std::string &in) {
+    using utility::extract_file_type;
+    using utility::key_switch_iequals;
+
+    static string keys[] = {
+        "bam","sam","cram","",
+        "ad","tad"
+    };
+    string ext = extract_file_type(in).first;
+    switch(key_switch_iequals(ext,keys)) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+        return 0;
+        break;
+    case 4:
+    case 5:
+        return 1;
+    default:
+        throw runtime_error("Argument error: file type '" + ext + "' not supported. Input file was '" + in + "'.");
+        return -1;
+    };
+}
+
 // The main loop for dng-pileup application
 // argument_type arg holds the processed command line arguments
 int Pileup::operator()(Pileup::argument_type &arg) {
-    using namespace std;
+    // if input is empty default to stdin.
+    if(arg.input.empty()) {
+        arg.input.emplace_back("-");
+    }
+    auto it = arg.input.begin();
+    const size_t mode = get_mode(*it);
+    for(++it; it != arg.input.end(); ++it) {
+        if(get_mode(*it) != mode) {
+            throw runtime_error("Argument error: mixing sam/bam/cram and tad/ad input files is not supported.");
+        }
+    }
+    if(mode == 1) {
+        return process_ad(arg);
+    }
+    return process_bam(arg);
+}
+
+// The main loop for dng-pileup application
+// argument_type arg holds the processed command line arguments
+int process_bam(Pileup::argument_type &arg) {
     using dng::pileup::AlleleDepths;
 
     // Open Reference
     io::Fasta reference{arg.fasta.c_str()};
 
-    // quality thresholds
-    int min_qual = arg.min_basequal;
-
     // Open input files
     vector<hts::bam::File> bamdata;
     for(auto && str : arg.input) {
-        bamdata.emplace_back(str.c_str(), "r");
+        bamdata.emplace_back(str.c_str(), "r", arg.fasta.c_str(),
+                 arg.min_mapqual, arg.header.c_str());
         if(bamdata.back().is_open()) {
             continue;
         }
@@ -93,9 +140,13 @@ int Pileup::operator()(Pileup::argument_type &arg) {
 
     // Outputfile
     io::Ad output{arg.output, std::ios_base::out};
+    if(!output) {
+        throw std::runtime_error("Argument Error: unable to open output file '" + arg.output + "'.");
+    }
+
     string dict = reference.FetchDictionary();
     if(dict.empty()) {
-        throw(runtime_error("Dictionary for reference " + reference.path() + " is missing."));
+        throw runtime_error("Dictionary for reference " + reference.path() + " is missing.");
     }
     output.AddHeaderLines(dict);
 
@@ -109,7 +160,7 @@ int Pileup::operator()(Pileup::argument_type &arg) {
             if(!lib[0].empty()) {
                 // we have see this library
                 if(lib[1] != rg.sample) {
-                    throw(runtime_error("@AD ID:" + lib[0] + " is connected to multiple samples."));
+                    throw runtime_error("@AD ID:" + lib[0] + " is connected to multiple samples.");
                 }
                 lib[2] += "\tRG:" + rg.id;
                 continue;
@@ -124,10 +175,10 @@ int Pileup::operator()(Pileup::argument_type &arg) {
     }
 
     if(arg.body_only && output.format() == io::Ad::Format::AD) {
-        throw(runtime_error("Argument Error: -B / --body-only not supported with binary output (.ad)."));
+        throw runtime_error("Argument Error: -B / --body-only not supported with binary output (.ad).");
     }
     if(arg.header_only && output.format() == io::Ad::Format::AD) {
-        throw(runtime_error("Argument Error: -H / --header-only not supported with binary output (.ad)."));
+        throw runtime_error("Argument Error: -H / --header-only not supported with binary output (.ad).");
     }
     if(!arg.body_only) {
         output.WriteHeader();
@@ -144,12 +195,12 @@ int Pileup::operator()(Pileup::argument_type &arg) {
     const bam_hdr_t *h = bamdata[0].header();
     assert(h != nullptr);
     if(h->n_targets != output.contigs().size()) {
-        throw(runtime_error("Different number of @SQ lines in reference dictionary and first sam/bam/cram file."));
+        throw runtime_error("Different number of @SQ lines in reference dictionary and first sam/bam/cram file.");
     }
     for(int n = 0; n < h->n_targets; ++n) {
         if(output.contig(n).name != h->target_name[n] ||
            output.contig(n).length != h->target_len[n]) {
-            throw(runtime_error("Disagreement between @SQ lines in reference dictionary and first sam/bam/cram file." ));
+            throw runtime_error("Disagreement between @SQ lines in reference dictionary and first sam/bam/cram file." );
         }
     }
 
@@ -217,6 +268,51 @@ int Pileup::operator()(Pileup::argument_type &arg) {
         }
         output.Write(line);
     });
+
+    return EXIT_SUCCESS;
+}
+
+int process_ad(Pileup::argument_type &arg) {
+    using dng::pileup::AlleleDepths;
+
+    if(arg.input.size() != 1) {
+        throw std::runtime_error("Argument Error: can only process one ad/tad file at a time.");
+    }
+    
+    io::Ad input{arg.input[0], std::ios_base::in};
+    if(!input) {
+        throw std::runtime_error("Argument Error: unable to open input file '" + arg.input[0] + "'.");
+    }
+    if(input.ReadHeader() == 0) {
+        throw std::runtime_error("Argument Error: unable to read header from '" + input.path() + "'.");
+    }
+    
+    io::Ad output{arg.output, std::ios_base::out};
+    if(!output) {
+        throw std::runtime_error("Argument Error: unable to open output file '" + arg.output + "'.");
+    }
+
+    output.CopyHeader(input);
+
+    if(arg.body_only && output.format() == io::Ad::Format::AD) {
+        throw runtime_error("Argument Error: -B / --body-only not supported with binary output (.ad).");
+    }
+    if(arg.header_only && output.format() == io::Ad::Format::AD) {
+        throw runtime_error("Argument Error: -H / --header-only not supported with binary output (.ad).");
+    }
+    if(!arg.body_only) {
+        output.WriteHeader();
+    }
+    if(arg.header_only) {
+        return EXIT_SUCCESS;
+    }
+
+    
+    AlleleDepths line;
+    line.data().reserve(4*input.libraries().size());
+    while(input.Read(&line)) {
+        output.Write(line);
+    }
 
     return EXIT_SUCCESS;
 }
