@@ -19,7 +19,7 @@
 
 #include <streambuf>
 
-#include <endian.h>
+#include "portable_endian.h"
 
 #pragma once
 #ifndef DNG_DETAIL_NTF8_H
