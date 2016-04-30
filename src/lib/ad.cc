@@ -192,7 +192,7 @@ void dng::io::Ad::Clear() {
     contigs_.clear();
     libraries_.clear();
     extra_headers_.clear();
-    contig_tst_.clear();
+    contig_map_.clear();
 
     if(format_ == Format::AD) {
         id_.version = 0x0001;
@@ -441,19 +441,16 @@ int dng::io::Ad::ReadTad(AlleleDepths *pline) {
     }
 
     // parse contig
-    auto first = store[0].cbegin();
-    auto last = store[0].cend();
-
-    int *p = contig_tst_.find(first,last);
-    if(first != last || p == nullptr) {
+    auto mit = contig_map_.find(store[0]);
+    if(mit == contig_map_.end()) {
         throw(runtime_error("Unable to parse TAD record: Contig Name '" + store[0] + "' is unknown."));
     }
-    int contig_num = *p;
+    int contig_num = mit->second;
     
     // parse position
     int position;
-    first = store[1].cbegin();
-    last  = store[1].cend();
+    auto first = store[1].cbegin();
+    auto last  = store[1].cend();
 
     if(!phrase_parse(first, last, uint_, space, position) || first != last) {
         throw(runtime_error("Unable to parse TAD record: Unable to parse position '" + store[1] + "' as integer."));

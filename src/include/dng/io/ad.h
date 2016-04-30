@@ -23,10 +23,10 @@
 
 #include <string>
 #include <utility>
+#include <unordered_map>
 
 #include <boost/filesystem.hpp>
 #include <boost/algorithm/string/predicate.hpp>
-#include <boost/spirit/home/qi/string/tst.hpp>
 
 #include <dng/io/file.h>
 #include <dng/io/utility.h>
@@ -110,7 +110,7 @@ public:
     std::vector<contig_t>::size_type
     AddContig(std::string name, int length, std::string attributes = {} ) {
         std::vector<contig_t>::size_type pos = contigs_.size();
-        contig_tst_.add(name.begin(), name.end(), pos);
+        contig_map_.emplace(name, pos);
         contigs_.emplace_back(name, length, attributes);
         return pos;
     }
@@ -161,7 +161,7 @@ private:
 
     std::vector<std::string> extra_headers_;
 
-    boost::spirit::qi::tst<char, int> contig_tst_;
+    std::unordered_map<std::string, int> contig_map_;
 
     DNG_UNIT_TEST(::unittest_dng_io_ad);
 };
@@ -200,7 +200,7 @@ int Ad::ReadHeader() {
     }
     // Insert contigs into the search tree
     for(int i=0; i < contigs_.size(); ++i) {
-        contig_tst_.add(contigs_[i].name.begin(), contigs_[i].name.end(),i);
+        contig_map_.emplace(contigs_[i].name,i);
     }
     // Save the number of libraries
     num_libraries_ = libraries_.size();
@@ -230,7 +230,7 @@ void Ad::CopyHeader(const Ad& ad) {
     contigs_ = ad.contigs_;
     libraries_ = ad.libraries_;
     num_libraries_ = ad.num_libraries_;
-    contig_tst_ = ad.contig_tst_;
+    contig_map_ = ad.contig_map_;
     extra_headers_ = ad.extra_headers_;
 }
 
