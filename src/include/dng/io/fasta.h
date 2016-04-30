@@ -30,6 +30,7 @@
 #include <htslib/faidx.h>
 
 #include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
 
 #include <dng/io/utility.h>
 #include <dng/utility.h>
