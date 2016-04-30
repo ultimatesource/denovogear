@@ -42,6 +42,12 @@
 #include <boost/range/algorithm/lower_bound.hpp>
 #include <boost/range/algorithm/sort.hpp>
 
+#include <dng/pool.h>
+#include <dng/fileio.h>
+#include <dng/cigar.h>
+#include <dng/read_group.h>
+#include <dng/utility.h>
+
 namespace dng {
 
 namespace pileup {

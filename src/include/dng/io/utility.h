@@ -44,7 +44,6 @@ std::basic_string<X,T,A> slurp(std::basic_ifstream<X,T>& input) {
     ret.resize(input.tellg());
     input.seekg(0, std::ios::beg);
     input.read(&ret[0], ret.size());
-    input.close();
     return ret;
 }
 
@@ -77,7 +76,7 @@ istreambuf_range(std::basic_istream<Elem, Traits> &in) {
                std::istreambuf_iterator<Elem, Traits>());
 }
 
-bool at_slurp(std::string &ss, std::ios_base::openmode mode = std::ios_base::in) {
+inline bool at_slurp(std::string &ss, std::ios_base::openmode mode = std::ios_base::in) {
     if(ss.empty() || ss[0] != '@')
         return false;
     std::ifstream in{ss.c_str()+1, mode};

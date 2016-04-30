@@ -69,6 +69,12 @@ BOOST_AUTO_TEST_CASE(Test_extract_file_type)
   BOOST_CHECK(dng::utility::extract_file_type("C:\\foo.bar") == make_pair(string{"bar"},string{"C:\\foo.bar"}));
   BOOST_CHECK(dng::utility::extract_file_type("CC:C:\\foo.bar") == make_pair(string{"CC"},string{"C:\\foo.bar"}));
 
+  BOOST_CHECK(dng::utility::extract_file_type("bcf:test") == make_pair(string{"bcf"},string{"test"}));
+  BOOST_CHECK(dng::utility::extract_file_type("vcf:-") == make_pair(string{"vcf"},string{"-"}));
+  BOOST_CHECK(dng::utility::extract_file_type("vcf:") == make_pair(string{"vcf"},string{""}));
+  BOOST_CHECK(dng::utility::extract_file_type("test.bcf") == make_pair(string{"bcf"},string{"test.bcf"}));
+  BOOST_CHECK(dng::utility::extract_file_type("test.vcf") == make_pair(string{"vcf"},string{"test.vcf"}));
+
   BOOST_CHECK(dng::utility::extract_file_type(" \f\n\r\t\vfoo.bar \f\n\r\t\v") == make_pair(string{"bar"},string{"foo.bar"}));
   BOOST_CHECK(dng::utility::extract_file_type(" \f\n\r\t\vmy:foo.bar \f\n\r\t\v") == make_pair(string{"my"},string{"foo.bar"}));
   BOOST_CHECK(dng::utility::extract_file_type(" \f\n\r\t\v.bar \f\n\r\t\v") == make_pair(string{""},string{".bar"}));

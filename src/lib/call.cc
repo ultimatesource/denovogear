@@ -279,7 +279,7 @@ int task::Call::operator()(Call::argument_type &arg) {
     using namespace hts::bcf;
     using dng::utility::lphred;
     using dng::utility::phred;
-    using dng::utility::location_to_target;
+    using dng::utility::location_to_contig;
     using dng::utility::location_to_position;
 
     // Parse pedigree from file
@@ -444,7 +444,7 @@ int task::Call::operator()(Call::argument_type &arg) {
         mpileup(bamdata, [&](const dng::BamPileup::data_type & data, utility::location_t loc) {
 
             // Calculate target position and fetch sequence name
-            int target_id = location_to_target(loc);
+            int target_id = location_to_contig(loc);
             int position = location_to_position(loc);
 
             if(target_id != ref_target_id && fai) {
