@@ -55,7 +55,7 @@ double fisher_exact_test(int a11, int a12, int a21, int a22);
 
 double g_test(double a11, double a12, double a21, double a22);
 
-double ad_two_sample_test(std::vector<uint8_t> a, std::vector<uint8_t> b);
+double ad_two_sample_test(std::vector<int> a, std::vector<int> b);
 
 // Derived from Python's math.fsum
 class ExactSum {

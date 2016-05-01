@@ -148,6 +148,7 @@ void vcf_add_header_text(hts::bcf::File &vcfout, task::Call::argument_type &arg)
     vcfout.AddHeaderMetadata("##INFO=<ID=ADR,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed (reverse strand)\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=FS,Number=1,Type=Float,Description=\"Phred-scaled p-value using Fisher's exact test to detect strand bias\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=MQTa,Number=1,Type=Float,Description=\"Anderson-Darling Ta statistic for Alt vs. Ref read mapping qualities\">");
+    vcfout.AddHeaderMetadata("##INFO=<ID=RPTa,Number=1,Type=Float,Description=\"Anderson-Darling Ta statistic for Alt vs. Ref read positions\">");
 
     vcfout.AddHeaderMetadata("##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">");
     vcfout.AddHeaderMetadata("##FORMAT=<ID=GQ,Number=1,Type=Integer,Description=\"Phred-scaled genotype quality\">");
@@ -602,7 +603,7 @@ int task::Call::operator()(Call::argument_type &arg) {
             vector<int32_t> adf_info(refalt_count, 0);
             vector<int32_t> adr_info(refalt_count, 0);
 
-            vector<uint8_t> qual_ref, qual_alt;
+            vector<int> qual_ref, qual_alt, pos_ref, pos_alt;
 
             for(std::size_t u = library_start * refalt_count; u < num_nodes * refalt_count;
                     ++u) {
@@ -629,6 +630,8 @@ int task::Call::operator()(Call::argument_type &arg) {
                     adr_info[base_refalt] += r.aln.is_reversed();
                     // Mapping quality
                     (base_refalt == 0 ? &qual_ref : &qual_alt)->push_back(r.aln.map_qual());
+                    // Positions
+                    (base_refalt == 0 ? &pos_ref : &pos_alt)->push_back(r.pos);
                 }
             }
 
@@ -644,7 +647,8 @@ int task::Call::operator()(Call::argument_type &arg) {
                 }
                 fs_info = dng::stats::fisher_exact_test(a11, a12, a21, a22);
             }
-            double ta_info = dng::stats::ad_two_sample_test(qual_ref, qual_alt);
+            double mq_info = dng::stats::ad_two_sample_test(qual_ref, qual_alt);
+            double rp_info = dng::stats::ad_two_sample_test(pos_ref, pos_alt);
 
             record.info("MUP", stats.mup);
             record.info("LLD", stats.lld);
@@ -678,7 +682,8 @@ int task::Call::operator()(Call::argument_type &arg) {
             record.info("ADF", adf_info);
             record.info("ADR", adr_info);
             record.info("FS", static_cast<float>(phred(fs_info)));
-            record.info("MQTa", static_cast<float>(ta_info));
+            record.info("MQTa", static_cast<float>(mq_info));
+            record.info("RPTa", static_cast<float>(rp_info));
 
             record.target(h->target_name[target_id]);
             record.position(position);
