@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Reed A. Cartwright
+ * Copyright (c) 2015-2016 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -360,14 +360,14 @@ double dng::stats::g_test(double a11, double a12, double a21, double a22) {
     return 1.0;
 }
 
-double dng::stats::ad_two_sample_test(std::vector<uint8_t> a,
-                                      std::vector<uint8_t> b) {
+double dng::stats::ad_two_sample_test(std::vector<int> a,
+                                      std::vector<int> b) {
     using namespace std;
     using namespace boost;
 
     sort(a);
     sort(b);
-    vector<uint8_t> Z(a.size() + b.size());
+    vector<int> Z(a.size() + b.size());
     merge(a, b, Z.begin());
 
     auto ait = a.begin();
@@ -398,7 +398,7 @@ double dng::stats::ad_two_sample_test(std::vector<uint8_t> a,
                  (N - 3.0));
 
     // Check for degenerate sample
-    auto zit = adjacent_find(Z, std::not_equal_to<uint8_t> {});
+    auto zit = adjacent_find(Z, std::not_equal_to<int> {});
     if(zit == Z.end()) {
         return -1.0 / sqrt(var);
     }
