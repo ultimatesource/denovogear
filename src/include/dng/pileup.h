@@ -64,6 +64,16 @@ struct Node : public PoolNode {
     hts::bam::cigar_t cigar; // cigar
     hts::bam::data_t seq;    // encoded sequence
     hts::bam::data_t qual;   // quality scores
+
+   inline uint8_t base() const {
+        assert(0 <= pos && pos < (qual.second-qual.first));
+        return bam_seqi(seq.first, pos);
+    }
+
+   inline uint8_t base_qual() const {
+        assert(0 <= pos && pos < (qual.second-qual.first));
+        return qual.first[pos];
+    }
 };
 
 namespace detail {

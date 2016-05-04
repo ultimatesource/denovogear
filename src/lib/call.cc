@@ -150,6 +150,7 @@ void vcf_add_header_text(hts::bcf::File &vcfout, task::Call::argument_type &arg)
     vcfout.AddHeaderMetadata("##INFO=<ID=FS,Number=1,Type=Float,Description=\"Phred-scaled p-value using Fisher's exact test to detect strand bias\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=MQTa,Number=1,Type=Float,Description=\"Anderson-Darling Ta statistic for Alt vs. Ref read mapping qualities\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=RPTa,Number=1,Type=Float,Description=\"Anderson-Darling Ta statistic for Alt vs. Ref read positions\">");
+    vcfout.AddHeaderMetadata("##INFO=<ID=BQTa,Number=1,Type=Float,Description=\"Anderson-Darling Ta statistic for Alt vs. Ref base-call qualities\">");
 
     vcfout.AddHeaderMetadata("##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">");
     vcfout.AddHeaderMetadata("##FORMAT=<ID=GQ,Number=1,Type=Integer,Description=\"Phred-scaled genotype quality\">");
@@ -435,8 +436,8 @@ int task::Call::operator()(Call::argument_type &arg) {
     auto filter_read = [min_basequal](
     dng::BamPileup::data_type::value_type::const_reference r) -> bool {
         return (r.is_missing
-        || r.qual.first[r.pos] < min_basequal
-        || seq::base_index(r.aln.seq_at(r.pos)) >= 4);
+        || r.base_qual() < min_basequal
+        || seq::base_index(r.base()) >= 4);
     };
 
     // Treat sequence_data and variant data separately
@@ -464,13 +465,13 @@ int task::Call::operator()(Call::argument_type &arg) {
 
             // pileup on read counts
             // TODO: handle overflow?  Down sample? Reservoir Sample?
-            // The biggest read-depth we can handle per nucleotide is 2^16-1=65535
+            // The biggest read-depth we can handle per nucleotide is 2^32-1
             for(std::size_t u = 0; u < data.size(); ++u) {
                 for(auto && r : data[u]) {
                     if(filter_read(r)) {
                         continue;
                     }
-                    std::size_t base = seq::base_index(r.aln.seq_at(r.pos));
+                    std::size_t base = seq::base_index(r.base());
                     assert(read_depths[rgs.library_from_id(u)].counts[ base ] < 65535);
 
                     read_depths[rgs.library_from_id(u)].counts[ base ] += 1;
@@ -604,11 +605,13 @@ int task::Call::operator()(Call::argument_type &arg) {
             vector<int32_t> adf_info(refalt_count, 0);
             vector<int32_t> adr_info(refalt_count, 0);
 
-            vector<int> qual_ref, qual_alt, pos_ref, pos_alt;
+            vector<int> qual_ref, qual_alt, pos_ref, pos_alt, base_ref, base_alt;
             qual_ref.reserve(data.size());
             qual_alt.reserve(data.size());
             pos_ref.reserve(data.size());
             pos_alt.reserve(data.size());
+            base_ref.reserve(data.size());
+            base_alt.reserve(data.size());
             double rms_mq = 0.0;
 
             for(std::size_t u = library_start * refalt_count; u < num_nodes * refalt_count;
@@ -624,7 +627,7 @@ int task::Call::operator()(Call::argument_type &arg) {
                     }
                     std::size_t library_pos = (library_start + rgs.library_from_id(
                                                    u)) * refalt_count;
-                    std::size_t base = seq::base_index(r.aln.seq_at(r.pos));
+                    std::size_t base = seq::base_index(r.base());
                     std::size_t base_refalt = acgt_to_refalt_allele[base];
                     assert(base_refalt != -1);
                     std::size_t base_pos = library_pos + base_refalt;
@@ -639,6 +642,8 @@ int task::Call::operator()(Call::argument_type &arg) {
                     (base_refalt == 0 ? &qual_ref : &qual_alt)->push_back(r.aln.map_qual());
                     // Positions
                     (base_refalt == 0 ? &pos_ref : &pos_alt)->push_back(r.pos);
+                    // Base Calls
+                    (base_refalt == 0 ? &base_ref : &base_alt)->push_back(r.base_qual());
                 }
             }
             rms_mq = sqrt(rms_mq/(qual_ref.size()+qual_alt.size()));
@@ -657,6 +662,7 @@ int task::Call::operator()(Call::argument_type &arg) {
             }
             double mq_info = dng::stats::ad_two_sample_test(qual_ref, qual_alt);
             double rp_info = dng::stats::ad_two_sample_test(pos_ref, pos_alt);
+            double bq_info = dng::stats::ad_two_sample_test(base_ref, base_alt);
 
             record.info("MUP", stats.mup);
             record.info("LLD", stats.lld);
@@ -693,6 +699,7 @@ int task::Call::operator()(Call::argument_type &arg) {
             record.info("FS", static_cast<float>(phred(fs_info)));
             record.info("MQTa", static_cast<float>(mq_info));
             record.info("RPTa", static_cast<float>(rp_info));
+            record.info("BQTa", static_cast<float>(bq_info));
 
             record.target(h->target_name[target_id]);
             record.position(position);
