@@ -146,6 +146,7 @@ void vcf_add_header_text(hts::bcf::File &vcfout, task::Call::argument_type &arg)
     vcfout.AddHeaderMetadata("##INFO=<ID=AD,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=ADF,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed (forward strand)\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=ADR,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed (reverse strand)\">");
+    vcfout.AddHeaderMetadata("##INFO=<ID=MQ,Number=1,Type=Float,Description=\"RMS Mapping Quality\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=FS,Number=1,Type=Float,Description=\"Phred-scaled p-value using Fisher's exact test to detect strand bias\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=MQTa,Number=1,Type=Float,Description=\"Anderson-Darling Ta statistic for Alt vs. Ref read mapping qualities\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=RPTa,Number=1,Type=Float,Description=\"Anderson-Darling Ta statistic for Alt vs. Ref read positions\">");
@@ -604,6 +605,11 @@ int task::Call::operator()(Call::argument_type &arg) {
             vector<int32_t> adr_info(refalt_count, 0);
 
             vector<int> qual_ref, qual_alt, pos_ref, pos_alt;
+            qual_ref.reserve(data.size());
+            qual_alt.reserve(data.size());
+            pos_ref.reserve(data.size());
+            pos_alt.reserve(data.size());
+            double rms_mq = 0.0;
 
             for(std::size_t u = library_start * refalt_count; u < num_nodes * refalt_count;
                     ++u) {
@@ -629,11 +635,13 @@ int task::Call::operator()(Call::argument_type &arg) {
                     adr_counts[base_pos]  += r.aln.is_reversed();
                     adr_info[base_refalt] += r.aln.is_reversed();
                     // Mapping quality
+                    rms_mq += r.aln.map_qual()*r.aln.map_qual();
                     (base_refalt == 0 ? &qual_ref : &qual_alt)->push_back(r.aln.map_qual());
                     // Positions
                     (base_refalt == 0 ? &pos_ref : &pos_alt)->push_back(r.pos);
                 }
             }
+            rms_mq = sqrt(rms_mq/(qual_ref.size()+qual_alt.size()));
 
             // Fisher Exact Test for strand bias
             double fs_info;
@@ -681,6 +689,7 @@ int task::Call::operator()(Call::argument_type &arg) {
             record.info("AD", ad_info);
             record.info("ADF", adf_info);
             record.info("ADR", adr_info);
+            record.info("MQ", static_cast<float>(rms_mq));
             record.info("FS", static_cast<float>(phred(fs_info)));
             record.info("MQTa", static_cast<float>(mq_info));
             record.info("RPTa", static_cast<float>(rp_info));
