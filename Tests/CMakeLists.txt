@@ -1,7 +1,7 @@
 ###############################################################################
 # Testdata information
-set(TESTDATA_COMMIT cf20f8f570eae9e37)
-set(TESTDATA_SHA256 943df87cd05e7d30e5b695a65cf81a2b25bc5c69890140a75d48d6ab679d85ff)
+set(TESTDATA_COMMIT 85b2685f0ca276bf506716847cb314a034e0a4c4)
+set(TESTDATA_SHA256 5b5e66f6571ff61e6ff3daadc52e559ed7b6be8ee0aa9248542df3cdf116ace9)
 set(TESTDATA_REPO denovogear/testdata)
 set(TESTDATA_URL "https://api.github.com/repos/${TESTDATA_REPO}/tarball/${TESTDATA_COMMIT}")
 set(TESTDATA_DIR "${CMAKE_BINARY_DIR}/testdata")
@@ -54,10 +54,11 @@ set(DNG_DNM_EXE ${CMAKE_BINARY_DIR}/src/dng-dnm)
 set(DNG_PHASER_EXE ${CMAKE_BINARY_DIR}/src/dng-phaser)
 set(DNG_CALL_EXE ${CMAKE_BINARY_DIR}/src/dng-call)
 set(DNG_LOGLIKE_EXE ${CMAKE_BINARY_DIR}/src/dng-loglike)
+set(DNG_PILEUP_EXE ${CMAKE_BINARY_DIR}/src/dng-pileup)
 
 ###############################################################################
 # Add tests for various build targets so we can depend on them
-set(build_test_targets testdata dng-call dng-loglike dng-dnm dng-phaser)
+set(build_test_targets testdata dng-call dng-loglike dng-dnm dng-phaser dng-pileup)
 foreach(target ${build_test_targets})
   add_test(Build.${target} "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target ${target})
 endforeach()
@@ -106,3 +107,5 @@ AddCMakeTest(DngDnm.Auto "" "Build.dng-dnm;Build.testdata")
 AddCMakeTest(DngPhaser.Run "" "Build.dng-phaser")
 AddCMakeTest(DngPhaser.Data "" "Build.dng-phaser;Build.testdata")
 
+AddCMakeTest(DngPileup.Run "" "Build.dng-pileup")
+AddCMakeTest(DngPileup.Bam "" "Build.dng-pileup;Build.testdata")

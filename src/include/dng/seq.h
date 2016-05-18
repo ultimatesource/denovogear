@@ -28,39 +28,46 @@ namespace dng {
 namespace seq {
 
 // convert a nucleotide character into a 4-bit representation
-inline uint8_t encode_base(uint8_t x) {
+inline uint8_t encode_base(unsigned char x) {
+	assert(0 <= seq_nt16_table[x] && seq_nt16_table[x] < 16);
     return seq_nt16_table[x]; // from htslib
 }
 
 // convert a 4-bit nucleotide into a character
-inline char decode_base(unsigned char x) {
-    return seq_nt16_str[x & 0xF]; // from htslib
+inline char decode_base(uint8_t x) {
+    assert(0 <= x && x < 16);	
+    return seq_nt16_str[x]; // from htslib
 }
 
 // convert a 4-bit nucleotide into a index in [0-4]
-inline std::size_t base_index(uint8_t x) {
-    static constexpr std::size_t table[] = {4, 0, 1, 4, 2, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4};
-    return table[x & 0xF];
+inline int base_index(uint8_t x) {
+    static constexpr int table[] = {4, 0, 1, 4, 2, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4};
+    assert(0 <= x && x < 16);
+    std::size_t y = table[x];
+    assert(0 <= y && y < 5);
+    return y;
 }
-
-// convert a 4-bit nucleotide into a index in [0-4]
-inline std::size_t char_index(uint8_t x) {
-    return base_index(encode_base(x));
-}
-
 
 // convert an index into a 4-bit nucleotide
 inline uint8_t indexed_base(std::size_t x) {
-    static constexpr uint8_t table[] = {1, 2, 4, 8, 15, 15, 15, 15};
-    return table[x & 0x7];
+    static constexpr uint8_t table[] = {1, 2, 4, 8, 15};
+    assert(0 <= x && x < 5);
+    uint8_t y = table[x];
+    assert(0 <= y && y < 16);
+    return y;
 }
 
-// convert an index into a 4-bit nucleotide
+// convert an index into an ASCII character
 inline char indexed_char(std::size_t x) {
     static constexpr char table[] = "ACGTNNNN";
-    return table[x & 0x7];
+    assert(0 <= x && x < 5);
+    return table[x];
 }
 
+// convert a 4-bit nucleotide into a index in [0-4]
+inline int char_index(uint8_t x) {
+    return base_index(encode_base(x));
+}
 
 }
 } // namespace dng::seq

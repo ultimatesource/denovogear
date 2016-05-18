@@ -21,6 +21,24 @@
 #ifndef DNG_STATS_H
 #define DNG_STATS_H
 
+#if defined(__GNUC__)
+#   if defined(__GNUC_PATCHLEVEL__)
+#       define __GNUC_VERSION__ (__GNUC__ * 10000 \
+                               + __GNUC_MINOR__ * 100 \
+                               + __GNUC_PATCHLEVEL__)
+#   else
+#       define __GNUC_VERSION__ (__GNUC__ * 10000 \
+                          + __GNUC_MINOR__ * 100)
+#   endif
+#endif
+
+#if __GNUC_VERSION__ > 40305
+#   define DNG_NO_ASSOCIAIVE_MATH __attribute__((__optimize__("no-associative-math")))
+#else
+#   define DNG_NO_ASSOCIAIVE_MATH
+#endif
+
+
 #include <vector>
 #include <utility>
 #include <cstdint>
@@ -37,7 +55,7 @@ double fisher_exact_test(int a11, int a12, int a21, int a22);
 
 double g_test(double a11, double a12, double a21, double a22);
 
-double ad_two_sample_test(std::vector<uint8_t> a, std::vector<uint8_t> b);
+double ad_two_sample_test(std::vector<int> a, std::vector<int> b);
 
 // Derived from Python's math.fsum
 class ExactSum {
@@ -49,10 +67,7 @@ public:
         }
     }
 
-    //TODO: Adapt this for compilers other than GCC.
-    // VS has a pragma
-    // Clang seems to do the right thing
-    __attribute__((__optimize__("no-associative-math")))
+    DNG_NO_ASSOCIAIVE_MATH
     inline ExactSum& operator()(double x) {
         typedef std::vector<double>::size_type size_type;
         size_type i=0;
@@ -85,7 +100,7 @@ public:
         return *this;
     }
 
-    __attribute__((__optimize__("no-associative-math")))
+    DNG_NO_ASSOCIAIVE_MATH
     inline double result() const {
         typedef std::vector<double>::size_type size_type;
         if(failed_) {

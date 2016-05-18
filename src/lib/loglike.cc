@@ -292,7 +292,7 @@ int task::LogLike::operator()(task::LogLike::argument_type &arg) {
         mpileup(bamdata, [&](const dng::BamPileup::data_type & data, location_t loc) {
 
             // Calculate target position and fetch sequence name
-            int target_id = utility::location_to_target(loc);
+            int target_id = utility::location_to_contig(loc);
             int position = utility::location_to_position(loc);
 
             if(target_id != ref_target_id && fai) {

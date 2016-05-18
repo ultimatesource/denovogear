@@ -42,6 +42,12 @@
 #include <boost/range/algorithm/lower_bound.hpp>
 #include <boost/range/algorithm/sort.hpp>
 
+#include <dng/pool.h>
+#include <dng/fileio.h>
+#include <dng/cigar.h>
+#include <dng/read_group.h>
+#include <dng/utility.h>
+
 namespace dng {
 
 namespace pileup {
@@ -58,6 +64,16 @@ struct Node : public PoolNode {
     hts::bam::cigar_t cigar; // cigar
     hts::bam::data_t seq;    // encoded sequence
     hts::bam::data_t qual;   // quality scores
+
+   inline uint8_t base() const {
+        assert(0 <= pos && pos < (qual.second-qual.first));
+        return bam_seqi(seq.first, pos);
+    }
+
+   inline uint8_t base_qual() const {
+        assert(0 <= pos && pos < (qual.second-qual.first));
+        return qual.first[pos];
+    }
 };
 
 namespace detail {
