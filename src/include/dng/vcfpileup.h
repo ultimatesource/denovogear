@@ -83,13 +83,12 @@ void VCFPileup::operator()(const char *fname, Func func) {
     while(bcf_read1(fp, hdr, rec) >= 0) {
         // check that the current record is for an SNP and not an Indel, MNP, or something else
     	variant_types = bcf_get_variant_types(rec);
-
-    	if(std::string(rec->d.allele[1]) == "X"){
-    	    		rec->d.var[1].n = 1;
-    	    		rec->d.var_type = VCF_SNP;
-    	}
     	if(rec->d.var_type != VCF_SNP){
-            continue;
+    		// check if the current ALT is an 'X' and if so, treat case as a SNP
+    		if(std::string(rec->d.allele[1]) == "X"){
+   			rec->d.var[1].n = 1;
+   			rec->d.var_type = VCF_SNP;
+    		}else continue;
         }
 
         // TODO? Check the QUAL field or PL,PP genotype fields
