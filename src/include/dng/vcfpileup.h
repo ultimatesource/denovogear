@@ -79,12 +79,19 @@ void VCFPileup::operator()(const char *fname, Func func) {
     samples.pop_back();
 
     bcf_hdr_set_samples(hdr, samples.c_str(), 0);
-
+    int variant_types;
     while(bcf_read1(fp, hdr, rec) >= 0) {
         // check that the current record is for an SNP and not an Indel, MNP, or something else
-        if(bcf_get_variant_types(rec) != VCF_SNP) {
+    	variant_types = bcf_get_variant_types(rec);
+
+    	if(std::string(rec->d.allele[1]) == "X"){
+    	    		rec->d.var[1].n = 1;
+    	    		rec->d.var_type = VCF_SNP;
+    	}
+    	if(rec->d.var_type != VCF_SNP){
             continue;
         }
+
         // TODO? Check the QUAL field or PL,PP genotype fields
         // execute func
         call_back(hdr, rec);
