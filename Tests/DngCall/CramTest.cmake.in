@@ -45,12 +45,11 @@ set(TagID-STDOUT
 )
 
 ###############################################################################
-# Add Tests
-include("@CMAKE_CURRENT_SOURCE_DIR@/CheckProcessTest.cmake")
+# Test if dng-call --header works properly
 
-CheckProcessTests(DngCall.Cram
-  Trio
-  TagLB
-  TagSM
-  TagID
+set(SepHeader1-CMD @DNG_CALL_EXE@ -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0.001 --header test1_hdr.sam test1_nohdr.sam)
+set(SepHeader1-WD "@TESTDATA_DIR@/sep_header/")
+set(SepHeader1-RESULT 0)
+set(SepHeader1-STDOUT
+  "FORMAT\tGL-1\tGL-2\tLB-NA12878-Solexa-135852\tLB-NA12891-Solexa-135851\tLB-NA12892-Solexa-135853"
 )
