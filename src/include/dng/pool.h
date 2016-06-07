@@ -83,7 +83,7 @@ public:
             return;
         }
         // clear inactive as needed
-        if(list_type::safemode_or_autounlink) {
+	if(boost::intrusive::is_safe_autounlink<list_type::value_traits::link_mode>::value) {
             inactive_.clear();
         }
         // enumerate over allocated blocks
