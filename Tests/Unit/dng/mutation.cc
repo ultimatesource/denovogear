@@ -35,8 +35,8 @@ struct CreateMutationMatrix {
 
     MutationMatrix equal_mutation_matrix;
     MutationMatrix unequal_mutation_matrix;
-    std::array<double, 4> equal_freq = {0.25, 0.25, 0.25, 0.25};
-    std::array<double, 4> unequal_freq = {0.1, 0.2, 0.3, 0.4};
+    std::array<double, 4> equal_freq = {{0.25, 0.25, 0.25, 0.25}};
+    std::array<double, 4> unequal_freq = {{0.1, 0.2, 0.3, 0.4}};
 
 
     CreateMutationMatrix(std::string s = "CreateMutationMatrix") : fixture(s) {
