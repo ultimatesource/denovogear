@@ -61,8 +61,7 @@ void teardown() { BOOST_TEST_MESSAGE("tear down fun"); }
 
 BOOST_FIXTURE_TEST_SUITE(test_f81_suite, CreateMutationMatrix )
 
-
-BOOST_AUTO_TEST_CASE(test_f81_equal, *utf::fixture(&setup, &teardown)) {
+BOOST_AUTO_TEST_CASE(test_f81_equal) {
 
     auto diag = equal_mutation_matrix.diagonal();
     std::vector<double> expected_diag = {0.999999, 0.999999, 0.999999, 0.999999};
@@ -78,7 +77,7 @@ BOOST_AUTO_TEST_CASE(test_f81_equal, *utf::fixture(&setup, &teardown)) {
 
 }
 
-BOOST_AUTO_TEST_CASE(test_f81, *utf::fixture(&setup, &teardown)) {
+BOOST_AUTO_TEST_CASE(test_f81) {
 
     auto diag = unequal_mutation_matrix.diagonal();
     std::vector<double> expected_diag = {0.9999987143, 0.9999988571, 0.9999990000, 0.9999991429};
@@ -96,7 +95,7 @@ BOOST_AUTO_TEST_CASE(test_f81, *utf::fixture(&setup, &teardown)) {
 }
 
 
-BOOST_AUTO_TEST_CASE(test_f81_random, *utf::fixture(&setup, &teardown)) {
+BOOST_AUTO_TEST_CASE(test_f81_random) {
 
     auto matrix = f81::matrix(1e-3, {0.01, 0.1, 0.19, 0.7});
     auto diag = matrix.diagonal();
@@ -122,7 +121,7 @@ BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_FIXTURE_TEST_SUITE(test_mutation_suite, CreateMutationMatrix )
 
-BOOST_AUTO_TEST_CASE(test_mitosis_haploid_matrix, *utf::fixture(&setup, &teardown)) {
+BOOST_AUTO_TEST_CASE(test_mitosis_haploid_matrix) {
 
 
     TransitionMatrix expected_transition_matrix_negative = TransitionMatrix::Zero(4, 4);
@@ -154,7 +153,7 @@ BOOST_AUTO_TEST_CASE(test_mitosis_haploid_matrix, *utf::fixture(&setup, &teardow
 
 }
 
-BOOST_AUTO_TEST_CASE(test_mitosis_diploid_matrix, *utf::fixture(&setup, &teardown)) {
+BOOST_AUTO_TEST_CASE(test_mitosis_diploid_matrix) {
 
     TransitionMatrix ret = TransitionMatrix::Zero(10, 10);
 //    for(int i = 0; i < 10; ++i) {
@@ -200,17 +199,17 @@ BOOST_AUTO_TEST_CASE(test_mitosis_diploid_matrix, *utf::fixture(&setup, &teardow
 }
 
 //TODO(SHW): Implement these tests
-BOOST_AUTO_TEST_CASE(test_meiosis_haploid_matrix, *utf::fixture(&setup, &teardown)) {
+BOOST_AUTO_TEST_CASE(test_meiosis_haploid_matrix) {
 }
-BOOST_AUTO_TEST_CASE(test_meiosis_diploid_matrix, *utf::fixture(&setup, &teardown)) {
+BOOST_AUTO_TEST_CASE(test_meiosis_diploid_matrix) {
 }
-BOOST_AUTO_TEST_CASE(test_mitosis_haploid_mean_matrix, *utf::fixture(&setup, &teardown)) {
+BOOST_AUTO_TEST_CASE(test_mitosis_haploid_mean_matrix) {
 }
-BOOST_AUTO_TEST_CASE(test_mitosis_diploid_mean_matrix, *utf::fixture(&setup, &teardown)) {
+BOOST_AUTO_TEST_CASE(test_mitosis_diploid_mean_matrix) {
 }
-BOOST_AUTO_TEST_CASE(test_meiosis_haploid_mean_matrix, *utf::fixture(&setup, &teardown)) {
+BOOST_AUTO_TEST_CASE(test_meiosis_haploid_mean_matrix) {
 }
-BOOST_AUTO_TEST_CASE(test_meiosis_diploid_mean_matrix, *utf::fixture(&setup, &teardown)) {
+BOOST_AUTO_TEST_CASE(test_meiosis_diploid_mean_matrix) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
