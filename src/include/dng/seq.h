@@ -20,6 +20,8 @@
 #ifndef DNG_SEQ_H
 #define DNG_SEQ_H
 
+#include <cassert>
+
 #include <htslib/hts.h>
 
 #include <dng/detail/unit_test.h>
