@@ -109,6 +109,17 @@ public:
     size_t num_nodes() const { return num_nodes_; }
     std::pair<size_t, size_t> library_nodes() const { return {first_library_, num_nodes_}; }
 
+	const std::vector<peel::family_members_t>& family_members() const {
+		return family_members_;
+	}
+	const std::vector<decltype(peel::op::NUM)>& peeling_ops() const {
+		return peeling_ops_;
+	}
+
+	const std::vector<decltype(peel::op::NUM)>& peeling_functions_ops() const {
+		return peeling_functions_ops_;
+	}
+
 protected:
     // node structure:
     // founder germline, non-founder germline, somatic, library
