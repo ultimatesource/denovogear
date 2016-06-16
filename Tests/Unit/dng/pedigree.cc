@@ -58,7 +58,7 @@ void teardown() { BOOST_TEST_MESSAGE("tear down fun"); }
 
 
 
-BOOST_FIXTURE_TEST_SUITE(test_pedigree_suite, FixturePedigree )
+//BOOST_FIXTURE_TEST_SUITE(test_pedigree_suite, FixturePedigree )
 
 /*
 
@@ -69,7 +69,7 @@ BOOST_FIXTURE_TEST_SUITE(test_pedigree_suite, FixturePedigree )
 3  2  4
 
 */
-BOOST_AUTO_TEST_CASE(test_constructor) {
+BOOST_FIXTURE_TEST_CASE(test_constructor, FixturePedigree) {
 
     BOOST_CHECK_EQUAL(5, pedigree.num_nodes() );
 
@@ -170,11 +170,15 @@ BOOST_AUTO_TEST_CASE(test_constructor) {
 //    BOOST_CHECK(is_equal);
 //}
 
-BOOST_AUTO_TEST_CASE(test_pedigree_inspect) {
+
+//BOOST_AUTO_TEST_SUITE_END()
+
+namespace dng {
+BOOST_FIXTURE_TEST_CASE(test_pedigree_inspect, FixturePedigree) {
 
     BOOST_CHECK_EQUAL(5, pedigree.num_nodes());
 
-    std::vector<peel::family_members_t> family = pedigree.family_members();
+    std::vector<peel::family_members_t> family = pedigree.family_members_;
     std::vector<peel::family_members_t> expected_family = {
             {1, 4},
             {0, 1, 2},
@@ -185,13 +189,13 @@ BOOST_AUTO_TEST_CASE(test_pedigree_inspect) {
         boost_check_equal_vector(expected_family, family);
     }
 
-	std::vector<decltype(peel::op::NUM)> ops = pedigree.peeling_ops();
+	std::vector<decltype(peel::op::NUM)> ops = pedigree.peeling_ops_;
 	std::vector<decltype(peel::op::NUM)> expected_ops = { peel::op::UP,
 			peel::op::TOFATHER, peel::op::UP };
 	boost_check_equal_vector(expected_ops, ops);
 
 	std::vector<decltype(peel::op::NUM)> functions_ops =
-			pedigree.peeling_functions_ops();
+			pedigree.peeling_functions_ops_;
 	std::vector<decltype(peel::op::NUM)> expected_functions_ops = {
 			peel::op::UPFAST, peel::op::TOFATHERFAST, peel::op::UP };
 
@@ -199,5 +203,4 @@ BOOST_AUTO_TEST_CASE(test_pedigree_inspect) {
 
 }
 
-BOOST_AUTO_TEST_SUITE_END()
-
+} // namespace dng

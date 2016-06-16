@@ -30,11 +30,14 @@
 #include <dng/newick.h>
 #include <dng/read_group.h>
 #include <dng/peeling.h>
+#include <dng/detail/unit_test.h>
 
 namespace dng {
 
 class Pedigree {
 public:
+
+	DNG_UNIT_TEST(test_pedigree_inspect);
 
     enum class TransitionType {
         Founder, Germline, Somatic, Library
@@ -109,16 +112,6 @@ public:
     size_t num_nodes() const { return num_nodes_; }
     std::pair<size_t, size_t> library_nodes() const { return {first_library_, num_nodes_}; }
 
-	const std::vector<peel::family_members_t>& family_members() const {
-		return family_members_;
-	}
-	const std::vector<decltype(peel::op::NUM)>& peeling_ops() const {
-		return peeling_ops_;
-	}
-
-	const std::vector<decltype(peel::op::NUM)>& peeling_functions_ops() const {
-		return peeling_functions_ops_;
-	}
 
 protected:
     // node structure:
