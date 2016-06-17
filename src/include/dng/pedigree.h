@@ -37,8 +37,6 @@ namespace dng {
 class Pedigree {
 public:
 
-	DNG_UNIT_TEST(test_pedigree_inspect);
-
     enum class TransitionType {
         Founder, Germline, Somatic, Library
     };
@@ -140,6 +138,8 @@ protected:
     std::vector<peel::family_members_t> family_members_;
 
     void ConstructPeelingMachine();
+    
+    DNG_UNIT_TEST(test_pedigree_inspect);
 };
 
 }; // namespace dng
