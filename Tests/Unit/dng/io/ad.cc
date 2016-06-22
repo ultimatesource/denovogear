@@ -26,6 +26,7 @@ struct unittest_dng_io_ad;
 #include <sstream>
 #include <iostream>
 #include <iomanip>
+#include <cmath>
 
 using namespace dng::io;
 using namespace dng::pileup;
@@ -55,6 +56,13 @@ inline HexCharStruct hex(unsigned char u) {
  Test the Varint format
  *****************************************************************************/
 
+int ex_buf_size(uint64_t u) {
+    int i = 1;
+    for(; u >= 0x80; ++i, u >>= 7)
+        /*noop*/;
+    return i;
+}
+
 bool varint_convert(uint64_t u) {
     namespace varint = dng::detail::varint;
     stringbuf buffer;
@@ -63,10 +71,29 @@ bool varint_convert(uint64_t u) {
         cerr << std::dec << std::noshowbase;
         return false;
     }
+    int sz = ex_buf_size(u);
+    if(buffer.str().length() != sz) {
+        cerr << "  Writing varint " << std::hex << std::showbase << u << " to a streambuf failed.\n";
+        cerr << "    Expected size: " << sz << " Actual size: " << buffer.str().length() << "\n";
+        cerr << "    Buffer:";
+        for(auto a : buffer.str()) {
+            cerr << " " << hex(a);
+        }
+        cerr << "\n";
+        cerr << std::dec << std::noshowbase;
+        return false;
+    }
+
     buffer.pubseekpos(0);
     auto aa = varint::get(&buffer);
     if(!aa.second) {
         cerr << "  Reading varint " << std::hex << std::showbase << u << " from a streambuf failed.\n";
+        cerr << "    Buffer:";
+        for(auto a : buffer.str()) {
+            cerr << " " << hex(a);
+        }
+        cerr << "\n";
+        cerr << std::dec << std::noshowbase;
         cerr << std::dec << std::noshowbase;
         return false;
     }
@@ -81,7 +108,8 @@ bool varint_convert(uint64_t u) {
         cerr << std::dec << std::noshowbase;
         return false;
     }
-    return true;    
+    //cerr << "  Conversion of " << std::hex << std::showbase << u << " via streambuf success.\n";
+    return true;
 }
 
 BOOST_AUTO_TEST_CASE(test_varint) {
@@ -110,8 +138,9 @@ BOOST_AUTO_TEST_CASE(test_varint) {
         BOOST_CHECK(varint_convert((1LL<<i)+1));
     }
 
-    for(int i=17;i<=64;++i) {
+    for(int i=17;i<64;++i) {
         for(auto n : numbers) {
+
             BOOST_CHECK(varint_convert(n & ((1LL<<i)-1)));
         }
     }
@@ -121,6 +150,15 @@ BOOST_AUTO_TEST_CASE(test_varint) {
  Test the Zig-Zag format
  *****************************************************************************/
 
+int ex_bufz_size(int64_t n) {
+    int i = 1;
+    uint64_t u = (n < 0) ? -2*n-1 : 2*n;
+    for(; u >= 0x80; ++i, u >>= 7)
+        /*noop*/;
+    return i;
+}
+
+
 bool zigzag_convert(int64_t n) {
     namespace varint = dng::detail::varint;
     stringbuf buffer;
@@ -129,6 +167,19 @@ bool zigzag_convert(int64_t n) {
         cerr << std::dec << std::noshowbase;
         return false;
     }
+    int sz = ex_bufz_size(n);
+    if(buffer.str().length() != sz) {
+        cerr << "  Writing zig-zag varint " << std::hex << std::showbase << n << " to a streambuf failed.\n";
+        cerr << "    Expected size: " << sz << " Actual size: " << buffer.str().length() << "\n";
+        cerr << "    Buffer:";
+        for(auto a : buffer.str()) {
+            cerr << " " << hex(a);
+        }
+        cerr << "\n";
+        cerr << std::dec << std::noshowbase;
+        return false;
+    }
+
     buffer.pubseekpos(0);
     auto aa = varint::get_zig_zag(&buffer);
     if(!aa.second) {
