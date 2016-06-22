@@ -105,9 +105,9 @@ BOOST_AUTO_TEST_CASE(test_varint) {
     }
 
     for(int i=0;i<64;++i) {
-        BOOST_CHECK(varint_convert((1<<i)-1));
-        BOOST_CHECK(varint_convert(1<<i));
-        BOOST_CHECK(varint_convert((1<<i)+1));
+        BOOST_CHECK(varint_convert((1LL<<i)-1));
+        BOOST_CHECK(varint_convert(1LL<<i));
+        BOOST_CHECK(varint_convert((1LL<<i)+1));
     }
 
     for(int i=17;i<=64;++i) {
@@ -116,6 +116,79 @@ BOOST_AUTO_TEST_CASE(test_varint) {
         }
     }
 }
+
+/*****************************************************************************
+ Test the Zig-Zag format
+ *****************************************************************************/
+
+bool zigzag_convert(int64_t n) {
+    namespace varint = dng::detail::varint;
+    stringbuf buffer;
+    if(!varint::put_zig_zag(&buffer, n)) {
+        cerr << "  Writing zig-zag varint " << std::hex << std::showbase << n << " to a streambuf failed.\n";
+        cerr << std::dec << std::noshowbase;
+        return false;
+    }
+    buffer.pubseekpos(0);
+    auto aa = varint::get_zig_zag(&buffer);
+    if(!aa.second) {
+        cerr << "  Reading zig-zag varint " << std::hex << std::showbase << n << " from a streambuf failed.\n";
+        cerr << std::dec << std::noshowbase;
+        return false;
+    }
+    if(aa.first != n) {
+        cerr << "  Conversion of zig-zag " << std::hex << std::showbase << n << " via streambuf failed.\n";
+        cerr << "    Output: " << std::hex << std::showbase << aa.first << "\n";
+        cerr << "    Buffer:";
+        for(auto a : buffer.str()) {
+            cerr << " " << hex(a);
+        }
+        cerr << "\n";
+        cerr << std::dec << std::noshowbase;
+        return false;
+    }
+    return true;    
+}
+
+BOOST_AUTO_TEST_CASE(test_varint_zigzag) {
+    std::vector<uint64_t> numbers;
+    {
+        // use the lab's xorshift64 random generator
+        uint64_t u = 15191868757011070976ULL;
+        uint64_t w = 0x61C8864680B583EBLL;
+        for(int i=0;i<10100;++i) {
+            u ^= (u << 5); u ^= (u >> 15); u ^= (u << 27);
+            w += 0x61C8864680B583EBLL;
+            if(i < 100) {
+                continue; //burnin 
+            }
+            numbers.push_back(u+(w^(w>>27)));
+        }
+    }
+
+    for(int i=0;i<65536;++i) {
+        BOOST_CHECK(varint_convert(i));
+        BOOST_CHECK(varint_convert(-i));
+    }
+
+    for(int i=0;i<64;++i) {
+        int64_t j = (1LL << i);
+        BOOST_CHECK(varint_convert(j-1));
+        BOOST_CHECK(varint_convert(j));
+        BOOST_CHECK(varint_convert(j+1));
+        BOOST_CHECK(varint_convert(-j-1));
+        BOOST_CHECK(varint_convert(-j));
+        BOOST_CHECK(varint_convert(-j+1));
+    }
+
+    for(int i=17;i<=64;++i) {
+        for(auto n : numbers) {
+            BOOST_CHECK(varint_convert(n & ((1LL<<i)-1)));
+            BOOST_CHECK(varint_convert(-(n & ((1LL<<i)-1))));
+        }
+    }
+}
+
 
 bool ad_write(std::vector<AlleleDepths> lines, std::vector<uint8_t> match) {
     std::stringstream buffer;
