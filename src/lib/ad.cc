@@ -22,7 +22,7 @@
 #include <dng/io/ad.h>
 #include <dng/io/utility.h>
 
-#include <dng/detail/ntf8.h>
+#include <dng/detail/varint.h>
 
 #include <algorithm>
 #include <cstdlib>
@@ -503,7 +503,7 @@ int dng::io::Ad::WriteTad(const AlleleDepths& line) {
     return 1;
 }
 
-const char ad_header[9] = "\255AD\001\r\n\032\n";
+const char ad_header[9] = "\255AD\002\r\n\032\n";
 
 int dng::io::Ad::ReadHeaderAd() {
     using namespace std;
@@ -568,15 +568,15 @@ int dng::io::Ad::WriteHeaderAd() {
 }
 
 int dng::io::Ad::ReadAd(AlleleDepths *pline) {
-    namespace ntf8 = dng::detail::ntf8;
+    namespace varint = dng::detail::varint;
 
-    int64_t u;
-    if(ntf8::get64(stream_.rdbuf(),&u) == 0) {
+    // read location and type
+    auto result = varint::get(stream_.rdbuf());
+    if(!result.second) {
         return 0;
     }
-    // read location ant type
-    location_t loc = (u >> 7);
-    int8_t rec_type = u & 0x7F;
+    location_t loc = (result.first >> 7);
+    int8_t rec_type = result.first & 0x7F;
     if(utility::location_to_contig(loc) > 0) {
         // absolute positioning
         loc -= (1LL << 32);
@@ -588,8 +588,8 @@ int dng::io::Ad::ReadAd(AlleleDepths *pline) {
     if(pline == nullptr) {
         int width = AlleleDepths::type_info_table[rec_type].width;
         for(size_t i=0; i < num_libraries_*width; ++i) {
-            int32_t d;
-            if(ntf8::get32(stream_.rdbuf(),&d) == 0) {
+            result = varint::get(stream_.rdbuf());
+            if(!result.second) {
                 return 0;
             }
         }
@@ -598,9 +598,11 @@ int dng::io::Ad::ReadAd(AlleleDepths *pline) {
     pline->location(loc);
     pline->resize(rec_type,num_libraries_);
     for(size_t i=0; i<pline->data_size(); ++i) {
-        if(ntf8::get32(stream_.rdbuf(), &pline->data()[i]) == 0) {
+        result = varint::get(stream_.rdbuf());
+        if(!result.second) {
             return 0;
         }
+        pline->data()[i] = result.first;
     }
     return 1;
 }
@@ -642,17 +644,18 @@ int dng::io::Ad::WriteAd(const AlleleDepths& line) {
     // Fetch color and check if it is positive
     int8_t color = line.color();
     assert(color >= 0);
-    int64_t u = (loc << 7) | color; 
-    char buffer[9];
+    uint64_t u = (loc << 7) | color;
     // write out contig, position, and location
-    int sz = ntf8_put64(u, buffer,sizeof(buffer));
-    stream_.write(buffer, sz);
+    namespace varint = dng::detail::varint;
+    if(!varint::put(stream_.rdbuf(), u)) {
+        return 0;
+    }
     // write out data
     for(size_type i = 0; i < line.data_size(); ++i) {
-        sz = ntf8_put32(line.data()[i], buffer,sizeof(buffer));
-        stream_.write(buffer,sz);
+        if(!varint::put(stream_.rdbuf(),line.data()[i])) {
+            return 0;
+        }
     }
-
     return 1;
 }
 
@@ -660,9 +663,10 @@ constexpr int MAX_VARINT_SIZE = 10;
 std::pair<uint64_t,bool> dng::detail::varint::get_fallback(bytebuf_t *in, uint64_t result) {
     assert(in != nullptr);
     assert((result & 0x80) == 0x80);
+    assert((result & 0xFF) == result);
     for(int i=1;i<MAX_VARINT_SIZE;i++) {
         // remove the most recent MSB
-        result -= 0x80LL << (7*i-7);
+        result -= (0x80LL << (7*i-7));
         // grab a character
         bytebuf_t::int_type n = in->sbumpc();
         // if you have reached the end of stream, return error
@@ -670,9 +674,9 @@ std::pair<uint64_t,bool> dng::detail::varint::get_fallback(bytebuf_t *in, uint64
             return {0,false};
         }
         // Convert back to a char and save in a 64-bit num.
-        uint64_t u = bytebuf_t::traits_type::to_char_type(n);
+        uint64_t u = static_cast<uint8_t>(bytebuf_t::traits_type::to_char_type(n));
         // shift these bits and add them to result
-        result += u << (7*i);
+        result += (u << (7*i));
         // if MSB is not set, return the result
         if(!(u & 0x80)) {
             return {result,true};
@@ -680,4 +684,22 @@ std::pair<uint64_t,bool> dng::detail::varint::get_fallback(bytebuf_t *in, uint64
     }
     // if you have read more bytes than expected, return error
     return {0,false};
+}
+
+bool dng::detail::varint::put(bytebuf_t *out, uint64_t u) {
+    assert(out != nullptr);
+    while(u >= 0x80) {
+        uint8_t b = static_cast<uint8_t>(u | 0x80);
+        bytebuf_t::int_type n = out->sputc(b);
+        if(bytebuf_t::traits_type::eq_int_type(n, bytebuf_t::traits_type::eof())) {
+            return false;
+        }
+        u >>= 7;
+    }
+    uint8_t b = static_cast<uint8_t>(u);
+    bytebuf_t::int_type n = out->sputc(b);
+    if(bytebuf_t::traits_type::eq_int_type(n, bytebuf_t::traits_type::eof())) {
+        return false;
+    }
+    return true;
 }

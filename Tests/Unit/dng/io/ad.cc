@@ -21,7 +21,7 @@
 struct unittest_dng_io_ad;
 
 #include <dng/io/ad.h>
-#include <dng/detail/ntf8.h>
+#include <dng/detail/varint.h>
 
 #include <sstream>
 #include <iostream>
@@ -30,6 +30,7 @@ struct unittest_dng_io_ad;
 using namespace dng::io;
 using namespace dng::pileup;
 using namespace dng::utility;
+using namespace std;
 
 struct unittest_dng_io_ad {
     static int get_version_number(const dng::io::Ad &a) { return a.id_.version; }
@@ -37,97 +38,53 @@ struct unittest_dng_io_ad {
 };
 
 // http://stackoverflow.com/a/673389
-struct HexCharStruct
-{
-  unsigned char c;
-  HexCharStruct(unsigned char u) : c(u) { }
+struct HexCharStruct {
+    unsigned char c;
+    HexCharStruct(unsigned char u) : c(u) { }
 };
 
-inline std::ostream& operator<<(std::ostream& o, const HexCharStruct& hs)
-{
-  return (o << std::setw(2) << std::setfill('0') << std::hex << (int)hs.c);
+inline std::ostream& operator<<(std::ostream& o, const HexCharStruct& hs) {
+    return (o << std::setw(2) << std::setfill('0') << std::hex << (int)hs.c << std::dec);
 }
 
-inline HexCharStruct hex(unsigned char u)
-{
-  return HexCharStruct(u);
+inline HexCharStruct hex(unsigned char u) {
+    return HexCharStruct(u);
 }
 
 /*****************************************************************************
- Test the NTF8 format
+ Test the Varint format
  *****************************************************************************/
 
-int ntf8_put32(int32_t n, char *out, size_t count);
-int ntf8_put64(int64_t n, char *out, size_t count);
-int ntf8_get32(const char *in, size_t count, int32_t *r);
-int ntf8_get64(const char *in, size_t count, int64_t *r);
-
-bool ntf8_convert32(int32_t n) {
-    char buffer[5];
-    int sz1 = ntf8_put32(n,buffer,5);
-    int32_t u;
-    int sz2 = ntf8_get32(buffer,5,&u);
-    if(sz1 != sz2 || u != n) {
-        std::cerr << "  NTF8 32 conversion of " << n << " failed.\n";
-        std::cerr << "    Output: " << u << ", size written = " << sz1 << ", size read = " << sz2 << ".\n";
+bool varint_convert(uint64_t u) {
+    namespace varint = dng::detail::varint;
+    stringbuf buffer;
+    if(!varint::put(&buffer, u)) {
+        cerr << "  Writing varint " << std::hex << std::showbase << u << " to a streambuf failed.\n";
+        cerr << std::dec << std::noshowbase;
         return false;
     }
-
-    //std::cerr << "  NTF8 32 conversion of " << n << ", size read/written = " << sz1 << " successful.\n";
-    return true;
-}
-
-bool ntf8_convert64(int64_t n) {
-    char buffer[9];
-    int sz1 = ntf8_put64(n,buffer,9);
-    int64_t u;
-    int sz2 = ntf8_get64(buffer,9,&u);
-    if(sz1 != sz2 || u != n) {
-        std::cerr << "  NTF8 64 conversion of " << n << " failed.\n";
-        std::cerr << "    Output: " << u << ", size written = " << sz1 << ", size read = " << sz2 << ".\n";
+    buffer.pubseekpos(0);
+    auto aa = varint::get(&buffer);
+    if(!aa.second) {
+        cerr << "  Reading varint " << std::hex << std::showbase << u << " from a streambuf failed.\n";
+        cerr << std::dec << std::noshowbase;
         return false;
     }
-
-    //std::cerr << "  NTF8 64 conversion of " << n << ", size read/written = " << sz1 << " successful.\n";
+    if(aa.first != u) {
+        cerr << "  Conversion of " << std::hex << std::showbase << u << " via streambuf failed.\n";
+        cerr << "    Output: " << std::hex << std::showbase << aa.first << "\n";
+        cerr << "    Buffer:";
+        for(auto a : buffer.str()) {
+            cerr << " " << hex(a);
+        }
+        cerr << "\n";
+        cerr << std::dec << std::noshowbase;
+        return false;
+    }
     return true;    
 }
 
-bool ntf8_convert32s(int32_t n) {
-    namespace ntf8 = dng::detail::ntf8;
-    char buffer[5];
-    int sz1 = ntf8_put32(n,buffer,5);
-    std::istringstream in(std::string{&buffer[0],&buffer[5]});
-    int32_t u = -1;
-    int sz2 = ntf8::get32(in.rdbuf(),&u);
-    if(sz1 != sz2 || u != n) {
-        std::cerr << "  NTF8 32 conversion of " << n << " via streambuf failed.\n";
-        std::cerr << "    Output: " << u << ", size written = " << sz1 << ", size read = " << sz2 << ".\n";
-        return false;
-    }
-
-    //std::cerr << "  NTF8 32 conversion of " << n << ", size read/written = " << sz1 << " successful.\n";
-    return true;
-}
-
-bool ntf8_convert64s(int64_t n) {
-    namespace ntf8 = dng::detail::ntf8;
-    char buffer[9];
-    int sz1 = ntf8_put64(n,buffer,9);
-    std::istringstream in(std::string{&buffer[0],&buffer[9]});
-    int64_t u = -1;
-    int sz2 = ntf8::get64(in.rdbuf(),&u);
-    if(sz1 != sz2 || u != n) {
-        std::cerr << "  NTF8 64 conversion of " << n << " via streambuf failed.\n";
-        std::cerr << "    Output: " << u << ", size written = " << sz1 << ", size read = " << sz2 << ".\n";
-        return false;
-    }
-
-    //std::cerr << "  NTF8 64 conversion of " << n << ", size read/written = " << sz1 << " successful.\n";
-    return true;    
-}
-
-
-BOOST_AUTO_TEST_CASE(test_ntf8) {
+BOOST_AUTO_TEST_CASE(test_varint) {
     std::vector<uint64_t> numbers;
     {
         // use the lab's xorshift64 random generator
@@ -143,70 +100,19 @@ BOOST_AUTO_TEST_CASE(test_ntf8) {
         }
     }
 
-    // ntf8_convert32
     for(int i=0;i<65536;++i) {
-        BOOST_CHECK(ntf8_convert32(i));
-    }
-
-    for(int i=0;i<32;++i) {
-        BOOST_CHECK(ntf8_convert32((1<<i)-1));
-        BOOST_CHECK(ntf8_convert32(1<<i));
-        BOOST_CHECK(ntf8_convert32((1<<i)+1));
-    }
-
-    for(int i=17;i<=32;++i) {
-        for(auto n : numbers) {
-            BOOST_CHECK(ntf8_convert32(n & ((1LL<<i)-1)));
-        }
-    }
-    // ntf8_convert32s
-    for(int i=0;i<65536;++i) {
-        BOOST_CHECK(ntf8_convert32s(i));
-    }
-
-    for(int i=0;i<32;++i) {
-        BOOST_CHECK(ntf8_convert32s((1<<i)-1));
-        BOOST_CHECK(ntf8_convert32s(1<<i));
-        BOOST_CHECK(ntf8_convert32s((1<<i)+1));
-    }
-
-    for(int i=17;i<=32;++i) {
-        for(auto n : numbers) {
-            BOOST_CHECK(ntf8_convert32s(n & ((1LL<<i)-1)));
-        }
-    }
-
-    // ntf8_convert64
-    for(int i=0;i<65536;++i) {
-        BOOST_CHECK(ntf8_convert64(i));
+        BOOST_CHECK(varint_convert(i));
     }
 
     for(int i=0;i<64;++i) {
-        BOOST_CHECK(ntf8_convert64((1LL<<i)-1));
-        BOOST_CHECK(ntf8_convert64(1LL<<i));
-        BOOST_CHECK(ntf8_convert64((1LL<<i)+1));
+        BOOST_CHECK(varint_convert((1<<i)-1));
+        BOOST_CHECK(varint_convert(1<<i));
+        BOOST_CHECK(varint_convert((1<<i)+1));
     }
 
     for(int i=17;i<=64;++i) {
         for(auto n : numbers) {
-            BOOST_CHECK(ntf8_convert64(n & ((1LL<<i)-1)));
-        }
-    }
-
-    // ntf8_convert64s
-    for(int i=0;i<65536;++i) {
-        BOOST_CHECK(ntf8_convert64s(i));
-    }
-
-    for(int i=0;i<64;++i) {
-        BOOST_CHECK(ntf8_convert64s((1LL<<i)-1));
-        BOOST_CHECK(ntf8_convert64s(1LL<<i));
-        BOOST_CHECK(ntf8_convert64s((1LL<<i)+1));
-    }
-
-    for(int i=17;i<=64;++i) {
-        for(auto n : numbers) {
-            BOOST_CHECK(ntf8_convert64s(n & ((1LL<<i)-1)));
+            BOOST_CHECK(varint_convert(n & ((1LL<<i)-1)));
         }
     }
 }
@@ -250,9 +156,9 @@ bool ad_write(std::vector<AlleleDepths> lines, std::vector<uint8_t> match) {
  *****************************************************************************/
 
 BOOST_AUTO_TEST_CASE(test_ad_write) {
-    BOOST_CHECK(ad_write({{make_location(0,0), 0, 2, {0,0}}}, {0xF8,0x80,0x00,0x00,0x00,0x00,0x00,0x00}));
-    BOOST_CHECK(ad_write({{make_location(1,9), 4, 2, {10,11,3,4}}}, {0xF9,0x00,0x00,0x00,0x04,0x84,10,11,3,4}));
-    BOOST_CHECK(ad_write({{make_location(2,100), 68, 2, {10,11,1000,4}}}, {0xF9,0x80,0x00,0x00,0x32,0x44,10,11,0x83,0xE8,4}));
+    BOOST_CHECK(ad_write({{make_location(0,0), 0, 2, {0,0}}}, {0x80,0x80,0x80,0x80,0x80,0x10,0x00,0x00}));
+    BOOST_CHECK(ad_write({{make_location(1,9), 4, 2, {10,11,3,4}}}, {0x84,0x89,0x80,0x80,0x80,0x20,10,11,3,4}));
+    BOOST_CHECK(ad_write({{make_location(2,100), 68, 2, {10,11,1000,4}}}, {0xC4,0xE4,0x80,0x80,0x80,0x30,10,11,0xE8,0x07,4}));
 
     BOOST_CHECK(ad_write({
         {make_location(1,0), 1, 2, {100,1001}},
@@ -260,10 +166,10 @@ BOOST_AUTO_TEST_CASE(test_ad_write) {
         {make_location(1,3), 5, 2, {200,201,0,10}}, 
         {make_location(2,3), 0, 2, {1,0}} 
     }, {
-        0xF9,0x00,0x00,0x00,0x00,0x01,    0x64, 0x83,0xE9,
-                                 0x05,    0x80,0xC8, 0x80,0xC9, 0,10,
-                            0x80,0x85,    0x80,0xC8, 0x80,0xC9, 0,10,
-        0xF9,0x80,0x00,0x00,0x01,0x80,    1, 0
+        0x81,0x80,0x80,0x80,0x80,0x20,    0x64, 0xE9,0x07,
+                                 0x05,    0xC8,0x01, 0xC9,0x01, 0,10,
+                            0x85,0x01,    0xC8,0x01, 0xC9,0x01, 0,10,
+        0x80,0x83,0x80,0x80,0x80,0x30,    1, 0
     }));
 }
 
