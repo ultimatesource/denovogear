@@ -158,7 +158,6 @@ int ex_bufz_size(int64_t n) {
     return i;
 }
 
-
 bool zigzag_convert(int64_t n) {
     namespace varint = dng::detail::varint;
     stringbuf buffer;

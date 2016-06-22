@@ -637,11 +637,12 @@ int dng::io::Ad::WriteAd(const AlleleDepths& line) {
         location_t diff = loc - last_location_ - 1;
         last_location_ = loc;
         loc = diff;
+        assert(location_to_contig(loc) == 0);
     }
     // set counter
     counter_ += 1;
 
-    // Fetch color and check if it is positive
+    // Fetch color and check if it is non-negative
     int8_t color = line.color();
     assert(color >= 0);
     uint64_t u = (loc << 7) | color;
