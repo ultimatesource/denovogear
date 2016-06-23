@@ -119,6 +119,8 @@ public:
     AddLibrary(std::string name, std::string sample, std::string attributes = {} ) {
         std::vector<contig_t>::size_type pos = contigs_.size();
         libraries_.emplace_back(name, sample, attributes);
+        num_libraries_ = libraries_.size();
+        last_data_.assign(num_libraries_, 0);
         return pos;
     }
 
@@ -149,6 +151,7 @@ private:
 
     Format format_{Format::AD};
     location_t last_location_{0};
+    AlleleDepths::data_t last_data_;
 
     // Use rollover to trigger counter 
     uint16_t counter_{0};
@@ -205,6 +208,7 @@ int Ad::ReadHeader() {
     // Save the number of libraries
     num_libraries_ = libraries_.size();
     last_location_ = 0;
+    last_data_.assign(num_libraries_,0);
     return result;
 }
 
