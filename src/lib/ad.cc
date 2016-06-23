@@ -580,14 +580,31 @@ int dng::io::Ad::ReadAd(AlleleDepths *pline) {
     if(utility::location_to_contig(loc) > 0) {
         // absolute positioning
         loc -= (1LL << 32);
+        // read reference information into buffer
+        for(size_t i=0;i<num_libraries_;++i) {
+            result = varint::get(stream_.rdbuf());
+            if(!result.second) {
+                return 0;
+            }          
+            last_data_[i] = result.first;
+        }
     } else {
+        // relative positioning
         loc += last_location_ + 1;
+        // read reference information into buffer
+        for(size_t i=0;i<num_libraries_;++i) {
+            auto zzresult = varint::get_zig_zag(stream_.rdbuf());
+            if(!zzresult.second) {
+                return 0;
+            }          
+            last_data_[i] += zzresult.first;
+        }
     }
     last_location_ = loc;
 
     if(pline == nullptr) {
         int width = AlleleDepths::type_info_table[rec_type].width;
-        for(size_t i=0; i < num_libraries_*width; ++i) {
+        for(size_t i=num_libraries_; i < num_libraries_*width; ++i) {
             result = varint::get(stream_.rdbuf());
             if(!result.second) {
                 return 0;
@@ -597,7 +614,13 @@ int dng::io::Ad::ReadAd(AlleleDepths *pline) {
     }
     pline->location(loc);
     pline->resize(rec_type,num_libraries_);
-    for(size_t i=0; i<pline->data_size(); ++i) {
+
+    // Reference depths
+    for(size_t i=0;i<num_libraries_;++i) {
+        pline->data()[i] = last_data_[i];
+    }
+    // Alternate depths
+    for(size_t i=num_libraries_; i<pline->data_size(); ++i) {
         result = varint::get(stream_.rdbuf());
         if(!result.second) {
             return 0;
@@ -652,11 +675,33 @@ int dng::io::Ad::WriteAd(const AlleleDepths& line) {
         return 0;
     }
     // write out data
-    for(size_type i = 0; i < line.data_size(); ++i) {
+    if(location_to_contig(loc) == 0) {
+        // when using relative positioning output reference depths relative to previous
+        for(size_type i = 0; i < num_libraries_; ++i) {
+            int64_t n = line.data()[i]-last_data_[i];
+            if(!varint::put_zig_zag(stream_.rdbuf(),n)) {
+                return 0;
+            }
+        }
+    } else {
+        // when using absolute positioning output reference depths normally
+        for(size_type i = 0; i < num_libraries_; ++i) {
+            if(!varint::put(stream_.rdbuf(),line.data()[i])) {
+                return 0;
+            }
+        }
+    }
+    // output all non-reference depths normally
+    for(size_type i = num_libraries_; i < line.data_size(); ++i) {
         if(!varint::put(stream_.rdbuf(),line.data()[i])) {
             return 0;
         }
     }
+    // Save reference depths
+    for(size_type i = 0; i < num_libraries_; ++i) {
+        last_data_[i] = line.data()[i];
+    }
+
     return 1;
 }
 
