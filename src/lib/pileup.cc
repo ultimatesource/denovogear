@@ -51,22 +51,14 @@ int process_ad(Pileup::argument_type &arg);
 inline
 size_t get_mode(const std::string &in) {
     using utility::extract_file_type;
-    using utility::key_switch_iequals;
+    using utility::file_category;
+    using utility::FileCat;
 
-    static string keys[] = {
-        "bam","sam","cram","",
-        "ad","tad"
-    };
     string ext = extract_file_type(in).first;
-    switch(key_switch_iequals(ext,keys)) {
-    case 0:
-    case 1:
-    case 2:
-    case 3:
+    switch(file_category(ext)) {
+    case FileCat::Sequence:
         return 0;
-        break;
-    case 4:
-    case 5:
+    case FileCat::Pileup:
         return 1;
     default:
         throw runtime_error("Argument error: file type '" + ext + "' not supported. Input file was '" + in + "'.");
