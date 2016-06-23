@@ -149,39 +149,22 @@ inline T lphred(double p, T m = std::numeric_limits<T>::max()) {
 // extracts extension and filename from both file.ext and ext:file.foo
 // returns {ext, filename.ext}
 // trims whitespace as well
-inline std::pair<std::string, std::string> extract_file_type(const std::string &path) {
-    if(path.empty())
-        return {};
-    std::locale loc;
+std::pair<std::string, std::string> extract_file_type(const std::string &path);
 
-    auto last = path.length();
-    decltype(last) first = 0;
-    while(first < path.length() && std::isspace(path[first],loc)) {
-        ++first;
-    }
-    if(first == last) {
-        return {};
-    }
-    while(std::isspace(path[last-1],loc)) {
-        --last;
-    }
+enum class FileCat {
+    Unknown  = -1,
+    Sequence = 0,
+    Variant  = 1,
+    Pileup   = 2
+};
 
-    auto x = last-1;
-    for(auto u = first; u < last; ++u) {
-        if(path[u] == ':' && u > first+1) { // u > 1 skips windows drive letters
-            return {path.substr(first, u-first), path.substr(u+1,last-(u+1))};
-        }
-        if(path[u] == '.' && u > first) { // u > 0 skips unix .hidden files
-            x = u;
-        }
-    }
-    return {path.substr(x + 1, last - (x + 1)), path.substr(first,last-first)};
-}
+// converts an extension to a file category
+FileCat file_category(const std::string &in);
 
-}
+} // namespace dng::utility
 
 using utility::location_t;
 
-} // namespace dng::utility
+} // namespace dng
 
 #endif
