@@ -6,6 +6,9 @@
 #ifndef DENOVOGEAR_FIXTURE_TRIO_WORKSPACE_H
 #define DENOVOGEAR_FIXTURE_TRIO_WORKSPACE_H
 
+#include <algorithm>
+
+#include <dng/utility.h>
 #include <dng/find_mutations.h>
 #include "fixture_read_trio_from_file.h"
 
@@ -30,7 +33,7 @@ struct TrioWorkspace : public  ReadTrioFromFile {
         pedigree.Construct(ped, rgs, arg.mu, arg.mu_somatic, arg.mu_library);
 
         std::array<double, 4> freqs;
-        auto f = util::parse_double_list(arg.nuc_freqs, ',', 4);
+        auto f = dng::utility::parse_double_list(arg.nuc_freqs, ',', 4);
         std::copy(f.first.begin(), f.first.end(), &freqs[0]);
 
         test_param_1 = FindMutations::params_t {arg.theta, freqs, arg.ref_weight, arg.gamma[0], arg.gamma[1]};

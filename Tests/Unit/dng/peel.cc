@@ -34,7 +34,6 @@
 #include "fixture_random_family.h"
 
 using namespace dng;
-namespace utf = boost::unit_test;
 
 const int NUM_TEST = 100;
 
