@@ -249,7 +249,7 @@ int task::Call::operator()(Call::argument_type &arg) {
     }
 
     // Parse Nucleotide Frequencies
-    std::array<double, 4> freqs;
+    std::array<double, 4> freqs, log_freqs;
     // TODO: read directly into freqs????  This will need a wrapper that provides an "insert" function.
     // TODO: include the size into the pattern, but this makes it harder to catch the second error.
     // TODO: turn all of this into a template function that returns array<double,4>?
@@ -262,8 +262,24 @@ int task::Call::operator()(Call::argument_type &arg) {
         if(f.first.size() != 4) {
             throw std::runtime_error("Wrong number of values passed to nuc-freq. "
                                      "Expected 4; found " + std::to_string(f.first.size()) + ".");
-        }
+        }        
         std::copy(f.first.begin(), f.first.end(), &freqs[0]);
+    }
+    // Scale frequencies and makes sure they sum to 1.
+    double freqs_sum = 0.0;
+    for(int i=0;i<freqs.size();++i) {
+        if(freqs[i] < 0.0) {
+            throw std::runtime_error("Nucleotide frequencies must be non-negative. "
+                "Parsing of '" + arg.nuc_freqs + "' generated a frequency of " + std::to_string(freqs[i])
+                + " in position " + std::to_string(i) + "."
+                );
+        }
+        freqs_sum += freqs[i];
+    }
+    // scale and save the log of the frequencies
+    for(int i=0;i<freqs.size();++i) {
+        freqs[i] = freqs[i]/freqs_sum;
+        log_freqs[i] = log(freqs[i]);
     }
 
     // quality thresholds
