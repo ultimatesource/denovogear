@@ -460,6 +460,11 @@ int task::Call::operator()(Call::argument_type &arg) {
                 dp_info += d;
                 dp_counts[dp_pos++] = d;
             }
+            // calculate the log-likelihood of the null hypothesis that all reads come from binomial
+            double log_null = 0.0;
+            for(int i=0;i<4;++i) {
+                log_null += log_freqs[i]*total_depths[i].second;
+            }
             sort(&total_depths[0], &total_depths[4], [](key_t a, key_t b) { return a.second > b.second; });
 
             // Construct a string representation of REF+ALT by ignoring nucleotides with no coverage
@@ -621,7 +626,7 @@ int task::Call::operator()(Call::argument_type &arg) {
 
             record.info("MUP", stats.mup);
             record.info("LLD", stats.lld);
-            record.info("LLH", stats.llh);
+            record.info("LLH", static_cast<float>(stats.llh+stats.lld-log_null));
             record.info("MUX", stats.mux);
             record.info("MU1P", stats.mu1p);
 
