@@ -25,7 +25,6 @@
 #include <iostream>
 #include <iomanip>
 #include <ctime>
-#include <chrono>
 #include <sstream>
 #include <string>
 
@@ -57,52 +56,16 @@
 
 using namespace dng;
 
-std::string vcf_timestamp() {
-    using namespace std;
-    using namespace std::chrono;
-    std::string buffer(127, '\0');
-    auto now = system_clock::now();
-    auto now_t = system_clock::to_time_t(now);
-    size_t sz = strftime(&buffer[0], 127, "Date=\"%FT%T%z\",Epoch=",
-                         localtime(&now_t));
-    buffer.resize(sz);
-    auto epoch = std::chrono::duration_cast<std::chrono::milliseconds>(
-                     now.time_since_epoch());
-    buffer += to_string(epoch.count());
-    return buffer;
-}
-
-template<typename V, typename A>
-std::string vcf_command_line_text(const char *arg,
-                                  const std::vector<V, A> &val) {
-    std::string str;
-    for(auto && a : val) {
-        str += std::string("--") + arg + '=' + dng::utility::to_pretty(a) + ' ';
-    }
-    str.pop_back();
-    return str;
-}
-
-
-template<typename VAL>
-std::string vcf_command_line_text(const char *arg, VAL val) {
-    return std::string("--") + arg + '=' + dng::utility::to_pretty(val);
-}
-
-std::string vcf_command_line_text(const char *arg, std::string val) {
-    return std::string("--") + arg + "=\'" + val + "\'";
-}
-
 // Helper function for writing the vcf header information
 void cout_add_header_text(task::LogLike::argument_type &arg) {
     using namespace std;
     string line{"##DeNovoGearCommandLine=<ID=dng-loglike,Version="
                 PACKAGE_VERSION ","};
-    line += vcf_timestamp();
+    line += utility::vcf_timestamp();
     line += ",CommandLineOptions=\"";
 
 #define XM(lname, sname, desc, type, def) \
-    line += vcf_command_line_text(XS(lname),arg.XV(lname)) + ' ';
+    line += utility::vcf_command_line_text(XS(lname),arg.XV(lname)) + ' ';
 #   include <dng/task/loglike.xmh>
 #undef XM
     for(auto && a : arg.input) {

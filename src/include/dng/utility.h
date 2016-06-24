@@ -26,6 +26,8 @@
 #include <locale>
 #include <cstdint>
 #include <climits>
+#include <chrono>
+
 
 #include <boost/spirit/include/support_ascii.hpp>
 #include <boost/spirit/include/qi_real.hpp>
@@ -160,6 +162,35 @@ enum class FileCat {
 
 // converts an extension to a file category
 FileCat file_category(const std::string &in);
+
+
+// create a timestamp in "Date=xxx,Epoch=xxx" format
+std::string vcf_timestamp();
+
+template<typename V, typename A>
+inline
+std::string vcf_command_line_text(const char *arg,
+                                  const std::vector<V, A> &val) {
+    std::string str;
+    for(auto && a : val) {
+        str += std::string("--") + arg + '=' + dng::utility::to_pretty(a) + ' ';
+    }
+    str.pop_back();
+    return str;
+}
+
+
+template<typename VAL>
+inline
+std::string vcf_command_line_text(const char *arg, VAL val) {
+    return std::string("--") + arg + '=' + dng::utility::to_pretty(val);
+}
+
+template<>
+inline
+std::string vcf_command_line_text(const char *arg, std::string val) {
+    return std::string("--") + arg + "=\'" + val + "\'";
+}
 
 } // namespace dng::utility
 

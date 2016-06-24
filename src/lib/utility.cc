@@ -77,5 +77,20 @@ FileCat file_category(const std::string &ext) {
     return FileCat::Unknown;
 }
 
+std::string vcf_timestamp() {
+    using namespace std;
+    using namespace std::chrono;
+    std::string buffer(127, '\0');
+    auto now = system_clock::now();
+    auto now_t = system_clock::to_time_t(now);
+    size_t sz = strftime(&buffer[0], 127, "Date=\"%FT%T%z\",Epoch=",
+                         localtime(&now_t));
+    buffer.resize(sz);
+    auto epoch = std::chrono::duration_cast<std::chrono::milliseconds>(
+                     now.time_since_epoch());
+    buffer += to_string(epoch.count());
+    return buffer;
+}
+
 } }
 
