@@ -249,7 +249,7 @@ int task::Call::operator()(Call::argument_type &arg) {
     }
 
     // Parse Nucleotide Frequencies
-    std::array<double, 4> freqs, log_freqs;
+    std::array<double, 4> freqs;
     // TODO: read directly into freqs????  This will need a wrapper that provides an "insert" function.
     // TODO: include the size into the pattern, but this makes it harder to catch the second error.
     // TODO: turn all of this into a template function that returns array<double,4>?
@@ -266,7 +266,6 @@ int task::Call::operator()(Call::argument_type &arg) {
         std::copy(f.first.begin(), f.first.end(), &freqs[0]);
     }
     // Scale frequencies and makes sure they sum to 1.
-    double freqs_sum = 0.0;
     for(int i=0;i<freqs.size();++i) {
         if(freqs[i] < 0.0) {
             throw std::runtime_error("Nucleotide frequencies must be non-negative. "
@@ -274,12 +273,24 @@ int task::Call::operator()(Call::argument_type &arg) {
                 + " in position " + std::to_string(i) + "."
                 );
         }
-        freqs_sum += freqs[i];
     }
-    // scale and save the log of the frequencies
+    double freqs_sum = freqs[0] + freqs[1] + freqs[2] + freqs[3];
     for(int i=0;i<freqs.size();++i) {
         freqs[i] = freqs[i]/freqs_sum;
-        log_freqs[i] = log(freqs[i]);
+    }
+    // Calculate reference-biased frequencies
+    array<array<double,4>,5> log_freqs;
+    for(int i=0;i<5;++i) {
+        array<double,4> bias = {0,0,0,0};
+        if(i < bias.size()) {
+            bias[i] = arg.ref_weight;
+        }
+        auto alphas = population_alphas(arg.theta, freqs, bias);
+        double alpha_sum = log(alphas[0] + alphas[1] + alphas[2] + alphas[3]);
+        log_freqs[i][0] = log(alphas[0])-alpha_sum;
+        log_freqs[i][1] = log(alphas[1])-alpha_sum;
+        log_freqs[i][2] = log(alphas[2])-alpha_sum;
+        log_freqs[i][3] = log(alphas[3])-alpha_sum;
     }
 
     // quality thresholds
@@ -463,7 +474,7 @@ int task::Call::operator()(Call::argument_type &arg) {
             // calculate the log-likelihood of the null hypothesis that all reads come from binomial
             double log_null = 0.0;
             for(int i=0;i<4;++i) {
-                log_null += log_freqs[i]*total_depths[i].second;
+                log_null += log_freqs[ref_index][i]*total_depths[i].second;
             }
             sort(&total_depths[0], &total_depths[4], [](key_t a, key_t b) { return a.second > b.second; });
 
