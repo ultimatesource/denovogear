@@ -278,20 +278,6 @@ int task::Call::operator()(Call::argument_type &arg) {
     for(int i=0;i<freqs.size();++i) {
         freqs[i] = freqs[i]/freqs_sum;
     }
-    // Calculate reference-biased frequencies
-    array<array<double,4>,5> log_freqs;
-    for(int i=0;i<5;++i) {
-        array<double,4> bias = {0,0,0,0};
-        if(i < bias.size()) {
-            bias[i] = arg.ref_weight;
-        }
-        auto alphas = population_alphas(arg.theta, freqs, bias);
-        double alpha_sum = log(alphas[0] + alphas[1] + alphas[2] + alphas[3]);
-        log_freqs[i][0] = log(alphas[0])-alpha_sum;
-        log_freqs[i][1] = log(alphas[1])-alpha_sum;
-        log_freqs[i][2] = log(alphas[2])-alpha_sum;
-        log_freqs[i][3] = log(alphas[3])-alpha_sum;
-    }
 
     // quality thresholds
     int min_qual = arg.min_basequal;
@@ -474,7 +460,9 @@ int task::Call::operator()(Call::argument_type &arg) {
             // calculate the log-likelihood of the null hypothesis that all reads come from binomial
             double log_null = 0.0;
             for(int i=0;i<4;++i) {
-                log_null += log_freqs[ref_index][i]*total_depths[i].second;
+                if(total_depths[i].second > 0) {
+                    log_null += total_depths[i].second*(log10(total_depths[i].second))-dp_info*log10(dp_info);
+                }
             }
             sort(&total_depths[0], &total_depths[4], [](key_t a, key_t b) { return a.second > b.second; });
 
@@ -636,7 +624,7 @@ int task::Call::operator()(Call::argument_type &arg) {
             double bq_info = dng::stats::ad_two_sample_test(base_ref, base_alt);
 
             record.info("MUP", stats.mup);
-            record.info("LLD", stats.lld);
+            record.info("LLD", static_cast<float>(stats.llh+stats.lld));
             record.info("LLH", static_cast<float>(stats.llh+stats.lld-log_null));
             record.info("MUX", stats.mux);
             record.info("MU1P", stats.mu1p);
