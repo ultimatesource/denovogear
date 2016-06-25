@@ -6,6 +6,7 @@ add_library(libdng STATIC
   newick.cc
   pedigree.cc
   peeling.cc
+  mutation_stats.cc
   mutation.cc
   stats.cc
   regions.cc

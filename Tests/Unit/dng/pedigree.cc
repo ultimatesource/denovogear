@@ -29,8 +29,6 @@
 #include "../boost_test_helper.h"
 #include "fixture_read_trio_from_file.h"
 
-namespace utf = boost::unit_test;
-
 
 struct FixturePedigree : public ReadTrioFromFile{
 

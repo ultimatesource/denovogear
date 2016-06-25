@@ -27,7 +27,6 @@
 #include "../boost_test_helper.h"
 
 using namespace dng;
-namespace utf = boost::unit_test;
 
 struct CreateMutationMatrix {
 
