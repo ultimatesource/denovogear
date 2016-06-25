@@ -138,7 +138,7 @@ void vcf_add_header_text(hts::bcf::File &vcfout, task::Call::argument_type &arg)
     vcfout.AddHeaderMetadata("##INFO=<ID=MU1P,Number=1,Type=Float,Description=\"Probability of exactly 1 de novo mutation\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=MUX,Number=1,Type=Float,Description=\"Expected number of de novo mutations\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=LLD,Number=1,Type=Float,Description=\"Log10-likelihood of observed data at the site\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=LLH,Number=1,Type=Float,Description=\"Scaled log10-likelihood of data at the site\">");
+    vcfout.AddHeaderMetadata("##INFO=<ID=LLS,Number=1,Type=Float,Description=\"Scaled log10-likelihood of observed data at the site\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=DNT,Number=1,Type=String,Description=\"De novo type\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=DNL,Number=1,Type=String,Description=\"De novo location\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=DNQ,Number=1,Type=Integer,Description=\"Phread-scaled de novo quality\">");
@@ -262,8 +262,21 @@ int task::Call::operator()(Call::argument_type &arg) {
         if(f.first.size() != 4) {
             throw std::runtime_error("Wrong number of values passed to nuc-freq. "
                                      "Expected 4; found " + std::to_string(f.first.size()) + ".");
-        }
+        }        
         std::copy(f.first.begin(), f.first.end(), &freqs[0]);
+    }
+    // Scale frequencies and makes sure they sum to 1.
+    for(int i=0;i<freqs.size();++i) {
+        if(freqs[i] < 0.0) {
+            throw std::runtime_error("Nucleotide frequencies must be non-negative. "
+                "Parsing of '" + arg.nuc_freqs + "' generated a frequency of " + std::to_string(freqs[i])
+                + " in position " + std::to_string(i) + "."
+                );
+        }
+    }
+    double freqs_sum = freqs[0] + freqs[1] + freqs[2] + freqs[3];
+    for(int i=0;i<freqs.size();++i) {
+        freqs[i] = freqs[i]/freqs_sum;
     }
 
     // quality thresholds
@@ -444,6 +457,16 @@ int task::Call::operator()(Call::argument_type &arg) {
                 dp_info += d;
                 dp_counts[dp_pos++] = d;
             }
+            // calculate the log-likelihood of the null hypothesis that all reads come from binomial
+            double log_null = 0.0;
+            if(dp_info > 0.0) {
+                log_null = -dp_info*log10(dp_info);
+                for(int i=0;i<4;++i) {
+                    if(total_depths[i].second > 0) {
+                        log_null += total_depths[i].second*log10(total_depths[i].second);
+                    }
+                }
+            }
             sort(&total_depths[0], &total_depths[4], [](key_t a, key_t b) { return a.second > b.second; });
 
             // Construct a string representation of REF+ALT by ignoring nucleotides with no coverage
@@ -605,7 +628,7 @@ int task::Call::operator()(Call::argument_type &arg) {
 
             record.info("MUP", stats.mup);
             record.info("LLD", stats.lld);
-            record.info("LLH", stats.llh);
+            record.info("LLS", static_cast<float>(stats.lld-log_null));
             record.info("MUX", stats.mux);
             record.info("MU1P", stats.mu1p);
 
@@ -717,20 +740,29 @@ int task::Call::operator()(Call::argument_type &arg) {
             // sum up the depths for each sample and over all
             std::vector<int32_t> dp_counts(num_nodes, hts::bcf::int32_missing);
             int32_t dp_info = 0;
+            int32_t total_depths[4] = {0,0,0,0};
             for(int sample = 0; sample < n_samples; sample++) {
             	int32_t count = 0;
             	for(int allele = 0; allele < n_alleles; allele++) {
             		count += ad[sample*n_alleles + allele];
+                    total_depths[allele] += ad[sample*n_alleles + allele];
             	}
             	dp_counts[sample+library_start] = count;
             	dp_info += count;
             }
+            // calculate the log-likelihood of the null hypothesis that all reads come from binomial
+            double log_null = 0.0;
+            if(dp_info > 0.0) {
+                log_null = -dp_info*log10(dp_info);
+                for(int allele=0;allele<n_alleles;++allele) {
+                    if(total_depths[allele] > 0) {
+                        log_null += total_depths[allele]*log10(total_depths[allele]);
+                    }
+                }
+            }
 
             // Update REF, ALT fields
             record.alleles(allele_order_str);
-
-            typedef pair<int, int> key_t;
-            key_t total_depths[4] = {{0, 0}, {1, 0}, {2, 0}, {3, 0}};
 
             // Construct numeric genotypes
             int numeric_genotype[10][2] = {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
@@ -795,7 +827,7 @@ int task::Call::operator()(Call::argument_type &arg) {
 
             record.info("MUP", stats.mup);
             record.info("LLD", stats.lld);
-            record.info("LLH", stats.llh);
+            record.info("LLS", static_cast<float>(stats.lld-log_null));
             record.info("MUX", stats.mux);
             record.info("MU1P", stats.mu1p);
 
