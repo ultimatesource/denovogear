@@ -156,7 +156,7 @@ bool FindMutations::operator()(const std::vector<depth_t> &depths,
 
     stats->mup = pmut;
     stats->lld = (logdata + scale) / M_LN10;
-    stats->llh = logdata / M_LN10;
+//    stats->llh = logdata / M_LN10;
 
     // Calculate statistics after Forward-Backwards
     stats->posterior_probabilities.resize(work_.num_nodes);

@@ -22,7 +22,7 @@ struct TrioWorkspace : public  ReadTrioFromFile {
     int ref_index = 2;
     std::vector<depth_t> read_depths{3};
 
-    FindMutations::params_t test_param_1 {0, {0,0,0,0}, 0,
+    FindMutations::params_t test_param_1 {0, {{0,0,0,0}}, 0,
                                           std::string{"0,0,0,0"},
                                           std::string{"0,0,0,0"} };
 
