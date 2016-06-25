@@ -23,8 +23,8 @@ struct TrioWorkspace : public  ReadTrioFromFile {
     std::vector<depth_t> read_depths{3};
 
     FindMutations::params_t test_param_1 {0, {0,0,0,0}, 0,
-                                          std::string("0,0,0,0"),
-                                          std::string("0,0,0,0") };
+                                          std::string{"0,0,0,0"},
+                                          std::string{"0,0,0,0"} };
 
     TrioWorkspace(std::string s = "TrioWorkspace") : ReadTrioFromFile(s) {
         BOOST_TEST_MESSAGE("set up fixture: " << fixture);
