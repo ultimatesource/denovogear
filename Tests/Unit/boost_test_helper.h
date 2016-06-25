@@ -26,7 +26,7 @@
 //FIXME: too many global
 //TODO(Reed): I think we should make this configurable somehow from a CMake run. It is important to test both absolute equality and threshold-based equality.
 //TODO(SHW): Issue #157
-const double ABS_TEST_THRESHOLD = 1e-10;
+const double BOOST_ABS_THRESHOLD = 1e-5;
 const double BOOST_CLOSE_PERCENTAGE_THRESHOLD = 1e-5;
 
 
@@ -100,7 +100,7 @@ void AssertTrue(A expected, B actual){
 
 template<typename A>
 void AssertNear(A expected, A actual){
-    assert(((expected - actual)/expected) < ABS_TEST_THRESHOLD);
+    assert(((expected - actual)/expected) < BOOST_ABS_THRESHOLD);
 
 };
 
