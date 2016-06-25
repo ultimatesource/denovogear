@@ -21,6 +21,7 @@
 #define CXX_HTS_HTS_H
 
 #include <htslib/hts.h>
+#include <cstdlib>
 #include <memory>
 #include <cassert>
 
