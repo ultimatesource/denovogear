@@ -18,6 +18,8 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "denovogear.h"
+
 #include <vector>
 #include <iostream>
 #include <fstream>
@@ -27,6 +29,7 @@
 //#include "newmatio.h"
 #include <Eigen/KroneckerProduct>
 #include "lookup.h"
+#include <boost/algorithm/string.hpp>
 
 #define MIN_READ_DEPTH_INDEL 10
 
@@ -40,17 +43,15 @@ const float DELETION_INTERCEPT = -21.9313;
 using namespace std;
 
 // Calculate DNM and Null PP
-void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
+int trio_like_indel(indel_t &child, indel_t &mom, indel_t &dad, int flag,
                      lookup_table_t &tgtIndel, lookup_indel_t &lookupIndel,
                      double mu_scale, vector<hts::bcf::File> &vcfout, double pp_cutoff,
-                     int RD_cutoff, int &n_site_pass, double user_indel_mrate) {
+                     int RD_cutoff, double user_indel_mrate) {
     // Read depth filter
-    if(child->depth < RD_cutoff ||
-            mom->depth < RD_cutoff || dad->depth < RD_cutoff) {
-        return;
+    if(child.depth < RD_cutoff || mom.depth < RD_cutoff || dad.depth < RD_cutoff) {
+        return 0;
     }
 
-    n_site_pass += 1;
     //Real a[3];
     Real maxlike_null, maxlike_denovo, pp_null, pp_denovo, denom;
     Matrix M(1, 3);
@@ -63,17 +64,17 @@ void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
     Matrix DN(9, 3);
     Matrix PP(9, 3);
     //int i, j, k, l;
-    int coor = child->pos;
+    int coor = child.pos;
     char ref_name[50];
-    strcpy(ref_name, child->chr);  // Name of the reference sequence
+    strcpy(ref_name, child.chr);  // Name of the reference sequence
 
     // this is the case where child has more than 1 indel alt allele, ignore for now
-    if(strstr(child->alt, ",") != 0) {
-        return;
+    if(strstr(child.alt, ",") != 0) {
+        return 0;
     }
 
     bool is_insertion = false; // insertion/deletion event
-    int len_diff = strlen(mom->ref_base) - strlen(mom->alt); // diff b/w alt, ref
+    int len_diff = strlen(mom.ref_base) - strlen(mom.alt); // diff b/w alt, ref
     if(len_diff < 0) {
         is_insertion = true;
         len_diff = -len_diff;
@@ -107,13 +108,14 @@ void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
 
     //Load likelihood vectors
     for(int j = 0; j < 3; ++j) {
-        M(0, j) = pow(10, -mom->lk[j] / 10.);
+        M(0, j) = pow(10, -mom.lk[j] / 10.);
+    }
+
+    for(int j = 0; j < 3; ++j) {
+        D(j, 0) = pow(10, -dad.lk[j] / 10.);
     }
     for(int j = 0; j < 3; ++j) {
-        D(j, 0) = pow(10, -dad->lk[j] / 10.);
-    }
-    for(int j = 0; j < 3; ++j) {
-        C(j, 0) = pow(10, -child->lk[j] / 10.);
+        C(j, 0) = pow(10, -child.lk[j] / 10.);
     }
 
     P = kroneckerProduct(M, D);
@@ -148,7 +150,7 @@ void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
     if(pp_denovo > pp_cutoff) {
 
         //remove ",X" from alt, helps with VCF op.
-        string alt = mom->alt;
+        string alt = mom.alt;
         size_t posX = alt.find(",X");
         size_t posN = alt.find(",N");
         if(posX != std::string::npos) {
@@ -158,11 +160,12 @@ void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
             alt.replace(posN, 2, "");
         }
 
-        cout << "DENOVO-INDEL CHILD_ID: " << child->id;       
+
+        cout << "DENOVO-INDEL CHILD_ID: " << child.id;
         cout << " chr: " << ref_name;
         cout << " pos: " << coor; 
-        cout << " ref: " << mom->ref_base;
-        cout << " alt: " << mom->alt;
+        cout << " ref: " << mom.ref_base;
+        cout << " alt: " << mom.alt;
         cout << " maxlike_null: " << maxlike_null;
         cout << " pp_null: " << pp_null;
         cout << " tgt_null(child/mom/dad): " << tgtIndel[i][j];
@@ -173,50 +176,52 @@ void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
         cout << " tgt_dnm(child/mom/dad): " << tgtIndel[k][l];
         cout << " lookup: " << lookupIndel.code(k, l);
         cout << " flag: " << flag;
-        cout << " READ_DEPTH child: " << child->depth; 
-        cout << " dad: " << dad->depth;
-        cout << " mom: " << mom->depth;
-        cout << " MAPPING_QUALITY child: " << child->rms_mapQ;
-        cout << " dad: " << dad->rms_mapQ;
-        cout << " mom: " << mom->rms_mapQ;
+        cout << " READ_DEPTH child: " << child.depth;
+        cout << " dad: " << dad.depth;
+        cout << " mom: " << mom.depth;
+        cout << " MAPPING_QUALITY child: " << child.rms_mapQ;
+        cout << " dad: " << dad.rms_mapQ;
+        cout << " mom: " << mom.rms_mapQ;
         cout << endl;
-        
+
 
         if(!vcfout.empty()) {
             auto rec = vcfout[0].InitVariant();
             rec.target(ref_name);
             rec.position(coor);
-            rec.alleles(std::string(mom->ref_base) + "," + alt);
+            rec.alleles(std::string(mom.ref_base) + "," + alt);
             rec.quality(0);
             rec.filter("PASS");
 #ifndef NEWVCFOUT
             // Old vcf output format
-            rec.info("RD_MOM", mom->depth);
-            rec.info("RD_DAD", dad->depth);
-            rec.info("MQ_MOM", mom->rms_mapQ);
-            rec.info("MQ_DAD", dad->rms_mapQ);
+            rec.info("RD_MOM", mom.depth);
+            rec.info("RD_DAD", dad.depth);
+            rec.info("MQ_MOM", mom.rms_mapQ);
+            rec.info("MQ_DAD", dad.rms_mapQ);
             rec.info("INDELcode", static_cast<float>(lookupIndel.snpcode(i, j)));
-            rec.samples("NULL_CONFIG(child/mom/dad)", std::vector<std::string> {tgtIndel[i - 1][j - 1]});
+            rec.samples("NULL_CONFIG(child/mom/dad)", std::vector<std::string> {tgtIndel[i][j]});
             rec.samples("PP_NULL", std::vector<float> {static_cast<float>(pp_null)});
-            rec.samples("DNM_CONFIG(child/mom/dad)", std::vector<std::string> {tgtIndel[k - 1][l - 1]});
+            rec.samples("DNM_CONFIG(child/mom/dad)", std::vector<std::string> {tgtIndel[k][l]});
             rec.samples("PP_DNM", std::vector<float> {static_cast<float>(pp_denovo)});
-            rec.samples("RD", std::vector<int32_t> {child->depth});
-            rec.samples("MQ", std::vector<int32_t> {child->rms_mapQ});
+            rec.samples("RD", std::vector<int32_t> {child.depth});
+            rec.samples("MQ", std::vector<int32_t> {child.rms_mapQ});
 #else
-
             // Newer, more accurate VCF output format
             rec.info("INDELcode", static_cast<float>(lookupIndel.snpcode(i, j)));
             rec.info("PP_NULL", static_cast<float>(pp_null));
             rec.info("PP_DNM", static_cast<float>(pp_denovo));
-            rec.samples("RD", std::vector<int32_t> {child->depth, mom->depth, dad->depth});
-            rec.samples("MQ", std::vector<int32_t> {child->rms_mapQ, mom->rms_mapQ, dad->rms_mapQ});
+            rec.samples("RD", std::vector<int32_t> {child.depth, mom.depth, dad.depth});
+            rec.samples("MQ", std::vector<int32_t> {child.rms_mapQ, mom.rms_mapQ, dad.rms_mapQ});
             std::vector<std::string> configs;
-            boost::split(configs, tgtIndel[i - 1][j - 1], boost::is_any_of("/"));
+            boost::split(configs, tgtIndel[i][j], boost::is_any_of("/"));
             rec.samples("NULL_CONFIG", configs);
-            boost::split(configs, tgtIndel[k - 1][l - 1], boost::is_any_of("/"));
+            boost::split(configs, tgtIndel[k][l], boost::is_any_of("/"));
             rec.samples("DNM_CONFIG", configs);
 #endif
             vcfout[0].WriteRecord(rec);
+            rec.Clear();
         }
     }
+
+    return 1;
 }

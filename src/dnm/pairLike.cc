@@ -34,7 +34,7 @@ using namespace std;
 //typedef Eigen::MatrixXd Matrix;
 
 // Calculate Pair PP
-void pair_like(pair_t tumor, pair_t normal, vector<vector<string> > &tgtPair,
+void pair_like(pair_t &tumor, pair_t &normal, vector<vector<string> > &tgtPair,
                lookup_pair_t &lookupPair, int flag, vector<hts::bcf::File> &vcfout,
                double pp_cutoff, int RD_cutoff, int &n_site_pass) {
     // Filter low read depths

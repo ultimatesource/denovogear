@@ -46,7 +46,8 @@ typedef struct  {
     char normalID[ID_LENGTH]; // normal sample ID
 } Pair;
 
-void parse_ped(std::string ped_file, Trio **t, Pair **p, int &trio_count,
-               int &pair_count);
+//void parse_ped(std::string ped_file, Trio **t, Pair **p, int &trio_count, int &pair_count);
+void parse_ped(std::string ped_file, std::vector<Trio> &trios, std::vector<Pair> &pairs);
+
 
 #endif

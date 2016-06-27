@@ -42,20 +42,18 @@
 
 
 // Calculate SNP DNM PP
-void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag,
+int trio_like_snp(qcall_t &child, qcall_t &mom, qcall_t &dad, int flag,
                    lookup_table_t &tgt, lookup_snp_t &lookup,
-                   std::vector<hts::bcf::File> &vcfout, double pp_cutoff, int RD_cutoff,
-                   int &n_site_pass);
+                   std::vector<hts::bcf::File> &vcfout, double pp_cutoff, int RD_cutoff);
 
 // Calculate INDEL DNM PP
-void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
-                     lookup_table_t &tgtIndel,
-                     lookup_indel_t &lookupIndel, double mu_scale,
+int trio_like_indel(indel_t &child, indel_t &mom, indel_t &dad, int flag,
+                     lookup_table_t &tgtIndel, lookup_indel_t &lookupIndel, double mu_scale,
                      std::vector<hts::bcf::File> &vcfout, double pp_cutoff,
-                     int RD_cutoff, int &n_site_pass, double user_indel_mrate);
+                     int RD_cutoff, double user_indel_mrate);
 
 // Calculate Pair PP
-void pair_like(pair_t tumor, pair_t normal,
+void pair_like(pair_t &tumor, pair_t &normal,
                lookup_table_t &tgtPair, lookup_pair_t &lookupPair,
                int flag, std::vector<hts::bcf::File> &vcfout,
                double pp_cutoff, int RD_cutoff, int &n_site_pass);

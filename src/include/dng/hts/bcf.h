@@ -298,6 +298,13 @@ public:
         assert(rec.hdr() == hdr());
         bcf_write(handle(), hdr(), &rec);
     }
+
+    /** Explicity closes the file and flushes the stream */
+    void Close() {
+    	bcf_close(handle());
+    }
+
+
 protected:
     bcf_hdr_t *hdr() { return hdr_.get(); }
 
