@@ -118,6 +118,12 @@ protected:
     std::array<double, 5> max_entropies_;
 
     std::vector<double> event_;
+
+    DNG_UNIT_TEST(test_constructor);
+    DNG_UNIT_TEST(test_prior);
+    DNG_UNIT_TEST(test_full_transition);
+    DNG_UNIT_TEST(test_operator);
+
 };
 } // namespace dng
 
