@@ -84,7 +84,7 @@ void VCFPileup::operator()(const char *fname, bcf_srs_t *rec_reader, Func func) 
 
     bcf_hdr_set_samples(hdr, samples.c_str(), 0);
     int variant_types;
-    /////while(bcf_read1(fp, hdr, rec) >= 0) {
+
     while(bcf_sr_next_line(rec_reader)) {
     	bcf1_t *rec = bcf_sr_get_line(rec_reader, 0);
     	variant_types = bcf_get_variant_types(rec);
