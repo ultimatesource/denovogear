@@ -40,6 +40,8 @@
 #include <dng/cigar.h>
 #include <dng/read_group.h>
 
+#include "htslib/synced_bcf_reader.h"
+
 namespace dng {
 namespace pileup {
 namespace vcf {
@@ -55,14 +57,14 @@ public:
     }
 
     template<typename Func>
-    void operator()(const char *fname, Func func);
+    void operator()(const char *fname, bcf_srs_t *rec_reader, Func func);
 
 private:
     ReadGroups::StrSet libraries_;
 };
 
 template<typename Func>
-void VCFPileup::operator()(const char *fname, Func func) {
+void VCFPileup::operator()(const char *fname, bcf_srs_t *rec_reader, Func func) {
     // TODO? If using multiple input vcf files then we may require scanners to search each file for the same position
 
     // type erase callback function
@@ -70,8 +72,10 @@ void VCFPileup::operator()(const char *fname, Func func) {
 
     // Open the VCF/BCF file
     htsFile *fp = hts_open(fname, "r");
-    bcf_hdr_t *hdr = bcf_hdr_read(fp);
-    bcf1_t *rec = bcf_init1();
+    // Get the header (should be only one input file)
+    bcf_hdr_t *hdr = bcf_sr_get_header(rec_reader, 0);
+
+
     std::string samples;
     for(auto && str : libraries_) {
         samples += str + ',';
@@ -79,12 +83,16 @@ void VCFPileup::operator()(const char *fname, Func func) {
     samples.pop_back();
 
     bcf_hdr_set_samples(hdr, samples.c_str(), 0);
+    int variant_types;
+    /////while(bcf_read1(fp, hdr, rec) >= 0) {
+    while(bcf_sr_next_line(rec_reader)) {
+    	bcf1_t *rec = bcf_sr_get_line(rec_reader, 0);
+    	variant_types = bcf_get_variant_types(rec);
+    	// check that the current record is for an SNP or a REF and not an Indel, MNP, or something else
+    	if((variant_types != VCF_SNP) && (variant_types != VCF_REF)){
+    		continue;
+    	}
 
-    while(bcf_read1(fp, hdr, rec) >= 0) {
-        // check that the current record is for an SNP and not an Indel, MNP, or something else
-        if(bcf_get_variant_types(rec) != VCF_SNP) {
-            continue;
-        }
         // TODO? Check the QUAL field or PL,PP genotype fields
         // execute func
         call_back(hdr, rec);

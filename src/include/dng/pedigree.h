@@ -30,6 +30,7 @@
 #include <dng/newick.h>
 #include <dng/read_group.h>
 #include <dng/peeling.h>
+#include <dng/detail/unit_test.h>
 
 namespace dng {
 
@@ -109,6 +110,7 @@ public:
     size_t num_nodes() const { return num_nodes_; }
     std::pair<size_t, size_t> library_nodes() const { return {first_library_, num_nodes_}; }
 
+
 protected:
     // node structure:
     // founder germline, non-founder germline, somatic, library
@@ -136,6 +138,8 @@ protected:
     std::vector<peel::family_members_t> family_members_;
 
     void ConstructPeelingMachine();
+    
+    DNG_UNIT_TEST(test_pedigree_inspect);
 };
 
 }; // namespace dng

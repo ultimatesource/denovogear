@@ -9,6 +9,7 @@ set(TESTDATA_DIR "${CMAKE_BINARY_DIR}/testdata")
 # Set TESTDATA to specify a directory (e.g. git clone) that contains the testing data
 set(TESTDATA "" CACHE PATH "Source directory of custom testing data.")
 
+
 # If TESTDATA is not set download the testing data
 if(NOT TESTDATA)
   set(testdata_args
@@ -22,6 +23,8 @@ else()
   set(TESTDATA_DIR "${TESTDATA}")
   set(testdata_args )
 endif()  
+
+ADD_DEFINITIONS(-DTESTDATA_DIR=\"${TESTDATA_DIR}\")
 
 # Create a target `testdata` to download and extract testdata as neccessary
 externalproject_add(testdata

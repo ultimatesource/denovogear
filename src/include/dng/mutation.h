@@ -22,6 +22,7 @@
 
 
 #include <cmath>
+#include <cassert>
 #include <array>
 
 #include <dng/matrix.h>
@@ -218,13 +219,26 @@ inline double estimate(double q, const std::array<double, 4> &nuc_freq) {
 } // namespace f81
 
 
+inline
+std::array<double, 4> population_alphas(double theta,
+        const std::array<double, 4> &nuc_freq,
+        const std::array<double, 4> &prior) {
+    assert(nuc_freq[0] >= 0 && nuc_freq[1] >= 0 && nuc_freq[2] >= 0 && nuc_freq[3] >= 0);
+    assert(prior[0] >= 0 && prior[1] >= 0 && prior[2] >= 0 && prior[3] >= 0);
+
+    double nuc_sum = nuc_freq[0] + nuc_freq[1] + nuc_freq[2] + nuc_freq[3];
+    theta = theta/nuc_sum;
+
+    return { theta*nuc_freq[0] + prior[0], theta*nuc_freq[1] + prior[1],
+             theta*nuc_freq[2] + prior[2], theta*nuc_freq[3] + prior[3]
+    };
+}
+
 inline dng::GenotypeArray population_prior(double theta,
         const std::array<double, 4> &nuc_freq,
         const std::array<double, 4> &prior) {
-    double alpha[4] = {
-        theta *nuc_freq[0] + prior[0], theta *nuc_freq[1] + prior[1],
-        theta *nuc_freq[2] + prior[2], theta *nuc_freq[3] + prior[3]
-    };
+    std::array<double, 4> alpha = population_alphas(theta, nuc_freq, prior);
+
     double alpha_sum = alpha[0] + alpha[1] + alpha[2] + alpha[3];
     dng::GenotypeArray ret{10};
     ret <<

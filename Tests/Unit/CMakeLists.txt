@@ -37,9 +37,14 @@ endmacro()
 ###############################################################################
 # Add Unit tests based on CXX namespaces
 
-AddUnitTest(dng::seq)
-AddUnitTest(dng::utility)
+AddUnitTest(dng::io::ad) 
+AddUnitTest(dng::find_mutation)
+AddUnitTest(dng::mutation)
+AddUnitTest(dng::pedigree)
 AddUnitTest(dng::peel)
 AddUnitTest(dng::regions)
+AddUnitTest(dng::seq)
 AddUnitTest(dng::stats)
-AddUnitTest(dng::io::ad)
+AddUnitTest(dng::utility)
+
+

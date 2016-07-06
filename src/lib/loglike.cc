@@ -226,6 +226,7 @@ int task::LogLike::operator()(task::LogLike::argument_type &arg) {
 
     // replace arg.region with the contents of a file if needed
     io::at_slurp(arg.region);
+    bcf_srs_t *rec_reader;
 
     if(cat == sequence_data) {
         // Wrap input in hts::bam::File
@@ -328,7 +329,7 @@ int task::LogLike::operator()(task::LogLike::argument_type &arg) {
     } else if(cat == variant_data) {
         const char *fname = bcfdata[0].name();
         dng::pileup::vcf::VCFPileup vcfpileup{rgs.libraries()};
-        vcfpileup(fname, [&](bcf_hdr_t *hdr, bcf1_t *rec) {
+        vcfpileup(fname, rec_reader, [&](bcf_hdr_t *hdr, bcf1_t *rec) {
             // Won't be able to access ref->d unless we unpack the record first
             bcf_unpack(rec, BCF_UN_STR);
 
