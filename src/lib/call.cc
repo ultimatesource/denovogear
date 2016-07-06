@@ -342,17 +342,15 @@ int task::Call::operator()(Call::argument_type &arg) {
         rgs.ParseHeaderText(bamdata, arg.rgtag);
     } else if(cat == variant_data) {
         bcfdata.emplace_back(std::move(indata[0]));
-        //--------------------------//
         rec_reader = bcf_sr_init(); // used for iterating each rec in BCF/VCF
 
 		// Open region if specified
 		if(!arg.region.empty()) {
 			int found = arg.region.find("bed");
-			int is_line = 0;
-			std::cout << "found: " << found <<'\n';
-			if(found != std::string::npos) is_line = 1; // set to 1 if arg.region is a file, keep to 0 otherwise.
+			int is_file = 0;
+			if(found != std::string::npos) is_file = 1; // set to 1 if arg.region is a file, keep to 0 otherwise.
 
-			int ret = bcf_sr_set_regions(rec_reader, arg.region.c_str(), is_line);
+			int ret = bcf_sr_set_regions(rec_reader, arg.region.c_str(), is_file);
 			if(ret == -1) {
 				throw std::runtime_error("no records in the query region " + arg.region);
 			}
