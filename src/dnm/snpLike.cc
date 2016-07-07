@@ -50,7 +50,10 @@ inline void printMatrix(Matrix &m) {
 // Calculate DNM and Null PP
 int trio_like_snp(qcall_t &child, qcall_t &mom, qcall_t &dad, int flag,
 				   lookup_table_t &tgt, lookup_snp_t &lookup,
-                   std::vector<hts::bcf::File> &vcfout, double pp_cutoff, int RD_cutoff) {
+                   hts::bcf::File *vcfout, parameters &params, Trio &trio) {
+
+	int RD_cutoff = params.RD_cutoff;
+	double pp_cutoff = params.PP_cutoff;
 
     // Filter low read depths ( < 10 )
     if(child.depth < RD_cutoff || mom.depth < RD_cutoff || dad.depth < RD_cutoff) {
@@ -193,31 +196,16 @@ int trio_like_snp(qcall_t &child, qcall_t &mom, qcall_t &dad, int flag,
         cout << " mom: " << mom.rms_mapQ;
         cout << endl;
 
-        if(!vcfout.empty()) {
-            auto rec = vcfout[0].InitVariant();
+        if(vcfout != nullptr) {
+        	unsigned int nsamples = vcfout->samples().second;
+            auto rec = vcfout->InitVariant();
             rec.target(ref_name);
             rec.position(coor);
             rec.alleles(std::string(1, mom.ref_base) + "," + alt);
             rec.quality(0);
             rec.filter("PASS");
-#ifndef NEWVCFOUT
-            // Old vcf output format
-            rec.info("RD_MOM", mom.depth);
-            rec.info("RD_DAD", dad.depth);
-            rec.info("MQ_MOM", mom.rms_mapQ);
-            rec.info("MQ_DAD", dad.rms_mapQ);
-            rec.info("SNPcode", static_cast<float>(lookup.snpcode(i, j)));
-            rec.info("code", static_cast<float>(lookup.code(i, j)));
-            rec.samples("NULL_CONFIG(child/mom/dad)", std::vector<std::string> {tgt[i][j]});
-            rec.samples("PP_NULL", std::vector<float> {static_cast<float>(pp_null)});
-            rec.samples("ML_NULL", std::vector<float> {static_cast<float>(maxlike_null)});
-            rec.samples("DNM_CONFIG(child/mom/dad)", std::vector<std::string> {tgt[k][l]});
-            rec.samples("PP_DNM", std::vector<float> {static_cast<float>(pp_denovo)});
-            rec.samples("ML_DNM", std::vector<float> {static_cast<float>(maxlike_denovo)});
-            rec.samples("RD", std::vector<int32_t> {child.depth});
-            rec.samples("MQ", std::vector<int32_t> {child.rms_mapQ});
 
-#else
+#ifdef NEWVCFOUT
             // Newer, more accurate VCF output format
             rec.info("SNPcode", static_cast<float>(lookup.snpcode(i, j)));
             rec.info("code", static_cast<float>(lookup.code(i, j)));
@@ -225,14 +213,63 @@ int trio_like_snp(qcall_t &child, qcall_t &mom, qcall_t &dad, int flag,
             rec.info("ML_NULL", static_cast<float>(maxlike_null));
             rec.info("PP_DNM", static_cast<float>(static_cast<float>(pp_denovo)));
             rec.info("ML_DNM", static_cast<float>(static_cast<float>(maxlike_denovo)));
-            rec.samples("RD", std::vector<int32_t> {child.depth, mom.depth, dad.depth});
-            rec.samples("MQ", std::vector<int32_t> {child.rms_mapQ, mom.rms_mapQ, dad.rms_mapQ});
+
+            std::vector<int32_t> rds(2, hts::bcf::int32_missing);
+            rec.samples("RD", rds);
+
+            std::vector<int32_t> mqs(2, hts::bcf::int32_missing);
+            rec.samples("MQ", mqs);
+
+            //rec.samples("RD", std::vector<int32_t> {child.depth, mom.depth, dad.depth});
+            //rec.samples("MQ", std::vector<int32_t> {child.rms_mapQ, mom.rms_mapQ, dad.rms_mapQ});
             std::vector<std::string> configs;
 
-            boost::split(configs, tgt[i][j], boost::is_any_of("/"));
-            rec.samples("NULL_CONFIG", configs);
-            boost::split(configs, tgt[k][l], boost::is_any_of("/"));
-            rec.samples("DNM_CONFIG", configs);
+            //boost::split(configs, tgt[i][j], boost::is_any_of("/"));
+            //rec.samples("NULL_CONFIG", configs);
+            //boost::split(configs, tgt[k][l], boost::is_any_of("/"));
+            //rec.samples("DNM_CONFIG", configs);
+
+
+#else
+            // Old vcf output format
+            rec.info("RD_MOM", mom.depth);
+            rec.info("RD_DAD", dad.depth);
+            rec.info("MQ_MOM", mom.rms_mapQ);
+            rec.info("MQ_DAD", dad.rms_mapQ);
+            rec.info("SNPcode", static_cast<float>(lookup.snpcode(i, j)));
+            rec.info("code", static_cast<float>(lookup.code(i, j)));
+
+            std::vector<std::string> null_configs(nsamples, hts::bcf::str_missing);
+            null_configs[trio.cpos] = tgt[i][j];
+            rec.samples("NULL_CONFIG(child/mom/dad)", null_configs);
+
+            std::vector<float> pp_nulls(nsamples, hts::bcf::float_missing);
+            pp_nulls[trio.cpos] = pp_null;
+            rec.samples("PP_NULL", pp_nulls);
+
+            std::vector<float> maxlike_nulls(nsamples, hts::bcf::float_missing);
+            maxlike_nulls[trio.cpos] = maxlike_null;
+            rec.samples("ML_NULL", maxlike_nulls);
+
+            std::vector<std::string> dnm_configs(nsamples, hts::bcf::str_missing);
+            dnm_configs[trio.cpos] = tgt[k][l];
+            rec.samples("DNM_CONFIG(child/mom/dad)", dnm_configs);
+
+            std::vector<float> pp_denovos(nsamples, hts::bcf::float_missing);
+            pp_denovos[trio.cpos] = pp_denovo;
+            rec.samples("PP_DNM", pp_denovos);
+
+            std::vector<float> ml_dnms(nsamples, hts::bcf::float_missing);
+            ml_dnms[trio.cpos] = maxlike_denovo;
+            rec.samples("ML_DNM", ml_dnms);
+
+            std::vector<int32_t> rds(nsamples, hts::bcf::int32_missing);
+            rds[trio.cpos] = child.depth;
+            rec.samples("RD", rds);
+
+            std::vector<int32_t> mqs(nsamples, hts::bcf::int32_missing);
+            mqs[trio.cpos] = child.rms_mapQ;
+            rec.samples("MQ", mqs);
 #endif
             vcfout[0].WriteRecord(rec);
             rec.Clear();

@@ -666,8 +666,6 @@ int task::Call::operator()(Call::argument_type &arg) {
             // Won't be able to access ref->d unless we unpack the record first
             bcf_unpack(rec, BCF_UN_STR);
 
-            std::cout << "BLAH" << std::endl;
-
             // get chrom, position, ref from their fields
             const char *chrom = bcf_hdr_id2name(hdr, rec->rid);
             int32_t position = rec->pos;

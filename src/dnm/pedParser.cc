@@ -38,6 +38,7 @@ void parse_ped(string ped_file, std::vector<Trio> &trios, std::vector<Pair> &pai
     char col[4][ID_LENGTH];
     int nline = 0;
 
+    unsigned int position = 0;
     while(fgets(line, 10000, fp) != NULL) {
         if(nline++ > 10000) {
             printf("Error allocating memory for number of lines in PED file.");
@@ -53,15 +54,6 @@ void parse_ped(string ped_file, std::vector<Trio> &trios, std::vector<Pair> &pai
             strcpy(tmp.mID, col[3]);  // Get Mom ID
             trios.push_back(tmp);
 
-#ifdef DEBUG_ENABLED
-            printf("\nLine\t%s", line);
-            printf("\nfID\t%s", col[0]);
-            printf("\ncID\t%s", col[1]);
-            printf("\ndID\t%s", col[2]);
-            printf("\nmID\t%s", col[3]);
-            printf("\ntrios_allocated\t%d", trios_allocated);
-            printf("\ntrio_count\t%d", trio_count);
-#endif
         } else if((strcmp(col[2], "0") != 0) && (strcmp(col[3], "0") == 0)) {
         	Pair tmp;
         	strcpy(tmp.pairID, col[0]);  // Get Pair ID

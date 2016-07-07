@@ -45,9 +45,14 @@ using namespace std;
 // Calculate DNM and Null PP
 int trio_like_indel(indel_t &child, indel_t &mom, indel_t &dad, int flag,
                      lookup_table_t &tgtIndel, lookup_indel_t &lookupIndel,
-                     double mu_scale, vector<hts::bcf::File> &vcfout, double pp_cutoff,
-                     int RD_cutoff, double user_indel_mrate) {
-    // Read depth filter
+                     hts::bcf::File *vcfout, parameters &params, Trio &trio) {
+
+	int RD_cutoff = params.RD_cutoff;
+	double pp_cutoff = params.PP_cutoff;
+	double user_indel_mrate = params.indel_mrate;
+	double mu_scale = params.mu_scale;
+
+	// Read depth filter
     if(child.depth < RD_cutoff || mom.depth < RD_cutoff || dad.depth < RD_cutoff) {
         return 0;
     }
@@ -149,6 +154,8 @@ int trio_like_indel(indel_t &child, indel_t &mom, indel_t &dad, int flag,
     // Check for PP cutoff
     if(pp_denovo > pp_cutoff) {
 
+
+
         //remove ",X" from alt, helps with VCF op.
         string alt = mom.alt;
         size_t posX = alt.find(",X");
@@ -185,8 +192,9 @@ int trio_like_indel(indel_t &child, indel_t &mom, indel_t &dad, int flag,
         cout << endl;
 
 
-        if(!vcfout.empty()) {
-            auto rec = vcfout[0].InitVariant();
+        if(vcfout != nullptr) {
+            auto rec = vcfout->InitVariant();
+            unsigned int nsamples = vcfout->samples().second;
             rec.target(ref_name);
             rec.position(coor);
             rec.alleles(std::string(mom.ref_base) + "," + alt);
@@ -199,12 +207,31 @@ int trio_like_indel(indel_t &child, indel_t &mom, indel_t &dad, int flag,
             rec.info("MQ_MOM", mom.rms_mapQ);
             rec.info("MQ_DAD", dad.rms_mapQ);
             rec.info("INDELcode", static_cast<float>(lookupIndel.snpcode(i, j)));
-            rec.samples("NULL_CONFIG(child/mom/dad)", std::vector<std::string> {tgtIndel[i][j]});
-            rec.samples("PP_NULL", std::vector<float> {static_cast<float>(pp_null)});
-            rec.samples("DNM_CONFIG(child/mom/dad)", std::vector<std::string> {tgtIndel[k][l]});
-            rec.samples("PP_DNM", std::vector<float> {static_cast<float>(pp_denovo)});
-            rec.samples("RD", std::vector<int32_t> {child.depth});
-            rec.samples("MQ", std::vector<int32_t> {child.rms_mapQ});
+
+            std::vector<std::string> null_configs(nsamples, hts::bcf::str_missing);
+            null_configs[trio.cpos] = tgtIndel[i][j];
+            rec.samples("NULL_CONFIG(child/mom/dad)", null_configs);
+
+            std::vector<float> pp_nulls(nsamples, hts::bcf::float_missing);
+            pp_nulls[trio.cpos] = pp_null;
+            rec.samples("PP_NULL", pp_nulls);
+
+            std::vector<std::string> dnm_configs(nsamples, hts::bcf::str_missing);
+            dnm_configs[trio.cpos] = tgtIndel[k][l];
+            rec.samples("DNM_CONFIG(child/mom/dad)", dnm_configs);
+
+            std::vector<float> pp_denovos(nsamples, hts::bcf::float_missing);
+            pp_denovos[trio.cpos] = pp_denovo;
+            rec.samples("PP_DNM", pp_denovos);
+
+            std::vector<int32_t> rds(nsamples, hts::bcf::int32_missing);
+            rds[trio.cpos] = child.depth;
+            rec.samples("RD", rds);
+
+            std::vector<int32_t> mqs(nsamples, hts::bcf::int32_missing);
+            mqs[trio.cpos] = child.rms_mapQ;
+            rec.samples("MQ", mqs);
+
 #else
             // Newer, more accurate VCF output format
             rec.info("INDELcode", static_cast<float>(lookupIndel.snpcode(i, j)));

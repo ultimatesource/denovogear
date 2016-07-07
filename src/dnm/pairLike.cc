@@ -17,6 +17,8 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
 */
+#include "denovogear.h"
+
 #include <vector>
 #include <iostream>
 #include <fstream>
@@ -35,8 +37,13 @@ using namespace std;
 
 // Calculate Pair PP
 void pair_like(pair_t &tumor, pair_t &normal, vector<vector<string> > &tgtPair,
-               lookup_pair_t &lookupPair, int flag, vector<hts::bcf::File> &vcfout,
-               double pp_cutoff, int RD_cutoff, int &n_site_pass) {
+               lookup_pair_t &lookupPair, int flag, /*vector<hts::bcf::File> &vcfout*/ hts::bcf::File *vcfout,
+               parameters &params, int &n_site_pass, Pair &pair) {
+
+	int RD_cutoff = params.RD_cutoff;
+	double pp_cutoff = params.PP_cutoff;
+
+
     // Filter low read depths
     if(tumor.depth < RD_cutoff || normal.depth < RD_cutoff) {
         return;
@@ -122,8 +129,9 @@ void pair_like(pair_t &tumor, pair_t &normal, vector<vector<string> > &tgtPair,
         cout << " dnm_snpcode: " << lookupPair.snpcode(k, l);
         cout << endl;
 
-        if(!vcfout.empty()) {
-            auto rec = vcfout[0].InitVariant();
+        if(vcfout != nullptr) {
+            auto rec = vcfout->InitVariant();
+            unsigned int nsamples = vcfout->samples().second;
             rec.target(ref_name);
             rec.position(coor);
             rec.alleles(std::string(1, tumor.ref_base) + "," + alt);
@@ -133,14 +141,44 @@ void pair_like(pair_t &tumor, pair_t &normal, vector<vector<string> > &tgtPair,
             // Old vcf output format
             rec.info("RD_NORMAL", normal.depth);
             rec.info("MQ_NORMAL", normal.rms_mapQ);
-            rec.samples("NULL_CONFIG(normal/tumor)", std::vector<std::string> {tgtPair[i][j]});
-            rec.samples("pair_null_code", std::vector<float> {static_cast<float>(lookupPair.snpcode(i, j))});
-            rec.samples("PP_NULL", std::vector<float> {static_cast<float>(pp_null)});
-            rec.samples("DNM_CONFIG(tumor/normal)", std::vector<std::string> {tgtPair[k][l]});
+
+            std::vector<std::string> null_configs(nsamples, hts::bcf::str_missing);
+            null_configs[pair.tpos] = tgtPair[i][j];
+            rec.samples("NULL_CONFIG(normal/tumor)", null_configs);
+
+            std::vector<float> pair_null_codes(nsamples, hts::bcf::float_missing);
+            pair_null_codes[pair.tpos] = lookupPair.snpcode(i, j);
+            rec.samples("pair_null_code", pair_null_codes);
+
+            std::vector<float> pair_denovo_codes(nsamples, hts::bcf::float_missing);
+            pair_denovo_codes[pair.tpos] = lookupPair.snpcode(k, l);
             rec.samples("pair_denovo_code", std::vector<float> {static_cast<float>(lookupPair.snpcode(k, l))});
-            rec.samples("PP_DNM", std::vector<float> {static_cast<float>(pp_denovo)});
-            rec.samples("RD_T", std::vector<int32_t> {tumor.depth});
-            rec.samples("MQ_T", std::vector<int32_t> {tumor.rms_mapQ});
+
+            std::vector<float> pp_nulls(nsamples, hts::bcf::float_missing);
+            pp_nulls[pair.tpos] = pp_null;
+            rec.samples("PP_NULL", pp_nulls);
+
+            std::vector<std::string> dnm_configs(nsamples, hts::bcf::str_missing);
+            dnm_configs[pair.tpos] = tgtPair[k][l];
+            rec.samples("DNM_CONFIG(tumor/normal)", dnm_configs);
+
+            std::vector<float> pp_denovos(nsamples, hts::bcf::float_missing);
+            pp_denovos[pair.tpos] = pp_denovo;
+            rec.samples("PP_DNM", pp_denovos);
+
+            std::vector<int32_t> rds(nsamples, hts::bcf::int32_missing);
+            rds[pair.tpos] = tumor.depth;
+            rec.samples("RD_T", rds);
+
+            std::vector<int32_t> mqs(nsamples, hts::bcf::int32_missing);
+            mqs[pair.tpos] = tumor.rms_mapQ;
+            rec.samples("MQ_T", mqs);
+
+
+
+
+
+
 #else
 
             // Newer, more accurate VCF output format
