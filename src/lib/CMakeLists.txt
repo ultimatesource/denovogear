@@ -1,5 +1,6 @@
 add_library(libdng STATIC
   call.cc
+  find_mutations.cc
   pileup.cc
   likelihood.cc
   newick.cc
