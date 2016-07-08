@@ -1,13 +1,14 @@
 ###############################################################################
 # Testdata information
-set(TESTDATA_COMMIT 85b2685f0ca276bf506716847cb314a034e0a4c4)
-set(TESTDATA_SHA256 5b5e66f6571ff61e6ff3daadc52e559ed7b6be8ee0aa9248542df3cdf116ace9)
+set(TESTDATA_COMMIT bc4f36bd9ed0d14a7f8f8343ef1ce8669a3ebca6)
+set(TESTDATA_SHA256 749c1ef7cf8491b272ffcf3937867a509775365d76395268812d2a0ccd82aa02)
 set(TESTDATA_REPO denovogear/testdata)
 set(TESTDATA_URL "https://api.github.com/repos/${TESTDATA_REPO}/tarball/${TESTDATA_COMMIT}")
 set(TESTDATA_DIR "${CMAKE_BINARY_DIR}/testdata")
 
 # Set TESTDATA to specify a directory (e.g. git clone) that contains the testing data
 set(TESTDATA "" CACHE PATH "Source directory of custom testing data.")
+
 
 # If TESTDATA is not set download the testing data
 if(NOT TESTDATA)
@@ -22,6 +23,8 @@ else()
   set(TESTDATA_DIR "${TESTDATA}")
   set(testdata_args )
 endif()  
+
+ADD_DEFINITIONS(-DTESTDATA_DIR=\"${TESTDATA_DIR}\")
 
 # Create a target `testdata` to download and extract testdata as neccessary
 externalproject_add(testdata

@@ -31,7 +31,7 @@ namespace extra {
 
 // VCF header lacks a function to get sequence lengths
 // So we will extract the contig lines from the input header
-std::vector<std::string> extract_contigs(const bcf_hdr_t *hdr) {
+inline std::vector<std::string> extract_contigs(const bcf_hdr_t *hdr) {
     if(hdr == nullptr)
         return {};
     // Read text of header
@@ -62,7 +62,7 @@ std::vector<std::string> extract_contigs(const bcf_hdr_t *hdr) {
 }
 
 // Build a list of all of the possible contigs to add to the vcf header
-std::vector<std::pair<std::string, uint32_t>> parse_contigs(
+inline std::vector<std::pair<std::string, uint32_t>> parse_contigs(
 const bam_hdr_t *hdr) {
     if(hdr == nullptr)
         return {};
