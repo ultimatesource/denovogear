@@ -214,20 +214,32 @@ int trio_like_snp(qcall_t &child, qcall_t &mom, qcall_t &dad, int flag,
             rec.info("PP_DNM", static_cast<float>(static_cast<float>(pp_denovo)));
             rec.info("ML_DNM", static_cast<float>(static_cast<float>(maxlike_denovo)));
 
-            std::vector<int32_t> rds(2, hts::bcf::int32_missing);
+            std::vector<int32_t> rds(nsamples, hts::bcf::int32_missing);
+            rds[trio.cpos] = child.depth;
+            rds[trio.mpos] = mom.depth;
+            rds[trio.dpos] = dad.depth;
             rec.samples("RD", rds);
 
-            std::vector<int32_t> mqs(2, hts::bcf::int32_missing);
+            std::vector<int32_t> mqs(nsamples, hts::bcf::int32_missing);
+            mqs[trio.cpos] = child.rms_mapQ;
+            mqs[trio.mpos] = mom.rms_mapQ;
+            mqs[trio.dpos] = dad.rms_mapQ;
             rec.samples("MQ", mqs);
 
-            //rec.samples("RD", std::vector<int32_t> {child.depth, mom.depth, dad.depth});
-            //rec.samples("MQ", std::vector<int32_t> {child.rms_mapQ, mom.rms_mapQ, dad.rms_mapQ});
             std::vector<std::string> configs;
+            boost::split(configs, tgt[i][j], boost::is_any_of("/"));
+            std::vector<std::string> null_configs(nsamples, hts::bcf::str_missing);
+            null_configs[trio.cpos] = configs[0];
+            null_configs[trio.mpos] = configs[1];
+            null_configs[trio.dpos] = configs[2];
+            rec.samples("NULL_CONFIG", null_configs);
 
-            //boost::split(configs, tgt[i][j], boost::is_any_of("/"));
-            //rec.samples("NULL_CONFIG", configs);
-            //boost::split(configs, tgt[k][l], boost::is_any_of("/"));
-            //rec.samples("DNM_CONFIG", configs);
+            boost::split(configs, tgt[k][l], boost::is_any_of("/"));
+            std::vector<std::string> dnm_configs(nsamples, hts::bcf::str_missing);
+            dnm_configs[trio.cpos] = configs[0];
+            dnm_configs[trio.mpos] = configs[1];
+            dnm_configs[trio.dpos] = configs[2];
+            rec.samples("DNM_CONFIG", dnm_configs);
 
 
 #else
@@ -271,7 +283,7 @@ int trio_like_snp(qcall_t &child, qcall_t &mom, qcall_t &dad, int flag,
             mqs[trio.cpos] = child.rms_mapQ;
             rec.samples("MQ", mqs);
 #endif
-            vcfout[0].WriteRecord(rec);
+            vcfout->WriteRecord(rec);
             rec.Clear();
         }
 

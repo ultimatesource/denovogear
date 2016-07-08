@@ -25,8 +25,6 @@
 #include <fstream>
 #include <string.h>
 #include "parser.h"
-//#include "newmatap.h"
-//#include "newmatio.h"
 #include <Eigen/KroneckerProduct>
 #include "lookup.h"
 #include <boost/algorithm/string.hpp>
@@ -237,15 +235,36 @@ int trio_like_indel(indel_t &child, indel_t &mom, indel_t &dad, int flag,
             rec.info("INDELcode", static_cast<float>(lookupIndel.snpcode(i, j)));
             rec.info("PP_NULL", static_cast<float>(pp_null));
             rec.info("PP_DNM", static_cast<float>(pp_denovo));
-            rec.samples("RD", std::vector<int32_t> {child.depth, mom.depth, dad.depth});
-            rec.samples("MQ", std::vector<int32_t> {child.rms_mapQ, mom.rms_mapQ, dad.rms_mapQ});
+
+            std::vector<int32_t> rds(nsamples, hts::bcf::int32_missing);
+            rds[trio.cpos] = child.depth;
+            rds[trio.mpos] = mom.depth;
+            rds[trio.dpos] = dad.depth;
+            rec.samples("RD", rds);
+
+            std::vector<int32_t> mqs(nsamples, hts::bcf::int32_missing);
+            mqs[trio.cpos] = child.rms_mapQ;
+            mqs[trio.mpos] = mom.rms_mapQ;
+            mqs[trio.dpos] = dad.rms_mapQ;
+            rec.samples("MQ", mqs);
+
             std::vector<std::string> configs;
             boost::split(configs, tgtIndel[i][j], boost::is_any_of("/"));
-            rec.samples("NULL_CONFIG", configs);
+            std::vector<std::string> null_configs(nsamples, hts::bcf::str_missing);
+            null_configs[trio.cpos] = configs[0];
+            null_configs[trio.mpos] = configs[1];
+            null_configs[trio.dpos] = configs[2];
+            rec.samples("NULL_CONFIG", null_configs);
+
             boost::split(configs, tgtIndel[k][l], boost::is_any_of("/"));
-            rec.samples("DNM_CONFIG", configs);
+            std::vector<std::string> dnm_configs(nsamples, hts::bcf::str_missing);
+            dnm_configs[trio.cpos] = configs[0];
+            dnm_configs[trio.mpos] = configs[1];
+            dnm_configs[trio.dpos] = configs[2];
+            rec.samples("DNM_CONFIG", dnm_configs);
+
 #endif
-            vcfout[0].WriteRecord(rec);
+            vcfout->WriteRecord(rec);
             rec.Clear();
         }
     }

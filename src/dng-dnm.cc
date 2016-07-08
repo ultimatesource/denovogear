@@ -130,6 +130,8 @@ void writeVCFHeaderMD(hts::bcf::File &vcfout, std::string &bcf_file,
     vcfout.AddHeaderMetadata("##FORMAT=<ID=MQ_T,Number=1,Type=Integer,Description=\"Mapping quality of the normal sample\">");
     vcfout.AddHeaderMetadata("##FORMAT=<ID=RD,Number=1,Type=Integer,Description=\"Read Depth\">");
     vcfout.AddHeaderMetadata("##FORMAT=<ID=MQ,Number=1,Type=Integer,Description=\"Mapping quality\">");
+    vcfout.AddHeaderMetadata("##FORMAT=<ID=NULL_CONFIG,Number=1,Type=String,Description=\"NULL trio configuration\">");
+    vcfout.AddHeaderMetadata("##FORMAT=<ID=DNM_CONFIG,Number=1,Type=String,Description=\"NULL trio configuration\">");
 #else
     // Original version
     vcfout.AddHeaderMetadata("##INFO=<ID=RD_MOM,Number=1,Type=Integer,Description=\"Read depth for MOM\">");
@@ -299,11 +301,11 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
 
         // Copy contigs from inputput file.
         for(auto && contig : hts::extra::extract_contigs(hdr)) {
-        	output_vcf[0].AddHeaderMetadata(contig.c_str());
+        	output_vcf->AddHeaderMetadata(contig.c_str());
         }
 
         // Sample/genotype columns.
-        writeVCFHeaderSamples(output_vcf[0], trios, pairs);
+        writeVCFHeaderSamples(*output_vcf, trios, pairs);
 
         output_vcf->WriteHeader();
     }
@@ -380,7 +382,7 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
 
 
     if(output_vcf != nullptr)
-    	output_vcf[0].Close();
+    	output_vcf->Close();
 
     exit(0);
 }
