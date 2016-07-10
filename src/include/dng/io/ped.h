@@ -36,6 +36,7 @@
 #include <boost/tokenizer.hpp>
 
 #include <dng/utility.h>
+#include <dng/io/utility.h>
 
 namespace dng {
 namespace io {
@@ -237,6 +238,20 @@ protected:
     NameContainer names_;
     MemberTable table_;
 };
+
+inline
+Pedigree parse_pedigree(const std::string &input) {
+    if(input.empty()) {
+        throw std::runtime_error("pedigree file was not specified.");        
+    }
+    std::ifstream ped_file(input);
+    if(!ped_file.is_open()) {
+        throw std::runtime_error("unable to open pedigree file '" + input + "'.");
+    }
+    Pedigree ped;
+    ped.Parse(io::istreambuf_range(ped_file));
+    return ped;
+}
 
 }
 } // namespace dng::io

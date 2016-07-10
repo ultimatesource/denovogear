@@ -77,9 +77,11 @@ FileCat file_category(const std::string &ext) {
     return FileCat::Unknown;
 }
 
-FileCat input_category(const std::string &in, FileCatSet mask) {
+FileCat input_category(const std::string &in, FileCatSet mask, FileCat def) {
     std::string ext = extract_file_type(in).first;
     FileCat cat = file_category(ext);
+    if(cat == FileCat::Unknown)
+        cat = def;
     if(mask & cat) {
         return cat;
     } else {
@@ -88,20 +90,23 @@ FileCat input_category(const std::string &in, FileCatSet mask) {
     return FileCat::Unknown;
 }
 
-std::string vcf_timestamp() {
+std::pair<std::string, std::string> timestamp() {
     using namespace std;
     using namespace std::chrono;
     std::string buffer(127, '\0');
     auto now = system_clock::now();
     auto now_t = system_clock::to_time_t(now);
-    size_t sz = strftime(&buffer[0], 127, "Date=\"%FT%T%z\",Epoch=",
+    size_t sz = strftime(&buffer[0], 127, "%FT%T%z",
                          localtime(&now_t));
     buffer.resize(sz);
     auto epoch = std::chrono::duration_cast<std::chrono::milliseconds>(
                      now.time_since_epoch());
-    buffer += to_string(epoch.count());
-    return buffer;
+    return {buffer, to_string(epoch.count())};
+}
+
+std::string vcf_timestamp() {
+    auto stamp = timestamp();
+    return "Date=" + stamp.first + ",Epoch=" + stamp.second;
 }
 
 } }
-

@@ -48,24 +48,6 @@ using namespace dng::task;
 int process_bam(Pileup::argument_type &arg);
 int process_ad(Pileup::argument_type &arg);
 
-inline
-size_t get_mode(const std::string &in) {
-    using utility::extract_file_type;
-    using utility::file_category;
-    using utility::FileCat;
-
-    string ext = extract_file_type(in).first;
-    switch(file_category(ext)) {
-    case FileCat::Sequence:
-        return 0;
-    case FileCat::Pileup:
-        return 1;
-    default:
-        throw runtime_error("Argument error: file type '" + ext + "' not supported. Input file was '" + in + "'.");
-        return -1;
-    };
-}
-
 // The main loop for dng-pileup application
 // argument_type arg holds the processed command line arguments
 int Pileup::operator()(Pileup::argument_type &arg) {
@@ -75,14 +57,16 @@ int Pileup::operator()(Pileup::argument_type &arg) {
     if(arg.input.empty()) {
         arg.input.emplace_back("-");
     }
-    auto it = arg.input.begin();
-    FileCat mode = utility::input_category(*it, FileCat::Sequence|FileCat::Pileup);
 
+    // Check that all input formats are of same category
+    auto it = arg.input.begin();
+    FileCat mode = utility::input_category(*it, FileCat::Sequence|FileCat::Pileup, FileCat::Sequence);
     for(++it; it != arg.input.end(); ++it) {
-        if(utility::input_category(*it, FileCat::Sequence|FileCat::Pileup) != mode) {
+        if(utility::input_category(*it, FileCat::Sequence|FileCat::Pileup, FileCat::Sequence) != mode) {
             throw runtime_error("Argument error: mixing sam/bam/cram and tad/ad input files is not supported.");
         }
     }
+    // Execute sub tasks based on input type
     if(mode == FileCat::Pileup) {
         return process_ad(arg);
     }

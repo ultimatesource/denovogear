@@ -44,10 +44,11 @@
 namespace dng {
 namespace utility {
 
-template<typename E>
+template<typename E, typename = typename std::enable_if<std::is_enum<E>::value>::type>
 struct EnumFlags {
     typedef E enum_t;
     typedef typename std::underlying_type<E>::type under_t;
+    static_assert(std::is_enum<enum_t>::value, "EnumFlags can only wrap an enum.");
 
     under_t value;
     
@@ -64,11 +65,20 @@ struct EnumFlags {
     EnumFlags operator|(enum_t v) {
          return value | EnumFlags{v};
     }
-    
+
+    EnumFlags operator|=(enum_t v) {
+         return value |= EnumFlags{v};
+    }
+
     EnumFlags operator&(enum_t v) {
         return value & EnumFlags{v};
     }
 };
+
+template<typename E>
+EnumFlags<E> operator|(E a, E b) {
+    return EnumFlags<E>{a} | b;
+}
 
 typedef int64_t location_t;
 
@@ -153,6 +163,23 @@ std::pair<std::vector<int>, bool> parse_int_list(const S &str,
     return {f, (r && b == e) };
 }
 
+// Parse Nucleotide Frequencies
+inline
+std::array<double, 4> parse_nuc_freqs(const std::string &str) {
+    auto f = utility::parse_double_list(str, ',', 4);
+    if(!f.second) {
+        throw std::runtime_error("Unable to parse nuc-freq option. "
+                                 "It must be a comma separated list of floating-point numbers.");
+    }
+    if(f.first.size() != 4) {
+        throw std::runtime_error("Wrong number of values passed to nuc-freq. "
+                                 "Expected 4; found " + std::to_string(f.first.size()) + ".");
+    }
+    std::array<double,4> freqs;
+    std::copy(f.first.begin(), f.first.begin()+4, &freqs[0]);
+    return freqs;
+}
+
 template<typename T>
 std::string to_pretty(const T &value) {
     namespace karma = boost::spirit::karma;
@@ -188,15 +215,13 @@ enum class FileCat {
 };
 typedef EnumFlags<FileCat> FileCatSet;
 
-inline
-FileCatSet operator|(FileCat a, FileCat b) {
-    return FileCatSet{a} | b;
-}
-
 // converts an extension to a file category
 FileCat file_category(const std::string &ext);
 // converts and input file to category and will throw if value is not supported
-FileCat input_category(const std::string &in, FileCatSet mask);
+FileCat input_category(const std::string &in, FileCatSet mask, FileCat def = FileCat::Unknown);
+
+// create a timestamp that contains the date and epoch
+std::pair<std::string, std::string> timestamp();
 
 // create a timestamp in "Date=xxx,Epoch=xxx" format
 std::string vcf_timestamp();
