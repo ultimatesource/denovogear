@@ -54,7 +54,9 @@
 
 #include "version.h"
 
+using namespace std;
 using namespace dng;
+using namespace dng::task;
 
 // Helper function for writing the vcf header information
 void cout_add_header_text(task::LogLike::argument_type &arg) {
@@ -115,6 +117,10 @@ protected:
     dng::GenotypeArray genotype_prior_[5]; // Holds P(G | theta)
 };
 
+// Sub-tasks
+int process_bam(LogLike::argument_type &arg);
+int process_ad(LogLike::argument_type &arg);
+
 // The main loop for dng-loglike application
 // argument_type arg holds the processed command line arguments
 int task::LogLike::operator()(task::LogLike::argument_type &arg) {
@@ -138,6 +144,7 @@ int task::LogLike::operator()(task::LogLike::argument_type &arg) {
     unique_ptr<char[], void(*)(void *)> ref{nullptr, free};
     int ref_sz = 0, ref_target_id = -1;
     unique_ptr<faidx_t, void(*)(faidx_t *)> fai{nullptr, fai_destroy};
+
     if(!arg.fasta.empty()) {
         fai.reset(fai_load(arg.fasta.c_str()));
         if(!fai)
@@ -356,6 +363,13 @@ int task::LogLike::operator()(task::LogLike::argument_type &arg) {
     return EXIT_SUCCESS;
 }
 
+int process_bam(LogLike::argument_type &arg);
+
+int process_ad(LogLike::argument_type &arg) {
+    throw(runtime_error("Processing AD file not implemented."));
+    return EXIT_FAILURE;
+}
+
 LogProbability::LogProbability(const Pedigree &pedigree,
                              params_t params) :
     pedigree_(pedigree),
@@ -393,7 +407,7 @@ LogProbability::LogProbability(const Pedigree &pedigree,
     }
 }
 
-// Returns true if a mutation was found and the record was modified
+// returns 'log10 P(Data ; model)-log10 scale' and log10 scaling.
 LogProbability::stats_t LogProbability::operator()(const std::vector<depth_t> &depths,
                                int ref_index) {
     using namespace std;

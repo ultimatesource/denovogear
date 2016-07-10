@@ -44,6 +44,32 @@
 namespace dng {
 namespace utility {
 
+template<typename E>
+struct EnumFlags {
+    typedef E enum_t;
+    typedef typename std::underlying_type<E>::type under_t;
+
+    under_t value;
+    
+    EnumFlags(under_t v) : value{v} { }
+    EnumFlags(enum_t v) : value{static_cast<under_t>(v)} { }
+
+    EnumFlags& operator=(enum_t v) {
+        value = static_cast<under_t>(v);
+        return *this;
+    }
+
+    operator under_t() { return value; }
+
+    EnumFlags operator|(enum_t v) {
+         return value | EnumFlags{v};
+    }
+    
+    EnumFlags operator&(enum_t v) {
+        return value & EnumFlags{v};
+    }
+};
+
 typedef int64_t location_t;
 
 constexpr location_t LOCATION_MAX = ((static_cast<location_t>(INT32_MAX) << 32) | INT32_MAX);
@@ -153,16 +179,24 @@ inline T lphred(double p, T m = std::numeric_limits<T>::max()) {
 // trims whitespace as well
 std::pair<std::string, std::string> extract_file_type(const std::string &path);
 
+// a strongly-typed enum for file category
 enum class FileCat {
-    Unknown  = -1,
-    Sequence = 0,
-    Variant  = 1,
-    Pileup   = 2
+    Unknown  = 0,
+    Sequence = 1,
+    Variant  = 2,
+    Pileup   = 4
 };
+typedef EnumFlags<FileCat> FileCatSet;
+
+inline
+FileCatSet operator|(FileCat a, FileCat b) {
+    return FileCatSet{a} | b;
+}
 
 // converts an extension to a file category
-FileCat file_category(const std::string &in);
-
+FileCat file_category(const std::string &ext);
+// converts and input file to category and will throw if value is not supported
+FileCat input_category(const std::string &in, FileCatSet mask);
 
 // create a timestamp in "Date=xxx,Epoch=xxx" format
 std::string vcf_timestamp();

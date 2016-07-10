@@ -69,18 +69,21 @@ size_t get_mode(const std::string &in) {
 // The main loop for dng-pileup application
 // argument_type arg holds the processed command line arguments
 int Pileup::operator()(Pileup::argument_type &arg) {
+    using utility::FileCat;
+    using utility::FileCatSet;
     // if input is empty default to stdin.
     if(arg.input.empty()) {
         arg.input.emplace_back("-");
     }
     auto it = arg.input.begin();
-    const size_t mode = get_mode(*it);
+    FileCat mode = utility::input_category(*it, FileCat::Sequence|FileCat::Pileup);
+
     for(++it; it != arg.input.end(); ++it) {
-        if(get_mode(*it) != mode) {
+        if(utility::input_category(*it, FileCat::Sequence|FileCat::Pileup) != mode) {
             throw runtime_error("Argument error: mixing sam/bam/cram and tad/ad input files is not supported.");
         }
     }
-    if(mode == 1) {
+    if(mode == FileCat::Pileup) {
         return process_ad(arg);
     }
     return process_bam(arg);

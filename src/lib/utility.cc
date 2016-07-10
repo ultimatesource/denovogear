@@ -77,6 +77,17 @@ FileCat file_category(const std::string &ext) {
     return FileCat::Unknown;
 }
 
+FileCat input_category(const std::string &in, FileCatSet mask) {
+    std::string ext = extract_file_type(in).first;
+    FileCat cat = file_category(ext);
+    if(mask & cat) {
+        return cat;
+    } else {
+        throw std::runtime_error("Argument error: file type '" + ext + "' not supported. Input file was '" + in + "'.");
+    }
+    return FileCat::Unknown;
+}
+
 std::string vcf_timestamp() {
     using namespace std;
     using namespace std::chrono;
