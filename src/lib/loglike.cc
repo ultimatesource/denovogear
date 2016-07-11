@@ -149,8 +149,6 @@ int task::LogLike::operator()(task::LogLike::argument_type &arg) {
 
 
 int process_bam(LogLike::argument_type &arg) {
-    using namespace std;
-    using namespace dng;
     using namespace hts::bcf;
 
     // Parse pedigree from file
@@ -258,8 +256,63 @@ int process_bam(LogLike::argument_type &arg) {
 }
 
 int process_ad(LogLike::argument_type &arg) {
-    throw(runtime_error("Processing AD file not implemented."));
-    return EXIT_FAILURE;
+    // Parse pedigree from file
+    io::Pedigree ped = io::parse_pedigree(arg.ped);
+
+    // Open Reference
+    io::Fasta reference{arg.fasta.c_str()};
+
+    // Parse Nucleotide Frequencies
+    std::array<double, 4> freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
+
+    // quality thresholds
+    int min_qual = arg.min_basequal;
+
+    // Print header to output
+    cout_add_header_text(arg);
+
+    // replace arg.region with the contents of a file if needed
+    io::at_slurp(arg.region);
+
+    // Open input files
+    if(arg.input.size() != 1) {
+        throw std::runtime_error("Argument Error: can only process one ad/tad file at a time.");
+    }
+    
+    io::Ad input{arg.input[0], std::ios_base::in};
+    if(!input) {
+        throw std::runtime_error("Argument Error: unable to open input file '" + arg.input[0] + "'.");
+    }
+    if(input.ReadHeader() == 0) {
+        throw std::runtime_error("Argument Error: unable to read header from '" + input.path() + "'.");
+    }
+    // Construct ReadGroups
+    dng::ReadGroups rgs;
+    rgs.ParseLibraries(input.libraries());
+
+    // Construct peeling algorithm from parameters and pedigree information
+    dng::Pedigree pedigree;
+    if(!pedigree.Construct(ped, rgs, arg.mu, arg.mu_somatic, arg.mu_library)) {
+        throw std::runtime_error("Unable to construct peeler for pedigree; "
+                                 "possible non-zero-loop pedigree.");
+    }
+    if(arg.gamma.size() < 2) {
+        throw std::runtime_error("Unable to construct genotype-likelihood model; "
+                                 "Gamma needs to be specified at least twice to change model from default.");
+    }
+
+    for(auto && line : pedigree.BCFHeaderLines()) {
+        std:cout << line << "\n";
+    }
+
+    pileup::AlleleDepths line;
+    line.data().reserve(4*input.libraries().size());
+    while(input.Read(&line)) {
+        
+    }    
+
+
+    return EXIT_SUCCESS;
 }
 
 LogProbability::LogProbability(const Pedigree &pedigree,

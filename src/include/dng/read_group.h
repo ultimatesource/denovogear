@@ -30,7 +30,6 @@
 #include <boost/range/algorithm_ext/erase.hpp>
 #include <boost/container/flat_set.hpp>
 
-
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/identity.hpp>
 #include <boost/multi_index/ordered_index.hpp>
@@ -38,6 +37,8 @@
 #include <boost/multi_index/member.hpp>
 
 #include <unordered_set>
+
+#include <dng/io/ad.h>
 
 namespace dng {
 
@@ -90,6 +91,9 @@ public:
     // Parse a VCF file
     template<typename InFiles>
     void ParseSamples(InFiles &range);
+
+    // Parse Library information from an AD file
+    void ParseLibraries(const std::vector<io::Ad::library_t>& libs);
 
     inline const StrSet &groups() const { return groups_; }
     inline const StrSet &libraries() const { return libraries_; }
@@ -274,6 +278,14 @@ void ReadGroups::ParseSamples(InFile &file) {
             val.sample.assign(sm, p);
         }
         data_.insert(std::move(val));
+    }
+    ReloadData();
+}
+
+inline
+void ReadGroups::ParseLibraries(const std::vector<io::Ad::library_t>& libs) {
+    for(auto && a : libs) {
+        data_.insert({a.name,a.name,a.sample});
     }
     ReloadData();
 }
