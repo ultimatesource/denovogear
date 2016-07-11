@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <boost/scoped_ptr.hpp>
 
 #include <dng/hts/extra.h>
 #include <dng/app.h>
@@ -184,13 +185,6 @@ void writeVCFHeaderSamples(hts::bcf::File &vcfout, std::vector<Trio> &trios, std
 }
 
 
-
-
-
-
-
-
-
 int DNM::operator()(std::string &model, DNM::argument_type &arg) {
     if(model != "auto" && model != "XS" && model != "XD") {
         throw std::runtime_error("Invalid model option " + model +
@@ -291,11 +285,10 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
 
 
     // Create a VCF file for output
-    hts::bcf::File *output_vcf = nullptr;
-    //std::vector<hts::bcf::File> output_vcf;
+    boost::scoped_ptr<hts::bcf::File> output_vcf;
     if(!arg.write.empty()) {
     	// Write Header Metadata
-    	output_vcf = new hts::bcf::File(arg.write.c_str(), "w");
+    	output_vcf.reset(new hts::bcf::File(arg.write.c_str(), "w"));
     	//output_vcf.emplace_back(arg.write.c_str(), "w");
         writeVCFHeaderMD(*output_vcf, input_file, arg.ped, params);
 
@@ -334,14 +327,14 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
             if(is_indel == 0) {
                 snp_total_count++;
                 snp_pass_count += trio_like_snp(child_snp, mom_snp, dad_snp, flag,
-                              	  tgtSNP, lookupSNP, output_vcf,
+                              	  tgtSNP, lookupSNP, output_vcf.get(),
 								  params, trios[j]);
 
             } else if(is_indel == 1) {
 
                 indel_total_count++;
                 indel_pass_count += trio_like_indel(child_indel, mom_indel, dad_indel, flag,
-                                	tgtIndel, lookupIndel, output_vcf, params, trios[j]);
+                                	tgtIndel, lookupIndel, output_vcf.get(), params, trios[j]);
 
             } else if(is_indel < 0) {
                 printf("\n BCF PARSING ERROR - Trios!  %d\n Exiting !\n", is_indel);
@@ -355,7 +348,7 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
             	int is_indel = bcf2Paired(hdr, rec, pairs[j], &tumor, &normal, flag, pl_type);
                 if(is_indel == 0) {
                     pair_total_count++;
-                    pair_like(tumor, normal, tgtPair, lookupPair, flag, output_vcf,
+                    pair_like(tumor, normal, tgtPair, lookupPair, flag, output_vcf.get(),
                     		  params, pair_pass_count, pairs[j]);
 
                 } else if(is_indel < 0) {
