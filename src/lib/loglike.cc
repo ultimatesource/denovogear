@@ -180,7 +180,9 @@ int process_bam(LogLike::argument_type &arg) {
             throw std::runtime_error("unable to open input file '" + str + "'.");
         }
         // add regions
-        bamdata.back().regions(regions::bam_parse(arg.region,bamdata.back()));
+        if(!arg.region.empty()) {
+            bamdata.back().regions(regions::bam_parse(arg.region,bamdata.back()));
+        }
         // Add each genotype/sample column
         rgs.ParseHeaderText(bamdata, arg.rgtag);
     }
@@ -319,13 +321,17 @@ int process_ad(LogLike::argument_type &arg) {
         { arg.theta, freqs, arg.ref_weight, arg.gamma[0], arg.gamma[1] } );
 
 
+    dng::stats::ExactSum sum_data, sum_scale;
+
     pileup::AlleleDepths line;
     line.data().reserve(4*input.libraries().size());
     while(input.Read(&line)) {
         auto loglike = calculate(line,index_to_library);
-        // sum_data += loglike.log_data;
-        // sum_scale += loglike.log_scale;
+        sum_data += loglike.log_data;
+        sum_scale += loglike.log_scale;
     }    
+    std::cout << "log_hidden\tlog_observed\n";
+    std::cout << setprecision(16) << sum_data.result() << "\t" << sum_scale.result() << "\n";
 
     return EXIT_SUCCESS;
 }
