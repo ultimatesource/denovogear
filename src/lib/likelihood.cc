@@ -118,31 +118,35 @@ DirichletMultinomialMixture::DirichletMultinomialMixture(params_t model_a, param
     }
 }
 
+inline double log_sum(double a, double b) {
+    return log1p(exp(-abs(a-b))) + std::max(a,b);
+}
+
 double DirichletMultinomialMixture::operator()(
     const pileup::AlleleDepths& depths, const std::vector<size_t> &indexes,
     IndividualVector::iterator output) const
 {
+    const auto last = output + indexes.size();
+
     int ref_index = depths.type_info().reference;
     int width = depths.type_info().width;
-    double scale = 0.0;
-    for(size_t u = 0; u < depths.num_libraries(); ++u) {
-        size_t pos = indexes[u];
-        if(pos == -1) {
-            continue;
-        }
-        // create a reference to the output site
-        auto &out = *(output+pos);
-        // resize to hold genotypes
-        out.resize(10);
-        out.setZero();
-        // for all genotypes
-        for(int g=0;g<10;++g) {
-            auto &cache = cache_[ref_index][g];
+    // resize output to hold genotypes
+    for(auto first = output; first != last; ++first ) {
+        first->resize(10);
+    }
+
+    // calculate log_likelihoods for each genotype
+    for(int g=0;g<10;++g) {
+        auto &cache = cache_[ref_index][g];
+        for(size_t u = 0; u < indexes.size(); ++u) {
+            size_t lib = indexes[u];
+            // create a reference to the output site
+            auto &out = *(output+u);
             double lh1 = f1_, lh2 = f2_;
             int read_count = 0;
             for(int i=0;i<width;++i) {
-                // get the depth of nucleotide i from library u
-                int d = depths(i,u);
+                // get the depth of nucleotide i from library lib
+                int d = depths(i,lib);
                 read_count += d;
                 // find which nucleotide this depth refers to
                 int j = depths.type_info().indexes[i];
@@ -151,12 +155,15 @@ double DirichletMultinomialMixture::operator()(
             }
             lh1 -= cache[4].first(read_count);
             lh2 -= cache[4].second(read_count);
-            out[g] = (lh2 < lh1) ? lh1 + log1p(exp(lh2 - lh1)) :
-                         lh2 + log1p(exp(lh1 - lh2)) ;
+            out[g] = log_sum(lh1,lh2);
         }
-        double scaleg = out.maxCoeff();
+    }
+    // rescale output to hold genotypes
+    double scale = 0.0;
+    for(auto first = output; first != last; ++first ) {
+        double scaleg = first->maxCoeff();
         scale += scaleg;
-        out = (out - scaleg).exp();
+        *first = (*first - scaleg).exp();        
     }
     return scale;
 }
@@ -175,8 +182,7 @@ std::pair<GenotypeArray, double> DirichletMultinomialMixture::operator()(depth_t
         lh1 -= cache[4].first(read_count);
         lh2 -= cache[4].second(read_count);
 
-        log_ret[i] = (lh2 < lh1) ? lh1 + log1p(exp(lh2 - lh1)) :
-                     lh2 + log1p(exp(lh1 - lh2)) ;
+        log_ret[i] = log_sum(lh1,lh2);
     }
     double scale = log_ret.maxCoeff();
     return {(log_ret - scale).exp(), scale};

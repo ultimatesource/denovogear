@@ -301,10 +301,14 @@ int process_ad(LogLike::argument_type &arg) {
                                  "possible non-zero-loop pedigree.");
     }
     // Since pedigree may have removed libraries, map libraries to positions
-    std::vector<size_t> index_to_library;
-    index_to_library.reserve(input.libraries().size());
-    for(auto && a : input.libraries()) {
-        index_to_library.push_back(rg::index(rgs.libraries(), a.name));
+    std::vector<size_t> library_to_index;
+    library_to_index.resize(rgs.libraries().size());
+    for(size_t u=0; u < input.libraries().size(); ++u) {
+        size_t pos = rg::index(rgs.libraries(), input.library(u).name);
+        if(pos == -1) {
+            continue;
+        }
+        library_to_index[pos] = u;
     }
 
     if(arg.gamma.size() < 2) {
@@ -326,7 +330,7 @@ int process_ad(LogLike::argument_type &arg) {
     pileup::AlleleDepths line;
     line.data().reserve(4*input.libraries().size());
     while(input.Read(&line)) {
-        auto loglike = calculate(line,index_to_library);
+        auto loglike = calculate(line,library_to_index);
         sum_data += loglike.log_data;
         sum_scale += loglike.log_scale;
     }    
