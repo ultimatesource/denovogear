@@ -26,8 +26,10 @@
 #   define DNG_LIKLIHOOD_PHI_MIN (DBL_EPSILON/2.0)
 #endif
 
-dng::genotype::DirichletMultinomialMixture
-::DirichletMultinomialMixture(params_t model_a, params_t model_b) :
+namespace dng {
+namespace genotype {
+
+DirichletMultinomialMixture::DirichletMultinomialMixture(params_t model_a, params_t model_b) :
     cache_(5) {
     double a, u, e, m, h;
 
@@ -115,3 +117,69 @@ dng::genotype::DirichletMultinomialMixture
         }
     }
 }
+
+double DirichletMultinomialMixture::operator()(
+    const pileup::AlleleDepths& depths, const std::vector<size_t> &indexes,
+    IndividualVector::iterator output) const
+{
+    int ref_index = depths.type_info().reference;
+    int width = depths.type_info().width;
+    double scale = 0.0;
+    for(size_t u = 0; u < depths.num_libraries(); ++u) {
+        size_t pos = indexes[u];
+        if(pos == -1) {
+            continue;
+        }
+        // create a reference to the output site
+        auto &out = *(output+pos);
+        // resize to hold genotypes
+        out.resize(10);
+        out.setZero();
+        // for all genotypes
+        for(int g=0;g<10;++g) {
+            auto &cache = cache_[ref_index][g];
+            double lh1 = f1_, lh2 = f2_;
+            int read_count = 0;
+            for(int i=0;i<width;++i) {
+                // get the depth of nucleotide i from library u
+                int d = depths(i,u);
+                read_count += d;
+                // find which nucleotide this depth refers to
+                int j = depths.type_info().indexes[i];
+                lh1 += cache[j].first(d);
+                lh2 += cache[j].second(d);
+            }
+            lh1 -= cache[4].first(read_count);
+            lh2 -= cache[4].second(read_count);
+            out[g] = (lh2 < lh1) ? lh1 + log1p(exp(lh2 - lh1)) :
+                         lh2 + log1p(exp(lh1 - lh2)) ;
+        }
+        double scaleg = out.maxCoeff();
+        scale += scaleg;
+        out = (out - scaleg).exp();
+    }
+    return scale;
+}
+
+std::pair<GenotypeArray, double> DirichletMultinomialMixture::operator()(depth_t d, int ref_allele) const {
+    GenotypeArray log_ret{10};
+    int read_count = d.counts[0] + d.counts[1] +
+                     d.counts[2] + d.counts[3];
+    for(int i = 0; i < 10; ++i) {
+        auto &cache = cache_[ref_allele][i];
+        double lh1 = f1_, lh2 = f2_;
+        for(int j=0;j<4;++j) {
+            lh1 += cache[j].first(d.counts[j]);
+            lh2 += cache[j].second(d.counts[j]);
+        }
+        lh1 -= cache[4].first(read_count);
+        lh2 -= cache[4].second(read_count);
+
+        log_ret[i] = (lh2 < lh1) ? lh1 + log1p(exp(lh2 - lh1)) :
+                     lh2 + log1p(exp(lh1 - lh2)) ;
+    }
+    double scale = log_ret.maxCoeff();
+    return {(log_ret - scale).exp(), scale};
+    }
+
+}} // namespace dng::genotype

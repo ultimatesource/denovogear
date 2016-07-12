@@ -12,6 +12,7 @@ add_library(libdng STATIC
   loglike.cc
   ad.cc
   utility.cc
+  read_group.cc
 )
 
 target_include_directories(libdng PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../include")

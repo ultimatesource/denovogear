@@ -100,7 +100,7 @@ int process_bam(Pileup::argument_type &arg) {
             auto r = regions::bam_parse(arg.region, f);
             f.regions(std::move(r));
         }
-    }    
+    }
 
     // Add each genotype/sample column
     dng::ReadGroups rgs;

@@ -49,6 +49,7 @@
 #include <dng/stats.h>
 #include <dng/io/utility.h>
 #include <dng/io/fasta.h>
+#include <dng/depths.h>
 
 #include <htslib/faidx.h>
 #include <htslib/khash.h>
@@ -100,6 +101,7 @@ public:
     LogProbability(const Pedigree &pedigree, params_t params);
 
     stats_t operator()(const std::vector<depth_t> &depths, int ref_index);
+    stats_t operator()(const pileup::AlleleDepths &depths, const std::vector<size_t>& indexes);
 
 protected:
     const dng::Pedigree &pedigree_;
@@ -296,6 +298,13 @@ int process_ad(LogLike::argument_type &arg) {
         throw std::runtime_error("Unable to construct peeler for pedigree; "
                                  "possible non-zero-loop pedigree.");
     }
+    // Since pedigree may have removed libraries, map libraries to positions
+    std::vector<size_t> index_to_library;
+    index_to_library.reserve(input.libraries().size());
+    for(auto && a : input.libraries()) {
+        index_to_library.push_back(rg::index(rgs.libraries(), a.name));
+    }
+
     if(arg.gamma.size() < 2) {
         throw std::runtime_error("Unable to construct genotype-likelihood model; "
                                  "Gamma needs to be specified at least twice to change model from default.");
@@ -305,12 +314,18 @@ int process_ad(LogLike::argument_type &arg) {
         std:cout << line << "\n";
     }
 
+    // Construct function object to calculate log likelihoods
+    LogProbability calculate (pedigree,
+        { arg.theta, freqs, arg.ref_weight, arg.gamma[0], arg.gamma[1] } );
+
+
     pileup::AlleleDepths line;
     line.data().reserve(4*input.libraries().size());
     while(input.Read(&line)) {
-        
+        auto loglike = calculate(line,index_to_library);
+        // sum_data += loglike.log_data;
+        // sum_scale += loglike.log_scale;
     }    
-
 
     return EXIT_SUCCESS;
 }
@@ -355,8 +370,6 @@ LogProbability::LogProbability(const Pedigree &pedigree,
 // returns 'log10 P(Data ; model)-log10 scale' and log10 scaling.
 LogProbability::stats_t LogProbability::operator()(const std::vector<depth_t> &depths,
                                int ref_index) {
-    using namespace std;
-
     // calculate genotype likelihoods and store in the lower library vector
     double scale = 0.0, stemp;
     for(std::size_t u = 0; u < depths.size(); ++u) {
@@ -372,4 +385,21 @@ LogProbability::stats_t LogProbability::operator()(const std::vector<depth_t> &d
     double logdata = pedigree_.PeelForwards(work_, full_transition_matrices_);
 
     return {logdata/M_LN10, scale/M_LN10};
+}
+
+// Calculate the probability of a depths object considering only indexes
+// TODO: make indexes a property of the pedigree
+LogProbability::stats_t LogProbability::operator()(const pileup::AlleleDepths &depths, const std::vector<size_t>& indexes) {
+    int ref_index = depths.type_info().reference;
+
+    // Set the prior probability of the founders given the reference
+    work_.SetFounders(genotype_prior_[ref_index]);
+    
+    // Calculate genotype likelihoods
+    double scale = genotype_likelihood_(depths, indexes, work_.lower.begin()+work_.library_nodes.first);
+
+     // Calculate log P(Data ; model)
+    double logdata = pedigree_.PeelForwards(work_, full_transition_matrices_);
+
+    return {logdata/M_LN10, scale/M_LN10}; 
 }

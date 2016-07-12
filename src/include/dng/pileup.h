@@ -176,9 +176,7 @@ protected:
 
     template<typename STR>
     std::size_t ReadGroupIndex(const STR &s) {
-        auto it = read_groups_.find(s);
-        return (it == read_groups_.end()) ? -1
-               : static_cast<std::size_t>(it - read_groups_.begin());
+        return rg::index(read_groups_, s);
     }
 
 private:
