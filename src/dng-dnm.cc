@@ -4,7 +4,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <boost/scoped_ptr.hpp>
+#include <memory>
 
 #include <dng/hts/extra.h>
 #include <dng/app.h>
@@ -285,7 +285,7 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
 
 
     // Create a VCF file for output
-    boost::scoped_ptr<hts::bcf::File> output_vcf;
+    std::unique_ptr<hts::bcf::File> output_vcf;
     if(!arg.write.empty()) {
     	// Write Header Metadata
     	output_vcf.reset(new hts::bcf::File(arg.write.c_str(), "w"));
