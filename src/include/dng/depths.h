@@ -44,8 +44,16 @@ public:
         char reference; // the value of the reference base
         char indexes[4]; // the value of the alleles. Only use .width many. 
     };
-    static const type_info_t type_info_table[128];
+    // information used to determine which genotypes are compatible with types
+    struct type_info_gt_t {
+        char color; // binary id of the type
+        char width; // the number of nucleotides in the type
+        char indexes[10]; // the value of the genotypes. Only use .width many.
+    };
+
     static constexpr int type_info_table_length = 128;
+    static const type_info_t type_info_table[128];
+    static const type_info_gt_t type_info_gt_table[128];
 
     struct match_labels_t {
         std::unordered_map<std::string,int> tree;
@@ -147,6 +155,8 @@ protected:
 
 static_assert(sizeof(AlleleDepths::type_info_table) / sizeof(AlleleDepths::type_info_t) == AlleleDepths::type_info_table_length,
     "AlleleDepths::type_info_table does not have 128 elements.");
+static_assert(sizeof(AlleleDepths::type_info_gt_table) / sizeof(AlleleDepths::type_info_gt_t) == AlleleDepths::type_info_table_length,
+    "AlleleDepths::type_info_gt_table does not have 128 elements.");
 
 inline
 AlleleDepths::match_labels_t::match_labels_t() {
