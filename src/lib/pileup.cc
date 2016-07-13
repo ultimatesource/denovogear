@@ -183,7 +183,15 @@ int process_bam(Pileup::argument_type &arg) {
         }
     }
 
+    // Create a pileup object
     dng::BamPileup mpileup{rgs.groups(), arg.min_qlen};
+    // calculate maximum and minimum depths
+    int min_dp = std::max(arg.min_dp,1);
+    int max_dp = (arg.max_dp > 0) ? arg.max_dp : std::numeric_limits<int>::max();
+    if(max_dp < min_dp) {
+        throw runtime_error("Argument error: Calculated maximum depth '" + to_string(max_dp) +
+            "' is less than calculated min depth '" + to_string(min_dp) + "'.");
+    }
     mpileup(bamdata, [&,h](const dng::BamPileup::data_type & data, utility::location_t loc) {
         // Calculate target position and fetch sequence name
         int contig = utility::location_to_contig(loc);
@@ -216,12 +224,14 @@ int process_bam(Pileup::argument_type &arg) {
         // doesn't change the order of ties.
         uint64_t dp = 0;
         for(int i=0;i<total_depths.size();++i) {
-            dp |= total_depths[i];
+            dp += total_depths[i];
             total_depths[i] = (total_depths[i] << 16) | (((total_depths.size()-1-i) & 0xFF) << 8) | (i & 0xFF);
         }
-        if(dp == 0) {
+        if(dp < min_dp || dp > max_dp) {
             return; // no data at this site
         }
+        // check to make sure that we have a positive depths past this point
+        assert(dp > 0);
         
         // make sure the ref base will come first
         total_depths[ref_index] |= (1ULL << 63);
