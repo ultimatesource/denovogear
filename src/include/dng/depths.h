@@ -106,7 +106,14 @@ public:
 
     int8_t color() const { return color_; }
     void color(int8_t color) { color_ = color; }
-    const type_info_t& type_info() const { return type_info_table[color_]; }
+    const type_info_t& type_info() const { 
+        assert(0 <= color_);
+        return type_info_table[color_];
+    }
+    const type_info_gt_t& type_gt_info() const {
+        assert(0 <= color_);
+        return type_info_gt_table[color_];
+    }
 
     const data_t& data() const { return data_; }
     data_t& data() { return data_; }

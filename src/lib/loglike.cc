@@ -98,20 +98,19 @@ public:
         double log_scale;        
     };
 
-    LogProbability(const Pedigree &pedigree, params_t params);
+    LogProbability(Pedigree pedigree, params_t params);
 
     stats_t operator()(const std::vector<depth_t> &depths, int ref_index);
     stats_t operator()(const pileup::AlleleDepths &depths, const std::vector<size_t>& indexes);
 
 protected:
-    const dng::Pedigree &pedigree_;
-
+    dng::Pedigree pedigree_;
     params_t params_;
-
-    dng::peel::workspace_t work_;
+    dng::peel::workspace_t work_; // must be declared after pedigree_ (see constructor)
 
 
     dng::TransitionVector full_transition_matrices_;
+    dng::TransitionVector transition_matrices_[dng::pileup::AlleleDepths::type_info_table_length];
 
     // Model genotype likelihoods as a mixture of two dirichlet multinomials
     // TODO: control these with parameters
@@ -340,11 +339,11 @@ int process_ad(LogLike::argument_type &arg) {
     return EXIT_SUCCESS;
 }
 
-LogProbability::LogProbability(const Pedigree &pedigree,
-                             params_t params) :
-    pedigree_(pedigree),
-    params_(params), genotype_likelihood_{params.params_a, params.params_b},
-    work_(pedigree.CreateWorkspace()) {
+// pedigree_ will be initialized before work_, so we will reference it.
+LogProbability::LogProbability(Pedigree pedigree, params_t params) :
+    pedigree_{std::move(pedigree)},
+    params_{std::move(params)}, genotype_likelihood_{params.params_a, params.params_b},
+    work_{pedigree_.CreateWorkspace()} {
 
     using namespace dng;
 
@@ -356,11 +355,11 @@ LogProbability::LogProbability(const Pedigree &pedigree,
     genotype_prior_[3] = population_prior(params_.theta, params_.nuc_freq, {0, 0, 0, params_.ref_weight});
     genotype_prior_[4] = population_prior(params_.theta, params_.nuc_freq, {0, 0, 0, 0});
 
-    // Calculate mutation expectation matrices
+    // Calculate mutation matrices
     full_transition_matrices_.assign(work_.num_nodes, {});
  
     for(size_t child = 0; child < work_.num_nodes; ++child) {
-        auto trans = pedigree.transitions()[child];
+        auto trans = pedigree_.transitions()[child];
         if(trans.type == Pedigree::TransitionType::Germline) {
             auto dad = f81::matrix(trans.length1, params_.nuc_freq);
             auto mom = f81::matrix(trans.length2, params_.nuc_freq);
@@ -373,6 +372,50 @@ LogProbability::LogProbability(const Pedigree &pedigree,
             full_transition_matrices_[child] = mitosis_diploid_matrix(orig);
         } else {
             full_transition_matrices_[child] = {};
+        }
+    }
+
+    // Extract relevant subsets of matrices
+    for(size_t color = 0; color < dng::pileup::AlleleDepths::type_info_table_length; ++color) {
+        int width = dng::pileup::AlleleDepths::type_info_gt_table[color].width;
+        // Resize our subsets to the right width
+        transition_matrices_[color].resize(full_transition_matrices_.size());
+        // enumerate over all children
+        for(size_t child = 0; child < work_.num_nodes; ++child) {
+            auto trans = pedigree_.transitions()[child];
+            if(trans.type == Pedigree::TransitionType::Germline) {
+                // resize transition matrix to w*w,w
+                transition_matrices_[color][child].resize(width*width,width);
+                // Assume column major order which is the default
+                for(int a = 0; a < width; ++a) {
+                    int ga = dng::pileup::AlleleDepths::type_info_gt_table[color].indexes[a];
+                    for(int b = 0; b < width; ++b) {
+                        int gb = dng::pileup::AlleleDepths::type_info_gt_table[color].indexes[b];
+                        // copy correct value from the full matrix to the subset matrix
+                        int x = a*width+b;
+                        int gx = ga*10+gb;
+                        for(int y = 0; y < width; ++y) {
+                            int gy = dng::pileup::AlleleDepths::type_info_gt_table[color].indexes[y];
+                            // copy correct value from the full matrix to the subset matrix
+                            transition_matrices_[color][child](x,y) = full_transition_matrices_[child](gx,gy); 
+                        }
+                    }
+                }
+            } else if(trans.type == Pedigree::TransitionType::Somatic ||
+                      trans.type == Pedigree::TransitionType::Library) {
+                transition_matrices_[color][child].resize(width,width);
+                // Assume column major order which is the default
+                for(int x = 0; x < width; ++x) {
+                    int gx = dng::pileup::AlleleDepths::type_info_gt_table[color].indexes[x];
+                    for(int y = 0; y < width; ++y) {
+                        int gy = dng::pileup::AlleleDepths::type_info_gt_table[color].indexes[y];
+                        // copy correct value from the full matrix to the subset matrix
+                        transition_matrices_[color][child](x,y) = full_transition_matrices_[child](gx,gy); 
+                    }
+                }
+            } else {
+                transition_matrices_[color][child] = {};
+            }
         }
     }
 }
@@ -401,15 +444,21 @@ LogProbability::stats_t LogProbability::operator()(const std::vector<depth_t> &d
 // TODO: make indexes a property of the pedigree
 LogProbability::stats_t LogProbability::operator()(const pileup::AlleleDepths &depths, const std::vector<size_t>& indexes) {
     int ref_index = depths.type_info().reference;
+    int color = depths.color();
+    size_t gt_width = depths.type_gt_info().width;
 
     // Set the prior probability of the founders given the reference
-    work_.SetFounders(genotype_prior_[ref_index]);
+    GenotypeArray prior(gt_width);
+    for(int i=0;i<gt_width;++i) {
+        prior(i) = genotype_prior_[ref_index](depths.type_gt_info().indexes[i]);
+    }
+    work_.SetFounders(prior);
     
     // Calculate genotype likelihoods
     double scale = genotype_likelihood_(depths, indexes, work_.lower.begin()+work_.library_nodes.first);
 
      // Calculate log P(Data ; model)
-    double logdata = pedigree_.PeelForwards(work_, full_transition_matrices_);
+    double logdata = pedigree_.PeelForwards(work_, transition_matrices_[color]);
 
     return {logdata/M_LN10, scale/M_LN10}; 
 }

@@ -130,14 +130,16 @@ double DirichletMultinomialMixture::operator()(
 
     int ref_index = depths.type_info().reference;
     int width = depths.type_info().width;
+    int gt_width = depths.type_gt_info().width;
     // resize output to hold genotypes
     for(auto first = output; first != last; ++first ) {
-        first->resize(10);
+        first->resize(gt_width);
     }
 
     // calculate log_likelihoods for each genotype
-    for(int g=0;g<10;++g) {
-        auto &cache = cache_[ref_index][g];
+    for(int g=0;g<gt_width;++g) {
+        int real_g = depths.type_gt_info().indexes[g];
+        auto &cache = cache_[ref_index][real_g];
         for(size_t u = 0; u < indexes.size(); ++u) {
             size_t lib = indexes[u];
             // create a reference to the output site
@@ -163,7 +165,7 @@ double DirichletMultinomialMixture::operator()(
     for(auto first = output; first != last; ++first ) {
         double scaleg = first->maxCoeff();
         scale += scaleg;
-        *first = (*first - scaleg).exp();        
+        *first = (*first - scaleg).exp();
     }
     return scale;
 }
