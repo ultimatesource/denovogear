@@ -342,7 +342,7 @@ int process_ad(LogLike::argument_type &arg) {
 // pedigree_ will be initialized before work_, so we will reference it.
 LogProbability::LogProbability(Pedigree pedigree, params_t params) :
     pedigree_{std::move(pedigree)},
-    params_{std::move(params)}, genotype_likelihood_{params.params_a, params.params_b},
+    params_(std::move(params)), genotype_likelihood_{params.params_a, params.params_b},
     work_{pedigree_.CreateWorkspace()} {
 
     using namespace dng;
@@ -460,5 +460,5 @@ LogProbability::stats_t LogProbability::operator()(const pileup::AlleleDepths &d
      // Calculate log P(Data ; model)
     double logdata = pedigree_.PeelForwards(work_, transition_matrices_[color]);
 
-    return {logdata/M_LN10, scale/M_LN10}; 
+    return {logdata/M_LN10, scale/M_LN10};
 }
