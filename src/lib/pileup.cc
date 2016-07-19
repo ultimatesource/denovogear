@@ -243,6 +243,7 @@ int process_bam(Pileup::argument_type &arg) {
         int first_is_N = 0;
         if( (*first & 0xFF) >= 4 ) {
             first_is_N = 64;
+            ++first;
         }
         string rng(first, last);
         int color = AlleleDepths::MatchIndexes(rng)+first_is_N;
