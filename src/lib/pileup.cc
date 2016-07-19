@@ -125,7 +125,7 @@ int process_bam(Pileup::argument_type &arg) {
 
     string dict = reference.FetchDictionary();
     if(dict.empty()) {
-        throw runtime_error("Dictionary for reference " + reference.path() + " is missing.");
+        throw runtime_error("Error: Dictionary for reference " + reference.path() + " is missing.");
     }
     output.AddHeaderLines(dict);
 
@@ -134,12 +134,12 @@ int process_bam(Pileup::argument_type &arg) {
         vector<array<string,3>> libs;
         libs.resize(rgs.libraries().size());
         for(size_t u = 0; u < rgs.data().size(); ++u) {
-            auto &lib = libs[rgs.library_from_id(u)];
+            auto &lib = libs[rgs.library_from_index(u)];
             auto &rg = rgs.data().get<rg::nx>()[u];
             if(!lib[0].empty()) {
                 // we have see this library
                 if(lib[1] != rg.sample) {
-                    throw runtime_error("@AD ID:" + lib[0] + " is connected to multiple samples.");
+                    throw runtime_error("Error: @AD ID:" + lib[0] + " is connected to multiple samples.");
                 }
                 lib[2] += "\tRG:" + rg.id;
                 continue;
