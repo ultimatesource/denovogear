@@ -119,7 +119,7 @@ DirichletMultinomialMixture::DirichletMultinomialMixture(params_t model_a, param
 }
 
 inline double log_sum(double a, double b) {
-    return log1p(exp(-abs(a-b))) + std::max(a,b);
+    return log1p(exp(-fabs(a-b))) + std::max(a,b);
 }
 
 double DirichletMultinomialMixture::operator()(
