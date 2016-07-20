@@ -69,7 +69,7 @@ void dng::peel::to_father(workspace_t &work, const family_members_t &family,
         work.paired_buffer *= (mat[family[i]] * work.lower[family[i]].matrix()).array();
     }
     // Include Mom
-    auto width = work.lower[dad].size();
+    auto width = work.lower[mom].size();
     assert(work.paired_buffer.size() == width*width);
     work.paired_buffer.resize(width, width);
     work.lower[dad] *= (work.paired_buffer.matrix().transpose() * (work.upper[mom] *
@@ -89,7 +89,7 @@ void dng::peel::to_father_fast(workspace_t &work,
         work.paired_buffer *= (mat[family[i]] * work.lower[family[i]].matrix()).array();
     }
     // Include Mom
-    auto width = work.lower[dad].size();
+    auto width = work.lower[mom].size();
     assert(work.paired_buffer.size() == width*width);
     work.paired_buffer.resize(width, width);
     work.lower[dad] = (work.paired_buffer.matrix().transpose() * (work.upper[mom] *
@@ -212,7 +212,7 @@ void dng::peel::to_father_reverse(workspace_t &work,
     IndividualVector::value_type mom_v = work.upper[mom] * work.lower[mom];
 
     // Calculate P(dad-only data & dad = g)
-    auto width = work.lower[dad].size();
+    auto width = work.lower[mom].size();
     assert(work.paired_buffer.size() == width*width);
     work.paired_buffer.resize(width, width); //TODO: FIXME: add transpose()
     IndividualVector::value_type dad_v = work.upper[dad] * (work.lower[dad] /
