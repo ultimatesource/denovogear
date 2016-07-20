@@ -56,14 +56,14 @@ typedef boost::property<boost::edge_type_t, EdgeType, EdgeLengthProp>
 EdgeTypeProp;
 typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS,
         VertexLabelProp, EdgeTypeProp> Graph;
-}
+} // namespace graph
 
 using graph::Graph;
 using graph::EdgeType;
 typedef boost::graph_traits<Graph>::vertex_descriptor vertex_t;
 typedef boost::graph_traits<Graph>::edge_descriptor edge_t;
 
-}
+} //namespace dng
 
 
 #endif // DNG_GRAPH_H

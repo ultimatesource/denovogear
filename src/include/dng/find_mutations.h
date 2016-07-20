@@ -40,7 +40,7 @@
 //#include <boost/algorithm/string.hpp>
 #include <dng/matrix.h>
 #include <dng/task/call.h>
-#include <dng/pedigree.h>
+#include <dng/relationship_graph.h>
 #include <dng/fileio.h>
 #include <dng/pileup.h>
 #include <dng/read_group.h>
@@ -86,7 +86,7 @@ public:
         std::vector<float> node_mu1p;
     };
 
-    FindMutations(double min_prob, const Pedigree &pedigree, params_t params);
+    FindMutations(double min_prob, const RelationshipGraph &pedigree, params_t params);
 
     ~FindMutations();
 
@@ -96,7 +96,7 @@ public:
     bool CalculateMutationProb(MutationStats &mutation_stats);
 
 protected:
-    const dng::Pedigree &pedigree_;
+    const dng::RelationshipGraph &pedigree_;
 
     params_t params_;
 
