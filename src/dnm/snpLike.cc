@@ -25,6 +25,7 @@
 #include "parser.h"
 #include "lookup.h"
 #include <string.h>
+#include <Eigen/Sparse>
 #include <Eigen/KroneckerProduct>
 #include <iomanip>
 

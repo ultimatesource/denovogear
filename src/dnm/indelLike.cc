@@ -25,6 +25,7 @@
 #include "parser.h"
 //#include "newmatap.h"
 //#include "newmatio.h"
+#include <Eigen/Sparse>
 #include <Eigen/KroneckerProduct>
 #include "lookup.h"
 
