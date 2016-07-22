@@ -1,41 +1,45 @@
 find_package(PythonInterp 2.7)
-find_package(PythonLibs 2.7)
 
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/treecall2.py.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/treecall2.py" @ONLY)
-  
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/treecall/setup.py.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/treecall/setup.py" @ONLY)
+include(ExternalProject)
 
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/py-editdist/setup.py.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/py-editdist/setup.py" @ONLY)
+set(PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/ext_deps/python")
+set(PKG_SUBDIR "lib/python2.7/site-packages")
+set(BIN_SUBDIR "bin")
+set(BIN_DIR "${PREFIX_DIR}/${BIN_SUBDIR}")
+set(PKG_DIR "${PREFIX_DIR}/${PKG_SUBDIR}")
+set(PKG_DEST ${CMAKE_INSTALL_PREFIX}/python/${PKG_SUBDIR})
+set(BIN_DEST ${CMAKE_INSTALL_PREFIX}/python/${BIN_SUBDIR})
+
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/treecall.sh.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/treecall.sh" @ONLY)
+
+file(MAKE_DIRECTORY ${PKG_DIR})
+
+ExternalProject_add(
+  ext_treecall
+  URL ${CMAKE_CURRENT_SOURCE_DIR}/treecall
+  PREFIX ${PREFIX_DIR}
+  PATCH_COMMAND ""
+  UPDATE_COMMAND ""
+  CONFIGURE_COMMAND ""
+  BUILD_IN_SOURCE true
+  BUILD_COMMAND ""
+  INSTALL_COMMAND PYTHONPATH=${PKG_DIR} ${PYTHON_EXECUTABLE} setup.py install --prefix ${PREFIX_DIR}
+  DEPENDS ${dependencies}
+  )
 
 
-set(TCOUTPUT "${CMAKE_CURRENT_BINARY_DIR}/build/treecall-timestamp")
-set(EDOUTPUT "${CMAKE_CURRENT_BINARY_DIR}/build/py-editdist-timestamp")
+install(
+  DIRECTORY ${PKG_DIR}/
+  DESTINATION ${PKG_DEST}/
+  USE_SOURCE_PERMISSIONS
+  )
 
-add_custom_command(OUTPUT ${TCOUTPUT}
-  COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_BINARY_DIR}/treecall/setup.py" build_py -q
-  COMMAND ${CMAKE_COMMAND} -E touch ${TCOUTPUT}
-  DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/treecall/__init__.py"
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-)
+install(
+  DIRECTORY ${BIN_DIR}/
+  DESTINATION ${BIN_DEST}/
+  USE_SOURCE_PERMISSIONS
+  )
 
-add_custom_command(OUTPUT ${EDOUTPUT}
-  COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_BINARY_DIR}/py-editdist/setup.py" build_py -q
-  COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_BINARY_DIR}/py-editdist/setup.py" build_ext -q
-  COMMAND ${CMAKE_COMMAND} -E touch ${EDOUTPUT}
-  DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/py-editdist/__init__.py"
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-)
-
-add_custom_target(treecall ALL DEPENDS ${TCOUTPUT})
-
-add_custom_target(py-editdist ALL DEPENDS ${EDOUTPUT})
-
-install(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/treecall2.py"
+install(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/treecall.sh"
   DESTINATION ${CMAKE_INSTALL_LIBEXECDIR} RENAME dng-treecall)
-
-install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/treecall/setup.py install_lib -q --install-dir \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBEXECDIR} WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})")
-
-install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/py-editdist/setup.py install_lib -q --install-dir \${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBEXECDIR} WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})")
