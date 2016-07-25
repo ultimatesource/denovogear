@@ -323,6 +323,27 @@ int task::Call::operator()(Call::argument_type &arg) {
        	    bamdata.emplace_back(std::move(f), arg.fasta.c_str(),
 				 arg.min_mapqual, arg.header.c_str());
         }
+
+        if(arg.region.find("bed")!=std::string::npos){
+        	std::string line;
+			std::string regs="";
+			ifstream inFile(arg.region.c_str());
+
+			while(inFile.peek()!=EOF){
+				getline(inFile, line);
+				//skip header lines
+				if((line.find("browser")!=std::string::npos) || (line.find("track")!=std::string::npos)) continue;
+				//convert bed information into "chr:start-end" format
+				line.replace(line.find('\t'),1,":");
+				line.replace(line.find('\t'),1,"-");
+				//only keep columns containing chromosome name, start and end position
+				if(line.find('\t')!=std::string::npos) line.erase(line.find('\t'),line.size());
+				regs += " " + line;
+			}
+			//replace arg.region with the content of the bed file as a string
+			arg.region = regs;
+        }
+
         if(!arg.region.empty()) {
             for(auto && f : bamdata) {
                 auto r = regions::bam_parse(arg.region, f);
