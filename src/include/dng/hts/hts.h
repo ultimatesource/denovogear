@@ -21,6 +21,7 @@
 #define CXX_HTS_HTS_H
 
 #include <htslib/hts.h>
+#include <cstdlib>
 #include <memory>
 #include <cassert>
 
@@ -53,7 +54,7 @@ public:
         return handle()->format;
     }
     std::string format_description() const {
-        std::unique_ptr<char[], void(*)(void *)> s{hts_format_description(&handle()->format), free};
+        std::unique_ptr<char[], void(*)(void *)> s{hts_format_description(&handle()->format), std::free};
         return {s.get()};
     }
 

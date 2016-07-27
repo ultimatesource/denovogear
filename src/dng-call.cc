@@ -28,6 +28,7 @@
 
 // http://www.boost.org/development/requirements.html
 // http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml
+// https://github.com/denovogear/denovogear/wiki/donovogear-code-convention
 
 typedef dng::CommandLineApp<dng::task::Call> CallApp;
 
