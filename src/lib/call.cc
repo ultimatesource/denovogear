@@ -50,6 +50,8 @@
 #include <dng/io/utility.h>
 #include <dng/find_mutations.h>
 
+#include "htslib/synced_bcf_reader.h"
+
 #include <htslib/faidx.h>
 #include <htslib/khash.h>
 
@@ -313,12 +315,35 @@ int task::Call::operator()(Call::argument_type &arg) {
     // replace arg.region with the contents of a file if needed
     io::at_slurp(arg.region);
 
+    bcf_srs_t *rec_reader;
+
     if(cat == sequence_data) {
         // Wrap input in hts::bam::File
         for(auto && f : indata) {
        	    bamdata.emplace_back(std::move(f), arg.fasta.c_str(),
 				 arg.min_mapqual, arg.header.c_str());
         }
+
+        if(arg.region.find("bed")!=std::string::npos){
+        	std::string line;
+			std::string regs="";
+			ifstream inFile(arg.region.c_str());
+
+			while(inFile.peek()!=EOF){
+				getline(inFile, line);
+				//skip header lines
+				if((line.find("browser")!=std::string::npos) || (line.find("track")!=std::string::npos)) continue;
+				//convert bed information into "chr:start-end" format
+				line.replace(line.find('\t'),1,":");
+				line.replace(line.find('\t'),1,"-");
+				//only keep columns containing chromosome name, start and end position
+				if(line.find('\t')!=std::string::npos) line.erase(line.find('\t'),line.size());
+				regs += " " + line;
+			}
+			//replace arg.region with the content of the bed file as a string
+			arg.region = regs;
+        }
+
         if(!arg.region.empty()) {
             for(auto && f : bamdata) {
                 auto r = regions::bam_parse(arg.region, f);
@@ -338,8 +363,41 @@ int task::Call::operator()(Call::argument_type &arg) {
         rgs.ParseHeaderText(bamdata, arg.rgtag);
     } else if(cat == variant_data) {
         bcfdata.emplace_back(std::move(indata[0]));
+        rec_reader = bcf_sr_init(); // used for iterating each rec in BCF/VCF
+
+		// Open region if specified
+		if(!arg.region.empty()) {
+			int found = arg.region.find("bed");
+			int is_file = 0;
+			if(found != std::string::npos) is_file = 1; // set to 1 if arg.region is a file, keep to 0 otherwise.
+
+			int ret = bcf_sr_set_regions(rec_reader, arg.region.c_str(), is_file);
+			if(ret == -1) {
+				throw std::runtime_error("no records in the query region " + arg.region);
+			}
+		}
+
+		// Initialize the record reader to iterate through the BCF/VCF input
+		int ret = bcf_sr_add_reader(rec_reader, bcfdata[0].name());
+		if(ret == 0) {
+			int errnum = rec_reader->errnum;
+			switch(errnum) {
+			case not_bgzf:
+				throw std::runtime_error("Input file type does not allow for region searchs. Exiting!");
+				break;
+			case idx_load_failed:
+				throw std::runtime_error("Unable to load query region, no index. Exiting!");
+				break;
+			case file_type_error:
+				throw std::runtime_error("Could not load filetype. Exiting!");
+				break;
+			default:
+				throw std::runtime_error("Could not load input sequence file into htslib. Exiting!");
+			};
+		}
+
         // Read header from first file
-        const bcf_hdr_t *h = bcfdata[0].header();
+        const bcf_hdr_t *h = bcf_sr_get_header(rec_reader, 0);
 
         // Add contigs to header
         for(auto && contig : extract_contigs(h)) {
@@ -671,7 +729,7 @@ int task::Call::operator()(Call::argument_type &arg) {
     } else if(cat == variant_data) {
         const char *fname = bcfdata[0].name();
         dng::pileup::vcf::VCFPileup vcfpileup{rgs.libraries()};
-        vcfpileup(fname, [&](bcf_hdr_t *hdr, bcf1_t *rec) {
+        vcfpileup(fname, rec_reader, [&](bcf_hdr_t *hdr, bcf1_t *rec){
             // Won't be able to access ref->d unless we unpack the record first
             bcf_unpack(rec, BCF_UN_STR);
 
