@@ -47,31 +47,32 @@ namespace utility {
 template<typename E, typename = typename std::enable_if<std::is_enum<E>::value>::type>
 struct EnumFlags {
     typedef E enum_t;
-    typedef typename std::underlying_type<E>::type under_t;
+    typedef typename std::underlying_type<E>::type int_t;
     static_assert(std::is_enum<enum_t>::value, "EnumFlags can only wrap an enum.");
 
-    under_t value;
+    int_t value;
     
-    EnumFlags(under_t v) : value{v} { }
-    EnumFlags(enum_t v) : value{static_cast<under_t>(v)} { }
+    EnumFlags(int_t v) : value{v} { }
+    EnumFlags(enum_t v) : value{static_cast<int_t>(v)} { }
 
     EnumFlags& operator=(enum_t v) {
-        value = static_cast<under_t>(v);
+        value = static_cast<int_t>(v);
         return *this;
     }
 
-    operator under_t() { return value; }
+    operator int_t() { return value; }
 
     EnumFlags operator|(enum_t v) {
-         return value | EnumFlags{v};
+         return {value | EnumFlags{v}};
     }
 
-    EnumFlags operator|=(enum_t v) {
-         return value |= EnumFlags{v};
+    EnumFlags& operator|=(enum_t v) {
+         value |= EnumFlags{v};
+         return *this;
     }
 
     EnumFlags operator&(enum_t v) {
-        return value & EnumFlags{v};
+        return {value & EnumFlags{v}};
     }
 };
 
