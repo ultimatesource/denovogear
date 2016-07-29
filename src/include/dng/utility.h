@@ -63,16 +63,16 @@ struct EnumFlags {
     operator int_t() { return value; }
 
     EnumFlags operator|(enum_t v) {
-         return {value | EnumFlags{v}};
+         return {value | static_cast<int_t>(v)};
     }
 
     EnumFlags& operator|=(enum_t v) {
-         value |= EnumFlags{v};
+         value |= static_cast<int_t>(v);
          return *this;
     }
 
     EnumFlags operator&(enum_t v) {
-        return {value & EnumFlags{v}};
+        return {value & static_cast<int_t>(v)};
     }
 };
 
