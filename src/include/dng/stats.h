@@ -96,7 +96,6 @@ public:
 private:
     std::vector<double> partials_;
     double special_sum_{0.0};
-    double inf_sum_{0.0};
     bool failed_{false};
 };
 

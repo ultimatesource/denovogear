@@ -453,11 +453,22 @@ double dng::stats::ad_two_sample_test(std::vector<int> a,
 #   define DNG_NO_ASSOCIAIVE_MATH
 #endif
 
+/*
+Maintain the rules of IEEE floating point arithmetic
+1) -inf + inf + ... = NaN
+2) inf + x = inf
+3) -inf + x = -inf
+4) mark overflow (failed sum) different than +/- inf
+*/
+
 DNG_NO_ASSOCIAIVE_MATH
 dng::stats::ExactSum& dng::stats::ExactSum::operator()(double x) {
     typedef std::vector<double>::size_type size_type;
     size_type i=0;
     double xsave = x;
+    // partials is a vector that holds a list of doubles in increasing order.
+    // sum(partials) = result.
+    // logic: add x to the lowest value in partials and carry the precision upwards
     for(size_type j=0;j<partials_.size();++j) {
         double y = partials_[j], hi = x+y;
         double lo = (fabs(x) >= fabs(y)) ?
@@ -467,20 +478,22 @@ dng::stats::ExactSum& dng::stats::ExactSum::operator()(double x) {
         }
         x = hi;
     }
+    // i indicates how many partials_ are non-zero
     if(x == 0.0) {
+        // don't need to push x onto the back if it is zero
         partials_.resize(i);
     } else if(std::isfinite(x)) {
+        // push x onto the back of the vector if it is non-zero
         partials_.resize(i+1);
         partials_[i] = x;
-    } else if(std::isfinite(xsave)) {
-        // Intermediate overflow has occurred
-        failed_ = true;
-        partials_.clear();
     } else {
-        if(std::isinf(xsave)) {
-            inf_sum_ += xsave;
+        if(!std::isfinite(xsave)) {
+            // store the sum of non-finite values which allows us to tell INFINITY from NAN
+            special_sum_ += xsave;
         }
-        special_sum_ += xsave;
+        // Intermediate overflow has occurred
+        // Record a failed sum if intermediate overflow has occurred (i.e. only finite input seen)
+        failed_ = (special_sum_ == 0.0);
         partials_.clear();
     }
     return *this;
@@ -489,10 +502,10 @@ dng::stats::ExactSum& dng::stats::ExactSum::operator()(double x) {
 DNG_NO_ASSOCIAIVE_MATH
 double dng::stats::ExactSum::result() const {
     typedef std::vector<double>::size_type size_type;
-    if(failed_) {
+    if(special_sum_ != 0.0) {
+        return special_sum_;
+    } else if(failed_) {
         return HUGE_VAL;
-    } else if(special_sum_ != 0.0) {
-        return std::isnan(inf_sum_) ? inf_sum_ : special_sum_; 
     } else if(partials_.empty()) {
         return 0.0;
     }
@@ -521,8 +534,18 @@ double dng::stats::ExactSum::result() const {
 }
 
 dng::stats::ExactSum& dng::stats::ExactSum::operator()(const dng::stats::ExactSum& x) {
-    //TODO: create this;
-    assert(false);
+    // handle failed sum and special sum
+    if(x.special_sum_ != 0.0 || x.failed_) {
+        special_sum_ += x.special_sum_;
+        failed_ = (special_sum_ == 0.0);
+        partials_.clear();
+        return *this;
+    }
+    // add partials from x to us
+    for(double d : x.partials_) {
+        operator()(d);
+    }
+
     return *this;
 }
 
