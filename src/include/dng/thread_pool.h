@@ -108,7 +108,7 @@ ThreadPool::ThreadPool(size_t threads_n = std::thread::hardware_concurrency()) :
             std::function<void()> task;
 
             {
-                // wait until more jobs is available 
+                // wait until a new task is available 
                 std::unique_lock<std::mutex> lock(this->queue_mutex_);
                 this->condition_.wait(lock,
                     [this]{ return this->stop || !this->tasks_.empty(); });
