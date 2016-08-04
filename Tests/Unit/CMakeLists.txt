@@ -39,6 +39,7 @@ endmacro()
 
 AddUnitTest(dng::io::ad) 
 AddUnitTest(dng::find_mutation)
+AddUnitTest(dng::multithread)
 AddUnitTest(dng::mutation)
 AddUnitTest(dng::pedigree)
 AddUnitTest(dng::peel)

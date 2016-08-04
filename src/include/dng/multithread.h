@@ -21,14 +21,133 @@
 #ifndef DNG_MULTITHREAD_H
 #define DNG_MULTITHREAD_H
 
+#include <vector>
+#include <queue>
+#include <tuple>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <future>
+#include <memory>
+#include <functional>
+
+#include <boost/fusion/functional/invocation/invoke.hpp>
+#include <boost/fusion/adapted/std_tuple.hpp>
+
+#include <dng/detail/unit_test.h>
+
 namespace dng {
 namespace multithread {
 
-// basic thread pool supporting heterogeneous jobs
+template<typename> class BasicPool;
+
+// basic thread pool supporting only a single type of job
+template<typename... Args>
+class BasicPool<Args...> {
+public:
+    typedef std::tuple<Args...> tuple_t;
+
+    template<typename F>
+    BasicPool(F f, size_t num_threads = std::thread::hardware_concurrency());
+
+    virtual ~BasicPool();
+
+    // add new work item to the pool
+    template<typename... Args2>
+    void Enqueue(Args2&&... args);
+
+    // Erase all pending jobs
+    void Clear();
+
+    // do not copy, move, or assign
+    BasicPool(const BasicPool&) = delete;
+    BasicPool& operator=(const BasicPool&) = delete;
+    BasicPool(BasicPool&&) = delete;
+    BasicPool& operator=(BasicPool&&) = delete;
+
+private:
+    // need to keep track of threads so we can join them
+    std::vector< std::thread > workers_;
+    // the task queue
+    std::queue<tuple_t> tasks_;
+
+    // synchronization
+    std::mutex mutex_;
+    std::condition_variable condition_;
+    bool stop_;    
+};
+
+template<typename... Args>
+template<typename F>
+BasicPool<Args...>::
+BasicPool(F f, size_t num_threads) : stop_{false} {
+    // if threads_n is 0, set it to 1
+    if(num_threads == 0) {
+        num_threads = 1;
+    }
+    workers_.reserve(num_threads);
+
+    for(; num_threads; --num_threads) {
+        // construct a vector of workers to process data from the queue
+        workers_.emplace_back( [this,f]() { for(;;) {
+            tuple_t args;
+            {
+                // wait until a new task is available 
+                std::unique_lock<std::mutex> lock(mutex_);
+                condition_.wait(lock,
+                    [this]{ return stop_ || !tasks_.empty(); });
+                // quit the worker if we have been told to stop and we are done.
+                if(stop_ && tasks_.empty()) {
+                    return;
+                }
+                args = std::move(tasks_.front());
+                tasks_.pop();
+            }
+            boost::fusion::invoke(f,args);
+        }});
+    }
+}
+
+template<typename... Args>
+BasicPool<Args...>::
+~BasicPool() {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        stop_ = true;
+    }
+    condition_.notify_all();
+    for(auto && worker : workers_) {
+        worker.join();
+    }
+}
+
+// for perfect forwarding to work this must be a template function
+template<typename... Args>
+template<typename... Args2>
+void BasicPool<Args...>::
+Enqueue(Args2&&... args) {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        tasks_.emplace(std::forward<Args2>(args)...);
+    }
+    condition_.notify_one();    
+}
+
+template<typename... Args>
+void BasicPool<Args...>::
+Clear() {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        tasks_.clear();
+    }
+
+}
+
+// thread pool supporting heterogeneous jobs
 class TaskPool {
 public:
     // the constructor just launches some amount of workers
-    explicit TaskPool(size_t threads_n);
+    explicit TaskPool(size_t threads_n = std::thread::hardware_concurrency());
 
     // deleted copy&move ctors&assignments
     TaskPool(const TaskPool&) = delete;
@@ -56,7 +175,7 @@ public:
 };
 
 inline
-TaskPool::TaskPool(size_t threads_n = std::thread::hardware_concurrency()) : stop_{false}
+TaskPool::TaskPool(size_t threads_n) : stop_{false}
 {
     // if threads_n is 0, set it to 1
     if(threads_n == 0) {
@@ -73,7 +192,7 @@ TaskPool::TaskPool(size_t threads_n = std::thread::hardware_concurrency()) : sto
                 // wait until a new task is available 
                 std::unique_lock<std::mutex> lock(mutex_);
                 condition_.wait(lock,
-                    [this]{ return stop || !tasks_.empty(); });
+                    [this]{ return stop_ || !tasks_.empty(); });
                 // quit the worker if we have been told to stop
                 if(stop_) {
                     return;
@@ -109,13 +228,13 @@ TaskPool::Enqueue(F&& f, Args&&... args)
 
 // the destructor joins all threads
 inline
-virtual TaskPool::~TaskPool()
+TaskPool::~TaskPool()
 {
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        stop = true;
+        stop_ = true;
     }
-    condition.notify_all();
+    condition_.notify_all();
     for(auto && worker : workers_) {
         worker.join();
     }
