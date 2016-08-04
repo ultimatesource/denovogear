@@ -399,8 +399,9 @@ int process_ad(LogLike::argument_type &arg) {
             worker_pool.Enqueue(std::move(b));
         }
     }
-    cout << "log_hidden\tlog_observed\n";
-    cout << setprecision(16) << sum_data.result() << "\t" << sum_scale.result() << "\n";
+    cout << "log_likelihood\tlog_hidden\tlog_observed\n";
+    cout << setprecision(16) << sum_data.result()+sum_scale.result() << "\t"
+        << sum_data.result() << "\t" << sum_scale.result() << "\n";
 
     return EXIT_SUCCESS;
 }
