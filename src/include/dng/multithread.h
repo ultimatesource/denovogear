@@ -39,11 +39,9 @@
 namespace dng {
 namespace multithread {
 
-template<typename> class BasicPool;
-
 // basic thread pool supporting only a single type of job
 template<typename... Args>
-class BasicPool<Args...> {
+class BasicPool {
 public:
     typedef std::tuple<Args...> tuple_t;
 
@@ -67,7 +65,7 @@ public:
 
 private:
     // need to keep track of threads so we can join them
-    std::vector< std::thread > workers_;
+    std::vector<std::thread> workers_;
     // the task queue
     std::queue<tuple_t> tasks_;
 
@@ -85,11 +83,9 @@ BasicPool(F f, size_t num_threads) : stop_{false} {
     if(num_threads == 0) {
         num_threads = 1;
     }
-    workers_.reserve(num_threads);
 
-    for(; num_threads; --num_threads) {
-        // construct a vector of workers to process data from the queue
-        workers_.emplace_back( [this,f]() { for(;;) {
+    auto lambda = [this,f]() {
+    	for(;;) {
             tuple_t args;
             {
                 // wait until a new task is available 
@@ -104,7 +100,13 @@ BasicPool(F f, size_t num_threads) : stop_{false} {
                 tasks_.pop();
             }
             boost::fusion::invoke(f,args);
-        }});
+        }
+    };
+
+    workers_.reserve(num_threads);
+    for(; num_threads; --num_threads) {
+        // construct a vector of workers to process data from the queue
+        workers_.emplace_back(lambda);
     }
 }
 
