@@ -27,6 +27,8 @@
 #include <ctime>
 #include <sstream>
 #include <string>
+#include <vector>
+#include <stack>
 
 #include <boost/range/iterator_range.hpp>
 #include <boost/range/algorithm/replace.hpp>
@@ -50,6 +52,7 @@
 #include <dng/io/utility.h>
 #include <dng/io/fasta.h>
 #include <dng/depths.h>
+#include <dng/multithread.h>
 
 #include <htslib/faidx.h>
 #include <htslib/khash.h>
@@ -107,7 +110,6 @@ protected:
     dng::Pedigree pedigree_;
     params_t params_;
     dng::peel::workspace_t work_; // must be declared after pedigree_ (see constructor)
-
 
     dng::TransitionVector full_transition_matrices_;
     dng::TransitionVector transition_matrices_[dng::pileup::AlleleDepths::type_info_table_length];
@@ -259,6 +261,7 @@ int process_bam(LogLike::argument_type &arg) {
 }
 
 int process_ad(LogLike::argument_type &arg) {
+    using namespace std;
     // Parse pedigree from file
     io::Pedigree ped = io::parse_pedigree(arg.ped);
 
@@ -266,7 +269,7 @@ int process_ad(LogLike::argument_type &arg) {
     io::Fasta reference{arg.fasta.c_str()};
 
     // Parse Nucleotide Frequencies
-    std::array<double, 4> freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
+    array<double, 4> freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
 
     // quality thresholds
     int min_qual = arg.min_basequal;
@@ -290,17 +293,17 @@ int process_ad(LogLike::argument_type &arg) {
         throw std::runtime_error("Argument Error: unable to read header from '" + input.path() + "'.");
     }
     // Construct ReadGroups
-    dng::ReadGroups rgs;
+    ReadGroups rgs;
     rgs.ParseLibraries(input.libraries());
 
     // Construct peeling algorithm from parameters and pedigree information
-    dng::Pedigree pedigree;
+    Pedigree pedigree;
     if(!pedigree.Construct(ped, rgs, arg.mu, arg.mu_somatic, arg.mu_library)) {
-        throw std::runtime_error("Unable to construct peeler for pedigree; "
-                                 "possible non-zero-loop pedigree.");
+        throw runtime_error("Unable to construct peeler for pedigree; "
+                            "possible non-zero-loop pedigree.");
     }
     // Since pedigree may have removed libraries, map libraries to positions
-    std::vector<size_t> library_to_index;
+    vector<size_t> library_to_index;
     library_to_index.resize(rgs.libraries().size());
     for(size_t u=0; u < input.libraries().size(); ++u) {
         size_t pos = rg::index(rgs.libraries(), input.library(u).name);
@@ -311,30 +314,93 @@ int process_ad(LogLike::argument_type &arg) {
     }
 
     if(arg.gamma.size() < 2) {
-        throw std::runtime_error("Unable to construct genotype-likelihood model; "
-                                 "Gamma needs to be specified at least twice to change model from default.");
+        throw runtime_error("Unable to construct genotype-likelihood model; "
+                            "Gamma needs to be specified at least twice to change model from default.");
     }
 
     for(auto && line : pedigree.BCFHeaderLines()) {
-        std:cout << line << "\n";
+        cout << line << "\n";
     }
 
     // Construct function object to calculate log likelihoods
     LogProbability calculate (pedigree,
         { arg.theta, freqs, arg.ref_weight, arg.gamma[0], arg.gamma[1] } );
 
+    stats::ExactSum sum_data, sum_scale;
 
-    dng::stats::ExactSum sum_data, sum_scale;
+    // using a single thread to read data and process it
+    if(arg.threads == 1) {
+        pileup::AlleleDepths line;
+        line.data().reserve(4*input.libraries().size());
+        while(input.Read(&line)) {
+            auto loglike = calculate(line,library_to_index);
+            sum_data += loglike.log_data;
+            sum_scale += loglike.log_scale;
+        }
+    } else {
+        // create a set of pointers to hold our input data
+        // force batch_size to be positive
+        if(arg.batch_size <= 0) {
+            arg.batch_size = 10000;
+        }
+        size_t num_batches = 2*(arg.threads+1);
+        size_t batch_size = arg.batch_size;
 
-    pileup::AlleleDepths line;
-    line.data().reserve(4*input.libraries().size());
-    while(input.Read(&line)) {
-        auto loglike = calculate(line,library_to_index);
-        sum_data += loglike.log_data;
-        sum_scale += loglike.log_scale;
-    }    
-    std::cout << "log_hidden\tlog_observed\n";
-    std::cout << setprecision(16) << sum_data.result() << "\t" << sum_scale.result() << "\n";
+        typedef vector<pileup::AlleleDepths> batch_t;
+        stack<batch_t> batches;
+        for(size_t u=0; u<num_batches; ++u) {
+            batches.emplace(batch_size);
+        }
+
+        mutex batch_mutex;
+        condition_variable batch_cond;
+
+        auto batch_calculate = [&,calculate](batch_t& reads) mutable {
+            stats::ExactSum sum_d, sum_s;
+            for(auto && r : reads) {
+                auto loglike = calculate(r,library_to_index);
+                sum_d += loglike.log_data;
+                sum_s += loglike.log_scale;
+            }
+            {
+                lock_guard<mutex> lock(batch_mutex);
+                sum_data += sum_d;
+                sum_scale += sum_s;
+                batches.emplace(std::move(reads));
+            }
+            batch_cond.notify_one();
+        };
+        multithread::BasicPool<batch_t> worker_pool(batch_calculate,arg.threads);
+
+        pileup::AlleleDepths line;
+        line.data().reserve(4*input.libraries().size());
+        bool eof = false;
+        while(!eof) {
+            // setup a batch
+            batch_t b;
+            {
+                std::unique_lock<std::mutex> lock(batch_mutex);
+                batch_cond.wait(lock, [&](){return !batches.empty();});
+                b = std::move(batches.top());
+                batches.pop();
+            }
+            // resize the batch
+            b.resize(batch_size);
+            // read up to batch_size number of reads into the batch
+            // resize if needed
+            for(size_t u=0; u < batch_size; ++u) {
+                if(!input.Read(&b[u])) {
+                    b.resize(u);
+                    eof = true;
+                    break;
+                }
+            }
+            // schedule this batch to run
+            worker_pool.Enqueue(std::move(b));
+        }
+    }
+    cout << "log_hidden\tlog_observed\n";
+    cout << setprecision(16) << sum_data.result() << "\t" << sum_scale.result() << "\n";
 
     return EXIT_SUCCESS;
 }
