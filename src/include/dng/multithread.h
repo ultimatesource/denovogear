@@ -25,19 +25,19 @@ namespace dng {
 namespace multithread {
 
 // basic thread pool supporting heterogeneous jobs
-class BasicPool {
+class TaskPool {
 public:
     // the constructor just launches some amount of workers
-    explicit BasicPool(size_t threads_n);
+    explicit TaskPool(size_t threads_n);
 
     // deleted copy&move ctors&assignments
-    BasicPool(const BasicPool&) = delete;
-    BasicPool& operator=(const BasicPool&) = delete;
-    BasicPool(BasicPool&&) = delete;
-    BasicPool& operator=(BasicPool&&) = delete;
+    TaskPool(const TaskPool&) = delete;
+    TaskPool& operator=(const TaskPool&) = delete;
+    TaskPool(TaskPool&&) = delete;
+    TaskPool& operator=(TaskPool&&) = delete;
 
     // the destructor joins all threads
-    virtual ~BasicPool();
+    virtual ~TaskPool();
 
     // add new work item to the pool
     template<class F, class... Args>
@@ -56,7 +56,7 @@ public:
 };
 
 inline
-BasicPool::BasicPool(size_t threads_n = std::thread::hardware_concurrency()) : stop_{false}
+TaskPool::TaskPool(size_t threads_n = std::thread::hardware_concurrency()) : stop_{false}
 {
     // if threads_n is 0, set it to 1
     if(threads_n == 0) {
@@ -91,7 +91,7 @@ BasicPool::BasicPool(size_t threads_n = std::thread::hardware_concurrency()) : s
 template<class F, class... Args>
 inline
 std::future<typename std::result_of<F(Args...)>::type>
-BasicPool::Enqueue(F&& f, Args&&... args)
+TaskPool::Enqueue(F&& f, Args&&... args)
 {
     using packaged_task_t = std::packaged_task<typename std::result_of<F(Args...)>::type ()>;
 
@@ -109,7 +109,7 @@ BasicPool::Enqueue(F&& f, Args&&... args)
 
 // the destructor joins all threads
 inline
-virtual BasicPool::~BasicPool()
+virtual TaskPool::~TaskPool()
 {
     {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -124,7 +124,7 @@ virtual BasicPool::~BasicPool()
 } // namespace dng::multithread
 } // namespace dng
 
-/* BasicPool derives from the ThreadPool class found here
+/* TaskPool derives from the ThreadPool class found here
  * https://raw.githubusercontent.com/Youka/ThreadPool/master/ThreadPool.hpp
  * Below is the copyright found in the original class.
  * 
