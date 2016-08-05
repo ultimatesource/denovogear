@@ -18,10 +18,10 @@
  */
 
 // Workaround for using boost::fusion::invoke and c++11 before boost 1.58
-#include <boost/version.hpp>
-#if BOOST_VERSION < 105800
-#   define BOOST_RESULT_OF_USE_TR1_WITH_DECLTYPE_FALLBACK 1
-#endif
+// #include <boost/version.hpp>
+// #if BOOST_VERSION < 105800
+// #   define BOOST_RESULT_OF_USE_TR1_WITH_DECLTYPE_FALLBACK 1
+// #endif
 
 #include <cstdlib>
 #include <fstream>
@@ -376,7 +376,7 @@ int process_ad(LogLike::argument_type &arg) {
             }
             batch_cond.notify_one();
         };
-        multithread::BasicPool<batch_t> worker_pool(batch_calculate,arg.threads);
+        multithread::BasicPool<batch_t&> worker_pool(batch_calculate,arg.threads);
 
         pileup::AlleleDepths line;
         line.data().reserve(4*input.libraries().size());

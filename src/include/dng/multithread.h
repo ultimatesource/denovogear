@@ -30,6 +30,7 @@
 #include <future>
 #include <memory>
 #include <functional>
+#include <type_traits>
 
 #include <boost/fusion/functional/invocation/invoke.hpp>
 #include <boost/fusion/adapted/std_tuple.hpp>
@@ -43,7 +44,7 @@ namespace multithread {
 template<typename... Args>
 class BasicPool {
 public:
-    typedef std::tuple<Args...> tuple_t;
+    typedef std::tuple<typename std::remove_reference<Args>::type...> tuple_t;
 
     template<typename F>
     BasicPool(F f, size_t num_threads = std::thread::hardware_concurrency());
@@ -85,6 +86,7 @@ BasicPool(F f, size_t num_threads) : stop_{false} {
     }
 
     auto lambda = [this,f]() {
+        std::function<void(Args...)> g(f);
     	for(;;) {
             tuple_t args;
             {
@@ -99,7 +101,7 @@ BasicPool(F f, size_t num_threads) : stop_{false} {
                 args = std::move(tasks_.front());
                 tasks_.pop();
             }
-            boost::fusion::invoke(f,args);
+            boost::fusion::invoke(g,args);
         }
     };
 
