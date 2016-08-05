@@ -86,6 +86,7 @@ BasicPool(F f, size_t num_threads) : stop_{false} {
     }
 
     auto lambda = [this,f]() {
+        // wrap our callback in std::function so invoke will work correctly
         std::function<void(Args...)> g(f);
     	for(;;) {
             tuple_t args;

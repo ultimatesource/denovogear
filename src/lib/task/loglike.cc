@@ -16,8 +16,7 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-
-// Workaround for using boost::fusion::invoke and c++11 before boost 1.58
+// Workaround for using boost::fusion::invoke and c++11 lambdas before boost 1.58
 #include <boost/version.hpp>
 #if BOOST_VERSION < 105800
 #   define BOOST_RESULT_OF_USE_TR1_WITH_DECLTYPE_FALLBACK 1
