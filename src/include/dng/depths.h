@@ -71,6 +71,8 @@ public:
     };
     static match_indexes_t MatchIndexes;
 
+    static int8_t ColorDropN(int8_t color) { return color & 0x3F;}
+
     typedef std::vector<int32_t> data_t;
     typedef data_t::size_type size_type;
 

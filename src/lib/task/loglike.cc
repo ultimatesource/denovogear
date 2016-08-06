@@ -34,6 +34,7 @@
 #include <string>
 #include <vector>
 #include <stack>
+#include <numeric>
 
 #include <boost/range/iterator_range.hpp>
 #include <boost/range/algorithm/replace.hpp>
@@ -118,6 +119,7 @@ protected:
 
     dng::TransitionVector full_transition_matrices_;
     dng::TransitionVector transition_matrices_[dng::pileup::AlleleDepths::type_info_table_length];
+    double monomorphic_logdata_[4];
 
     // Model genotype likelihoods as a mixture of two dirichlet multinomials
     // TODO: control these with parameters
@@ -490,6 +492,23 @@ LogProbability::LogProbability(Pedigree pedigree, params_t params) :
             }
         }
     }
+
+    // Precalculate monomorphic histories (first 4 colors)
+    size_t num_libraries = work_.library_nodes.second - work_.library_nodes.first;
+    pileup::AlleleDepths depths{0,0,num_libraries,pileup::AlleleDepths::data_t(num_libraries, 0)};
+    std::vector<size_t> indexes(num_libraries,0);
+    std::iota(indexes.begin(),indexes.end(),0);
+
+    for(int i=0; i<4;++i) {
+        // setup monomorphic prior
+        depths.color(i);
+        GenotypeArray prior(1);
+        prior(0) = genotype_prior_[i](i);
+        work_.SetFounders(prior);
+        double scale = genotype_likelihood_(depths, indexes, work_.lower.begin()+work_.library_nodes.first);
+        monomorphic_logdata_[i] = pedigree_.PeelForwards(work_, transition_matrices_[i]);
+        std::cerr << i << " " << scale << " " << monomorphic_logdata_[i] << "\n";
+    }
 }
 
 // returns 'log10 P(Data ; model)-log10 scale' and log10 scaling.
@@ -519,18 +538,30 @@ LogProbability::stats_t LogProbability::operator()(const pileup::AlleleDepths &d
     int color = depths.color();
     size_t gt_width = depths.type_gt_info().width;
 
-    // Set the prior probability of the founders given the reference
-    GenotypeArray prior(gt_width);
-    for(int i=0;i<gt_width;++i) {
-        prior(i) = genotype_prior_[ref_index](depths.type_gt_info().indexes[i]);
-    }
-    work_.SetFounders(prior);
+    double scale, logdata;
+    if(color < 4) {
+        assert(gt_width == 1 && ref_index == color);
+        // Calculate genotype likelihoods
+        scale = genotype_likelihood_(depths, indexes, work_.lower.begin()+work_.library_nodes.first);
+
+        logdata = monomorphic_logdata_[color];
+        for(auto it = work_.lower.begin()+work_.library_nodes.first;
+            it != work_.lower.begin()+work_.library_nodes.second; ++it) {
+            logdata += (*it)(0);
+        }
+    } else {
+        // Set the prior probability of the founders given the reference
+        GenotypeArray prior(gt_width);
+        for(int i=0;i<gt_width;++i) {
+            prior(i) = genotype_prior_[ref_index](depths.type_gt_info().indexes[i]);
+        }
+        work_.SetFounders(prior);
     
-    // Calculate genotype likelihoods
-    double scale = genotype_likelihood_(depths, indexes, work_.lower.begin()+work_.library_nodes.first);
+        // Calculate genotype likelihoods
+        scale = genotype_likelihood_(depths, indexes, work_.lower.begin()+work_.library_nodes.first);
 
-     // Calculate log P(Data ; model)
-    double logdata = pedigree_.PeelForwards(work_, transition_matrices_[color]);
-
+         // Calculate log P(Data ; model)
+        logdata = pedigree_.PeelForwards(work_, transition_matrices_[color]);
+    }
     return {logdata/M_LN10, scale/M_LN10};
 }
