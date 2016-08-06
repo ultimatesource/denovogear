@@ -499,15 +499,14 @@ LogProbability::LogProbability(Pedigree pedigree, params_t params) :
     std::vector<size_t> indexes(num_libraries,0);
     std::iota(indexes.begin(),indexes.end(),0);
 
-    for(int i=0; i<4;++i) {
+    for(int color=0; color<4;++color) {
         // setup monomorphic prior
-        depths.color(i);
+        depths.color(color);
         GenotypeArray prior(1);
-        prior(0) = genotype_prior_[i](i);
+        prior(0) = genotype_prior_[color](pileup::AlleleDepths::type_info_gt_table[color].indexes[0]);
         work_.SetFounders(prior);
         double scale = genotype_likelihood_(depths, indexes, work_.lower.begin()+work_.library_nodes.first);
-        monomorphic_logdata_[i] = pedigree_.PeelForwards(work_, transition_matrices_[i]);
-        std::cerr << i << " " << scale << " " << monomorphic_logdata_[i] << "\n";
+        monomorphic_logdata_[color] = pedigree_.PeelForwards(work_, transition_matrices_[color]);
     }
 }
 
