@@ -119,7 +119,7 @@ protected:
 
     dng::TransitionVector full_transition_matrices_;
     dng::TransitionVector transition_matrices_[dng::pileup::AlleleDepths::type_info_table_length];
-    double monomorphic_logdata_[4];
+    double prob_monomorphic_[4];
 
     // Model genotype likelihoods as a mixture of two dirichlet multinomials
     // TODO: control these with parameters
@@ -506,7 +506,8 @@ LogProbability::LogProbability(Pedigree pedigree, params_t params) :
         prior(0) = genotype_prior_[color](pileup::AlleleDepths::type_info_gt_table[color].indexes[0]);
         work_.SetFounders(prior);
         double scale = genotype_likelihood_(depths, indexes, work_.lower.begin()+work_.library_nodes.first);
-        monomorphic_logdata_[color] = pedigree_.PeelForwards(work_, transition_matrices_[color]);
+        double logdata = pedigree_.PeelForwards(work_, transition_matrices_[color]);
+        prob_monomorphic_[color] = exp(logdata);
     }
 }
 
@@ -538,16 +539,20 @@ LogProbability::stats_t LogProbability::operator()(const pileup::AlleleDepths &d
     size_t gt_width = depths.type_gt_info().width;
 
     double scale, logdata;
+    // For monomorphic sites we have pre-calculated the peeling part
     if(color < 4) {
         assert(gt_width == 1 && ref_index == color);
         // Calculate genotype likelihoods
         scale = genotype_likelihood_(depths, indexes, work_.lower.begin()+work_.library_nodes.first);
 
-        logdata = monomorphic_logdata_[color];
+        // Multiply our pre-calculated peeling results with the genotype likelihoods
+        logdata = prob_monomorphic_[color];
         for(auto it = work_.lower.begin()+work_.library_nodes.first;
             it != work_.lower.begin()+work_.library_nodes.second; ++it) {
-            logdata += (*it)(0);
+            logdata *= (*it)(0);
         }
+        // convert to a log-likelihood
+        logdata = log(logdata);
     } else {
         // Set the prior probability of the founders given the reference
         GenotypeArray prior(gt_width);
