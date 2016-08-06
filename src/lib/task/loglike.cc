@@ -336,32 +336,43 @@ int process_ad(LogLike::argument_type &arg) {
     stats::ExactSum sum_data, sum_scale;
 
     // using a single thread to read data and process it
-    if(arg.threads == 1) {
+    if(arg.threads == 0) {
         pileup::AlleleDepths line;
         line.data().reserve(4*input.libraries().size());
+        // read each line of data into line and process it
         while(input.Read(&line)) {
             auto loglike = calculate(line,library_to_index);
             sum_data += loglike.log_data;
             sum_scale += loglike.log_scale;
         }
     } else {
-        // create a set of pointers to hold our input data
+        // Use a single thread to read data from the input
+        // and multiple threads to process it.
+        // Data will be processed in batches and a finite
+        // number of batches will be shared between the main
+        // and worker threads. std::move will be used to
+        // efficiently copy the batches between threads.
+
         // force batch_size to be positive
         if(arg.batch_size <= 0) {
             arg.batch_size = 10000;
         }
-        size_t num_batches = 2*(arg.threads+1);
+        // construct vectors to hold our batches
+        size_t num_batches = arg.threads+3;
         size_t batch_size = arg.batch_size;
-
         typedef vector<pileup::AlleleDepths> batch_t;
         stack<batch_t> batches;
         for(size_t u=0; u<num_batches; ++u) {
-            batches.emplace(batch_size);
+            batches.emplace(batch_size,pileup::AlleleDepths{});
         }
 
+        // synchronization objects for the batch stack
         mutex batch_mutex;
         condition_variable batch_cond;
 
+        // construct a lambda function which will be used for the worker threads
+        // each thread needs to have its own, mutable copy of calculate
+        // because calculate stores working data in a member object
         auto batch_calculate = [&,calculate](batch_t& reads) mutable {
             stats::ExactSum sum_d, sum_s;
             for(auto && r : reads) {
@@ -370,22 +381,26 @@ int process_ad(LogLike::argument_type &arg) {
                 sum_s += loglike.log_scale;
             }
             {
+                // use batch_mutex to save results and return our data object
                 lock_guard<mutex> lock(batch_mutex);
                 sum_data += sum_d;
                 sum_scale += sum_s;
                 batches.emplace(std::move(reads));
             }
+            // notify the reader thread that we have returned our object
             batch_cond.notify_one();
         };
+
+        // construct worker thread pool to run batch_calculate
         multithread::BasicPool<batch_t&> worker_pool(batch_calculate,arg.threads);
 
-        pileup::AlleleDepths line;
-        line.data().reserve(4*input.libraries().size());
+        // loop until we hit the end-of-file
         bool eof = false;
         while(!eof) {
             // setup a batch
             batch_t b;
             {
+                // try to pull a batch object off of the stack
                 std::unique_lock<std::mutex> lock(batch_mutex);
                 batch_cond.wait(lock, [&](){return !batches.empty();});
                 b = std::move(batches.top());
@@ -406,6 +421,7 @@ int process_ad(LogLike::argument_type &arg) {
             worker_pool.Enqueue(std::move(b));
         }
     }
+    // output results
     cout << "log_likelihood\tlog_hidden\tlog_observed\n";
     cout << setprecision(16) << sum_data.result()+sum_scale.result() << "\t"
         << sum_data.result() << "\t" << sum_scale.result() << "\n";
