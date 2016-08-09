@@ -72,8 +72,7 @@ private:
     std::vector<double> cache_;
 
     double lnpoch_pos(double n) const {
-        return 0.0;
-        // assumes n >= 1
+        assert(n >= 1.0);
         // if n is small relative to a, we can use a Sterling-derived approximation
         if(n < a_*sqrt(DBL_EPSILON)) {
             return n*logam1_ + (n+ah_)*log1p(n/a_);
