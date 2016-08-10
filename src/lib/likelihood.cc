@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015 Reed A. Cartwright
+ * Copyright (c) 2014-2016 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -118,7 +118,41 @@ DirichletMultinomialMixture::DirichletMultinomialMixture(params_t model_a, param
     }
 }
 
+// lookup table is stored in another file
+#include "log1p_exp_neg_table.tcc"
+
+// calculate m+log(1+exp(-x))
+inline double log1p_exp_neg(double x)  {
+    assert(x >= 0.0);
+    if(x < 2.0) {
+        // use a Taylor series of degree 8 at x=0
+        double xx = x*x;
+        return M_LN2-x/2.0 + (xx*(0.125+ xx*(-1.0/192.0+ (1.0/2880.0 - 17.0/645120.0*xx)*xx)));
+    } else if(x < 7.0) {
+        // use a Taylor series of degree 8 at x=4.694144053627953
+        return 0.7660035463487451 + x*(-0.6446774487882012 + x*(0.24816087438710718 + 
+            x*(-0.05625031169464227 + x*(0.008050735924081637 + x*(-0.0007225510231045971 +
+            (0.00003741637881581404 - 8.576355342428642e-7*x)*x)))));
+    } else if(x < log1p_exp_neg_table_end) {
+        x = x-7.0;
+        int n = static_cast<int>(x/log1p_exp_neg_table_step);
+        assert(n < 1023);
+        double f0 = log1p_exp_neg_table[n];
+        double f1 = log1p_exp_neg_table[n+1];
+        double dx = x-(n*log1p_exp_neg_table_step);
+        double df = f1-f0;
+        return f0 + df*dx/log1p_exp_neg_table_step;
+    }
+    return 0.0;
+}
+
 inline double log_sum(double a, double b) {
+     double x = fabs(a-b);
+     double m = std::max(a,b);
+     return m + log1p_exp_neg(x);
+}
+
+inline double log_sum_exact(double a, double b) {
     return log1p(exp(-fabs(a-b))) + std::max(a,b);
 }
 
@@ -158,6 +192,7 @@ double DirichletMultinomialMixture::operator()(
             lh1 -= cache[4].first(read_count);
             lh2 -= cache[4].second(read_count);
             out[g] = log_sum(lh1,lh2);
+            assert(std::isfinite(out[g]));
         }
     }
     // rescale output to hold genotypes
