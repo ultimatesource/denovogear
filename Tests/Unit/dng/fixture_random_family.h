@@ -57,10 +57,10 @@ struct RandomFamily {
 
         for (int k = 0; k < total_family_size; ++k) {
             family.push_back(k);
-            lower_array[k] = dng::GenotypeArray::Random();
+            lower_array[k] = dng::GenotypeArray::Random(10);
             if (k < CHILD_OFFSET) {
                 trans_matrix[k] = dng::TransitionMatrix::Random(10, 10);
-                upper_array[k] = dng::GenotypeArray::Random();
+                upper_array[k] = dng::GenotypeArray::Random(10);
             }
             else {
                 trans_matrix[k] = dng::TransitionMatrix::Random(100, 10);
@@ -81,7 +81,7 @@ struct RandomFamily {
         for (int k = 0; k < total_family_size; ++k) {
             family.push_back(k);
             trans_matrix[k] = dng::TransitionMatrix::Random(10, 10);
-            lower_array[k] = dng::GenotypeArray::Random();
+            lower_array[k] = dng::GenotypeArray::Random(10);
 //            upper_array[k] = GenotypeArray::Random();
 
         }

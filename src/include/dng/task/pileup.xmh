@@ -32,6 +32,8 @@ XM((fasta), (f), "faidx indexed reference sequence file", std::string, "")
 XM((header), (h), "Location of separate bam header file for read-groups.", 
    std::string, "")
    XM((header)(only),  (H), "only print header of tad file.", bool, DL(false, "off"))
+XM((max)(dp), , "maximum depth", int, 0)
+XM((min)(dp), , "minimum depth", int, 0)
 XM((min)(qlen), (l), "minimum query length", int, 0)
 XM((min)(basequal), (Q), "minimum base quality", int, 13)
 XM((min)(mapqual), (q), "minimum mapping quality", int, 0)

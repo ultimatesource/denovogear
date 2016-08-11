@@ -29,6 +29,7 @@
 
 #include <dng/matrix.h>
 #include <dng/utility.h>
+#include <dng/depths.h>
 
 namespace dng {
 namespace genotype {
@@ -54,7 +55,7 @@ public:
         }
     }
 
-    double operator()(int n) {
+    double operator()(int n) const {
         assert(n >= 0);
         assert(cache_.size() == kCacheSize); // Check for proper initialization
         if(n <= 0) {
@@ -70,8 +71,8 @@ private:
 
     std::vector<double> cache_;
 
-    double lnpoch_pos(double n) {
-        // assumes n >= 1
+    double lnpoch_pos(double n) const {
+        assert(n >= 1.0);
         // if n is small relative to a, we can use a Sterling-derived approximation
         if(n < a_*sqrt(DBL_EPSILON)) {
             return n*logam1_ + (n+ah_)*log1p(n/a_);
@@ -115,26 +116,9 @@ public:
         }
     };
 
-    std::pair<GenotypeArray, double> operator()(depth_t d, int ref_allele) {
-        GenotypeArray log_ret{10};
-        int read_count = d.counts[0] + d.counts[1] +
-                         d.counts[2] + d.counts[3];
-        for(int i = 0; i < 10; ++i) {
-            auto &cache = cache_[ref_allele][i];
-            double lh1 = f1_, lh2 = f2_;
-            for(int j=0;j<4;++j) {
-                lh1 += cache[j].first(d.counts[j]);
-                lh2 += cache[j].second(d.counts[j]);
-            }
-            lh1 -= cache[4].first(read_count);
-            lh2 -= cache[4].second(read_count);
-
-            log_ret[i] = (lh2 < lh1) ? lh1 + log1p(exp(lh2 - lh1)) :
-                         lh2 + log1p(exp(lh1 - lh2)) ;
-        }
-        double scale = log_ret.maxCoeff();
-        return {(log_ret - scale).exp(), scale};
-    }
+    std::pair<GenotypeArray, double> operator()(depth_t d, int ref_allele) const;
+    
+    double operator()(const pileup::AlleleDepths& depths, const std::vector<size_t> &indexes, IndividualVector::iterator output) const;
 
     DirichletMultinomialMixture(params_t model_a, params_t model_b);
 

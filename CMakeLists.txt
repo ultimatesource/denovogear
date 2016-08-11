@@ -55,7 +55,9 @@ IF(CMAKE_BUILD_TYPE)
      AND NOT cmake_build_type_tolower STREQUAL "none")
     message(FATAL_ERROR "Unsupported build type \"${CMAKE_BUILD_TYPE}\". Allowed values are Debug, Release, RelWithDebInfo, and None (case-insensitive).")
   endif()
+  message(STATUS "Compiling with build type '${CMAKE_BUILD_TYPE}'.")
 ENDIF()
+
 
 ################################################################################
 # Always make a full statement RPATH
@@ -72,7 +74,7 @@ ENDIF("${is_system_dir}" STREQUAL "-1")
 ################################################################################
 
 IF(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
-  ADD_DEFINITIONS(-D_GLIBCXX_USE_C99)
+  ADD_DEFINITIONS(-D_GLIBCXX_USE_C99 -D_GLIBCXX_USE_C99_MATH -D_GLIBCXX_USE_C99_MATH_TR1 -D_DECLARE_C99_LDBL_MATH)
 ENDIF()
 
 ## Specify Project Information
@@ -93,6 +95,9 @@ ENDIF()
 
 ## Turn on unit and executable testing
 ENABLE_TESTING()
+
+## Enable Developer CMake Flags
+INCLUDE(DngDevel)
 
 ################################################################################
 # Version Information
@@ -145,7 +150,7 @@ IF(DNG_VERSION_COMMIT)
   SET(DNG_VERSION_SHORT "${DNG_VERSION_SHORT}-${DNG_VERSION_COMMIT}")	
 ENDIF()
 
-MESSAGE(STATUS "${DNG_NAME} version is ${DNG_VERSION}")
+MESSAGE(STATUS "${DNG_NAME} version is ${DNG_VERSION}.")
 
 ################################################################################
 # Packaging Information

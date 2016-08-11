@@ -23,6 +23,7 @@
 
 #include <dng/task.h>
 
+#include <boost/fusion/include/adapt_struct.hpp>
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
 

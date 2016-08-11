@@ -48,47 +48,26 @@ using namespace dng::task;
 int process_bam(Pileup::argument_type &arg);
 int process_ad(Pileup::argument_type &arg);
 
-inline
-size_t get_mode(const std::string &in) {
-    using utility::extract_file_type;
-    using utility::key_switch_iequals;
-
-    static string keys[] = {
-        "bam","sam","cram","",
-        "ad","tad"
-    };
-    string ext = extract_file_type(in).first;
-    switch(key_switch_iequals(ext,keys)) {
-    case 0:
-    case 1:
-    case 2:
-    case 3:
-        return 0;
-        break;
-    case 4:
-    case 5:
-        return 1;
-    default:
-        throw runtime_error("Argument error: file type '" + ext + "' not supported. Input file was '" + in + "'.");
-        return -1;
-    };
-}
-
 // The main loop for dng-pileup application
 // argument_type arg holds the processed command line arguments
 int Pileup::operator()(Pileup::argument_type &arg) {
+    using utility::FileCat;
+    using utility::FileCatSet;
     // if input is empty default to stdin.
     if(arg.input.empty()) {
         arg.input.emplace_back("-");
     }
+
+    // Check that all input formats are of same category
     auto it = arg.input.begin();
-    const size_t mode = get_mode(*it);
+    FileCat mode = utility::input_category(*it, FileCat::Sequence|FileCat::Pileup, FileCat::Sequence);
     for(++it; it != arg.input.end(); ++it) {
-        if(get_mode(*it) != mode) {
+        if(utility::input_category(*it, FileCat::Sequence|FileCat::Pileup, FileCat::Sequence) != mode) {
             throw runtime_error("Argument error: mixing sam/bam/cram and tad/ad input files is not supported.");
         }
     }
-    if(mode == 1) {
+    // Execute sub tasks based on input type
+    if(mode == FileCat::Pileup) {
         return process_ad(arg);
     }
     return process_bam(arg);
@@ -121,7 +100,7 @@ int process_bam(Pileup::argument_type &arg) {
             auto r = regions::bam_parse(arg.region, f);
             f.regions(std::move(r));
         }
-    }    
+    }
 
     // Add each genotype/sample column
     dng::ReadGroups rgs;
@@ -146,7 +125,7 @@ int process_bam(Pileup::argument_type &arg) {
 
     string dict = reference.FetchDictionary();
     if(dict.empty()) {
-        throw runtime_error("Dictionary for reference " + reference.path() + " is missing.");
+        throw runtime_error("Error: Dictionary for reference " + reference.path() + " is missing.");
     }
     output.AddHeaderLines(dict);
 
@@ -155,12 +134,12 @@ int process_bam(Pileup::argument_type &arg) {
         vector<array<string,3>> libs;
         libs.resize(rgs.libraries().size());
         for(size_t u = 0; u < rgs.data().size(); ++u) {
-            auto &lib = libs[rgs.library_from_id(u)];
+            auto &lib = libs[rgs.library_from_index(u)];
             auto &rg = rgs.data().get<rg::nx>()[u];
             if(!lib[0].empty()) {
                 // we have see this library
                 if(lib[1] != rg.sample) {
-                    throw runtime_error("@AD ID:" + lib[0] + " is connected to multiple samples.");
+                    throw runtime_error("Error: @AD ID:" + lib[0] + " is connected to multiple samples.");
                 }
                 lib[2] += "\tRG:" + rg.id;
                 continue;
@@ -204,7 +183,15 @@ int process_bam(Pileup::argument_type &arg) {
         }
     }
 
+    // Create a pileup object
     dng::BamPileup mpileup{rgs.groups(), arg.min_qlen};
+    // calculate maximum and minimum depths
+    int min_dp = std::max(arg.min_dp,1);
+    int max_dp = (arg.max_dp > 0) ? arg.max_dp : std::numeric_limits<int>::max();
+    if(max_dp < min_dp) {
+        throw runtime_error("Argument error: Calculated maximum depth '" + to_string(max_dp) +
+            "' is less than calculated min depth '" + to_string(min_dp) + "'.");
+    }
     mpileup(bamdata, [&,h](const dng::BamPileup::data_type & data, utility::location_t loc) {
         // Calculate target position and fetch sequence name
         int contig = utility::location_to_contig(loc);
@@ -237,12 +224,14 @@ int process_bam(Pileup::argument_type &arg) {
         // doesn't change the order of ties.
         uint64_t dp = 0;
         for(int i=0;i<total_depths.size();++i) {
-            dp |= total_depths[i];
+            dp += total_depths[i];
             total_depths[i] = (total_depths[i] << 16) | (((total_depths.size()-1-i) & 0xFF) << 8) | (i & 0xFF);
         }
-        if(dp == 0) {
+        if(dp < min_dp || dp > max_dp) {
             return; // no data at this site
         }
+        // check to make sure that we have a positive depths past this point
+        assert(dp > 0);
         
         // make sure the ref base will come first
         total_depths[ref_index] |= (1ULL << 63);
@@ -254,6 +243,7 @@ int process_bam(Pileup::argument_type &arg) {
         int first_is_N = 0;
         if( (*first & 0xFF) >= 4 ) {
             first_is_N = 64;
+            ++first;
         }
         string rng(first, last);
         int color = AlleleDepths::MatchIndexes(rng)+first_is_N;

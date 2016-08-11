@@ -62,8 +62,8 @@ struct TestData {
         family_3 = {0,1,2}; //to_parent
         family_4 = {0,1,2,3}; //to_child
 
-        lower_array.resize(total_family_size);
-        upper_array.resize(total_family_size);
+        lower_array.resize(total_family_size, GenotypeArray(10));
+        upper_array.resize(total_family_size, GenotypeArray(10));
         trans_matrix.resize(total_family_size);
         trans_matrix[0].resize(10, 10);
         trans_matrix[1].resize(10, 10);
@@ -142,7 +142,7 @@ BOOST_FIXTURE_TEST_SUITE(test_peeling_suite, RandomFamily)
 //
 //            init_family_parent_child_only();
 //
-//            GenotypeArray expected = GenotypeArray::Zero();
+//            GenotypeArray expected = DNG_INDIVIDUAL_BUFFER_ZEROS;
 //            for (int i = 0; i < 10; ++i) {
 //                for (int j = 0; j < 10; ++j) {
 //                    expected[i] += trans_matrix[1](i, j) * lower_array[1][j];
@@ -166,8 +166,8 @@ BOOST_FIXTURE_TEST_SUITE(test_peeling_suite, RandomFamily)
         for (int t = 0; t < NUM_TEST; ++t) {
             init_family_parent_child_only();
 
-            GenotypeArray expected = GenotypeArray::Zero();
-            GenotypeArray expected_fast = GenotypeArray::Zero();
+            GenotypeArray expected = DNG_INDIVIDUAL_BUFFER_ZEROS;
+            GenotypeArray expected_fast = DNG_INDIVIDUAL_BUFFER_ZEROS;
 
             for (int i = 0; i < 10; ++i) {
                 for (int j = 0; j < 10; ++j) {
@@ -220,13 +220,13 @@ BOOST_FIXTURE_TEST_SUITE(test_peeling_suite, RandomFamily)
                 }
             }
 
-            GenotypeArray ga_mum;
+            GenotypeArray ga_mum(10);
             for (int j = 0; j < 10; ++j) {
                 ga_mum[j] = upper_array[1][j] * lower_array[1][j];
             }
 
-            GenotypeArray expected = GenotypeArray::Zero();
-            GenotypeArray expected_fast = GenotypeArray::Zero();
+            GenotypeArray expected = DNG_INDIVIDUAL_BUFFER_ZEROS;
+            GenotypeArray expected_fast = DNG_INDIVIDUAL_BUFFER_ZEROS;
             for (int i = 0; i < 10; ++i) {
                 for (int j = 0; j < 10; ++j) {
                     expected[i] += all_child(i, j) * ga_mum[j];
@@ -280,13 +280,13 @@ BOOST_FIXTURE_TEST_SUITE(test_peeling_suite, RandomFamily)
                 }
             }
 
-            GenotypeArray ga_dad;
+            GenotypeArray ga_dad(10);
             for (int j = 0; j < 10; ++j) {
                 ga_dad[j] = upper_array[0][j] * lower_array[0][j];
             }
 
-            GenotypeArray expected = GenotypeArray::Zero();
-            GenotypeArray expected_fast = GenotypeArray::Zero();
+            GenotypeArray expected = DNG_INDIVIDUAL_BUFFER_ZEROS;
+            GenotypeArray expected_fast = DNG_INDIVIDUAL_BUFFER_ZEROS;
             auto temp_child = all_child.transpose();
             for (int i = 0; i < 10; ++i) {
                 for (int j = 0; j < 10; ++j) {
@@ -334,8 +334,8 @@ BOOST_FIXTURE_TEST_SUITE(test_peeling_suite, RandomFamily)
                 all_child *= one_child;
             }
 
-            GenotypeArray dad_array;
-            GenotypeArray mom_array;
+            GenotypeArray dad_array(10,1);
+            GenotypeArray mom_array(10,1);
             for (int j = 0; j < 10; ++j) {
                 dad_array[j] = upper_array[0][j] * lower_array[0][j];
                 mom_array[j] = upper_array[1][j] * lower_array[1][j];
@@ -348,8 +348,8 @@ BOOST_FIXTURE_TEST_SUITE(test_peeling_suite, RandomFamily)
             }
             PairedGenotypeArray parents_children = parents_array * all_child;
 
-            GenotypeArray expected = GenotypeArray::Zero();
-            GenotypeArray expected_fast = GenotypeArray::Zero();
+            GenotypeArray expected = DNG_INDIVIDUAL_BUFFER_ZEROS;
+            GenotypeArray expected_fast = DNG_INDIVIDUAL_BUFFER_ZEROS;
             auto temp_m = trans_matrix[2].transpose();
             for (int i = 0; i < 10; ++i) {
                 for (int j = 0; j < 100; ++j) {
@@ -397,7 +397,7 @@ BOOST_AUTO_TEST_CASE(test_up_data) {
     dng::peel::up_fast(workspace, family_2, full_matrix);
     GenotypeArray result_fast = workspace.lower[0];
 
-    GenotypeArray expected_up, expected_up_fast;
+    GenotypeArray expected_up(10), expected_up_fast(10);
     expected_up_fast << 3.3430828973056, 2.22029449487333, 1.62739827465366, 3.70643095014583, 1.91143848246212, 2.4992488790493, 1.91207012603083, 2.17660126792262, 2.36868872264584, 1.24111124391474;
     expected_up << 2.99773307383735, 0.589507423115583, 0.605593792226304, 2.1232414358226, 1.73598331986789, 0.504053340069859, 1.71778407816098, 2.05618138742155, 1.56522427901286, 0.780800513587572;
 
@@ -421,7 +421,7 @@ BOOST_AUTO_TEST_CASE(test_to_father_data) {
     dng::peel::to_father_fast(workspace, family_3, full_matrix);
     GenotypeArray result_fast = workspace.lower[0];
 
-    GenotypeArray expected_father, expected_father_fast;
+    GenotypeArray expected_father(10), expected_father_fast(10);
     expected_father_fast << 4.33771067103314, 4.03881058045834, 4.48157297742325, 4.49904613402911, 4.52922077623378, 3.72932213323946, 3.82894278442746, 3.86313370349634, 3.75936276624941, 3.37825385317204;
     expected_father << 3.88961301371659, 1.07233919790166, 1.6677004128656, 2.57729370975392, 4.11347359158171, 0.752136889292459, 3.43988270186112, 3.64940686900879, 2.48417861709485, 2.12530694288604;
 
@@ -445,7 +445,7 @@ BOOST_AUTO_TEST_CASE(test_to_mother_data) {
     dng::peel::to_mother_fast(workspace, family_3, full_matrix);
     GenotypeArray result_fast = workspace.lower[1];
 
-    GenotypeArray expected_mother, expected_mother_fast;
+    GenotypeArray expected_mother(10), expected_mother_fast(10);
     expected_mother_fast << 8.06745074359354, 6.4361035153879, 8.6196171651342, 7.58209055048715, 8.81756599118246, 8.3614372364539, 7.93734156732659, 8.1403042945028, 7.00419230250473, 8.32219005557914;
     expected_mother << 0.498457693627425, 1.32567368558992, 1.52185161471928, 5.20906943361276, 3.38685988280818, 6.43698071534047, 3.95040888222994, 5.84163302463957, 6.9475010342192, 3.16272499105873;
 
@@ -472,7 +472,7 @@ BOOST_AUTO_TEST_CASE(test_to_child_data) {
         dng::peel::to_child_fast(workspace, family_3, full_matrix);
         GenotypeArray result_fast = workspace.upper[2];
 
-        GenotypeArray expected_child_fast, expected_child;
+        GenotypeArray expected_child_fast(10), expected_child(10);
         expected_child_fast << 2.75347719063559, 2.87968202567104, 3.046221665875, 2.91227976999125, 3.15382723031105, 2.84428624169569, 2.71204971489996, 2.5978369679627, 3.12219866005276, 3.43152703584631;
         expected_child << 7.28219203053222, 7.48208348481895, 7.78264133557065, 7.4666024463944, 8.08269093572769, 7.33041729609076, 6.94066282227986, 6.79197772316118, 8.05831342873138, 8.8500012009858;
 

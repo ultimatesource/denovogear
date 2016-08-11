@@ -49,7 +49,7 @@ struct workspace_t {
     ParentVector super; // Holds P(~Descendent_Data & G=g) for parent nodes
 
     bool dirty_lower = false;
-
+    double forward_result;
     // Temporary data used by some peeling ops
     PairedGenotypeArray paired_buffer;
 

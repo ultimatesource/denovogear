@@ -31,7 +31,6 @@
 #include "../boost_test_helper.h"
 #include "fixture_trio_workspace.h"
 
-
 namespace dng {
 
 BOOST_FIXTURE_TEST_CASE(test_constructor, TrioWorkspace) {

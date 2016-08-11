@@ -1,7 +1,7 @@
 ###############################################################################
 # Testdata information
-set(TESTDATA_COMMIT 85b2685f0ca276bf506716847cb314a034e0a4c4)
-set(TESTDATA_SHA256 5b5e66f6571ff61e6ff3daadc52e559ed7b6be8ee0aa9248542df3cdf116ace9)
+set(TESTDATA_COMMIT aa9be02fad8d6feb62408e248bd8183e484d3235)
+set(TESTDATA_SHA256 727a2d394c5545fcffeb15270d41f86051439f68f8a2e6393b8590ece53de242)
 set(TESTDATA_REPO denovogear/testdata)
 set(TESTDATA_URL "https://api.github.com/repos/${TESTDATA_REPO}/tarball/${TESTDATA_COMMIT}")
 set(TESTDATA_DIR "${CMAKE_BINARY_DIR}/testdata")
