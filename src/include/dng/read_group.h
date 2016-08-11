@@ -30,7 +30,6 @@
 #include <boost/range/algorithm_ext/erase.hpp>
 #include <boost/container/flat_set.hpp>
 
-
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/identity.hpp>
 #include <boost/multi_index/ordered_index.hpp>
@@ -38,6 +37,8 @@
 #include <boost/multi_index/member.hpp>
 
 #include <unordered_set>
+
+#include <dng/io/ad.h>
 
 namespace dng {
 
@@ -84,12 +85,17 @@ public:
     typedef detail::DataBase DataBase;
 
     // Parse a list of BAM/SAM files into read groups
+    void ParseHeaderText(const char *text, const std::string &lbtag = "LB");
+
     template<typename InFiles>
     void ParseHeaderText(InFiles &range, const std::string &lbtag = "LB");
 
     // Parse a VCF file
     template<typename InFiles>
     void ParseSamples(InFiles &range);
+
+    // Parse Library information from an AD file
+    void ParseLibraries(const std::vector<io::Ad::library_t>& libs);
 
     inline const StrSet &groups() const { return groups_; }
     inline const StrSet &libraries() const { return libraries_; }
@@ -100,10 +106,16 @@ public:
     inline std::size_t library_from_id(std::size_t n) const {
         return library_from_id_[n];
     }
+    inline std::vector<std::size_t> library_from_id() const {
+        return library_from_id_;
+    }
 
     // Returns the library index based on read group order of discovery
     inline std::size_t library_from_index(std::size_t n) const {
         return library_from_index_[n];
+    }
+    inline std::vector<std::size_t> library_from_index() const {
+        return library_from_index_;
     }
 
     template<typename Range>
@@ -124,7 +136,7 @@ protected:
     std::vector<std::size_t> library_from_id_;
     std::vector<std::size_t> library_from_index_;
 
-    inline void ReloadData();
+    void ReloadData();
 };
 
 namespace rg {
@@ -135,119 +147,13 @@ inline std::size_t index(const ReadGroups::StrSet &set,
 }
 }
 
-inline void ReadGroups::ReloadData() {
-    // clear data vectors
-    groups_.clear();
-    libraries_.clear();
-    samples_.clear();
-
-    // construct data vectors
-    groups_.reserve(data_.size());
-    libraries_.reserve(data_.size());
-    samples_.reserve(data_.size());
-    for(auto && a : data_) {
-        groups_.insert(a.id);
-        libraries_.insert(a.library);
-        samples_.insert(a.sample);
-    }
-
-    // remember the order the libraries were discovered
-    library_from_index_.reserve(groups_.size());
-    for(std::size_t u = 0; u < data_.get<rg::nx>().size(); ++u) {
-        library_from_index_.push_back(rg::index(libraries_,
-                                                data_.get<rg::nx>()[u].library));
-    }
-
-    // connect groups to libraries and samples
-    library_from_id_.resize(groups_.size());
-    for(auto && a : data_) {
-        library_from_id_[rg::index(groups_, a.id)] = rg::index(libraries_, a.library);
-
-    }
-}
-
-
 template<typename InFiles>
 void ReadGroups::ParseHeaderText(InFiles &range, const std::string &lbtag) {
-    // Get tag to identify libraries, LB by default.
-    const std::string &lbtag_str = (lbtag.empty() ? "LB" : lbtag);
-
     // iterate through each file in the range
     for(auto && f : range) {
         // get header text and continue on failure
-        const char *text = f.header()->text;
-        if(text == nullptr) {
-            continue;
-        }
-
-        // enumerate over read groups
-        for(text = strstr(text, "@RG\t"); text != nullptr;
-                text = strstr(text, "@RG\t")) {
-
-            text += 4; // skip @RG\t
-            // parse the @RG line as tab-separated key:value pairs
-            // use a map to separate the parsing logic from the rg_t struct
-            const char *k = text, *v = k, *p = k;
-            std::map<std::string, std::string> tags;
-            for(; *p != '\n' && *p != '\0'; ++p) {
-                if(*p == ':') {
-                    v = p + 1;    // make v point the the beginning of the value
-                }
-                // v-1 will point to the end of the key
-                else if(*p == '\t') {
-                    if(k < v) {
-                        // if we found a key:value pair, add it to the map
-                        // first one wins
-                        tags.emplace(std::string(k, v - 1), std::string(v, p));
-                    }
-                    // move k and v to the next character
-                    k = v = p + 1;
-                }
-            }
-            // make sure the insert the last item if needed
-            if(k < v) {
-                tags.emplace(std::string(k, v - 1), std::string(v, p));
-            }
-
-            // continue to next @RG if this @RG does not have an ID
-            auto it = tags.find("ID");
-            if(it == tags.end() || it->second.empty()) {
-                continue;
-            }
-            // check to see if this is a duplicate
-            // TODO: Raise warning/error if this is a collision of different sm/lb data
-            if(data_.find(it->second) != data_.end()) {
-                continue;
-            }
-            ReadGroup val{it->second};
-
-            // sample tag
-            if((it = tags.find("SM")) != tags.end()) {
-                val.sample = it->second;//std::move(it->second);
-            } else {
-                val.sample = val.id;
-            }
-
-            // library tag
-            it = tags.find(lbtag_str);
-            if(it == tags.end()) {
-                // Will throw an error if any @RG header line is missing tag.
-                throw std::runtime_error("@RG header for '" + std::string(
-                                             f.name()) + "' is missing " + lbtag_str + " tag." +
-                                         "  Please fix or use option \'--lbtag\' to use another tag to identify libraries.");
-            } else {
-                // Unless using SM tag to group different libraries, prepend SM tag for readability
-                if(lbtag_str == "SM") {
-                    val.library = it->second;
-                } else {
-                    val.library = val.sample + "-" + it->second;
-                }
-            }
-
-            data_.insert(std::move(val));
-        }
+        ParseHeaderText(const_cast<const char*>(f.header()->text), lbtag);
     }
-    ReloadData();
 }
 
 /**
@@ -274,6 +180,14 @@ void ReadGroups::ParseSamples(InFile &file) {
             val.sample.assign(sm, p);
         }
         data_.insert(std::move(val));
+    }
+    ReloadData();
+}
+
+inline
+void ReadGroups::ParseLibraries(const std::vector<io::Ad::library_t>& libs) {
+    for(auto && a : libs) {
+        data_.insert({a.name,a.name,a.sample});
     }
     ReloadData();
 }

@@ -19,8 +19,21 @@ sub next_permutation {
 	return @idx;
 }
 
+my @gt_list = (0, 1, 2, 3, 1, 4, 5, 6, 2, 5, 7, 8, 3, 6, 8, 9);
+sub gt10 {
+	my @s = @_;
+	my @r = ();
+	for(my $i = 0; $i < @s; ++$i) {
+		for(my $j = 0; $j <= $i; ++$j) {
+			push(@r, $gt_list[4*$s[$j]+$s[$i]]);
+		}
+	}
+	return @r;
+}
+
 my @types = ();
 my @types4 = ();
+my @genotypes10 = ();
 for(my $k = 1;$k<=4;++$k) {
 	my @n = (0,1,2,3);
 	do {
@@ -28,6 +41,7 @@ for(my $k = 1;$k<=4;++$k) {
 		@n = (@front, reverse(@n[$k..$#n]));
 		push(@types,[@front]);
 		push(@types4,[@n]);
+		push(@genotypes10,[gt10(@n)]);
 	} while(@n = next_permutation(@n))
 }
 
@@ -37,7 +51,6 @@ push(@types,@ntypes);
 my @strings = map { join("", @X[@{$_}]) } @types;
 
 my $command = shift || 'tsv';
-
 
 if($command eq 'tsv' ) {
 	for(my $u=0;$u<@types;++$u) {
@@ -56,6 +69,7 @@ if($command eq 'tsv' ) {
 		shift(@s) if($s[0] == 4);
 		my $list = join(",", @s);
 		my $list4 = join(",", @{$types4[$u % 64]});
+		my $gt10 = join(",", @{$genotypes10[$u % 64]});
 		my $num = @s;
 		my $uc = $strings[$u];
 		my $lc = lc($uc);
@@ -65,6 +79,20 @@ if($command eq 'tsv' ) {
 		$lc = sprintf("% -8s","\"$lc\",");
 		say("    {$id $num, $uc $lc $ref, {$list4}}$comma");
 	}
+	say("");
+	for(my $u=0;$u<@types;++$u) {
+		my $comma = ($u < $#types) ? ',' : '';
+
+		my @s = @{$types[$u]};
+		shift(@s) if($s[0] == 4);
+		my $num = @s;
+		$num = $num*($num+1)/2;
+		$num = sprintf("% -3s","$num,");
+		my $id = sprintf("% -4s","$u,");
+
+		my $gt10 = join(",", @{$genotypes10[$u % 64]});
+		say("    {$id $num {$gt10}}$comma");
+	}	
 } else {
 	say("Unknown command output format '$command'");
 }

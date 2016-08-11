@@ -26,6 +26,8 @@
 #include <locale>
 #include <cstdint>
 #include <climits>
+#include <chrono>
+
 
 #include <boost/spirit/include/support_ascii.hpp>
 #include <boost/spirit/include/qi_real.hpp>
@@ -41,6 +43,43 @@
 
 namespace dng {
 namespace utility {
+
+template<typename E, typename = typename std::enable_if<std::is_enum<E>::value>::type>
+struct EnumFlags {
+    typedef E enum_t;
+    typedef typename std::underlying_type<E>::type int_t;
+    static_assert(std::is_enum<enum_t>::value, "EnumFlags can only wrap an enum.");
+
+    int_t value;
+    
+    EnumFlags(int_t v) : value{v} { }
+    EnumFlags(enum_t v) : value{static_cast<int_t>(v)} { }
+
+    EnumFlags& operator=(enum_t v) {
+        value = static_cast<int_t>(v);
+        return *this;
+    }
+
+    operator int_t() { return value; }
+
+    EnumFlags operator|(enum_t v) {
+         return {value | static_cast<int_t>(v)};
+    }
+
+    EnumFlags& operator|=(enum_t v) {
+         value |= static_cast<int_t>(v);
+         return *this;
+    }
+
+    EnumFlags operator&(enum_t v) {
+        return {value & static_cast<int_t>(v)};
+    }
+};
+
+template<typename E>
+EnumFlags<E> operator|(E a, E b) {
+    return EnumFlags<E>{a} | b;
+}
 
 typedef int64_t location_t;
 
@@ -125,6 +164,23 @@ std::pair<std::vector<int>, bool> parse_int_list(const S &str,
     return {f, (r && b == e) };
 }
 
+// Parse Nucleotide Frequencies
+inline
+std::array<double, 4> parse_nuc_freqs(const std::string &str) {
+    auto f = utility::parse_double_list(str, ',', 4);
+    if(!f.second) {
+        throw std::runtime_error("Unable to parse nuc-freq option. "
+                                 "It must be a comma separated list of floating-point numbers.");
+    }
+    if(f.first.size() != 4) {
+        throw std::runtime_error("Wrong number of values passed to nuc-freq. "
+                                 "Expected 4; found " + std::to_string(f.first.size()) + ".");
+    }
+    std::array<double,4> freqs;
+    std::copy(f.first.begin(), f.first.begin()+4, &freqs[0]);
+    return freqs;
+}
+
 template<typename T>
 std::string to_pretty(const T &value) {
     namespace karma = boost::spirit::karma;
@@ -149,39 +205,57 @@ inline T lphred(double p, T m = std::numeric_limits<T>::max()) {
 // extracts extension and filename from both file.ext and ext:file.foo
 // returns {ext, filename.ext}
 // trims whitespace as well
-inline std::pair<std::string, std::string> extract_file_type(const std::string &path) {
-    if(path.empty())
-        return {};
-    std::locale loc;
+std::pair<std::string, std::string> extract_file_type(const std::string &path);
 
-    auto last = path.length();
-    decltype(last) first = 0;
-    while(first < path.length() && std::isspace(path[first],loc)) {
-        ++first;
-    }
-    if(first == last) {
-        return {};
-    }
-    while(std::isspace(path[last-1],loc)) {
-        --last;
-    }
+// a strongly-typed enum for file category
+enum class FileCat {
+    Unknown  = 0,
+    Sequence = 1,
+    Variant  = 2,
+    Pileup   = 4
+};
+typedef EnumFlags<FileCat> FileCatSet;
 
-    auto x = last-1;
-    for(auto u = first; u < last; ++u) {
-        if(path[u] == ':' && u > first+1) { // u > 1 skips windows drive letters
-            return {path.substr(first, u-first), path.substr(u+1,last-(u+1))};
-        }
-        if(path[u] == '.' && u > first) { // u > 0 skips unix .hidden files
-            x = u;
-        }
+// converts an extension to a file category
+FileCat file_category(const std::string &ext);
+// converts and input file to category and will throw if value is not supported
+FileCat input_category(const std::string &in, FileCatSet mask, FileCat def = FileCat::Unknown);
+
+// create a timestamp that contains the date and epoch
+std::pair<std::string, std::string> timestamp();
+
+// create a timestamp in "Date=xxx,Epoch=xxx" format
+std::string vcf_timestamp();
+
+template<typename V, typename A>
+inline
+std::string vcf_command_line_text(const char *arg,
+                                  const std::vector<V, A> &val) {
+    std::string str;
+    for(auto && a : val) {
+        str += std::string("--") + arg + '=' + dng::utility::to_pretty(a) + ' ';
     }
-    return {path.substr(x + 1, last - (x + 1)), path.substr(first,last-first)};
+    str.pop_back();
+    return str;
 }
 
+
+template<typename VAL>
+inline
+std::string vcf_command_line_text(const char *arg, VAL val) {
+    return std::string("--") + arg + '=' + dng::utility::to_pretty(val);
 }
+
+template<>
+inline
+std::string vcf_command_line_text(const char *arg, std::string val) {
+    return std::string("--") + arg + "=\'" + val + "\'";
+}
+
+} // namespace dng::utility
 
 using utility::location_t;
 
-} // namespace dng::utility
+} // namespace dng
 
 #endif

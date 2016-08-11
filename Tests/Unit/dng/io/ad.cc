@@ -18,8 +18,6 @@
  */
 #define BOOST_TEST_MODULE dng::io::ad
 
-struct unittest_dng_io_ad;
-
 #include <dng/io/ad.h>
 #include <dng/detail/varint.h>
 
@@ -33,10 +31,13 @@ using namespace dng::pileup;
 using namespace dng::utility;
 using namespace std;
 
+namespace dng { namespace io {
 struct unittest_dng_io_ad {
     static int get_version_number(const dng::io::Ad &a) { return a.id_.version; }
     static std::string get_format_string(const dng::io::Ad &a) { return a.id_.name; }
 };
+}}
+using dng::io::unittest_dng_io_ad;
 
 // http://stackoverflow.com/a/673389
 struct HexCharStruct {
