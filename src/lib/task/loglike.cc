@@ -261,8 +261,11 @@ int process_bam(LogLike::argument_type &arg) {
         sum_data += loglike.log_data;
         sum_scale += loglike.log_scale;
     });
-    std::cout << "log_hidden\tlog_observed\n";
-    std::cout << setprecision(16) << sum_data.result() << "\t" << sum_scale.result() << "\n";
+    // output results
+    cout << "log_likelihood\tlog_hidden\tlog_observed\n";
+    cout << setprecision(std::numeric_limits<double>::max_digits10)
+        << sum_data.result()+sum_scale.result() << "\t"
+        << sum_data.result() << "\t" << sum_scale.result() << "\n";
 
     return EXIT_SUCCESS;
 }
@@ -423,7 +426,8 @@ int process_ad(LogLike::argument_type &arg) {
     }
     // output results
     cout << "log_likelihood\tlog_hidden\tlog_observed\n";
-    cout << setprecision(16) << sum_data.result()+sum_scale.result() << "\t"
+    cout << setprecision(std::numeric_limits<double>::max_digits10)
+        << sum_data.result()+sum_scale.result() << "\t"
         << sum_data.result() << "\t" << sum_scale.result() << "\n";
 
     return EXIT_SUCCESS;
