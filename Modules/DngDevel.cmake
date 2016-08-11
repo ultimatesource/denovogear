@@ -13,3 +13,9 @@ if(DNG_DEVEL_ENABLE_GPERFTOOLS)
     message(FATAL_ERROR "Gperftools was not found. Please disable the flag DNG_DEVEL_ENABLE_GPERFTOOLS and try again.")
   endif()
 endif()
+
+SET(DNG_DEVEL_ENABLE_COVERAGE_REPORT OFF CACHE BOOL "Enable code coverage reporting.")
+
+if (DNG_DEVEL_ENABLE_COVERAGE_REPORT)
+  SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -O0 -fprofile-arcs -ftest-coverage")
+endif()
