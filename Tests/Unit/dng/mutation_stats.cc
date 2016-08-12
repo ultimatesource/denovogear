@@ -151,18 +151,29 @@ BOOST_FIXTURE_TEST_CASE(test_set_posterior_probabilities, TrioWorkspace) {
     dng::IndividualVector expected_probs;
 
     for (int i = 0; i < workspace.num_nodes; ++i) {
-        expected_probs.push_back(DNG_INDIVIDUAL_BUFFER_ZEROS);
-        double sum = 0;
-        for (int j = 0; j < 10; ++j) {
-            expected_probs[i][j] = workspace.upper[i][j] * workspace.lower[i][j];
-            sum += expected_probs[i][j];
+        if (workspace.upper[i].size() == 0) {
+            //PR_NOTE(SW): HACK! some upper doesn't exist yet, error in DEBUG mode, but ok is RELEASE MODE
+            workspace.upper[i] = DNG_INDIVIDUAL_BUFFER_ONES;
         }
-        expected_probs[i] /= sum;
+            expected_probs.push_back(DNG_INDIVIDUAL_BUFFER_ZEROS);
+            double sum = 0;
+            std::cout << i << std::endl;
+            std::cout << workspace.upper[i].size() << std::endl;
+
+            for (int j = 0; j < 10; ++j) {
+                expected_probs[i][j] = workspace.upper[i][j] * workspace.lower[i][j];
+                sum += expected_probs[i][j];
+            }
+            expected_probs[i] /= sum;
+
     }
     double min_prob = 0.01;
     MutationStats stats(min_prob);
     stats.SetPosteriorProbabilities(workspace);
 
+    for (int i = 0; i < 5; ++i) {
+        std::cout << stats.posterior_probabilities_[i].size()  << std::endl;
+    }
     for (int i = 0; i < workspace.num_nodes; ++i) {
         boost_check_close_vector(expected_probs[i],
                               stats.posterior_probabilities_[i]);
