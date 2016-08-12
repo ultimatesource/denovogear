@@ -29,6 +29,7 @@
 #include <boost/range/algorithm/fill_n.hpp>
 
 #include <dng/matrix.h>
+#include <dng/likelihood.h>
 #include <dng/detail/unit_test.h>
 
 namespace dng {
@@ -85,7 +86,9 @@ struct workspace_t {
         dirty_lower = false;
     }
 
+    // Set the prior probability of the founders given the reference
     void SetFounders(const GenotypeArray &prior) {
+
         assert(founder_nodes.first <= founder_nodes.second);
         std::fill(upper.begin() + founder_nodes.first,
                   upper.begin() + founder_nodes.second, prior);
@@ -96,6 +99,22 @@ struct workspace_t {
         assert(boost::size(range) == library_nodes.second - library_nodes.first);
         boost::copy(range, lower.begin() + library_nodes.first);
     }
+
+    // Calculate genotype likelihoods and store in the lower library vector
+    double SetGenotypeLikelihood(
+            dng::genotype::DirichletMultinomialMixture &genotype_likelihood_,
+            const std::vector<depth_t> &depths, int ref_index) {
+
+        double scale = 0;
+        double temp;
+        for(std::size_t u = 0; u < depths.size(); ++u) {
+            std::tie(lower[library_nodes.first + u], temp) =
+                    genotype_likelihood_(depths[u], ref_index);
+            scale += temp;
+        }
+        return scale;
+    }
+
 };
 
 typedef std::vector<std::size_t> family_members_t;

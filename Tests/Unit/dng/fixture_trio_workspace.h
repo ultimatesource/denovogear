@@ -89,12 +89,8 @@ struct TrioWorkspace : public  ReadTrioFromFile {
         dng::genotype::DirichletMultinomialMixture genotype_likelihood_{
                 dng::genotype::DirichletMultinomialMixture::params_t {expect_gamma[0]},
                 dng::genotype::DirichletMultinomialMixture::params_t {expect_gamma[1]}  };
-        double scale = 0.0, stemp;
-        for (std::size_t u = 0; u < read_depths.size(); ++u) {
-            std::tie(workspace.lower[2 + u], stemp) =
-                    genotype_likelihood_(read_depths[u], ref_index);
-            scale += stemp;
-        }
+        double scale = workspace.SetGenotypeLikelihood(genotype_likelihood_,
+                                                       read_depths, ref_index);
         return scale;
     }
 

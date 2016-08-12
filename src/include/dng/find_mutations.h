@@ -24,36 +24,19 @@
 #define DNG_FIND_MUTATIONS_H_
 
 
-#include <cstdlib>
+#include <array>
+#include <cstdint>
+#include <string>
 #include <vector>
 
-//#include <iostream>
-//#include <iomanip>
-//#include <ctime>
-//#include <chrono>
-#include <sstream>
-#include <string>
-
-//#include <boost/range/algorithm/replace.hpp>
-//#include <boost/range/algorithm/max_element.hpp>
-
-//#include <boost/algorithm/string.hpp>
-#include <dng/matrix.h>
-#include <dng/task/call.h>
-#include <dng/pedigree.h>
-#include <dng/fileio.h>
-#include <dng/pileup.h>
-#include <dng/read_group.h>
+#include <dng/detail/unit_test.h>
 #include <dng/likelihood.h>
-#include <dng/seq.h>
-#include <dng/utility.h>
-#include <dng/hts/bcf.h>
-#include <dng/hts/extra.h>
-#include <dng/vcfpileup.h>
-#include <dng/mutation.h>
-#include <dng/stats.h>
-#include <dng/io/utility.h>
+#include <dng/matrix.h>
 #include <dng/mutation_stats.h>
+#include <dng/peeling.h>
+
+
+
 namespace dng {
 
 class FindMutations {
@@ -91,16 +74,15 @@ public:
     ~FindMutations();
 
     bool operator()(const std::vector<depth_t> &depths, int ref_index,
-                    stats_t *stats);
+            stats_t *stats);
 
-    bool CalculateMutationProb(MutationStats &mutation_stats);
 
 protected:
     const dng::Pedigree &pedigree_;
 
     params_t params_;
 
-    double min_prob_;
+    [[deprecated]] double min_prob_;
 
     dng::peel::workspace_t work_full_;
     dng::peel::workspace_t work_nomut_;
@@ -118,8 +100,13 @@ protected:
 
     dng::GenotypeArray genotype_prior_[5]; // Holds P(G | theta)
 
-    std::array<double, 5> max_entropies_;
-    std::vector<double> event_;
+    [[deprecated]] std::array<double, 5> max_entropies_;
+    [[deprecated]] std::vector<double> event_;
+
+
+    bool CalculateMutationProb(MutationStats &stats);
+
+    void CalculateDenovoMutation(MutationStats &mutation_stats);
 
     DNG_UNIT_TEST(test_constructor);
     DNG_UNIT_TEST(test_prior);
@@ -127,6 +114,7 @@ protected:
     DNG_UNIT_TEST(test_operator);
 
 };
+
 } // namespace dng
 
 #endif /* DNG_FIND_MUTATIONS_H_ */
