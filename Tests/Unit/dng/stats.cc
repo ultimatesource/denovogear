@@ -99,7 +99,7 @@ BOOST_AUTO_TEST_CASE(test_fisher_few_reads){
 // When ther are > 512 total reads a g-test is used to test approximate the
 // Fisher Test. Test value calculated in R.
 BOOST_AUTO_TEST_CASE(test_fisher_many_reads){
-    BOOST_CHECK_CLOSE(dng::stats::fisher_exact_test(20, 200, 19, 301), 0.1679341, 0.00001);
+    BOOST_CHECK_CLOSE(dng::stats::fisher_exact_test(20, 200, 19, 301), 0.1679341, 0.0001);
 
 }
 
