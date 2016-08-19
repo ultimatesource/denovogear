@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015 Reed A. Cartwright
+ * Copyright (c) 2014-2016 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -27,6 +27,7 @@
 
 #include <Eigen/Dense>
 #include <Eigen/StdVector>
+#include <Eigen/Sparse>
 #include <Eigen/KroneckerProduct>
 
 namespace dng {
@@ -36,14 +37,9 @@ struct depth_t {
 };
 
 
-#ifdef DNG_USE_DYNAMIC_GENOTYPE_ARRAY
-typedef Eigen::ArrayXd GenotypeArray;
-typedef std::vector<GenotypeArray> IndividualVector;
-#else
-typedef Eigen::Array<double, 10, 1> GenotypeArray;
+typedef Eigen::Array<double, Eigen::Dynamic, 1, 0, 10, 1> GenotypeArray;
 typedef std::vector<GenotypeArray, Eigen::aligned_allocator<GenotypeArray>>
         IndividualVector;
-#endif
 
 #define DNG_INDIVIDUAL_BUFFER_MIN DBL_MIN
 #define DNG_INDIVIDUAL_BUFFER_ONES IndividualVector::value_type::Ones(10)

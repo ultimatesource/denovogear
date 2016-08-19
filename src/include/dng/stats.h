@@ -21,24 +21,6 @@
 #ifndef DNG_STATS_H
 #define DNG_STATS_H
 
-#if defined(__GNUC__)
-#   if defined(__GNUC_PATCHLEVEL__)
-#       define __GNUC_VERSION__ (__GNUC__ * 10000 \
-                               + __GNUC_MINOR__ * 100 \
-                               + __GNUC_PATCHLEVEL__)
-#   else
-#       define __GNUC_VERSION__ (__GNUC__ * 10000 \
-                          + __GNUC_MINOR__ * 100)
-#   endif
-#endif
-
-#if __GNUC_VERSION__ > 40305
-#   define DNG_NO_ASSOCIAIVE_MATH __attribute__((__optimize__("no-associative-math")))
-#else
-#   define DNG_NO_ASSOCIAIVE_MATH
-#endif
-
-
 #include <vector>
 #include <utility>
 #include <cstdint>
@@ -60,108 +42,60 @@ double ad_two_sample_test(std::vector<int> a, std::vector<int> b);
 // Derived from Python's math.fsum
 class ExactSum {
 public:
-    inline ExactSum(double value=0.0) {
+    explicit ExactSum(double value=0.0) {
         partials_.reserve(32);
         if(value != 0.0) {
             partials_.push_back(value);
         }
     }
-
-    DNG_NO_ASSOCIAIVE_MATH
-    inline ExactSum& operator()(double x) {
-        typedef std::vector<double>::size_type size_type;
-        size_type i=0;
-        double xsave = x;
-        for(size_type j=0;j<partials_.size();++j) {
-            double y = partials_[j], hi = x+y;
-            double lo = (fabs(x) >= fabs(y)) ?
-                y - (double)(hi-x) : x - (double)(hi-y);
-            if(lo != 0.0) {
-                partials_[i++] = lo;
-            }
-            x = hi;
-        }
-        if(x == 0.0) {
-            partials_.resize(i);
-        } else if(std::isfinite(x)) {
-            partials_.resize(i+1);
-            partials_[i] = x;
-        } else if(std::isfinite(xsave)) {
-            // Intermediate overflow has occurred
-            failed_ = true;
-            partials_.clear();
-        } else {
-            if(std::isinf(xsave)) {
-                inf_sum_ += xsave;
-            }
-            special_sum_ += xsave;
-            partials_.clear();
+    ExactSum& operator=(double value) {
+        partials_.clear();
+        if(value != 0.0) {
+            partials_.push_back(value);
         }
         return *this;
     }
+    ExactSum& operator=(const ExactSum&) = default;
+    ExactSum& operator=(ExactSum&&) = default;
 
-    DNG_NO_ASSOCIAIVE_MATH
-    inline double result() const {
-        typedef std::vector<double>::size_type size_type;
-        if(failed_) {
-            return HUGE_VAL;
-        } else if(special_sum_ != 0.0) {
-            return std::isnan(inf_sum_) ? inf_sum_ : special_sum_; 
-        } else if(partials_.empty()) {
-            return 0.0;
-        }
-        size_type j = partials_.size()-1;
-        double hi = partials_[j];
-        double lo;
-        while(j > 0) {
-            double x = hi;
-            double y = partials_[--j];
-            assert(fabs(y) < fabs(x));
-            hi = x + y;
-            lo = y - (double)(hi - x);
-            if(lo != 0.0)
-                break;
-        }
-        if(j > 0 && ((lo < 0.0 && partials_[j-1] < 0.0 ) ||
-                     (lo > 0.0 && partials_[j-1] > 0.0))) {
-            double y = lo * 2.0;
-            double x = hi + y;
-            if( y == x-hi ) {
-                hi = x;
-            }
-        }
-        return hi;
+    ExactSum& operator()(double x);
+    ExactSum& operator()(const ExactSum& x);
+    double result() const;
+
+    ExactSum& operator+=(double value) {
+        return operator()(value);
     }
-
-    inline ExactSum& operator+=(double value) {
+    ExactSum& operator+=(const ExactSum& value) {
         return operator()(value);
     }
 
-    inline ExactSum& add(double value) {
+    ExactSum& add(double value) {
+        return operator()(value);
+    }
+    ExactSum& add(const ExactSum& value) {
         return operator()(value);
     }
 
-    inline operator double() const {
+    operator double() const {
         return result();
     }
-    inline bool operator==(double x) const {
+    bool operator==(double x) const {
         return (result() == x);
     }
 
-    inline bool failed() const {
+    bool failed() const {
         return failed_;
     }
-    inline operator bool() const {
+    operator bool() const {
         return failed_;
     }
-    inline bool operator==(bool b) const {
+    bool operator==(bool b) const {
         return failed_ == b;
     }
 
 private:
     std::vector<double> partials_;
     double special_sum_{0.0};
-    double inf_sum_{0.0};
     bool failed_{false};
 };
 

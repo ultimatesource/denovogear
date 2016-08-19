@@ -44,8 +44,16 @@ public:
         char reference; // the value of the reference base
         char indexes[4]; // the value of the alleles. Only use .width many. 
     };
-    static const type_info_t type_info_table[128];
+    // information used to determine which genotypes are compatible with types
+    struct type_info_gt_t {
+        char color; // binary id of the type
+        char width; // the number of nucleotides in the type
+        char indexes[10]; // the value of the genotypes. Only use .width many.
+    };
+
     static constexpr int type_info_table_length = 128;
+    static const type_info_t type_info_table[128];
+    static const type_info_gt_t type_info_gt_table[128];
 
     struct match_labels_t {
         std::unordered_map<std::string,int> tree;
@@ -62,6 +70,8 @@ public:
         int operator()(const std::string &rng) const;
     };
     static match_indexes_t MatchIndexes;
+
+    static int8_t ColorDropN(int8_t color) { return color & 0x3F;}
 
     typedef std::vector<int32_t> data_t;
     typedef data_t::size_type size_type;
@@ -98,7 +108,14 @@ public:
 
     int8_t color() const { return color_; }
     void color(int8_t color) { color_ = color; }
-    const type_info_t& type_info() const { return type_info_table[color_]; }
+    const type_info_t& type_info() const { 
+        assert(0 <= color_);
+        return type_info_table[color_];
+    }
+    const type_info_gt_t& type_gt_info() const {
+        assert(0 <= color_);
+        return type_info_gt_table[color_];
+    }
 
     const data_t& data() const { return data_; }
     data_t& data() { return data_; }
@@ -147,6 +164,8 @@ protected:
 
 static_assert(sizeof(AlleleDepths::type_info_table) / sizeof(AlleleDepths::type_info_t) == AlleleDepths::type_info_table_length,
     "AlleleDepths::type_info_table does not have 128 elements.");
+static_assert(sizeof(AlleleDepths::type_info_gt_table) / sizeof(AlleleDepths::type_info_gt_t) == AlleleDepths::type_info_table_length,
+    "AlleleDepths::type_info_gt_table does not have 128 elements.");
 
 inline
 AlleleDepths::match_labels_t::match_labels_t() {

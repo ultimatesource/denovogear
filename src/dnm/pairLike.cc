@@ -25,6 +25,9 @@
 #include <string.h>
 #include "parser.h"
 #include "lookup.h"
+//#include "newmatap.h"
+//#include "newmatio.h"
+#include <Eigen/Sparse>
 #include <Eigen/KroneckerProduct>
 #include <boost/algorithm/string.hpp>
 

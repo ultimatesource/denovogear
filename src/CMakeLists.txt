@@ -37,13 +37,14 @@ foreach(task IN LISTS MODERN_DNG)
     set_target_properties(dng-${task} PROPERTIES LINK_SEARCH_END_STATIC On)
   endif()
   target_link_libraries(dng-${task} libdng)
-
-  if(DEVEL_MODE)
-    target_link_libraries(dng-call Boost::TIMER)
-  endif()
+  target_link_libraries(dng-${task} ${dng_devel_LIBRARIES})
 
   install(TARGETS dng-${task} RUNTIME DESTINATION ${CMAKE_INSTALL_LIBEXECDIR} ${PROJ_INSTALL_EXTRA_ARGS})
 endforeach()
+
+if(DEVEL_MODE)
+  target_link_libraries(dng-call Boost::TIMER)
+endif()
 
 # Add extra configuration options for DNM
 target_include_directories(dng-dnm BEFORE PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/dnm")

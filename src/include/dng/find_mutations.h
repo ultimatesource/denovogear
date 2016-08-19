@@ -53,7 +53,7 @@
 #include <dng/mutation.h>
 #include <dng/stats.h>
 #include <dng/io/utility.h>
-
+#include <dng/mutation_stats.h>
 namespace dng {
 
 class FindMutations {
@@ -70,7 +70,7 @@ public:
     struct stats_t {
         float mup;
         float lld;
-        float llh;
+        [[deprecated]]float llh;
         float mux;
 
         bool has_single_mut;
@@ -93,6 +93,8 @@ public:
     bool operator()(const std::vector<depth_t> &depths, int ref_index,
                     stats_t *stats);
 
+    bool CalculateMutationProb(MutationStats &mutation_stats);
+
 protected:
     const dng::Pedigree &pedigree_;
 
@@ -100,7 +102,8 @@ protected:
 
     double min_prob_;
 
-    dng::peel::workspace_t work_;
+    dng::peel::workspace_t work_full_;
+    dng::peel::workspace_t work_nomut_;
 
 
     dng::TransitionVector full_transition_matrices_;
@@ -116,7 +119,6 @@ protected:
     dng::GenotypeArray genotype_prior_[5]; // Holds P(G | theta)
 
     std::array<double, 5> max_entropies_;
-
     std::vector<double> event_;
 
     DNG_UNIT_TEST(test_constructor);

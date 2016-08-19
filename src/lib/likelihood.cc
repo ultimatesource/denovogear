@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015 Reed A. Cartwright
+ * Copyright (c) 2014-2016 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -26,8 +26,10 @@
 #   define DNG_LIKLIHOOD_PHI_MIN (DBL_EPSILON/2.0)
 #endif
 
-dng::genotype::DirichletMultinomialMixture
-::DirichletMultinomialMixture(params_t model_a, params_t model_b) :
+namespace dng {
+namespace genotype {
+
+DirichletMultinomialMixture::DirichletMultinomialMixture(params_t model_a, params_t model_b) :
     cache_(5) {
     double a, u, e, m, h;
 
@@ -115,3 +117,112 @@ dng::genotype::DirichletMultinomialMixture
         }
     }
 }
+
+// lookup table is stored in another file
+#include "log1p_exp_neg_table.tcc"
+
+// calculate m+log(1+exp(-x))
+inline double log1p_exp_neg(double x)  {
+    assert(x >= 0.0);
+    if(x < 2.0) {
+        // use a Taylor series of degree 8 at x=0
+        double xx = x*x;
+        return M_LN2-x/2.0 + (xx*(0.125+ xx*(-1.0/192.0+ (1.0/2880.0 - 17.0/645120.0*xx)*xx)));
+    } else if(x < 7.0) {
+        // use a Taylor series of degree 8 at x=4.694144053627953
+        return 0.7660035463487451 + x*(-0.6446774487882012 + x*(0.24816087438710718 + 
+            x*(-0.05625031169464227 + x*(0.008050735924081637 + x*(-0.0007225510231045971 +
+            (0.00003741637881581404 - 8.576355342428642e-7*x)*x)))));
+    } else if(x < log1p_exp_neg_table_end) {
+        x = x-7.0;
+        int n = static_cast<int>(x/log1p_exp_neg_table_step);
+        assert(n < 1023);
+        double f0 = log1p_exp_neg_table[n];
+        double f1 = log1p_exp_neg_table[n+1];
+        double dx = x-(n*log1p_exp_neg_table_step);
+        double df = f1-f0;
+        return f0 + df*dx/log1p_exp_neg_table_step;
+    }
+    return 0.0;
+}
+
+inline double log_sum(double a, double b) {
+     double x = fabs(a-b);
+     double m = std::max(a,b);
+     return m + log1p_exp_neg(x);
+}
+
+inline double log_sum_exact(double a, double b) {
+    return log1p(exp(-fabs(a-b))) + std::max(a,b);
+}
+
+double DirichletMultinomialMixture::operator()(
+    const pileup::AlleleDepths& depths, const std::vector<size_t> &indexes,
+    IndividualVector::iterator output) const
+{
+    const auto last = output + indexes.size();
+
+    int ref_index = depths.type_info().reference;
+    int width = depths.type_info().width;
+    int gt_width = depths.type_gt_info().width;
+    // resize output to hold genotypes
+    for(auto first = output; first != last; ++first ) {
+        first->resize(gt_width);
+    }
+
+    // calculate log_likelihoods for each genotype
+    for(int g=0;g<gt_width;++g) {
+        int real_g = depths.type_gt_info().indexes[g];
+        auto &cache = cache_[ref_index][real_g];
+        for(size_t u = 0; u < indexes.size(); ++u) {
+            size_t lib = indexes[u];
+            // create a reference to the output site
+            auto &out = *(output+u);
+            double lh1 = f1_, lh2 = f2_;
+            int read_count = 0;
+            for(int i=0;i<width;++i) {
+                // get the depth of nucleotide i from library lib
+                int d = depths(i,lib);
+                read_count += d;
+                // find which nucleotide this depth refers to
+                int j = depths.type_info().indexes[i];
+                lh1 += cache[j].first(d);
+                lh2 += cache[j].second(d);
+            }
+            lh1 -= cache[4].first(read_count);
+            lh2 -= cache[4].second(read_count);
+            out[g] = log_sum(lh1,lh2);
+            assert(std::isfinite(out[g]));
+        }
+    }
+    // rescale output to hold genotypes
+    double scale = 0.0;
+    for(auto first = output; first != last; ++first ) {
+        double scaleg = first->maxCoeff();
+        scale += scaleg;
+        *first = (*first - scaleg).exp();
+    }
+    return scale;
+}
+
+std::pair<GenotypeArray, double> DirichletMultinomialMixture::operator()(depth_t d, int ref_allele) const {
+    GenotypeArray log_ret{10};
+    int read_count = d.counts[0] + d.counts[1] +
+                     d.counts[2] + d.counts[3];
+    for(int i = 0; i < 10; ++i) {
+        auto &cache = cache_[ref_allele][i];
+        double lh1 = f1_, lh2 = f2_;
+        for(int j=0;j<4;++j) {
+            lh1 += cache[j].first(d.counts[j]);
+            lh2 += cache[j].second(d.counts[j]);
+        }
+        lh1 -= cache[4].first(read_count);
+        lh2 -= cache[4].second(read_count);
+
+        log_ret[i] = log_sum(lh1,lh2);
+    }
+    double scale = log_ret.maxCoeff();
+    return {(log_ret - scale).exp(), scale};
+    }
+
+}} // namespace dng::genotype
