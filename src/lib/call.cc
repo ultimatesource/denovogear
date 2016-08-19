@@ -324,31 +324,18 @@ int task::Call::operator()(Call::argument_type &arg) {
 				 arg.min_mapqual, arg.header.c_str());
         }
 
-        if(arg.region.find("bed")!=std::string::npos){
-        	std::string line;
-			std::string regs="";
-			ifstream inFile(arg.region.c_str());
-
-			while(inFile.peek()!=EOF){
-				getline(inFile, line);
-				//skip header lines
-				if((line.find("browser")!=std::string::npos) || (line.find("track")!=std::string::npos)) continue;
-				//convert bed information into "chr:start-end" format
-				line.replace(line.find('\t'),1,":");
-				line.replace(line.find('\t'),1,"-");
-				//only keep columns containing chromosome name, start and end position
-				if(line.find('\t')!=std::string::npos) line.erase(line.find('\t'),line.size());
-				regs += " " + line;
-			}
-			//replace arg.region with the content of the bed file as a string
-			arg.region = regs;
-        }
-
         if(!arg.region.empty()) {
-            for(auto && f : bamdata) {
-                auto r = regions::bam_parse(arg.region, f);
-                f.regions(std::move(r));
-            }
+			if(arg.region.find(".bed")!=std::string::npos){
+				for(auto && f : bamdata) {
+					auto r = regions::bam_parse_bed(arg.region, f);
+					f.regions(std::move(r));
+				}
+			}else{
+				for(auto && f : bamdata) {
+					auto r = regions::bam_parse_region(arg.region, f);
+					f.regions(std::move(r));
+				}
+			}
         }
 
         // Read header from first file
@@ -367,10 +354,7 @@ int task::Call::operator()(Call::argument_type &arg) {
 
 		// Open region if specified
 		if(!arg.region.empty()) {
-			int found = arg.region.find("bed");
-			int is_file = 0;
-			if(found != std::string::npos) is_file = 1; // set to 1 if arg.region is a file, keep to 0 otherwise.
-
+			int is_file = (arg.region.find("bed") != std::string::npos)? 1 : 0;
 			int ret = bcf_sr_set_regions(rec_reader, arg.region.c_str(), is_file);
 			if(ret == -1) {
 				throw std::runtime_error("no records in the query region " + arg.region);

@@ -23,8 +23,10 @@
 #include <string>
 #include <algorithm>
 #include <vector>
+#include <fstream>
 
 #include <dng/regions.h>
+#include "htslib/synced_bcf_reader.h"
 
 #include <boost/fusion/include/std_pair.hpp>
 #include <boost/fusion/include/vector.hpp>
@@ -107,7 +109,18 @@ std::pair<detail::raw_parsed_regions_t,bool> dng::regions::detail::parse_regions
     return {regions, success};
 }
 
-hts::bam::regions_t dng::regions::bam_parse(const std::string &text, const hts::bam::File &file) {
+detail::raw_parsed_region_t dng::regions::detail::parse_region_bed(char *line) {
+	raw_parsed_region_t region;
+	std::string tid(strtok(line," '\t'"));
+	int beg = atoi(strtok(NULL," '\t'"));
+	int end= atoi(strtok(NULL," '\t'"));
+	region.target = tid;
+	region.beg = beg+1;
+	region.end = end;
+	return region;
+}
+
+hts::bam::regions_t dng::regions::bam_parse_region(const std::string &text, const hts::bam::File &file) {
     using hts::bam::region_t;
     using hts::bam::regions_t;
     // Parse string
@@ -156,4 +169,57 @@ hts::bam::regions_t dng::regions::bam_parse(const std::string &text, const hts::
     ++result;
     value.erase(result,value.end());
     return value;
+}
+
+hts::bam::regions_t dng::regions::bam_parse_bed(const std::string &text, const hts::bam::File &file) {
+	using hts::bam::region_t;
+	using hts::bam::regions_t;
+
+	regions_t value;
+	detail::raw_parsed_regions_t raw_regions;
+	std::string line;
+	std::ifstream bedFile(text);
+	while(bedFile.peek() != EOF){
+		getline(bedFile, line);
+		//skip header lines
+		if ( line[0]=='#' ) continue;
+		char *l = &line[0u];
+		raw_regions.push_back(dng::regions::detail::parse_region_bed(l));
+	}
+	// Convert raw regions to bam regions
+	for(auto &&r : raw_regions) {
+		int tid = file.TargetNameToID(r.target.c_str());
+		int beg = r.beg-1;
+		int end = r.end;
+		if(tid < 0 ) {
+			throw(std::runtime_error("Unknown contig name: '" + r.target + "'"));
+		}
+		if(beg < 0 || end < 0 || beg >= end) {
+			throw(std::runtime_error("Invalid region coordinates: '" +
+				r.target + ":" + std::to_string(beg+1) + "-" + std::to_string(end) + "'" ));
+		}
+		value.push_back({tid,beg,end});
+	}
+	// sort regions in increasing order
+	std::sort(value.begin(), value.end(), [](const region_t &a, const region_t &b) {
+		return std::tie(a.tid, a.beg, a.end) < std::tie(b.tid, b.beg, b.end);
+	});
+	// merge overlapping ranges
+	auto overlapping = [](const region_t &a, const region_t &b) {
+		return a.tid == b.tid && b.beg <= a.end; // assumes sorted range
+	};
+
+	auto first = value.begin();
+	auto last  = value.end();
+	auto result = first;
+	while(++first != last) {
+		if(overlapping(*result, *first)) {
+			result->end = first->end;
+		} else if(++result != first) {
+			*result = std::move(*first);
+		}
+	}
+	++result;
+	value.erase(result,value.end());
+	return value;
 }

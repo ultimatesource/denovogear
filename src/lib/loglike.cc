@@ -236,7 +236,7 @@ int task::LogLike::operator()(task::LogLike::argument_type &arg) {
         }
         if(!arg.region.empty()) {
             for(auto && f : bamdata) {
-                auto r = regions::bam_parse(arg.region, f);
+                auto r = regions::bam_parse_region(arg.region, f);
                 f.regions(std::move(r));
             }
         }        
