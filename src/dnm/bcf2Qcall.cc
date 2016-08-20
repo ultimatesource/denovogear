@@ -32,6 +32,7 @@ void writeToSNPObject(snp_object_t *mom_snp, const bcf_hdr_t *hdr, bcf1_t *rec,
                       int *g, int d,
                       int mq, int &flag, int i, int i0) {
 
+
     strcpy(mom_snp->chr, bcf_hdr_id2name(hdr, rec->rid)); // copy chrom
     mom_snp->pos = rec->pos + 1; // vcf posistion is stored in 0 based
 
@@ -60,7 +61,7 @@ void writeToSNPObject(snp_object_t *mom_snp, const bcf_hdr_t *hdr, bcf1_t *rec,
     int *res_array = NULL;
     int n_res_array = 0;
     int n_res = bcf_get_format_int32(hdr, rec, "DP", &res_array, &n_res_array);
-    if(n_res == 3) {
+    if(n_res >= 3) {
         mom_snp->depth = res_array[i];
     } else {
         mom_snp->depth = d;
@@ -102,7 +103,7 @@ void writeToIndelObject(indel_t *mom_indel, const bcf_hdr_t *hdr, bcf1_t *rec,
     int *res_array = NULL;
     int n_res_array = 0;
     int n_res = bcf_get_format_int32(hdr, rec, "DP", &res_array, &n_res_array);
-    if(n_res == 3) {
+    if(n_res >= 3) {
         mom_indel->depth = res_array[i];
     } else {
         mom_indel->depth = d;
@@ -203,7 +204,7 @@ int bcf_2qcall(const bcf_hdr_t *hdr, bcf1_t *rec, Trio t, qcall_t *mom_snp,
         for(j = 0; j < pl_fields[i].size() && pl_fields[i][j]; j++);
 
         // Estimate the depth using I16 fields 1 to 4, divided by num of samples
-        int d = (int)((double)d_rest / (n_samples - i) + .4999);
+        int d = (int)((double)d_rest / (/*n_samples*/3 - i) + .4999);
         if(d == 0) {
             d = 1;
         }
@@ -214,10 +215,8 @@ int bcf_2qcall(const bcf_hdr_t *hdr, bcf1_t *rec, Trio t, qcall_t *mom_snp,
 
         for(k = j = 0; k < 4; k++) {
             for(l = k; l < 4; l++) { //AA,AC,AG,AT,CC,CG,CT,GG,GT,TT
-	      //std::cout << "k = " << k << std::endl;
  
                 int t, x = map[k], y = map[l];
-		//std::cout << "l = " << l << std::endl;
                 if(x < 0 || y < 0) {
                 	// If PL field is not specified for a given genotype, just assume its likelihood is a close to 0 as possible.
                 	g[j++] = MAX_PL;

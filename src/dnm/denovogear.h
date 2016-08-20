@@ -40,25 +40,33 @@
 //using namespace RBD_LIBRARIES;
 //#endif
 
+typedef struct {
+	int RD_cutoff = 10; // cutoff for the read depth filter
+	double PP_cutoff = 0.0001; // posterior probability cutoff
+	double indel_mrate = 0; // indel mutation prior is based on a log linear model unless specified by the user.
+	double snp_mrate = 1e-8; // snp mutation prior
+	double poly_rate = 1e-3; // polymorphism rate - used in prior calculations
+	double pair_mrate = 1e-9; // mutation prior for paired samples
+	double mu_scale = 1.0; // scaling factor for indel priors
+
+} parameters;
+
 
 // Calculate SNP DNM PP
-void trio_like_snp(qcall_t child, qcall_t mom, qcall_t dad, int flag,
+int trio_like_snp(qcall_t &child, qcall_t &mom, qcall_t &dad, int flag,
                    lookup_table_t &tgt, lookup_snp_t &lookup,
-                   std::vector<hts::bcf::File> &vcfout, double pp_cutoff, int RD_cutoff,
-                   int &n_site_pass);
+                   hts::bcf::File *vcfout, parameters &params, Trio &trio);
 
 // Calculate INDEL DNM PP
-void trio_like_indel(indel_t *child, indel_t *mom, indel_t *dad, int flag,
-                     lookup_table_t &tgtIndel,
-                     lookup_indel_t &lookupIndel, double mu_scale,
-                     std::vector<hts::bcf::File> &vcfout, double pp_cutoff,
-                     int RD_cutoff, int &n_site_pass, double user_indel_mrate);
+int trio_like_indel(indel_t &child, indel_t &mom, indel_t &dad, int flag,
+                     lookup_table_t &tgtIndel, lookup_indel_t &lookupIndel,
+                     hts::bcf::File *vcfout, parameters &params, Trio &trio);
 
 // Calculate Pair PP
-void pair_like(pair_t tumor, pair_t normal,
+void pair_like(pair_t &tumor, pair_t &normal,
                lookup_table_t &tgtPair, lookup_pair_t &lookupPair,
-               int flag, std::vector<hts::bcf::File> &vcfout,
-               double pp_cutoff, int RD_cutoff, int &n_site_pass);
+			   int flag, hts::bcf::File *vcfout,
+			   parameters &params, int &n_site_pass, Pair &pair);
 
 
 #endif

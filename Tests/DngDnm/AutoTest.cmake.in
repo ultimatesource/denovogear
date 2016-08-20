@@ -97,6 +97,30 @@ set(TrioFloat-STDOUT
   "pos: 214668360"
 )
 
+
+set(MultiTrios-CMD @DNG_DNM_EXE@ auto auto --ped multi_trio.ped --bcf sample_CEU_mulit.vcf --write "-")
+set(MultiTrios-WD "@TESTDATA_DIR@/sample_CEU/")
+set(MultiTrios-RESULT 0)
+set(MultiTrios-STDOUT
+  "GG/GG/GG:0\\.000399465:3\\.95324e-12:AG/GG/GG:0\\.999601:9\\.9301e-09:48:59	\\.:\\.:\\.:\\.:\\.:\\.:\\.:\\."
+  "\\.:\\.:\\.:\\.:\\.:\\.:\\.:\\.	GG/GG/GG:0\\.000399465:3\\.95324e-12:AG/GG/GG:0\\.999601:9\\.9301e-09:48:59"
+  "\\.:\\.:\\.:\\.:\\.:\\.:\\.:\\.	GG/GG/GG:0\\.000399465:3\\.95324e-12:AG/GG/GG:0\\.999601:9\\.9301e-09:48:59"
+  "\\.:\\.:\\.:\\.:\\.:\\.	DD/RD/RD:1\\.62015e-05:DD/RR/RR:0\\.999984:46:59"
+)
+
+set(MixedTrios-CMD @DNG_DNM_EXE@ auto auto --ped multi_trio_mixed.ped --bcf sample_mixed_trios.vcf --write "-")
+set(MixedTrios-WD "@TESTDATA_DIR@/sample_CEU/")
+set(MixedTrios-RESULT 0)
+set(MixedTrios-STDOUT
+  "NA12878_vald-sorted\\.bam\\.bam	NA33111_vald-sorted\\.bam\\.bam"
+  "GG/GG/GG:0\\.000399465:3\\.95324e-12:AG/GG/GG:0\\.999601:9\\.9301e-09:48:59	\\.:\\.:\\.:\\.:\\.:\\.:\\.:\\."
+  "\\.:\\.:\\.:\\.:\\.:\\.:\\.:\\.	GG/GG/GG:0.000399465:3\\.95324e-12:AG/GG/GG:0\\.999601:9\\.9301e-09:48:59"
+  "DD/RD/RD:1\\.62015e-05:DD/RR/RR:0\\.999984:46:59	\\.:\\.:\\.:\\.:\\.:\\."
+  "\\.:\\.:\\.:\\.:\\.:\\.	DD/RD/RD:1\\.62015e-05:DD/RR/RR:0\\.999984:46:59"
+)
+
+
+
 include("@CMAKE_CURRENT_SOURCE_DIR@/CheckProcessTest.cmake")
 
 CheckProcessTests(DngDnm.Auto
@@ -105,4 +129,5 @@ CheckProcessTests(DngDnm.Auto
   TrioFloat
   PairVcf
   TrioAT
+  MultiTrios
 )
