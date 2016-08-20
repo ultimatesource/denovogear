@@ -88,3 +88,26 @@ BOOST_AUTO_TEST_CASE(test_exact_sum) {
     BOOST_CHECK(check_sum(exact_sum({1.0, (double)INFINITY}),INFINITY));
     BOOST_CHECK(check_sum(exact_sum({1.0, (double)-INFINITY}),-INFINITY));
 }
+
+
+// Really the exact test (no approx.), same value as returned by R
+BOOST_AUTO_TEST_CASE(test_fisher_few_reads){
+    BOOST_CHECK_CLOSE(dng::stats::fisher_exact_test(6,12,12,5),0.04371017, 0.00001);
+}
+
+
+// When ther are > 512 total reads a g-test is used to test approximate the
+// Fisher Test. Test value calculated in R.
+BOOST_AUTO_TEST_CASE(test_fisher_many_reads){
+    BOOST_CHECK_CLOSE(dng::stats::fisher_exact_test(20, 200, 19, 301), 0.1679341, 0.0001);
+
+}
+
+//Test value for scipy k-sample test
+BOOST_AUTO_TEST_CASE(test_AD){
+    std::vector<int> a = {40, 31, 35, 40, 40, 32, 33};           
+    std::vector<int> b = {21, 31, 33, 34, 34, 40, 42, 20} ;
+    BOOST_CHECK_CLOSE(dng::stats::ad_two_sample_test(a,b), -0.52579911592960638, 0.00001);
+}
+
+
