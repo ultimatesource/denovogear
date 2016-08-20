@@ -266,6 +266,14 @@ make_tokenizer(const Range& text, const char *sep = "\t", const char *eol = "\n"
     return {text,f};
 }
 
+template<typename Range>
+inline
+detail::char_tokenizer<Range>
+make_tokenizer_dropempty(const Range& text, const char *sep = "\t", const char *eol = "\n") {
+    detail::token_function f(sep, eol, boost::drop_empty_tokens);
+    return {text,f};
+}
+
 } // namespace dng::utility
 
 using utility::location_t;
