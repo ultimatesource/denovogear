@@ -33,8 +33,6 @@
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/random_access_index.hpp>
 
-#include <boost/tokenizer.hpp>
-
 #include <dng/utility.h>
 #include <dng/io/utility.h>
 
@@ -104,10 +102,7 @@ public:
         using namespace boost;
         using namespace std;
         // Construct the tokenizer
-        typedef tokenizer<char_separator<char>,
-                typename Range::const_iterator> tokenizer;
-        char_separator<char> sep("\t", "\n", keep_empty_tokens);
-        tokenizer tokens(text, sep);
+        auto tokens = utility::make_tokenizer(text);
 
         // Buffer to hold tokens
         // Use the 0-slot for unknown individuals

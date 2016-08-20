@@ -28,7 +28,6 @@
 #include <climits>
 #include <chrono>
 
-
 #include <boost/spirit/include/support_ascii.hpp>
 #include <boost/spirit/include/qi_real.hpp>
 #include <boost/spirit/include/qi_int.hpp>
@@ -38,6 +37,7 @@
 #include <boost/spirit/include/karma.hpp>
 
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/tokenizer.hpp>
 
 #include <dng/detail/unit_test.h>
 
@@ -250,6 +250,20 @@ template<>
 inline
 std::string vcf_command_line_text(const char *arg, std::string val) {
     return std::string("--") + arg + "=\'" + val + "\'";
+}
+
+namespace detail {
+    using token_function = boost::char_separator<char>;
+    template<typename Range>
+    using char_tokenizer = boost::tokenizer<token_function, typename Range::const_iterator>;
+};
+
+template<typename Range>
+inline
+detail::char_tokenizer<Range>
+make_tokenizer(const Range& text, const char *sep = "\t", const char *eol = "\n") {
+    detail::token_function f(sep, eol, boost::keep_empty_tokens);
+    return {text,f};
 }
 
 } // namespace dng::utility
