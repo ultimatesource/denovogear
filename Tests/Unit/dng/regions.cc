@@ -71,7 +71,7 @@ bool region_parsing_expect_fail(std::string input) {
 bool region_bam_parsing(std::string input, hts::bam::File &file, hts::bam::regions_t b ) {
     hts::bam::regions_t a;
     try {
-        a = bam_parse(input, file);
+        a = bam_parse_region(input, file);
     } catch(std::exception &e) {
         std::cerr << e.what() << "\n";
         return false;
@@ -88,7 +88,7 @@ bool region_bam_parsing(std::string input, hts::bam::File &file, hts::bam::regio
 
 bool region_bam_parsing_expect_fail(std::string input, hts::bam::File &file) {
     try {
-        bam_parse(input, file);
+        bam_parse_region(input, file);
     } catch(std::exception &e) {
         std::cerr << "    Expected exception: " << e.what() << "\n";
         return true;

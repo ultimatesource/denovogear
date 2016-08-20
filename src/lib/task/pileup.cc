@@ -97,7 +97,7 @@ int process_bam(Pileup::argument_type &arg) {
     // parse region
     if(!arg.region.empty()) {
         for(auto && f : bamdata) {
-            auto r = regions::bam_parse(arg.region, f);
+            auto r = regions::bam_parse_region(arg.region, f);
             f.regions(std::move(r));
         }
     }

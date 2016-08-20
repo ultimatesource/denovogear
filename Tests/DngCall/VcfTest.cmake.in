@@ -24,6 +24,20 @@ set(TrioAlt-STDOUT-FAIL
   "5\t126385929\t\\.\tG\tX"
 )
 
+set(TrioAltRegions-CMD @DNG_CALL_EXE@ -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0.001 -r test2.bed test2.vcf.gz)
+set(TrioAltRegions-WD "@TESTDATA_DIR@/sample_5_3/")
+set(TrioAltRegions-RESULT 0)
+set(TrioAltRegions-STDOUT
+  "5\t126385924\t\\.\tG\tT\t\\.\t\\.\tMUP=0\\.196851[0-9]*\;LLD=-27\\.0395[0-9]*\;LLS=8\\.80072\;MUX=0\\.196851[0-9]*\;MU1P=0\\.196851[0-9]*\;DNT=GGxGG>GT\;DNL=LB-NA12878:Solexa-135852\;DNQ=42\;DNC=100\;DP=188\;AD=158,30"
+  "5\t126385925\t\\.\tG\tT,X\t\\.\t\\.\tMUP=0\\.196851\;LLD=-27\\.0395\;LLS=11\\.5103;\;MUX=0\\.196851\;MU1P=0\\.196851\;DNT=GGxGG>GT\;DNL=LB-NA12878:Solexa-135852\;DNQ=42\;DNC=100\;DP=189\;AD=158,30,1"
+)
+set(TrioAltRegions-STDOUT-FAIL
+  "5\t126385926\t\\.\tG\tT,N"
+  "5\t126385927\t\\.\tG\tN,X"
+  "5\t126385928\t\\.\tG\tN"
+  "5\t126385929\t\\.\tG\tX"
+)
+
 include("@CMAKE_CURRENT_SOURCE_DIR@/CheckProcessTest.cmake")
 
-CheckProcessTestS(DngCall.Vcf Trio TrioAlt)
+CheckProcessTestS(DngCall.Vcf Trio TrioAlt TrioAltRegions)

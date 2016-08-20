@@ -42,7 +42,12 @@ struct region_t {
 };
 
 // Parse dng region string into bam regions
-hts::bam::regions_t bam_parse(const std::string &text, const hts::bam::File &file);
+hts::bam::regions_t bam_parse_region(const std::string &text, const hts::bam::File &file);
+
+// Parse dng region from bed into bam regions
+hts::bam::regions_t bam_parse_bed(const std::string &text, const hts::bam::File &file);
+
+int regions_parse_line(char *line, int ichr,int ifrom,int ito, char **chr,char **chr_end,int *from,int *to);
 
 namespace detail {
 struct raw_parsed_region_t {
@@ -53,6 +58,8 @@ struct raw_parsed_region_t {
 
 typedef std::vector<raw_parsed_region_t> raw_parsed_regions_t;
 std::pair<raw_parsed_regions_t,bool> parse_regions(const std::string &text);
+
+detail::raw_parsed_region_t parse_region_bed(char *line);
 } // namespace dng::regions::detail
 
 } // namespace dng::regions
