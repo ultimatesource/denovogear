@@ -157,7 +157,6 @@ int task::LogLike::operator()(task::LogLike::argument_type &arg) {
     return process_bam(arg);
 }
 
-
 int process_bam(LogLike::argument_type &arg) {
     using namespace hts::bcf;
 

@@ -19,6 +19,7 @@
 #define BOOST_TEST_MODULE dng::regions
 
 #include <dng/regions.h>
+#include <fstream>
 
 using namespace dng::regions;
 
@@ -144,4 +145,34 @@ BOOST_AUTO_TEST_CASE(test_region_parsing) {
     BOOST_CHECK(region_bam_parsing_expect_fail("xyz", bamfile));
     BOOST_CHECK(region_bam_parsing_expect_fail("1:1000-900", bamfile));
     BOOST_CHECK(region_bam_parsing_expect_fail("1:1000-999", bamfile));
+}
+
+bool region_bed_parsing(std::string input, hts::bam::File &file, hts::bam::regions_t b ) {
+    return false; // figure out how to autodelete temp file
+
+    hts::bam::regions_t a;
+
+    std::string path = std::tmpnam(nullptr);
+    std::ofstream output{path};
+
+    if(!output) {
+        std::cerr << "    Failed to open temporary file.\n";
+        return false;
+    }
+    output.write(input.c_str(),input.size());
+
+    try {
+        a = bam_parse_bed(path, file);
+    } catch(std::exception &e) {
+        std::cerr << e.what() << "\n";
+        return false;
+    }
+    if(a == b) {
+        return true;
+    }
+    for(auto &&aa : a) {
+        std::cerr << "    Parsing result: " << aa.tid << "\t" << aa.beg << "\t" << aa.end << "\n";
+    }
+
+    return false;
 }
