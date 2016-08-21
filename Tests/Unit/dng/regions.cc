@@ -18,6 +18,9 @@
  */
 #define BOOST_TEST_MODULE dng::regions
 
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
+
 #include <dng/regions.h>
 #include <fstream>
 
@@ -145,24 +148,24 @@ BOOST_AUTO_TEST_CASE(test_region_parsing) {
     BOOST_CHECK(region_bam_parsing_expect_fail("xyz", bamfile));
     BOOST_CHECK(region_bam_parsing_expect_fail("1:1000-900", bamfile));
     BOOST_CHECK(region_bam_parsing_expect_fail("1:1000-999", bamfile));
+    // Check empty file
+    BOOST_CHECK(region_bam_parsing_expect_fail("", bamfile));
 }
 
-bool region_bed_parsing(std::string input, hts::bam::File &file, hts::bam::regions_t b ) {
-    return false; // figure out how to autodelete temp file
-
+bool bed_parsing(std::string input, hts::bam::File &file, hts::bam::regions_t b ) {
     hts::bam::regions_t a;
 
-    std::string path = std::tmpnam(nullptr);
-    std::ofstream output{path};
+    dng::detail::AutoTempFile output;
 
-    if(!output) {
-        std::cerr << "    Failed to open temporary file.\n";
+    if(!output.file.is_open()) {
+        std::cerr << "    Failed to open temporary file '" + output.path.string() + "'\n";
         return false;
     }
-    output.write(input.c_str(),input.size());
+    output.file.write(input.c_str(),input.size());
+    output.file.flush();
 
     try {
-        a = bam_parse_bed(path, file);
+        a = bam_parse_bed(output.path.string(), file);
     } catch(std::exception &e) {
         std::cerr << e.what() << "\n";
         return false;
@@ -175,4 +178,27 @@ bool region_bed_parsing(std::string input, hts::bam::File &file, hts::bam::regio
     }
 
     return false;
+}
+
+BOOST_AUTO_TEST_CASE(test_bed_parsing) {
+    // Open Read our test data from Memory
+    hts::bam::File bamfile(bamtext, "r");
+    // Sanity checks.  If these fail, then other tests will as well
+    BOOST_CHECK(bamfile.is_open() && bamfile.header() != nullptr);
+    BOOST_CHECK(bamfile.TargetNameToID("xyz") == -1);
+    BOOST_CHECK(bamfile.TargetNameToID("1") == 0);
+    BOOST_CHECK(bamfile.TargetNameToID("2") == 1);
+    // Check normal 
+    BOOST_CHECK(bed_parsing("1\t0\t1000\n", bamfile, {{0,0,1000}}));
+    BOOST_CHECK(bed_parsing("1\t0\t1000\n2\t0\t1", bamfile, {{0,0,1000},{1,0,1}}));
+    // Check sorting
+    BOOST_CHECK(bed_parsing("2\t99\t120\n2\t20\t30\n2\t0\t20\n1\t0\t5\n1\t6\t10", bamfile, {{0,0,5},{0,6,10},{1,0,30},{1,99,120}}));
+    // Check merging
+    BOOST_CHECK(bed_parsing("1\t0\t1000\n1\t899\t2000", bamfile, {{0,0,2000}}));
+    BOOST_CHECK(bed_parsing("2\t9\t200\n2\t99\t300\n1\t0\t1000\n2\t199\t400", bamfile, {{0,0,1000},{1,9,400}}));
+    // Check Comments and blank lines
+    BOOST_CHECK(bed_parsing("#comment\n\n\n#comment\ttest\n#comment\ttest\tanothertest\n1\t0\t1000\n", bamfile, {{0,0,1000}}));
+    // Check empty file
+    BOOST_CHECK(bed_parsing("", bamfile, {}));
+
 }

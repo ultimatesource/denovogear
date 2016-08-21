@@ -126,16 +126,18 @@ hts::bam::regions_t optimize_regions(hts::bam::regions_t value) {
 
     auto first = value.begin();
     auto last  = value.end();
-    auto result = first;
-    while(++first != last) {
-        if(overlapping(*result, *first)) {
-            result->end = first->end;
-        } else if(++result != first) {
-            *result = std::move(*first);
+    if(first != last) {
+        auto result = first;
+        while(++first != last) {
+            if(overlapping(*result, *first)) {
+                result->end = first->end;
+            } else if(++result != first) {
+                *result = std::move(*first);
+            }
         }
+        ++result;
+        value.erase(result,value.end());
     }
-    ++result;
-    value.erase(result,value.end());
     return value;   
 }
 
@@ -145,7 +147,7 @@ hts::bam::regions_t dng::regions::bam_parse_region(const std::string &text, cons
     // Parse string
     auto raw_regions = dng::regions::detail::parse_regions(text);
     if(!raw_regions.second) {
-        throw(std::runtime_error("ERROR: Parsing of regions string failed."));
+        throw std::runtime_error("ERROR: Parsing of regions string failed.");
     }
     // Return quickly if there are no regions
     if(raw_regions.first.empty()) {
@@ -158,16 +160,41 @@ hts::bam::regions_t dng::regions::bam_parse_region(const std::string &text, cons
         int beg = r.beg-1;
         int end = r.end;
         if(tid < 0 ) {
-            throw(std::runtime_error("ERROR: Unknown contig name: '" + r.target + "'"));
+            throw std::runtime_error("ERROR: Unknown contig name: '" + r.target + "'");
         }
         if(beg < 0 || end < 0 || beg >= end) {
-            throw(std::runtime_error("ERROR: Invalid region coordinates: '" +
-                r.target + ":" + std::to_string(beg+1) + "-" + std::to_string(end) + "'" ));
+            throw std::runtime_error("ERROR: Invalid region coordinates: '" +
+                r.target + ":" + std::to_string(beg+1) + "-" + std::to_string(end) + "'" );
         }
         value.push_back({tid,beg,end});
     }
 
     return optimize_regions(std::move(value));
+}
+
+inline
+hts::bam::region_t parse_bed_line(const std::string &target, const std::string &beg_str, const std::string &end_str,
+    const hts::bam::File &file) {
+    int tid = file.TargetNameToID(target.c_str());
+    if(tid < 0 ) {
+        throw std::runtime_error("ERROR: Unknown contig name: '" + target + "'");
+    }
+    size_t sz;
+    int beg = stoi(beg_str, &sz);
+    // if we could not convert all the characters, invalidate beg
+    if(sz != beg_str.size()) {
+        beg = -1;
+    }
+    int end = stoi(end_str, &sz);
+    // if we could not convert all the characters, invalidate beg
+    if(sz != end_str.size()) {
+        end = -1;
+    }    
+    // check for valid coordinates
+    if(beg < 0 || end < 0 || beg >= end) {
+        throw std::runtime_error("ERROR: Invalid bed coordinates: '" + target + "\t" + beg_str +"\t" + end_str + "'");
+    }
+    return {tid,beg,end};
 }
 
 hts::bam::regions_t dng::regions::bam_parse_bed(const std::string &path, const hts::bam::File &file) {
@@ -185,47 +212,27 @@ hts::bam::regions_t dng::regions::bam_parse_bed(const std::string &path, const h
     auto tokens = utility::make_tokenizer(io::istreambuf_range(bed_file));
 
     regions_t value;
-    int column = 0, tid, beg, end, line_num = 1;
+    std::string col[3];
+    int column = 0, beg, end, line_num = 1;
     for(auto tok_iter = tokens.begin(); tok_iter != tokens.end(); ++tok_iter) {
-        if(column == 0 && (*tok_iter)[0] == '#' ) {
-            // Eat tokens until the next EOL
-            for(; tok_iter != tokens.end() && *tok_iter != "\n"; ++tok_iter) {
-                //noop
-            }
-            if(tok_iter == tokens.end()) {
-                break;
-            }
-            // fall through
-        }
         if(*tok_iter == "\n") {
-            column = 0;
+            if(column < 3 && !((column == 1 && col[0].empty()) || col[0][0] == '#')) {
+                throw std::runtime_error("ERROR: line " + std::to_string(line_num) + " in bed file '"
+                + path + "' has less than three columns." );
+            }
             ++line_num;
+            column = 0;
             continue;
         } else if(column == 0) {
-            tid = file.TargetNameToID(tok_iter->c_str());
-            if(tid < 0 ) {
-                throw(std::runtime_error("ERROR: Unknown contig name: '" + *tok_iter + "'"));
-            }
+            col[0] = std::move(*tok_iter);
         } else if(column == 1) {
-            size_t sz;
-            beg = stoi(*tok_iter, &sz);
-            // if we could not convert all the characters, invalidate beg
-            if(sz != tok_iter->size()) {
-                beg = -1;
-            }
+            col[1] = std::move(*tok_iter);
         } else if(column == 2) {
-            size_t sz;
-            end = stoi(*tok_iter);
-            // if we could not convert all the characters, invalidate end            
-            if(sz != tok_iter->size()) {
-                end = -1;
+            col[2] = std::move(*tok_iter);
+            // check if column 0 begins a comment
+            if(col[0][0] != '#') {
+                value.push_back(parse_bed_line(col[0],col[1],col[2],file));
             }
-            // check for valid coordinates
-            if(beg < 0 || end < 0 || beg >= end) {
-                throw(std::runtime_error("ERROR: Invalid coordinates on line " + std::to_string(line_num) + " in file '" + path + "'"));
-            }
-            // save this region
-            value.push_back({tid,beg,end});
         }
         column += 1;
     }
