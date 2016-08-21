@@ -18,9 +18,6 @@
  */
 #define BOOST_TEST_MODULE dng::regions
 
-#include <boost/filesystem.hpp>
-#include <boost/filesystem/fstream.hpp>
-
 #include <dng/regions.h>
 #include <fstream>
 

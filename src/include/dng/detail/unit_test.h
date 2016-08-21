@@ -23,6 +23,7 @@
 #ifdef BOOST_TEST_MODULE
 #include <boost/test/unit_test.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
 
 // Declare a class capable of preforming unit tests on public, private, and protected members.
 #define DNG_UNIT_TEST(name) \
