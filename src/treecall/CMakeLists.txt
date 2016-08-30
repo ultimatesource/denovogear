@@ -1,5 +1,4 @@
 find_package(PythonInterp 2.7)
-find_package(PythonLibs 2.7)
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/treecall2.py.in"
   "${CMAKE_CURRENT_BINARY_DIR}/treecall2.py" @ONLY)
