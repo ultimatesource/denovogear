@@ -44,6 +44,7 @@ const float float_missing = []() -> float {
 const int32_t int32_missing = bcf_int32_missing;
 const int16_t int16_missing = bcf_int16_missing;
 const int8_t int8_missing = bcf_int8_missing;
+const std::string str_missing = ".";
 
 typedef bcf1_t BareVariant;
 
@@ -298,6 +299,13 @@ public:
         assert(rec.hdr() == hdr());
         bcf_write(handle(), hdr(), &rec);
     }
+
+    /** Explicity closes the file and flushes the stream */
+    void Close() {
+    	bcf_close(handle());
+    }
+
+
 protected:
     bcf_hdr_t *hdr() { return hdr_.get(); }
 

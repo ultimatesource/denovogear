@@ -37,6 +37,9 @@ typedef struct  {
     char cID[ID_LENGTH];  // child sampleID
     char dID[ID_LENGTH];  // dad sampleID
     char mID[ID_LENGTH];  // mom sampleID
+    unsigned int cpos;
+    unsigned int dpos;
+    unsigned int mpos;
 } Trio;
 
 // Pair Structure
@@ -44,9 +47,12 @@ typedef struct  {
     char pairID[ID_LENGTH]; // case ID
     char tumorID[ID_LENGTH];  // tumor sample ID
     char normalID[ID_LENGTH]; // normal sample ID
+    unsigned int tpos;
+    unsigned int npos;
 } Pair;
 
-void parse_ped(std::string ped_file, Trio **t, Pair **p, int &trio_count,
-               int &pair_count);
+//void parse_ped(std::string ped_file, Trio **t, Pair **p, int &trio_count, int &pair_count);
+void parse_ped(std::string ped_file, std::vector<Trio> &trios, std::vector<Pair> &pairs);
+
 
 #endif
