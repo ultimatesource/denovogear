@@ -1,6 +1,8 @@
 /*
  * Copyright (c) 2016 Reed A. Cartwright
+ * Copyright (c) 2016 Juan Jose Garcia Mesa
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
+ *           Juan Jose Garcia Mesa <jgarc111@asu.edu>
  *
  * This file is part of DeNovoGear.
  *
@@ -23,8 +25,10 @@
 #include <string>
 #include <algorithm>
 #include <vector>
+#include <fstream>
 
 #include <dng/regions.h>
+#include <dng/io/utility.h>
 
 #include <boost/fusion/include/std_pair.hpp>
 #include <boost/fusion/include/vector.hpp>
@@ -107,13 +111,43 @@ std::pair<detail::raw_parsed_regions_t,bool> dng::regions::detail::parse_regions
     return {regions, success};
 }
 
-hts::bam::regions_t dng::regions::bam_parse(const std::string &text, const hts::bam::File &file) {
+inline
+hts::bam::regions_t optimize_regions(hts::bam::regions_t value) {
+    using hts::bam::region_t;
+    using hts::bam::regions_t;    
+     // sort regions in increasing order
+    std::sort(value.begin(), value.end(), [](const region_t &a, const region_t &b) {
+        return std::tie(a.tid, a.beg, a.end) < std::tie(b.tid, b.beg, b.end);
+    });
+    // merge overlapping ranges
+    auto overlapping = [](const region_t &a, const region_t &b) {
+        return a.tid == b.tid && b.beg <= a.end; // assumes sorted range
+    };
+
+    auto first = value.begin();
+    auto last  = value.end();
+    if(first != last) {
+        auto result = first;
+        while(++first != last) {
+            if(overlapping(*result, *first)) {
+                result->end = first->end;
+            } else if(++result != first) {
+                *result = std::move(*first);
+            }
+        }
+        ++result;
+        value.erase(result,value.end());
+    }
+    return value;   
+}
+
+hts::bam::regions_t dng::regions::bam_parse_region(const std::string &text, const hts::bam::File &file) {
     using hts::bam::region_t;
     using hts::bam::regions_t;
     // Parse string
     auto raw_regions = dng::regions::detail::parse_regions(text);
     if(!raw_regions.second) {
-        throw(std::runtime_error("Parsing of regions string failed."));
+        throw std::runtime_error("ERROR: Parsing of regions string failed.");
     }
     // Return quickly if there are no regions
     if(raw_regions.first.empty()) {
@@ -126,34 +160,81 @@ hts::bam::regions_t dng::regions::bam_parse(const std::string &text, const hts::
         int beg = r.beg-1;
         int end = r.end;
         if(tid < 0 ) {
-            throw(std::runtime_error("Unknown contig name: '" + r.target + "'"));
+            throw std::runtime_error("ERROR: Unknown contig name: '" + r.target + "'");
         }
         if(beg < 0 || end < 0 || beg >= end) {
-            throw(std::runtime_error("Invalid region coordinates: '" +
-                r.target + ":" + std::to_string(beg+1) + "-" + std::to_string(end) + "'" ));
+            throw std::runtime_error("ERROR: Invalid region coordinates: '" +
+                r.target + ":" + std::to_string(beg+1) + "-" + std::to_string(end) + "'" );
         }
         value.push_back({tid,beg,end});
     }
-    // sort regions in increasing order
-    std::sort(value.begin(), value.end(), [](const region_t &a, const region_t &b) {
-        return std::tie(a.tid, a.beg, a.end) < std::tie(b.tid, b.beg, b.end);
-    });
-    // merge overlapping ranges
-    auto overlapping = [](const region_t &a, const region_t &b) {
-        return a.tid == b.tid && b.beg <= a.end; // assumes sorted range
-    };
 
-    auto first = value.begin();
-    auto last  = value.end();
-    auto result = first;
-    while(++first != last) {
-        if(overlapping(*result, *first)) {
-            result->end = first->end;
-        } else if(++result != first) {
-            *result = std::move(*first);
-        }
+    return optimize_regions(std::move(value));
+}
+
+inline
+hts::bam::region_t parse_bed_line(const std::string &target, const std::string &beg_str, const std::string &end_str,
+    const hts::bam::File &file) {
+    int tid = file.TargetNameToID(target.c_str());
+    if(tid < 0 ) {
+        throw std::runtime_error("ERROR: Unknown contig name: '" + target + "'");
     }
-    ++result;
-    value.erase(result,value.end());
-    return value;
+    size_t sz;
+    int beg = stoi(beg_str, &sz);
+    // if we could not convert all the characters, invalidate beg
+    if(sz != beg_str.size()) {
+        beg = -1;
+    }
+    int end = stoi(end_str, &sz);
+    // if we could not convert all the characters, invalidate beg
+    if(sz != end_str.size()) {
+        end = -1;
+    }    
+    // check for valid coordinates
+    if(beg < 0 || end < 0 || beg >= end) {
+        throw std::runtime_error("ERROR: Invalid bed coordinates: '" + target + "\t" + beg_str +"\t" + end_str + "'");
+    }
+    return {tid,beg,end};
+}
+
+hts::bam::regions_t dng::regions::bam_parse_bed(const std::string &path, const hts::bam::File &file) {
+	using hts::bam::region_t;
+	using hts::bam::regions_t;
+
+    if(path.empty()) {
+        throw std::runtime_error("ERROR: path to bed file was not specified or is blank.");        
+    }
+    std::ifstream bed_file(path);
+    if(!bed_file.is_open()) {
+        throw std::runtime_error("ERROR: unable to open bed file '" + path + "'.");
+    }
+    // Construct the tokenizer from the ifstream
+    auto tokens = utility::make_tokenizer(io::istreambuf_range(bed_file));
+
+    regions_t value;
+    std::string col[3];
+    int column = 0, beg, end, line_num = 1;
+    for(auto tok_iter = tokens.begin(); tok_iter != tokens.end(); ++tok_iter) {
+        if(*tok_iter == "\n") {
+            if(column < 3 && !((column == 1 && col[0].empty()) || col[0][0] == '#')) {
+                throw std::runtime_error("ERROR: line " + std::to_string(line_num) + " in bed file '"
+                + path + "' has less than three columns." );
+            }
+            ++line_num;
+            column = 0;
+            continue;
+        } else if(column == 0) {
+            col[0] = std::move(*tok_iter);
+        } else if(column == 1) {
+            col[1] = std::move(*tok_iter);
+        } else if(column == 2) {
+            col[2] = std::move(*tok_iter);
+            // check if column 0 begins a comment
+            if(col[0][0] != '#') {
+                value.push_back(parse_bed_line(col[0],col[1],col[2],file));
+            }
+        }
+        column += 1;
+    }
+	return optimize_regions(std::move(value));
 }

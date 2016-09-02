@@ -27,7 +27,6 @@
 #include <algorithm>
 #include <cstdlib>
 
-#include <boost/tokenizer.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/spirit/include/qi.hpp>
@@ -429,12 +428,7 @@ void dng::io::Ad::ParseHeaderTokens(It it, It it_last) {
 
 void dng::io::Ad::AddHeaderLines(const std::string& lines) {
     // Tokenize header
-    using namespace boost;
-    using namespace std;
-    typedef tokenizer<char_separator<char>,
-            string::const_iterator> tokenizer;
-    char_separator<char> sep("\t", "\n");
-    tokenizer tokens(lines.begin(), lines.end(), sep);
+    auto tokens = utility::make_tokenizer_dropempty(lines);
     // Parse Tokens
     ParseHeaderTokens(tokens.begin(), tokens.end());
 }

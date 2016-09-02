@@ -157,7 +157,6 @@ int task::LogLike::operator()(task::LogLike::argument_type &arg) {
     return process_bam(arg);
 }
 
-
 int process_bam(LogLike::argument_type &arg) {
     using namespace hts::bcf;
 
@@ -189,7 +188,7 @@ int process_bam(LogLike::argument_type &arg) {
         }
         // add regions
         if(!arg.region.empty()) {
-            bamdata.back().regions(regions::bam_parse(arg.region,bamdata.back()));
+            bamdata.back().regions(regions::bam_parse_region(arg.region,bamdata.back()));
         }
         // Add each genotype/sample column
         rgs.ParseHeaderText(bamdata, arg.rgtag);
