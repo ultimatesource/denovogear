@@ -4,15 +4,18 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <memory>
 
 #include <dng/hts/extra.h>
 #include <dng/app.h>
 #include <dng/task/dnm.h>
 #include "htslib/synced_bcf_reader.h"
+#include "htslib/vcf.h"
 
 using namespace std;
 using namespace dng::task;
 
+/*
 int RD_cutoff = 10; // cutoff for the read depth filter
 double PP_cutoff = 0.0001; // posterior probability cutoff
 
@@ -22,11 +25,10 @@ double snp_mrate = 1e-8; // snp mutation prior
 double poly_rate = 1e-3; // polymorphism rate - used in prior calculations
 double pair_mrate = 1e-9; // mutation prior for paired samples
 double mu_scale = 1.0; // scaling factor for indel priors
+*/
 
 
-
-int callMakeSNPLookup(lookup_table_t &tgtSNP, lookup_snp_t &lookupSNP,
-                      std::string model) {
+int callMakeSNPLookup(lookup_table_t &tgtSNP, lookup_snp_t &lookupSNP, std::string model, parameters &params) {
     std::vector<string> tmp;
     for(int l = 0; l < 10; l++) {
         tmp.push_back("NA");
@@ -36,9 +38,9 @@ int callMakeSNPLookup(lookup_table_t &tgtSNP, lookup_snp_t &lookupSNP,
     }
 
 
-    if(model == "auto") { makeSNPLookup(snp_mrate, poly_rate, tgtSNP, lookupSNP); }
-    else if(model == "XS") { makeXSSNPLookup(snp_mrate, poly_rate, tgtSNP, lookupSNP); }
-    else if(model == "XD") { makeXDSNPLookup(snp_mrate, poly_rate, tgtSNP, lookupSNP); }
+    if(model == "auto") { makeSNPLookup(params.snp_mrate, params.poly_rate, tgtSNP, lookupSNP); }
+    else if(model == "XS") { makeXSSNPLookup(params.snp_mrate, params.poly_rate, tgtSNP, lookupSNP); }
+    else if(model == "XD") { makeXDSNPLookup(params.snp_mrate, params.poly_rate, tgtSNP, lookupSNP); }
     else {
         cerr << endl << "Invalid model for SNP lookup, exiting.";
         exit(1);
@@ -56,8 +58,7 @@ int callMakeSNPLookup(lookup_table_t &tgtSNP, lookup_snp_t &lookupSNP,
     return 0;
 }
 
-int callMakeINDELLookup(lookup_table_t &tgtIndel, lookup_indel_t &lookupIndel,
-                        std::string model) {
+int callMakeINDELLookup(lookup_table_t &tgtIndel, lookup_indel_t &lookupIndel, std::string model, parameters &params) {
     std::vector<std::string> tmp;
     for(int l = 0; l < 3; l++) {
         tmp.push_back("NA");
@@ -67,9 +68,9 @@ int callMakeINDELLookup(lookup_table_t &tgtIndel, lookup_indel_t &lookupIndel,
     }
 
 
-    if(model == "auto") { makeIndelLookup(poly_rate, tgtIndel, lookupIndel); }
-    else if(model == "XS") { makeXSIndelLookup(poly_rate, tgtIndel, lookupIndel); }
-    else if(model == "XD") { makeXDIndelLookup(poly_rate, tgtIndel, lookupIndel); }
+    if(model == "auto") { makeIndelLookup(params.poly_rate, tgtIndel, lookupIndel); }
+    else if(model == "XS") { makeXSIndelLookup(params.poly_rate, tgtIndel, lookupIndel); }
+    else if(model == "XD") { makeXDIndelLookup(params.poly_rate, tgtIndel, lookupIndel); }
     else {
         std::cerr << std::endl << "Invalid model for INDEL lookup, exiting.";
         exit(1);
@@ -85,7 +86,7 @@ int callMakeINDELLookup(lookup_table_t &tgtIndel, lookup_indel_t &lookupIndel,
     return 0;
 }
 
-int callMakePairedLookup(lookup_table_t &tgtPair, lookup_pair_t &lookupPair) {
+int callMakePairedLookup(lookup_table_t &tgtPair, lookup_pair_t &lookupPair, parameters &params) {
     std::vector<std::string> tmp;
     for(int l = 0; l < 10; l++) {
         tmp.push_back("NA");
@@ -93,7 +94,7 @@ int callMakePairedLookup(lookup_table_t &tgtPair, lookup_pair_t &lookupPair) {
     for(int l = 0; l < 10; l++) {
         tgtPair.push_back(tmp);
     }
-    makePairedLookup(pair_mrate, tgtPair, lookupPair);
+    makePairedLookup(params.pair_mrate, tgtPair, lookupPair);
     std::cerr << "\nCreated paired lookup table" << std::endl;
     std::cerr << " First target string: " << tgtPair[0][0] << " last: " <<
               tgtPair[9][9] << std::endl;
@@ -102,23 +103,38 @@ int callMakePairedLookup(lookup_table_t &tgtPair, lookup_pair_t &lookupPair) {
     return 0;
 }
 
-void writeVCFHeader(hts::bcf::File &vcfout, std::string &bcf_file,
-                    std::string &ped_file, std::vector<std::string> &samples) {
+void writeVCFHeaderMD(hts::bcf::File &vcfout, std::string &bcf_file,
+                      std::string &ped_file, parameters &params) {
 
-    vcfout.AddHeaderMetadata("##fileformat=VCFv4.1");
-    vcfout.AddHeaderMetadata("##source=", PACKAGE_STRING);
-    vcfout.AddHeaderMetadata("##input_bcf=", bcf_file);
-    vcfout.AddHeaderMetadata("##input_ped=", ped_file);
-    vcfout.AddHeaderMetadata("##cutoff_read_depth=", RD_cutoff);
-    vcfout.AddHeaderMetadata("##cutoff_posterior_probability=", PP_cutoff);
-    vcfout.AddHeaderMetadata("##mutation_rate_snp=", snp_mrate);
-    vcfout.AddHeaderMetadata("##mutation_rate_indel=", indel_mrate);
-    vcfout.AddHeaderMetadata("##mutation_rate_paired=", pair_mrate);
-    vcfout.AddHeaderMetadata("##mutation_rate_polymorphism=", poly_rate);
-    vcfout.AddHeaderMetadata("##mutation_rate_indel_scaling_constant=", mu_scale);
+    //vcfout.AddHeaderMetadata("##fileformat=VCFv4.1");
+    vcfout.AddHeaderMetadata("source", PACKAGE_STRING);
+    vcfout.AddHeaderMetadata("input_bcf", bcf_file);
+    vcfout.AddHeaderMetadata("input_ped", ped_file);
+    vcfout.AddHeaderMetadata("cutoff_read_depth", params.RD_cutoff);
+    vcfout.AddHeaderMetadata("cutoff_posterior_probability", params.PP_cutoff);
+    vcfout.AddHeaderMetadata("mutation_rate_snp", params.snp_mrate);
+    vcfout.AddHeaderMetadata("mutation_rate_indel", params.indel_mrate);
+    vcfout.AddHeaderMetadata("mutation_rate_paired", params.pair_mrate);
+    vcfout.AddHeaderMetadata("mutation_rate_polymorphism", params.poly_rate);
+    vcfout.AddHeaderMetadata("mutation_rate_indel_scaling_constant", params.mu_scale);
+    vcfout.AddHeaderMetadata("##INFO=<ID=SNPcode,Number=1,Type=Integer,Description=\"Code that shows whether DNM configuration shown is monomorphic or contains variation\">");
+    vcfout.AddHeaderMetadata("##INFO=<ID=INDELcode,Number=1,Type=Integer,Description=\" \">"); //// Needs Detail
+    vcfout.AddHeaderMetadata("##INFO=<ID=PairSNPcode,Number=1,Type=Integer,Description=\" \">"); //// Needs Detail
+    vcfout.AddHeaderMetadata("##INFO=<ID=code,Number=1,Type=Integer,Description=\" \">"); //// Needs Detail
 
-#ifndef NEWVCFOUT
-    // Old format, doesn't work well with htslib
+#ifdef NEWVCFOUT
+    vcfout.AddHeaderMetadata("##FORMAT=<ID=ML_NULL,Number=1,Type=Float,Description=\"Maximum Likelihood for the NULL configuration\">");
+    vcfout.AddHeaderMetadata("##FORMAT=<ID=ML_DNM,Number=1,Type=Float,Description=\"Maximum Likelihood for the DNM configuration\">");
+    vcfout.AddHeaderMetadata("##FORMAT=<ID=GL,Number=G,Type=Float,Description=\"Log10-likelihood of genotype based on read depths\">");
+    vcfout.AddHeaderMetadata("##FORMAT=<ID=RD,Number=1,Type=Integer,Description=\"Read Depth of the child\">");
+    vcfout.AddHeaderMetadata("##FORMAT=<ID=RD_T,Number=1,Type=Integer,Description=\"Read Depth of the tumor sample\">");
+    vcfout.AddHeaderMetadata("##FORMAT=<ID=MQ_T,Number=1,Type=Integer,Description=\"Mapping quality of the normal sample\">");
+    vcfout.AddHeaderMetadata("##FORMAT=<ID=RD,Number=1,Type=Integer,Description=\"Read Depth\">");
+    vcfout.AddHeaderMetadata("##FORMAT=<ID=MQ,Number=1,Type=Integer,Description=\"Mapping quality\">");
+    vcfout.AddHeaderMetadata("##FORMAT=<ID=NULL_CONFIG,Number=1,Type=String,Description=\"NULL trio configuration\">");
+    vcfout.AddHeaderMetadata("##FORMAT=<ID=DNM_CONFIG,Number=1,Type=String,Description=\"NULL trio configuration\">");
+#else
+    // Original version
     vcfout.AddHeaderMetadata("##INFO=<ID=RD_MOM,Number=1,Type=Integer,Description=\"Read depth for MOM\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=RD_DAD,Number=1,Type=Integer,Description=\"Read depth for DAD\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=RD_NORMAL,Number=1,Type=Integer,Description=\"Read depth for Normal sample in Paired Sample Analysis\">");
@@ -126,31 +142,47 @@ void writeVCFHeader(hts::bcf::File &vcfout, std::string &bcf_file,
     vcfout.AddHeaderMetadata("##INFO=<ID=MQ_DAD,Number=1,Type=Integer,Description=\"Mapping quality for DAD\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=MQ_NORMAL,Number=1,Type=Integer,Description=\"Mapping quality for Normal sample in Paired Sample Analysis\">");
     vcfout.AddHeaderMetadata("##FORMAT=<ID=NULL_CONFIG(child/mom/dad),Number=1,Type=String,Description=\"NULL trio configuration\">");
-    vcfout.AddHeaderMetadata("##FORMAT=<ID=PP_NULL,Number=1,Type=Float,Description=\"Posterior probability for the NULL configuration\">");
     vcfout.AddHeaderMetadata("##FORMAT=<ID=ML_NULL,Number=1,Type=Float,Description=\"Maximum Likelihood for the NULL configuration\">");
-    vcfout.AddHeaderMetadata("##FORMAT=<ID=ML_DNM,Number=1,Type=Float,Description=\"Maximum Likelihood for the DNM configuration\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=SNPcode,Number=1,Type=Integer,Description=\"Code that shows whether DNM configuration shown is monomorphic or contains variation\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=INDELcode,Number=1,Type=Integer,Description=\" \">"); //// Needs Detail
-    vcfout.AddHeaderMetadata("##INFO=<ID=PairSNPcode,Number=1,Type=Integer,Description=\" \">"); //// Needs Detail
-    vcfout.AddHeaderMetadata("##INFO=<ID=code,Number=1,Type=Integer,Description=\" \">"); //// Needs Detail
+    vcfout.AddHeaderMetadata("##FORMAT=<ID=PP_NULL,Number=1,Type=Float,Description=\"Posterior probability for the NULL configuration\">");
     vcfout.AddHeaderMetadata("##FORMAT=<ID=DNM_CONFIG(child/mom/dad),Number=1,Type=String,Description=\"DNM trio configuration\">");
+    vcfout.AddHeaderMetadata("##FORMAT=<ID=ML_DNM,Number=1,Type=Float,Description=\"Maximum Likelihood for the DNM configuration\">");
     vcfout.AddHeaderMetadata("##FORMAT=<ID=PP_DNM,Number=1,Type=Float,Description=\"Posterior probability for the DNM configuration\">");
-    vcfout.AddHeaderMetadata("##FORMAT=<ID=RD,Number=1,Type=Integer,Description=\"Read Depth of the child\">");
     vcfout.AddHeaderMetadata("##FORMAT=<ID=MQ,Number=1,Type=Integer,Description=\"Mapping quality of the child\">");
-    vcfout.AddHeaderMetadata("##FORMAT=<ID=RD_T,Number=1,Type=Integer,Description=\"Read Depth of the tumor sample\">");
-    vcfout.AddHeaderMetadata("##FORMAT=<ID=MQ_T,Number=1,Type=Integer,Description=\"Mapping quality of the normal sample\">");
-    vcfout.AddSample(samples[0].c_str());
-#else
-    // Newer header, produces more standarized VCF output
-    vcfout.AddHeaderMetadata("##FORMAT=<ID=RD,Number=1,Type=Integer,Description=\"Read Depth\">");
-    vcfout.AddHeaderMetadata("##FORMAT=<ID=MQ,Number=1,Type=Integer,Description=\"Mapping quality\">");
-    for(std::string sample : samples) {
-        vcfout.AddSample(sample.c_str());
-    }
+    vcfout.AddHeaderMetadata("##FORMAT=<ID=RD,Number=1,Type=Integer,Description=\"Read Depth of the child\">");
+    vcfout.AddHeaderMetadata("##FORMAT=<ID=pair_null_code,Number=1,Type=Float,Description=\"\">");
+    vcfout.AddHeaderMetadata("##FORMAT=<ID=pair_denovo_code,Number=1,Type=Float,Description=\"\">");
+
 #endif
-    vcfout.WriteHeader();
 }
 
+
+
+// Create sample columns for VCF output
+void writeVCFHeaderSamples(hts::bcf::File &vcfout, std::vector<Trio> &trios, std::vector<Pair> &pairs) {
+
+	unsigned int sample_pos = 0;
+    if(trios.size() > 0) {
+    	for(auto && trio : trios) {
+    		vcfout.AddSample(trio.cID);
+    		trio.cpos = sample_pos++;
+#ifdef NEWVCFOUT
+    		vcfout.AddSample(trio.mID);
+    		trio.mpos = sample_pos++;
+    		vcfout.AddSample(trio.dID);
+    		trio.dpos = sample_pos++;
+#endif
+    	}
+    }
+    else {
+    	for(auto && pair : pairs) {
+    		vcfout.AddSample(pair.tumorID);
+#ifdef NEWVCFOUT
+    		vcfout.AddSample(pair.normalID);
+#endif
+
+    	}
+    }
+}
 
 
 int DNM::operator()(std::string &model, DNM::argument_type &arg) {
@@ -177,63 +209,47 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
         throw std::runtime_error("ERROR ! No PED file! Exiting!");
     }
 
-    snp_mrate = arg.snp_mrate;
-    indel_mrate = arg.indel_mrate;
-    poly_rate = arg.poly_rate;
-    pair_mrate = arg.pair_mrate;
-    mu_scale = arg.mu_scale;
-    PP_cutoff = arg.pp_cutoff;
-    RD_cutoff = arg.rd_cutoff;
+
+    parameters params;
+    params.snp_mrate = arg.snp_mrate;
+    params.indel_mrate = arg.indel_mrate;
+    params.poly_rate = arg.poly_rate;
+    params.pair_mrate = arg.pair_mrate;
+    params.mu_scale = arg.mu_scale;
+    params.PP_cutoff = arg.pp_cutoff;
+    params.RD_cutoff = arg.rd_cutoff;
+
 
     // Create SNP lookup
     lookup_snp_t lookupSNP;
     lookup_table_t tgtSNP;
-    callMakeSNPLookup(tgtSNP, lookupSNP, model);
+    callMakeSNPLookup(tgtSNP, lookupSNP, model, params);
 
     // Create INDEL lookup
     lookup_indel_t lookupIndel;
     lookup_table_t tgtIndel;
-    callMakeINDELLookup(tgtIndel, lookupIndel, model);
+    callMakeINDELLookup(tgtIndel, lookupIndel, model, params);
 
     // Create paired lookup
     lookup_pair_t lookupPair;
     lookup_table_t tgtPair;
-    callMakePairedLookup(tgtPair, lookupPair);
+    callMakePairedLookup(tgtPair, lookupPair, params);
+
 
     // TODO: Use Reed's PED parser
-    // Iterate each position of BCF file
-    Trio *trios;
-    Pair *pairs;
-    int trio_count = 0, pair_count = 0;
-    parse_ped(arg.ped, &trios, &pairs, trio_count, pair_count);
-
-    //create output vcf -- assumes theres only one trio/pair
-    std::vector<std::string> samples;
-    if(trio_count > 0) {
-        samples.push_back(trios[0].cID);
-        samples.push_back(trios[0].mID);
-        samples.push_back(trios[0].fID);
-    } else {
-        samples.push_back(pairs[0].tumorID);
-        samples.push_back(pairs[0].normalID);
-    }
-
-    std::vector<hts::bcf::File> output_vcf;
-    if(!arg.write.empty()) {
-        output_vcf.emplace_back(arg.write.c_str(), "w");
-        writeVCFHeader(output_vcf[0], input_file, arg.ped, samples);
-    }
+    std::vector<Trio> trios;
+    std::vector<Pair> pairs;
+    parse_ped(arg.ped, trios, pairs);
+    int trio_count = trios.size();
+    int pair_count = pairs.size();
 
     qcall_t mom_snp, dad_snp, child_snp;
     indel_t mom_indel, dad_indel, child_indel;
     pair_t tumor, normal;
-    //bcf_hdr_t *hout, *hin;
-    //int tid, begin, end;
 
     int snp_total_count = 0, snp_pass_count = 0;
     int indel_total_count = 0, indel_pass_count = 0;
     int pair_total_count = 0, pair_pass_count = 0;
-
 
     bcf_srs_t *rec_reader = bcf_sr_init(); // used for iterating each rec in BCF/VCF
 
@@ -267,6 +283,27 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
     // Get the header (should be only one input file)
     const bcf_hdr_t *hdr = bcf_sr_get_header(rec_reader, 0);
 
+
+    // Create a VCF file for output
+    std::unique_ptr<hts::bcf::File> output_vcf;
+    if(!arg.write.empty()) {
+    	// Write Header Metadata
+    	output_vcf.reset(new hts::bcf::File(arg.write.c_str(), "w"));
+    	//output_vcf.emplace_back(arg.write.c_str(), "w");
+        writeVCFHeaderMD(*output_vcf, input_file, arg.ped, params);
+
+        // Copy contigs from inputput file.
+        for(auto && contig : hts::extra::extract_contigs(hdr)) {
+        	output_vcf->AddHeaderMetadata(contig.c_str());
+        }
+
+        // Sample/genotype columns.
+        writeVCFHeaderSamples(*output_vcf, trios, pairs);
+
+        output_vcf->WriteHeader();
+    }
+
+
     // Check the PL field and if it's an int or float
     int pl_tag = bcf_hdr_id2int(hdr, BCF_DT_ID, "PL");
     if(!bcf_hdr_idinfo_exists(hdr, BCF_HL_FMT, pl_tag)) {
@@ -279,6 +316,7 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
         int j = 0;
         int flag = 0;
 
+
         for(j = 0; j < trio_count; j++) {
             bcf_unpack(rec, BCF_UN_STR);
             int is_indel = bcf_2qcall(hdr, rec, trios[j],
@@ -288,15 +326,15 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
 
             if(is_indel == 0) {
                 snp_total_count++;
-                trio_like_snp(child_snp, mom_snp, dad_snp, flag,
-                              tgtSNP, lookupSNP, output_vcf,//vcf_out,
-                              PP_cutoff, RD_cutoff, snp_pass_count);
+                snp_pass_count += trio_like_snp(child_snp, mom_snp, dad_snp, flag,
+                              	  tgtSNP, lookupSNP, output_vcf.get(),
+								  params, trios[j]);
+
             } else if(is_indel == 1) {
 
                 indel_total_count++;
-                trio_like_indel(&child_indel, &mom_indel, &dad_indel, flag,
-                                tgtIndel, lookupIndel, mu_scale, output_vcf,
-                                PP_cutoff, RD_cutoff, indel_pass_count, indel_mrate);
+                indel_pass_count += trio_like_indel(child_indel, mom_indel, dad_indel, flag,
+                                	tgtIndel, lookupIndel, output_vcf.get(), params, trios[j]);
 
             } else if(is_indel < 0) {
                 printf("\n BCF PARSING ERROR - Trios!  %d\n Exiting !\n", is_indel);
@@ -307,11 +345,12 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
         // PROCESS  PAIRS
         if(model == "auto") { // paired sample model not developed for XS, XD yet
             for(j = 0; j < pair_count; j++) {
-	      int is_indel = bcf2Paired(hdr, rec, pairs[j], &tumor, &normal, flag, pl_type);
+            	int is_indel = bcf2Paired(hdr, rec, pairs[j], &tumor, &normal, flag, pl_type);
                 if(is_indel == 0) {
                     pair_total_count++;
-                    pair_like(tumor, normal, tgtPair, lookupPair, flag, output_vcf,
-                              PP_cutoff, RD_cutoff, pair_pass_count);
+                    pair_like(tumor, normal, tgtPair, lookupPair, flag, output_vcf.get(),
+                    		  params, pair_pass_count, pairs[j]);
+
                 } else if(is_indel < 0) {
                     printf("\n BCF PARSING ERROR - Paired Sample!  %d\n Exiting !\n", is_indel);
                     exit(1);
@@ -329,21 +368,19 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
          indel_pass_count;
     cerr << endl << "Total number of Paired sample sites interrogated: " <<
          pair_total_count;
-    cerr << endl <<
-         "Total number of Paired sample sites passing read-depth filters: " <<
+    cerr << endl <<       "Total number of Paired sample sites passing read-depth filters: " <<
          pair_pass_count;
 
     std::cerr << std::endl << "Done !" << std::endl;
+
+
+    if(output_vcf != nullptr)
+    	output_vcf->Close();
+
     exit(0);
 }
 
 
-
-/****************************************************************************************
-int DNM::operator()(std::string &model, DNM::argument_type &arg) {
-  std::cout << "HERE with " << model << std::endl;
-}
-*/
 
 typedef dng::CommandLineApp<dng::task::DNM> App;
 
