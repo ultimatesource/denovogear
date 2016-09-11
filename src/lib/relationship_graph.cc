@@ -17,8 +17,7 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-
-#include "../include/dng/relationship_graph.h"
+#include <dng/relationship_graph.h>
 #include <dng/graph.h>
 #include <dng/mutation.h>
 #include <dng/utility.h>

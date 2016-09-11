@@ -129,9 +129,9 @@ protected:
     std::vector<transition_t> transitions_;
 
     // The original, simplified peeling operations
-    std::vector<decltype(peel::op::OpTypes::NUM)> peeling_ops_;
+    std::vector<decltype(peel::op::NUM)> peeling_ops_;
     // The modified, "faster" operations
-    std::vector<decltype(peel::op::OpTypes::NUM)> peeling_functions_ops_;
+    std::vector<decltype(peel::op::NUM)> peeling_functions_ops_;
     // Array of functions that will be called to perform the peeling
     std::vector<peel::function_t> peeling_functions_;
     std::vector<peel::function_t> peeling_reverse_functions_;
