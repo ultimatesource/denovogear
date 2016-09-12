@@ -299,7 +299,7 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
                                 PP_cutoff, RD_cutoff, indel_pass_count, indel_mrate);
 
             } else if(is_indel < 0) {
-            	printf("\n BCF PARSING ERROR - Trios!  %d\n Skiping site!\n", is_indel);
+            	printf("\n BCF PARSING ERROR - Trios!  %d\n Skipping site!\n", is_indel);
             	continue;
             }
         }
