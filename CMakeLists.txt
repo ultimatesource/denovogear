@@ -107,6 +107,7 @@ FIND_PACKAGE(Git)
 SET(GIT_COMMIT_ID "unknown")
 IF(GIT_FOUND)
   EXECUTE_PROCESS(COMMAND ${GIT_EXECUTABLE} describe --tags --dirty
+    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
     RESULT_VARIABLE res_var OUTPUT_VARIABLE GIT_COM_ID
      ERROR_QUIET)
   IF(${res_var} EQUAL 0 )
@@ -150,7 +151,7 @@ IF(DNG_VERSION_COMMIT)
   SET(DNG_VERSION_SHORT "${DNG_VERSION_SHORT}-${DNG_VERSION_COMMIT}")	
 ENDIF()
 
-MESSAGE(STATUS "${DNG_NAME} version is ${DNG_VERSION}.")
+MESSAGE(STATUS "${DNG_NAME} version: ${DNG_VERSION}.")
 
 ################################################################################
 # Packaging Information
