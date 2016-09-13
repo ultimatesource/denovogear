@@ -26,7 +26,7 @@
 #include <dng/hts/bcf.h>
 #include <dng/matrix.h>
 #include <dng/peeling.h>
-#include <dng/pedigree.h>
+#include <dng/relationship_graph.h>
 #include <dng/mutation.h>
 #include <dng/detail/unit_test.h>
 

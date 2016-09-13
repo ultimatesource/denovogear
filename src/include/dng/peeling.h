@@ -35,7 +35,7 @@ namespace dng {
 namespace peel {
 
 namespace op {
-enum {
+enum Type {
     UP, DOWN, TOFATHER, TOMOTHER, TOCHILD,
     UPFAST, DOWNFAST, TOFATHERFAST, TOMOTHERFAST,
     TOCHILDFAST,

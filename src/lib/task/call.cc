@@ -35,7 +35,7 @@
 #include <boost/algorithm/string.hpp>
 
 #include <dng/task/call.h>
-#include <dng/pedigree.h>
+#include <dng/relationship_graph.h>
 #include <dng/fileio.h>
 #include <dng/pileup.h>
 #include <dng/read_group.h>
@@ -347,7 +347,7 @@ int task::Call::operator()(Call::argument_type &arg) {
     }
 
     // Construct peeling algorithm from parameters and pedigree information
-    dng::Pedigree pedigree;
+    dng::RelationshipGraph pedigree;
     if(!pedigree.Construct(ped, rgs, arg.mu, arg.mu_somatic, arg.mu_library)) {
         throw std::runtime_error("Unable to construct peeler for pedigree; "
                                  "possible non-zero-loop pedigree.");

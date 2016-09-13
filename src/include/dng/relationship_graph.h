@@ -1,7 +1,8 @@
 /*
  * Copyright (c) 2014-2015 Reed A. Cartwright
+ * Copyright (c) 2016 Steven H. Wu
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
- *
+ *           Steven H. Wu <stevenwu@asu.edu>
  * This file is part of DeNovoGear.
  *
  * DeNovoGear is free software: you can redistribute it and/or modify it under
@@ -18,8 +19,8 @@
  */
 
 #pragma once
-#ifndef DNG_PEDIGREE_H
-#define DNG_PEDIGREE_H
+#ifndef DNG_RELATIONSHIP_GRAPH_H
+#define DNG_RELATIONSHIP_GRAPH_H
 
 #include <functional>
 #include <cmath>
@@ -34,7 +35,7 @@
 
 namespace dng {
 
-class Pedigree {
+class RelationshipGraph {
 public:
 
     enum class TransitionType {
@@ -146,4 +147,4 @@ protected:
 }; // namespace dng
 
 
-#endif // DNG_PEDIGREE_H
+#endif // DNG_RELATIONSHIP_GRAPH_H

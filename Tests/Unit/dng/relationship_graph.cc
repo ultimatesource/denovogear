@@ -18,45 +18,30 @@
  */
 
 
-#define BOOST_TEST_MODULE dng::pedigree
+#define BOOST_TEST_MODULE dng::relationship_graph
 
-//#include <boost/test/unit_test.hpp>
+#include <dng/relationship_graph.h>
+
 #include <iostream>
-
-//#include <dng/pedigree_v2.h>
-#include <dng/pedigree.h>
 
 #include "../boost_test_helper.h"
 #include "fixture_read_trio_from_file.h"
+#include "relationship_graph_helper.h"
 
 
 struct FixturePedigree : public ReadTrioFromFile{
 
-
-    dng::Pedigree pedigree;
-//    dng::PedigreeV2 pedigree_v2;
+    dng::RelationshipGraph relationship_graph;
 
     FixturePedigree(std::string s = "FixturePedigree") : ReadTrioFromFile(s) {
         BOOST_TEST_MESSAGE("set up fixture: " << fixture);
-
-        pedigree.Construct(ped, rgs, arg.mu, arg.mu_somatic, arg.mu_library);
-//        pedigree_v2.Construct(ped, rgs, arg.mu, arg.mu_somatic, arg.mu_library);
-
+        relationship_graph.Construct(io_pedigree, rgs, arg.mu, arg.mu_somatic, arg.mu_library);
     }
 
     ~FixturePedigree() {
         BOOST_TEST_MESSAGE("tear down fixture: " << fixture);
     }
-
 };
-
-void setup() { BOOST_TEST_MESSAGE("set up fun"); }
-
-void teardown() { BOOST_TEST_MESSAGE("tear down fun"); }
-
-
-
-//BOOST_FIXTURE_TEST_SUITE(test_pedigree_suite, FixturePedigree )
 
 /*
 
@@ -67,11 +52,12 @@ void teardown() { BOOST_TEST_MESSAGE("tear down fun"); }
 3  2  4
 
 */
-BOOST_FIXTURE_TEST_CASE(test_constructor, FixturePedigree) {
+namespace dng {
+BOOST_FIXTURE_TEST_CASE(test_constructor, FixturePedigree ) {
 
-    BOOST_CHECK_EQUAL(5, pedigree.num_nodes() );
+    BOOST_CHECK_EQUAL(5, relationship_graph.num_nodes() );
 
-    auto workspace = pedigree.CreateWorkspace();
+    auto workspace = relationship_graph.CreateWorkspace();
     BOOST_CHECK_EQUAL(0, workspace.founder_nodes.first);
     BOOST_CHECK_EQUAL(2, workspace.founder_nodes.second);
     BOOST_CHECK_EQUAL(0, workspace.germline_nodes.first);
@@ -81,8 +67,7 @@ BOOST_FIXTURE_TEST_CASE(test_constructor, FixturePedigree) {
     BOOST_CHECK_EQUAL(2, workspace.library_nodes.first);
     BOOST_CHECK_EQUAL(5, workspace.library_nodes.second);
 
-
-    auto labels = pedigree.labels();
+    auto labels = relationship_graph.labels();
 
     const std::vector<std::string> expected_labels = {
         "GL-1", // founder 1
@@ -90,7 +75,6 @@ BOOST_FIXTURE_TEST_CASE(test_constructor, FixturePedigree) {
         "LB-NA12878:Solexa-135852",  // lib 1
         "LB-NA12891:Solexa-135851",  // lib 2
         "LB-NA12892:Solexa-135853"   // lib 3
-
 //#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA12878:Solexa-135852   NA12891:Solexa-135851   NA12892:Solexa-135853
     };
     for (int j = 0; j < 5; ++j) {
@@ -117,19 +101,19 @@ BOOST_FIXTURE_TEST_CASE(test_constructor, FixturePedigree) {
 //    }
 */
 
-    auto transitions = pedigree.transitions();
+    auto transitions = relationship_graph.transitions();
     auto size_t_negative_one = static_cast<size_t>(-1);
-    std::vector<Pedigree::transition_t> expected_transitions = {
-            { Pedigree::TransitionType::Founder, size_t_negative_one,
-					size_t_negative_one, 0, 0 },
-            { Pedigree::TransitionType::Founder, size_t_negative_one,
-					size_t_negative_one, 0, 0 },
-            { Pedigree::TransitionType::Germline, 0, 1, arg.mu
-					+ arg.mu_somatic + arg.mu_library, arg.mu
-					+ arg.mu_somatic + arg.mu_library },
-            { Pedigree::TransitionType::Somatic, 0, size_t_negative_one,
+    std::vector<RelationshipGraph::transition_t> expected_transitions = { {
+            RelationshipGraph::TransitionType::Founder, size_t_negative_one,
+            size_t_negative_one, 0, 0}, {
+            RelationshipGraph::TransitionType::Founder, size_t_negative_one,
+            size_t_negative_one, 0, 0}, {
+            RelationshipGraph::TransitionType::Germline, 0, 1,
+                (arg.mu + arg.mu_somatic + arg.mu_library),
+                (arg.mu + arg.mu_somatic + arg.mu_library)},
+            { RelationshipGraph::TransitionType::Somatic, 0, size_t_negative_one,
 					arg.mu_somatic + arg.mu_library, 0 },
-			{ Pedigree::TransitionType::Somatic, 1, size_t_negative_one,
+			{ RelationshipGraph::TransitionType::Somatic, 1, size_t_negative_one,
 					arg.mu_somatic + arg.mu_library, 0 }
     };
     //Transition related code
@@ -159,24 +143,14 @@ BOOST_FIXTURE_TEST_CASE(test_constructor, FixturePedigree) {
 
     }
 
-
 }
 
-//BOOST_AUTO_TEST_CASE(test_pedigree_equal) {
-//
-//    bool is_equal = pedigree.equal(pedigree_v2);
-//    BOOST_CHECK(is_equal);
-//}
 
-
-//BOOST_AUTO_TEST_SUITE_END()
-
-namespace dng {
 BOOST_FIXTURE_TEST_CASE(test_pedigree_inspect, FixturePedigree) {
 
-    BOOST_CHECK_EQUAL(5, pedigree.num_nodes());
+    BOOST_CHECK_EQUAL(5, relationship_graph.num_nodes());
 
-    std::vector<peel::family_members_t> family = pedigree.family_members_;
+    std::vector<peel::family_members_t> family = relationship_graph.family_members_;
     std::vector<peel::family_members_t> expected_family = {
             {1, 4},
             {0, 1, 2},
@@ -184,21 +158,26 @@ BOOST_FIXTURE_TEST_CASE(test_pedigree_inspect, FixturePedigree) {
     };
 
     for (int f = 0; f < expected_family.size(); ++f) {
-        boost_check_equal_vector(expected_family, family);
+        boost_check_equal_vector(expected_family[f], family[f]);
     }
 
-	std::vector<decltype(peel::op::NUM)> ops = pedigree.peeling_ops_;
-	std::vector<decltype(peel::op::NUM)> expected_ops = { peel::op::UP,
-			peel::op::TOFATHER, peel::op::UP };
+	std::vector<decltype(peel::op::NUM)> ops = relationship_graph.peeling_ops_;
+    std::vector<decltype(peel::op::NUM)> expected_ops = {peel::op::UP,
+			peel::op::TOFATHER, peel::op::UP};
 	boost_check_equal_vector(expected_ops, ops);
 
 	std::vector<decltype(peel::op::NUM)> functions_ops =
-			pedigree.peeling_functions_ops_;
-	std::vector<decltype(peel::op::NUM)> expected_functions_ops = {
-			peel::op::UPFAST, peel::op::TOFATHERFAST, peel::op::UP };
+			relationship_graph.peeling_functions_ops_;
+    std::vector<decltype(peel::op::NUM)> expected_functions_ops = {
+            peel::op::UPFAST, peel::op::TOFATHERFAST, peel::op::UP};
 
     boost_check_equal_vector(expected_functions_ops, functions_ops);
 
 }
 
 } // namespace dng
+
+
+
+
+

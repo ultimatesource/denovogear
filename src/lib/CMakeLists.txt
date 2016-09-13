@@ -2,12 +2,12 @@ add_library(libdng STATIC
   find_mutations.cc
   likelihood.cc
   newick.cc
-  pedigree.cc
   peeling.cc
   mutation_stats.cc
   mutation.cc
   stats.cc
   regions.cc
+  relationship_graph.cc
   ad.cc
   utility.cc
   read_group.cc
