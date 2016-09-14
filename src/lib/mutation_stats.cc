@@ -96,7 +96,7 @@ void MutationStats::CalculateNodeMutation(dng::peel::workspace_t &work_full,
 
 void MutationStats::CalculateDenovoMutation(dng::peel::workspace_t &work_nomut,
                                             dng::TransitionVector &onemut_transition_matrices,
-                                            const dng::Pedigree &pedigree) {
+                                            const dng::RelationshipGraph &pedigree) {
     std::vector<double> event (work_nomut.num_nodes, 0.0);
     double total = 0.0, max_coeff = -1.0;
     size_t dn_row = 0, dn_col = 0, dn_location = 0;
@@ -119,7 +119,7 @@ void MutationStats::CalculateDenovoMutation(dng::peel::workspace_t &work_nomut,
 
         dnq_ = dng::utility::lphred<int32_t>(1.0 - (max_coeff / total), 255);
         dnl_ = pedigree.labels()[dn_location];
-        if (pedigree.transitions()[dn_location].type == dng::Pedigree::TransitionType::Germline) {
+        if (pedigree.transitions()[dn_location].type == dng::RelationshipGraph::TransitionType::Germline) {
             dnt_ = &dng::meiotic_diploid_mutation_labels[dn_row][dn_col][0];
         } else {
             dnt_ = &dng::mitotic_diploid_mutation_labels[dn_row][dn_col][0];

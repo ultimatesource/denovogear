@@ -30,6 +30,7 @@
 #include <vector>
 
 #include <dng/detail/unit_test.h>
+#include <dng/relationship_graph.h>
 #include <dng/likelihood.h>
 #include <dng/matrix.h>
 #include <dng/mutation_stats.h>
@@ -69,7 +70,7 @@ public:
         std::vector<float> node_mu1p;
     };
 
-    FindMutations(double min_prob, const Pedigree &pedigree, params_t params);
+    FindMutations(double min_prob, const RelationshipGraph &pedigree, params_t params);
 
     ~FindMutations();
 
@@ -78,7 +79,7 @@ public:
 
 
 protected:
-    const dng::Pedigree &pedigree_;
+    const dng::RelationshipGraph &pedigree_;
 
     params_t params_;
 

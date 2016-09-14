@@ -28,7 +28,7 @@ FindMutations::~FindMutations() {
 	// TODO Auto-generated destructor stub
 }
 
-FindMutations::FindMutations(double min_prob, const Pedigree &pedigree,
+FindMutations::FindMutations(double min_prob, const RelationshipGraph &pedigree,
         params_t params)
         : pedigree_(pedigree), min_prob_(min_prob), params_(params),
           genotype_likelihood_ {params.params_a, params.params_b},
@@ -55,7 +55,7 @@ FindMutations::FindMutations(double min_prob, const Pedigree &pedigree,
 
     for(size_t child = 0; child < work_full_.num_nodes; ++child) {
         auto trans = pedigree.transitions()[child];
-        if(trans.type == Pedigree::TransitionType::Germline) {
+        if(trans.type == RelationshipGraph::TransitionType::Germline) {
             auto dad = f81::matrix(trans.length1, params_.nuc_freq);
             auto mom = f81::matrix(trans.length2, params_.nuc_freq);
 
@@ -65,8 +65,8 @@ FindMutations::FindMutations(double min_prob, const Pedigree &pedigree,
                                                  nomut_transition_matrices_[child];
             onemut_transition_matrices_[child] = meiosis_diploid_matrix(dad, mom, 1);
             mean_matrices_[child] = meiosis_diploid_mean_matrix(dad, mom);
-        } else if(trans.type == Pedigree::TransitionType::Somatic ||
-                  trans.type == Pedigree::TransitionType::Library) {
+        } else if(trans.type == RelationshipGraph::TransitionType::Somatic ||
+                  trans.type == RelationshipGraph::TransitionType::Library) {
             auto orig = f81::matrix(trans.length1, params_.nuc_freq);
 
             full_transition_matrices_[child] = mitosis_diploid_matrix(orig);

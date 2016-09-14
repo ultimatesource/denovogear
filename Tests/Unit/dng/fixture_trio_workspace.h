@@ -33,7 +33,7 @@ struct TrioWorkspace : public  ReadTrioFromFile {
 
     double min_prob;
 
-    dng::Pedigree pedigree;
+    dng::RelationshipGraph pedigree;
     dng::peel::workspace_t workspace;
 
     int ref_index = 2;
@@ -47,7 +47,7 @@ struct TrioWorkspace : public  ReadTrioFromFile {
         BOOST_TEST_MESSAGE("set up fixture: " << fixture);
 
 
-        pedigree.Construct(ped, rgs, arg.mu, arg.mu_somatic, arg.mu_library);
+        pedigree.Construct(io_pedigree, rgs, arg.mu, arg.mu_somatic, arg.mu_library);
 
         std::array<double, 4> freqs;
         auto f = dng::utility::parse_double_list(arg.nuc_freqs, ',', 4);

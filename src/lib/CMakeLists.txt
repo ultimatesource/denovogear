@@ -5,10 +5,10 @@ add_library(libdng STATIC
   mutation_stats.cc
   mutation.cc
   newick.cc
-  pedigree.cc
   peeling.cc
   read_group.cc
   regions.cc
+  relationship_graph.cc
   stats.cc
   utility.cc
   task/call.cc

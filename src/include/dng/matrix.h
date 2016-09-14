@@ -27,6 +27,7 @@
 
 #include <Eigen/Dense>
 #include <Eigen/StdVector>
+#include <Eigen/Sparse>
 #include <Eigen/KroneckerProduct>
 
 namespace dng {

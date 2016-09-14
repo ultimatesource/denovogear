@@ -43,7 +43,7 @@
 #include <boost/algorithm/string.hpp>
 
 #include <dng/task/loglike.h>
-#include <dng/pedigree.h>
+#include <dng/relationship_graph.h>
 #include <dng/fileio.h>
 #include <dng/pileup.h>
 #include <dng/read_group.h>
@@ -107,13 +107,13 @@ public:
         double log_scale;        
     };
 
-    LogProbability(Pedigree pedigree, params_t params);
+    LogProbability(RelationshipGraph pedigree, params_t params);
 
     stats_t operator()(const std::vector<depth_t> &depths, int ref_index);
     stats_t operator()(const pileup::AlleleDepths &depths, const std::vector<size_t>& indexes);
 
 protected:
-    dng::Pedigree pedigree_;
+    dng::RelationshipGraph pedigree_;
     params_t params_;
     dng::peel::workspace_t work_; // must be declared after pedigree_ (see constructor)
 
@@ -157,7 +157,6 @@ int task::LogLike::operator()(task::LogLike::argument_type &arg) {
     return process_bam(arg);
 }
 
-
 int process_bam(LogLike::argument_type &arg) {
     using namespace hts::bcf;
 
@@ -189,14 +188,14 @@ int process_bam(LogLike::argument_type &arg) {
         }
         // add regions
         if(!arg.region.empty()) {
-            bamdata.back().regions(regions::bam_parse(arg.region,bamdata.back()));
+            bamdata.back().regions(regions::bam_parse_region(arg.region,bamdata.back()));
         }
         // Add each genotype/sample column
         rgs.ParseHeaderText(bamdata, arg.rgtag);
     }
 
     // Construct peeling algorithm from parameters and pedigree information
-    dng::Pedigree pedigree;
+    dng::RelationshipGraph pedigree;
     if(!pedigree.Construct(ped, rgs, arg.mu, arg.mu_somatic, arg.mu_library)) {
         throw std::runtime_error("Unable to construct peeler for pedigree; "
                                  "possible non-zero-loop pedigree.");
@@ -307,7 +306,7 @@ int process_ad(LogLike::argument_type &arg) {
     rgs.ParseLibraries(input.libraries());
 
     // Construct peeling algorithm from parameters and pedigree information
-    Pedigree pedigree;
+    RelationshipGraph pedigree;
     if(!pedigree.Construct(ped, rgs, arg.mu, arg.mu_somatic, arg.mu_library)) {
         throw runtime_error("Unable to construct peeler for pedigree; "
                             "possible non-zero-loop pedigree.");
@@ -434,7 +433,7 @@ int process_ad(LogLike::argument_type &arg) {
 }
 
 // pedigree_ will be initialized before work_, so we will reference it.
-LogProbability::LogProbability(Pedigree pedigree, params_t params) :
+LogProbability::LogProbability(RelationshipGraph pedigree, params_t params) :
     pedigree_{std::move(pedigree)},
     params_(std::move(params)), genotype_likelihood_{params.params_a, params.params_b},
     work_{pedigree_.CreateWorkspace()} {
@@ -454,13 +453,13 @@ LogProbability::LogProbability(Pedigree pedigree, params_t params) :
  
     for(size_t child = 0; child < work_.num_nodes; ++child) {
         auto trans = pedigree_.transitions()[child];
-        if(trans.type == Pedigree::TransitionType::Germline) {
+        if(trans.type == RelationshipGraph::TransitionType::Germline) {
             auto dad = f81::matrix(trans.length1, params_.nuc_freq);
             auto mom = f81::matrix(trans.length2, params_.nuc_freq);
 
             full_transition_matrices_[child] = meiosis_diploid_matrix(dad, mom);
-        } else if(trans.type == Pedigree::TransitionType::Somatic ||
-                  trans.type == Pedigree::TransitionType::Library) {
+        } else if(trans.type == RelationshipGraph::TransitionType::Somatic ||
+                  trans.type == RelationshipGraph::TransitionType::Library) {
             auto orig = f81::matrix(trans.length1, params_.nuc_freq);
 
             full_transition_matrices_[child] = mitosis_diploid_matrix(orig);
@@ -477,7 +476,7 @@ LogProbability::LogProbability(Pedigree pedigree, params_t params) :
         // enumerate over all children
         for(size_t child = 0; child < work_.num_nodes; ++child) {
             auto trans = pedigree_.transitions()[child];
-            if(trans.type == Pedigree::TransitionType::Germline) {
+            if(trans.type == RelationshipGraph::TransitionType::Germline) {
                 // resize transition matrix to w*w,w
                 transition_matrices_[color][child].resize(width*width,width);
                 // Assume column major order which is the default
@@ -495,8 +494,8 @@ LogProbability::LogProbability(Pedigree pedigree, params_t params) :
                         }
                     }
                 }
-            } else if(trans.type == Pedigree::TransitionType::Somatic ||
-                      trans.type == Pedigree::TransitionType::Library) {
+            } else if(trans.type == RelationshipGraph::TransitionType::Somatic ||
+                      trans.type == RelationshipGraph::TransitionType::Library) {
                 transition_matrices_[color][child].resize(width,width);
                 // Assume column major order which is the default
                 for(int x = 0; x < width; ++x) {

@@ -20,11 +20,57 @@
 
 #include <string.h>
 #include <iostream>
+#include <vector>
+
 #include "pedParser.h"
 using namespace std;
 
+void parse_ped(string ped_file, std::vector<Trio> &trios, std::vector<Pair> &pairs) {
+
+	FILE *fp;
+    fp = fopen(ped_file.c_str(), "r");
+    if(fp == NULL) {
+        printf("\nUnable to open PED file, Exiting !\n");
+        exit(0);
+    }
+
+    char line[LINE_LENGTH];
+    char col[4][ID_LENGTH];
+    int nline = 0;
+
+    unsigned int position = 0;
+    while(fgets(line, 10000, fp) != NULL) {
+        if(nline++ > 10000) {
+            printf("Error allocating memory for number of lines in PED file.");
+            exit(1);
+        }
+        sscanf(line, "%s %s %s %s", col[0], col[1], col[2], col[3]);
+
+        if((strcmp(col[2], "0") != 0) && (strcmp(col[3], "0") != 0)) {
+        	Trio tmp;
+            strcpy(tmp.fID, col[0]);  // Get Family ID
+            strcpy(tmp.cID, col[1]);  // Get Child ID
+            strcpy(tmp.dID, col[2]);  // Get Dad ID
+            strcpy(tmp.mID, col[3]);  // Get Mom ID
+            trios.push_back(tmp);
+
+        } else if((strcmp(col[2], "0") != 0) && (strcmp(col[3], "0") == 0)) {
+        	Pair tmp;
+        	strcpy(tmp.pairID, col[0]);  // Get Pair ID
+        	strcpy(tmp.tumorID, col[1]);  // Get Tumor Sample ID
+        	strcpy(tmp.normalID, col[2]);  // Get Normal Sample ID
+        	pairs.push_back(tmp);
+
+        }
+    }
+    fclose(fp);
+
+}
+
+
+/*
 // Parse PED file and get trio information
-void parse_ped(string ped_file, Trio **t, Pair **p, int &trio_count,
+void parse_ped1(string ped_file, Trio **t, Pair **p, int &trio_count,
                int &pair_count) {
     Trio *trios;
 
@@ -110,3 +156,4 @@ void parse_ped(string ped_file, Trio **t, Pair **p, int &trio_count,
     *p = pairs;
     *t = trios;
 }
+*/

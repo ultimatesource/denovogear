@@ -35,7 +35,7 @@
 #include <boost/algorithm/string.hpp>
 
 #include <dng/task/call.h>
-#include <dng/pedigree.h>
+#include <dng/relationship_graph.h>
 #include <dng/fileio.h>
 #include <dng/pileup.h>
 #include <dng/read_group.h>
@@ -49,6 +49,8 @@
 #include <dng/stats.h>
 #include <dng/io/utility.h>
 #include <dng/find_mutations.h>
+
+#include "htslib/synced_bcf_reader.h"
 
 #include <htslib/faidx.h>
 #include <htslib/khash.h>
@@ -165,54 +167,7 @@ void vcf_add_header_text(hts::bcf::File &vcfout, task::Call::argument_type &arg)
     vcfout.AddHeaderMetadata("##FORMAT=<ID=MU1P,Number=1,Type=Float,Description=\"Conditional probability that this node contains a de novo mutation given only 1 de novo mutation\">");
 }
 
-// Build a list of all of the possible contigs to add to the vcf header
-std::vector<std::pair<std::string, uint32_t>> parse_contigs(
-const bam_hdr_t *hdr) {
-    if(hdr == nullptr)
-        return {};
-    std::vector<std::pair<std::string, uint32_t>> contigs;
-    uint32_t n_targets = hdr->n_targets;
-    for(size_t a = 0; a < n_targets; a++) {
-        if(hdr->target_name[a] == nullptr) {
-            continue;
-        }
-        contigs.emplace_back(hdr->target_name[a], hdr->target_len[a]);
-    }
-    return contigs;
-}
 
-
-// VCF header lacks a function to get sequence lengths
-// So we will extract the contig lines from the input header
-std::vector<std::string> extract_contigs(const bcf_hdr_t *hdr) {
-    if(hdr == nullptr)
-        return {};
-    // Read text of header
-    int len;
-    std::unique_ptr<char[], void(*)(void *)> str{bcf_hdr_fmt_text(hdr, 0, &len), free};
-    if(!str)
-        return {};
-    std::vector<std::string> contigs;
-
-    // parse ##contig lines
-    const char *text = str.get();
-    if(strncmp(text, "##contig=", 9) != 0) {
-        text = strstr(text, "\n##contig=");
-    } else {
-        text = text - 1;
-    }
-    const char *end;
-    for(; text != nullptr; text = strstr(end, "\n##contig=")) {
-        for(end = text + 10; *end != '\n' && *end != '\0'; ++end)
-            /*noop*/;
-        if(*end != '\n') {
-            return contigs;    // bad header, return what we have.
-        }
-        contigs.emplace_back(text + 1, end);
-    }
-
-    return contigs;
-}
 
 // The main loop for dng-call application
 // argument_type arg holds the processed command line arguments
@@ -313,24 +268,34 @@ int task::Call::operator()(Call::argument_type &arg) {
     // replace arg.region with the contents of a file if needed
     io::at_slurp(arg.region);
 
+    bcf_srs_t *rec_reader;
+
     if(cat == sequence_data) {
         // Wrap input in hts::bam::File
         for(auto && f : indata) {
        	    bamdata.emplace_back(std::move(f), arg.fasta.c_str(),
 				 arg.min_mapqual, arg.header.c_str());
         }
+
         if(!arg.region.empty()) {
-            for(auto && f : bamdata) {
-                auto r = regions::bam_parse(arg.region, f);
-                f.regions(std::move(r));
-            }
+			if(arg.region.find(".bed")!=std::string::npos){
+				for(auto && f : bamdata) {
+					auto r = regions::bam_parse_bed(arg.region, f);
+					f.regions(std::move(r));
+				}
+			}else{
+				for(auto && f : bamdata) {
+					auto r = regions::bam_parse_region(arg.region, f);
+					f.regions(std::move(r));
+				}
+			}
         }
 
         // Read header from first file
         const bam_hdr_t *h = bamdata[0].header();
 
         // Add contigs to header
-        for(auto && contig : parse_contigs(h)) {
+        for(auto && contig : hts::extra::parse_contigs(h)) {
             vcfout.AddContig(contig.first.c_str(), contig.second);
         }
 
@@ -338,11 +303,41 @@ int task::Call::operator()(Call::argument_type &arg) {
         rgs.ParseHeaderText(bamdata, arg.rgtag);
     } else if(cat == variant_data) {
         bcfdata.emplace_back(std::move(indata[0]));
+        rec_reader = bcf_sr_init(); // used for iterating each rec in BCF/VCF
+
+		// Open region if specified
+		if(!arg.region.empty()) {
+			int is_file = (arg.region.find("bed") != std::string::npos)? 1 : 0;
+			int ret = bcf_sr_set_regions(rec_reader, arg.region.c_str(), is_file);
+			if(ret == -1) {
+				throw std::runtime_error("no records in the query region " + arg.region);
+			}
+		}
+
+		// Initialize the record reader to iterate through the BCF/VCF input
+		int ret = bcf_sr_add_reader(rec_reader, bcfdata[0].name());
+		if(ret == 0) {
+			int errnum = rec_reader->errnum;
+			switch(errnum) {
+			case not_bgzf:
+				throw std::runtime_error("Input file type does not allow for region searchs. Exiting!");
+				break;
+			case idx_load_failed:
+				throw std::runtime_error("Unable to load query region, no index. Exiting!");
+				break;
+			case file_type_error:
+				throw std::runtime_error("Could not load filetype. Exiting!");
+				break;
+			default:
+				throw std::runtime_error("Could not load input sequence file into htslib. Exiting!");
+			};
+		}
+
         // Read header from first file
-        const bcf_hdr_t *h = bcfdata[0].header();
+        const bcf_hdr_t *h = bcf_sr_get_header(rec_reader, 0);
 
         // Add contigs to header
-        for(auto && contig : extract_contigs(h)) {
+        for(auto && contig : hts::extra::extract_contigs(h)) {
             vcfout.AddHeaderMetadata(contig.c_str());
         }
         // Add each genotype/sample column
@@ -352,7 +347,7 @@ int task::Call::operator()(Call::argument_type &arg) {
     }
 
     // Construct peeling algorithm from parameters and pedigree information
-    dng::Pedigree pedigree;
+    dng::RelationshipGraph pedigree;
     if(!pedigree.Construct(ped, rgs, arg.mu, arg.mu_somatic, arg.mu_library)) {
         throw std::runtime_error("Unable to construct peeler for pedigree; "
                                  "possible non-zero-loop pedigree.");
@@ -671,7 +666,7 @@ int task::Call::operator()(Call::argument_type &arg) {
     } else if(cat == variant_data) {
         const char *fname = bcfdata[0].name();
         dng::pileup::vcf::VCFPileup vcfpileup{rgs.libraries()};
-        vcfpileup(fname, [&](bcf_hdr_t *hdr, bcf1_t *rec) {
+        vcfpileup(fname, rec_reader, [&](bcf_hdr_t *hdr, bcf1_t *rec){
             // Won't be able to access ref->d unless we unpack the record first
             bcf_unpack(rec, BCF_UN_STR);
 
