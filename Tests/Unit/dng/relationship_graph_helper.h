@@ -32,6 +32,10 @@
 
 #define DNG_GL_PREFIX "GL-"
 
+constexpr size_t S_MAX = static_cast<size_t>(-1);
+//std::numeric_limits<std::size_t>::max();
+
+
 typedef std::tuple<int, int, graph::EdgeType, float> EdgeInfo;
 
 struct EdgeInfo2{
@@ -53,10 +57,6 @@ std::vector<EdgeInfo> extract_edge_info(Graph &pedigree_graph) {
         EdgeInfo pi = std::make_tuple(node_index[source(*ei, pedigree_graph)],
                                       node_index[target(*ei, pedigree_graph)],
                                       edge_types[*ei], edge_length[*ei]);
-//        std::cout <<  static_cast<std::underlying_type<graph::EdgeType>::type>(edge_types[*ei]) << std::cout;
-//        std::cout <<  static_cast<std::underlying_type<graph::EdgeType>::type> (graph::EdgeType::Library) << std::endl;
-//        std::cout <<  static_cast<int> (graph::EdgeType::Library) << std::endl;
-//        std::cout <<  static_cast<int> (edge_types[*ei]) << "\t" << edge_length[*ei] << std::endl;
         edge_info_vector.push_back(pi);
     }
     sort(edge_info_vector.begin(), edge_info_vector.end());
@@ -70,7 +70,7 @@ void boost_check_equal_edge(EdgeInfo expected, EdgeInfo actual){
     BOOST_CHECK_EQUAL(std::get<1>(expected), std::get<1>(actual));
     BOOST_CHECK(std::get<2>(expected) == std::get<2>(actual));
     BOOST_CHECK_EQUAL(std::get<3>(expected), std::get<3>(actual));
-    BOOST_TEST_MESSAGE("Edge:" << std::get<0>(expected) << "-" << std::get<1>(expected)) ;
+//    BOOST_TEST_MESSAGE("Edge:" << std::get<0>(expected) << "-" << std::get<1>(expected)) ;
 }
 
 
