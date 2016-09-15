@@ -7,6 +7,23 @@ Authors: Don Conrad, Avinash Ramu, Kael Dai, and Reed A. Cartwright.
 
 DeNovoGear is a software package to detect *de novo* mutations using next-generation sequencing data. It supports the analysis of many differential experimental designs and uses advanced statistical models to reduce the false positve rate.
 
+## Table of Contents
+* [INSTALLATION](#installation)
+  * [Download](#download)
+  * [Compiling](#compiling)
+  * [Installation](#installation-1)
+  * [Testing](#testing)
+* [RUNNING THE CODE](#running-the-code)
+  * [Synposis](#synposis)
+  * [dng call: Finding Mutations in General Pedigrees](#dng-call-finding-mutations-in-general-pedigrees)
+  * [dng dnm: Finding Denovo Mutations in trios and pairs.](#dng-dnm-finding-denovo-mutations-in-trios-and-pairs)
+  * [Separate models for the X chromosome](#separate-models-for-the-x-chromosome)
+  * [PAIRED SAMPLE ANALYSIS](#paired-sample-analysis)
+  * [PHASER](#phaser)
+  * [General options for TRIOs and Paired Sample Calling](#general-options-for-trios-and-paired-sample-calling)
+* [RELEASE NOTES](#release-notes)
+* [DEPENDENCIES](#dependencies)
+* [ACKNOWLEDGEMENTS](#acknowledgements)
 
 ## INSTALLATION
 
@@ -390,7 +407,7 @@ DNG contains code to [download and build missing dependencies](#build-missing-de
 
 ### dng treecall: Finding Mutations and Trees from Single Cell Sequencing
 
-`dng treecall` is an experimental module to identify mutations and trees from whole-genome sequencing of single cells 
+`dng treecall` is an experimental module to identify mutations and trees from whole-genome sequencing of single cells
 
 #### Usage:
 
