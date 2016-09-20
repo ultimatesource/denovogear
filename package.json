@@ -3,12 +3,20 @@
   "version": "0.0.1",
   "description": "Visualization for denovogear output",
   "main": "app.js",
+  "scripts": {
+    "test": "node_modules/.bin/mocha test/",
+    "lint": "node_modules/.bin/jshint src test",
+    "browserify": "node_modules/.bin/browserify src/*.js -o dest/bundle.js",
+    "build": "npm run lint && npm test && npm run browserify",
+    "clean": "rm -r dest/*"
+  },
   "dependencies": {
     "vcf.js": "^0.2.6"
   },
-  "devDependencies": {},
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "devDependencies": {
+    "browserify": "^13.1.0",
+    "jshint": "^2.9.3",
+    "mocha": "^3.0.2"
   },
   "repository": {
     "type": "git",
