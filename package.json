@@ -11,6 +11,7 @@
     "clean": "rm -r dest/*"
   },
   "dependencies": {
+    "d3": "^4.2.5",
     "vcf.js": "^0.2.6"
   },
   "devDependencies": {

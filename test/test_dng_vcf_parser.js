@@ -7,5 +7,5 @@ describe('dng vcf parser', function() {
   it('read file', function() {
     var vcfText = fs.readFileSync('test/data/dng.vcf', 'utf8');
     dngVCFParser.parseVCFText(vcfText);
-  })
+  });
 });
