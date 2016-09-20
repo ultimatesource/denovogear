@@ -1,0 +1,23 @@
+{
+  "name": "dng-vis",
+  "version": "0.0.1",
+  "description": "Visualization for denovogear output",
+  "main": "app.js",
+  "dependencies": {
+    "vcf.js": "^0.2.6"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anderspitman/dng-vis.git"
+  },
+  "author": "Anders Pitman",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/anderspitman/dng-vis/issues"
+  },
+  "homepage": "https://github.com/anderspitman/dng-vis#readme"
+}
