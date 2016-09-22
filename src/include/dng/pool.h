@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Reed A. Cartwright
+ * Copyright (c) 2014-2016 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -23,6 +23,21 @@
 
 #include <boost/intrusive/list.hpp>
 #include <boost/noncopyable.hpp>
+
+#if BOOST_VERSION < 105500
+// boost::intrusive::is_safe_autounlink was first defined in version 1.55
+namespace boost {
+namespace intrusive {
+template <link_mode_type link_mode>
+struct is_safe_autounlink
+{
+   static const bool value =
+      (int)link_mode == (int)auto_unlink   ||
+      (int)link_mode == (int)safe_link;
+};
+}
+}
+#endif
 
 namespace dng {
 
