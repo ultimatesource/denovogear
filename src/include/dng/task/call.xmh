@@ -54,8 +54,8 @@ XM((rgtag), , "combine read groups using @RG tags, e.g. ID, SM, LB, or DS.",
 XM((sam)(files), (s), "file containing a list of input filenames, one per line",
    std::string, "")
 XM((theta), , "the population diversity", double, DL(0.001, "0.001"))
-
-
+XM((model), (M), "Inheritance model, currently only support autosomal", std::string, "Autosomal")
+//TODO(SW): Change help text later
 
 /***************************************************************************
  *    cleanup                                                              *

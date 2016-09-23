@@ -57,7 +57,7 @@ public:
         std::size_t child;
         std::size_t dad;
         std::size_t mom;
-        Gender sex;
+        Gender gender;
         std::string sample_tree;
     };
 

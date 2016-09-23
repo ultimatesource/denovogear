@@ -270,6 +270,9 @@ int task::Call::operator()(Call::argument_type &arg) {
 
     bcf_srs_t *rec_reader;
 
+    InheritanceModel inheritance_model;
+    inheritance_model.parse_model(arg.model);
+
     if(cat == sequence_data) {
         // Wrap input in hts::bam::File
         for(auto && f : indata) {
@@ -347,35 +350,37 @@ int task::Call::operator()(Call::argument_type &arg) {
     }
 
     // Construct peeling algorithm from parameters and pedigree information
-    dng::RelationshipGraph pedigree;
-    if(!pedigree.Construct(ped, rgs, arg.mu, arg.mu_somatic, arg.mu_library)) {
+    dng::RelationshipGraph relationship_graph;
+    if (!relationship_graph.Construct(ped, rgs,
+                                      inheritance_model.GetInheritancePattern(),
+                                      arg.mu, arg.mu_somatic, arg.mu_library)) {
         throw std::runtime_error("Unable to construct peeler for pedigree; "
-                                 "possible non-zero-loop pedigree.");
+                                 "possible non-zero-loop relationship_graph.");
     }
     if(arg.gamma.size() < 2) {
         throw std::runtime_error("Unable to construct genotype-likelihood model; "
                                  "Gamma needs to be specified at least twice to change model from default.");
     }
 
-    for(auto && line : pedigree.BCFHeaderLines()) {
+    for(auto && line : relationship_graph.BCFHeaderLines()) {
         vcfout.AddHeaderMetadata(line.c_str());
     }
 
-    FindMutations calculate ( min_prob, pedigree,
+    FindMutations calculate ( min_prob, relationship_graph,
         { arg.theta, freqs, arg.ref_weight, arg.gamma[0], arg.gamma[1] } );
 
     // Pileup data
     std::vector<depth_t> read_depths(rgs.libraries().size());
 
     // Finish Header
-    for(auto && str : pedigree.labels()) {
+    for(auto && str : relationship_graph.labels()) {
         vcfout.AddSample(str.c_str());
     }
     vcfout.WriteHeader();
 
     auto record = vcfout.InitVariant();
-    const size_t num_nodes = pedigree.num_nodes();
-    const size_t library_start = pedigree.library_nodes().first;
+    const size_t num_nodes = relationship_graph.num_nodes();
+    const size_t library_start = relationship_graph.library_nodes().first;
 
     FindMutations::stats_t stats;
 

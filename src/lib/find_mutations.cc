@@ -29,11 +29,11 @@ FindMutations::~FindMutations() {
 }
 
 
-FindMutations::FindMutations(double min_prob, const RelationshipGraph &pedigree,
+FindMutations::FindMutations(double min_prob, const RelationshipGraph &graph,
                              params_t params) :
-    pedigree_(pedigree), min_prob_(min_prob),
+    relationship_graph_(graph), min_prob_(min_prob),
     params_(params), genotype_likelihood_{params.params_a, params.params_b},
-    work_full_(pedigree.CreateWorkspace()), work_nomut_(pedigree.CreateWorkspace()) {
+    work_full_(graph.CreateWorkspace()), work_nomut_(graph.CreateWorkspace()) {
 
     using namespace dng;
 
@@ -53,12 +53,13 @@ FindMutations::FindMutations(double min_prob, const RelationshipGraph &pedigree,
     mean_matrices_.assign(work_full_.num_nodes, {});
 
     for(size_t child = 0; child < work_full_.num_nodes; ++child) {
-        auto trans = pedigree.transitions()[child];
+        auto trans = relationship_graph_.transitions()[child];
         if(trans.type == RelationshipGraph::TransitionType::Germline) {
             auto dad = f81::matrix(trans.length1, params_.nuc_freq);
             auto mom = f81::matrix(trans.length2, params_.nuc_freq);
 
             full_transition_matrices_[child] = meiosis_diploid_matrix(dad, mom);
+
             nomut_transition_matrices_[child] = meiosis_diploid_matrix(dad, mom, 0);
             posmut_transition_matrices_[child] = full_transition_matrices_[child] -
                                                  nomut_transition_matrices_[child];
@@ -88,8 +89,8 @@ FindMutations::FindMutations(double min_prob, const RelationshipGraph &pedigree,
     for (int ref_index = 0; ref_index < 5; ++ref_index) {
         work_nomut_.SetFounders(genotype_prior_[ref_index]);
 
-        pedigree_.PeelForwards(work_nomut_, nomut_transition_matrices_);
-        pedigree_.PeelBackwards(work_nomut_, nomut_transition_matrices_);
+        relationship_graph_.PeelForwards(work_nomut_, nomut_transition_matrices_);
+        relationship_graph_.PeelBackwards(work_nomut_, nomut_transition_matrices_);
         event_.assign(work_nomut_.num_nodes, 0.0);
         double total = 0.0, entropy = 0.0;
         for (std::size_t i = work_nomut_.founder_nodes.second;
@@ -107,6 +108,7 @@ FindMutations::FindMutations(double min_prob, const RelationshipGraph &pedigree,
         max_entropies_[ref_index] = (-entropy / total + log(total)) / M_LN2;
     }
 #endif
+
 
 }
 
@@ -134,12 +136,13 @@ bool FindMutations::operator()(const std::vector<depth_t> &depths,
     work_full_.SetFounders(genotype_prior_[ref_index]);
     work_nomut_ = work_full_;
 
-
     bool is_mup_less_threshold = CalculateMutationProb(mutation_stats);
+
     if (is_mup_less_threshold) {
         return false;
     }
-    pedigree_.PeelBackwards(work_full_, full_transition_matrices_);
+
+    relationship_graph_.PeelBackwards(work_full_, full_transition_matrices_);
 
     mutation_stats.SetGenotypeLikelihoods(work_full_, depths.size());
     mutation_stats.SetScaledLogLikelihood(scale);
@@ -174,8 +177,8 @@ bool FindMutations::operator()(const std::vector<depth_t> &depths,
     /**** Forward-Backwards with no-mutation ****/
 
     // TODO: Better to use a separate workspace???
-    pedigree_.PeelForwards(work_nomut_, nomut_transition_matrices_);
-    pedigree_.PeelBackwards(work_nomut_, nomut_transition_matrices_);
+    relationship_graph_.PeelForwards(work_nomut_, nomut_transition_matrices_);
+    relationship_graph_.PeelBackwards(work_nomut_, nomut_transition_matrices_);
     event_.assign(work_nomut_.num_nodes, 0.0);
     double total = 0.0, entropy = 0.0, max_coeff = -1.0;
     size_t dn_loc = 0, dn_col = 0, dn_row = 0;
@@ -214,8 +217,8 @@ bool FindMutations::operator()(const std::vector<depth_t> &depths,
         stats->dnc = std::round(100.0 * (1.0 - entropy));
 
         stats->dnq = lphred<int32_t>(1.0 - (max_coeff / total), 255);
-        stats->dnl = pedigree_.labels()[dn_loc];
-        if(pedigree_.transitions()[dn_loc].type == RelationshipGraph::TransitionType::Germline) {
+        stats->dnl = relationship_graph_.labels()[dn_loc];
+        if(relationship_graph_.transitions()[dn_loc].type == RelationshipGraph::TransitionType::Germline) {
             stats->dnt = &meiotic_diploid_mutation_labels[dn_row][dn_col][0];
         } else {
             stats->dnt = &mitotic_diploid_mutation_labels[dn_row][dn_col][0];
@@ -234,10 +237,10 @@ bool FindMutations::operator()(const std::vector<depth_t> &depths,
 bool FindMutations::CalculateMutationProb(MutationStats &mutation_stats) {
 
 	// Calculate log P(Data, nomut ; model)
-	pedigree_.PeelForwards(work_nomut_, nomut_transition_matrices_);
+	relationship_graph_.PeelForwards(work_nomut_, nomut_transition_matrices_);
 
 	// Calculate log P(Data ; model)
-	pedigree_.PeelForwards(work_full_, full_transition_matrices_);
+	relationship_graph_.PeelForwards(work_full_, full_transition_matrices_);
 
 	// P(mutation | Data ; model) = 1 - [ P(Data, nomut ; model) / P(Data ; model) ]
 	bool is_mup_less_threshold = mutation_stats.CalculateMutationProb(
