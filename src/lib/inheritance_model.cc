@@ -19,6 +19,7 @@
 
 #include <dng/inheritance_model.h>
 #include <iostream>
+#include <stdexcept>
 
 dng::InheritanceModel::~InheritanceModel() {
 }
