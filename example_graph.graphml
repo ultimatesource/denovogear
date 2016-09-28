@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
+  <key id="key0" for="edge" attr.name="family" attr.type="long" />
+  <key id="key1" for="node" attr.name="group" attr.type="long" />
+  <key id="key2" for="node" attr.name="label" attr.type="string" />
+  <key id="key3" for="edge" attr.name="length" attr.type="float" />
+  <graph id="G" edgedefault="undirected" parse.nodeids="free" parse.edgeids="canonical" parse.order="nodesfirst">
+    <node id="n0">
+      <data key="key1">0</data>
+      <data key="key2">GL-unknown</data>
+    </node>
+    <node id="n1">
+      <data key="key1">1</data>
+      <data key="key2">GL-1</data>
+    </node>
+    <node id="n2">
+      <data key="key1">1</data>
+      <data key="key2">GL-2</data>
+    </node>
+    <node id="n3">
+      <data key="key1">1</data>
+      <data key="key2">GL-4</data>
+    </node>
+    <node id="n4">
+      <data key="key1">1</data>
+      <data key="key2">GL-5</data>
+    </node>
+    <node id="n5">
+      <data key="key1">1</data>
+      <data key="key2">GL-9</data>
+    </node>
+    <node id="n6">
+      <data key="key1">1</data>
+      <data key="key2">GL-10</data>
+    </node>
+    <node id="n7">
+      <data key="key1">1</data>
+      <data key="key2">GL-3</data>
+    </node>
+    <node id="n8">
+      <data key="key1">1</data>
+      <data key="key2">GL-6</data>
+    </node>
+    <node id="n9">
+      <data key="key1">1</data>
+      <data key="key2">GL-11</data>
+    </node>
+    <node id="n10">
+      <data key="key1">2</data>
+      <data key="key2">GL-7</data>
+    </node>
+    <node id="n11">
+      <data key="key1">1</data>
+      <data key="key2">GL-8</data>
+    </node>
+    <node id="n12">
+      <data key="key1">3</data>
+      <data key="key2">GL-12</data>
+    </node>
+    <node id="n13">
+      <data key="key1">4</data>
+      <data key="key2">SM-NA12001</data>
+    </node>
+    <node id="n14">
+      <data key="key1">5</data>
+      <data key="key2">SM-NA12002</data>
+    </node>
+    <node id="n15">
+      <data key="key1">6</data>
+      <data key="key2">SM-NA12004</data>
+    </node>
+    <node id="n16">
+      <data key="key1">7</data>
+      <data key="key2">SM-NA12005</data>
+    </node>
+    <node id="n17">
+      <data key="key1">8</data>
+      <data key="key2">SM-NA12009</data>
+    </node>
+    <node id="n18">
+      <data key="key1">9</data>
+      <data key="key2">SM-NA12010</data>
+    </node>
+    <node id="n19">
+      <data key="key1">10</data>
+      <data key="key2">SM-NA12003</data>
+    </node>
+    <node id="n20">
+      <data key="key1">11</data>
+      <data key="key2">SM-NA12006</data>
+    </node>
+    <node id="n21">
+      <data key="key1">12</data>
+      <data key="key2">SM-NA12011</data>
+    </node>
+    <node id="n22">
+      <data key="key1">13</data>
+      <data key="key2">SM-NA12007</data>
+    </node>
+    <node id="n23">
+      <data key="key1">14</data>
+      <data key="key2">SM-NA12008</data>
+    </node>
+    <node id="n24">
+      <data key="key1">15</data>
+      <data key="key2">SM-NA12012</data>
+    </node>
+    <node id="n25">
+      <data key="key1">1</data>
+      <data key="key2">LB-NA12001:Solexa-001</data>
+    </node>
+    <node id="n26">
+      <data key="key1">1</data>
+      <data key="key2">LB-NA12002:Solexa-002</data>
+    </node>
+    <node id="n27">
+      <data key="key1">1</data>
+      <data key="key2">LB-NA12003:Solexa-003</data>
+    </node>
+    <node id="n28">
+      <data key="key1">1</data>
+      <data key="key2">LB-NA12004:Solexa-004</data>
+    </node>
+    <node id="n29">
+      <data key="key1">1</data>
+      <data key="key2">LB-NA12005:Solexa-005</data>
+    </node>
+    <node id="n30">
+      <data key="key1">1</data>
+      <data key="key2">LB-NA12006:Solexa-006</data>
+    </node>
+    <node id="n31">
+      <data key="key1">1</data>
+      <data key="key2">LB-NA12007:Solexa-007</data>
+    </node>
+    <node id="n32">
+      <data key="key1">1</data>
+      <data key="key2">LB-NA12008:Solexa-008</data>
+    </node>
+    <node id="n33">
+      <data key="key1">1</data>
+      <data key="key2">LB-NA12009:Solexa-009</data>
+    </node>
+    <node id="n34">
+      <data key="key1">1</data>
+      <data key="key2">LB-NA12010:Solexa-010</data>
+    </node>
+    <node id="n35">
+      <data key="key1">1</data>
+      <data key="key2">LB-NA12011:Solexa-011</data>
+    </node>
+    <node id="n36">
+      <data key="key1">1</data>
+      <data key="key2">LB-NA12012:Solexa-012</data>
+    </node>
+    <edge id="e0" source="n1" target="n2">
+      <data key="key0">13</data>
+      <data key="key3">0</data>
+    </edge>
+    <edge id="e1" source="n2" target="n7">
+      <data key="key0">13</data>
+      <data key="key3">1e-08</data>
+    </edge>
+    <edge id="e2" source="n1" target="n7">
+      <data key="key0">13</data>
+      <data key="key3">1e-08</data>
+    </edge>
+    <edge id="e3" source="n3" target="n4">
+      <data key="key0">2</data>
+      <data key="key3">0</data>
+    </edge>
+    <edge id="e4" source="n4" target="n8">
+      <data key="key0">2</data>
+      <data key="key3">1e-08</data>
+    </edge>
+    <edge id="e5" source="n3" target="n8">
+      <data key="key0">2</data>
+      <data key="key3">1e-08</data>
+    </edge>
+    <edge id="e6" source="n6" target="n5">
+      <data key="key0">5</data>
+      <data key="key3">0</data>
+    </edge>
+    <edge id="e7" source="n5" target="n9">
+      <data key="key0">5</data>
+      <data key="key3">1e-08</data>
+    </edge>
+    <edge id="e8" source="n6" target="n9">
+      <data key="key0">5</data>
+      <data key="key3">1e-08</data>
+    </edge>
+    <edge id="e9" source="n7" target="n8">
+      <data key="key0">10</data>
+      <data key="key3">0</data>
+    </edge>
+    <edge id="e10" source="n8" target="n11">
+      <data key="key0">10</data>
+      <data key="key3">1e-08</data>
+    </edge>
+    <edge id="e11" source="n7" target="n11">
+      <data key="key0">10</data>
+      <data key="key3">1e-08</data>
+    </edge>
+    <edge id="e12" source="n9" target="n11">
+      <data key="key0">7</data>
+      <data key="key3">0</data>
+    </edge>
+    <edge id="e13" source="n11" target="n32">
+      <data key="key0">8</data>
+      <data key="key3">2e-08</data>
+    </edge>
+    <edge id="e14" source="n9" target="n35">
+      <data key="key0">6</data>
+      <data key="key3">2e-08</data>
+    </edge>
+    <edge id="e15" source="n8" target="n30">
+      <data key="key0">9</data>
+      <data key="key3">2e-08</data>
+    </edge>
+    <edge id="e16" source="n7" target="n27">
+      <data key="key0">11</data>
+      <data key="key3">2e-08</data>
+    </edge>
+    <edge id="e17" source="n6" target="n34">
+      <data key="key0">3</data>
+      <data key="key3">2e-08</data>
+    </edge>
+    <edge id="e18" source="n5" target="n33">
+      <data key="key0">4</data>
+      <data key="key3">2e-08</data>
+    </edge>
+    <edge id="e19" source="n4" target="n29">
+      <data key="key0">1</data>
+      <data key="key3">2e-08</data>
+    </edge>
+    <edge id="e20" source="n3" target="n28">
+      <data key="key0">0</data>
+      <data key="key3">2e-08</data>
+    </edge>
+    <edge id="e21" source="n2" target="n26">
+      <data key="key0">12</data>
+      <data key="key3">2e-08</data>
+    </edge>
+    <edge id="e22" source="n1" target="n25">
+      <data key="key0">14</data>
+      <data key="key3">2e-08</data>
+    </edge>
+    <edge id="e23" source="n11" target="n36">
+      <data key="key0">7</data>
+      <data key="key3">3e-08</data>
+    </edge>
+    <edge id="e24" source="n9" target="n36">
+      <data key="key0">7</data>
+      <data key="key3">3e-08</data>
+    </edge>
+    <edge id="e25" source="n8" target="n31">
+      <data key="key0">10</data>
+      <data key="key3">3e-08</data>
+    </edge>
+    <edge id="e26" source="n7" target="n31">
+      <data key="key0">10</data>
+      <data key="key3">3e-08</data>
+    </edge>
+  </graph>
+</graphml>
