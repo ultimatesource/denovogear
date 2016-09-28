@@ -33,7 +33,7 @@ struct TrioWorkspace : public  ReadTrioFromFile {
 
     double min_prob;
 
-    dng::RelationshipGraph pedigree;
+    dng::RelationshipGraph r_graph;
     dng::peel::workspace_t workspace;
 
     int ref_index = 2;
@@ -46,14 +46,15 @@ struct TrioWorkspace : public  ReadTrioFromFile {
     TrioWorkspace(std::string s = "TrioWorkspace") : ReadTrioFromFile(s) {
         BOOST_TEST_MESSAGE("set up fixture: " << fixture);
 
-
-        pedigree.Construct(io_pedigree, rgs, arg.mu, arg.mu_somatic, arg.mu_library);
+        r_graph.Construct(io_pedigree, rgs, arg.mu, arg.mu_somatic,
+                                     arg.mu_library);
 
         std::array<double, 4> freqs;
         auto f = dng::utility::parse_double_list(arg.nuc_freqs, ',', 4);
         std::copy(f.first.begin(), f.first.end(), &freqs[0]);
 
-        test_param_1 = FindMutations::params_t {arg.theta, freqs, arg.ref_weight, arg.gamma[0], arg.gamma[1]};
+        test_param_1 = FindMutations::params_t {arg.theta, freqs,
+                arg.ref_weight, arg.gamma[0], arg.gamma[1]};
 
 
         int min_qual = arg.min_basequal;
@@ -81,7 +82,9 @@ struct TrioWorkspace : public  ReadTrioFromFile {
         std::array<double, 4> prior {};
         prior.fill(0);
         prior[ref_index] = test_param_1.ref_weight;
-        auto genotype_prior_prior = population_prior(test_param_1.theta, test_param_1.nuc_freq, prior);
+        auto genotype_prior_prior = population_prior(test_param_1.theta,
+                                                     test_param_1.nuc_freq,
+                                                     prior);
         workspace.SetFounders(genotype_prior_prior);
 
         std::vector<std::string> expect_gamma{"0.98, 0.0005, 0.0005, 1.04",
