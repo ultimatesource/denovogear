@@ -1,6 +1,8 @@
 /*
  * Copyright (c) 2014-2015 Reed A. Cartwright
+ * Copyright (c) 2016 Steven H. Wu
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
+ *           Steven H. Wu <stevenwu@asu.edu>
  *
  * This file is part of DeNovoGear.
  *
@@ -40,6 +42,8 @@ namespace dng {
 namespace io {
 
 class Pedigree {
+    const std::string FAM_IND_DELIM = "_F@I_";
+
 public:
     typedef boost::multi_index_container<std::string,
             boost::multi_index::indexed_by<
@@ -127,6 +131,9 @@ public:
         map<string, size_t> child_names;
         child_names.emplace("", 0);
         for(k = 1; k < string_table.size(); ++k) {
+            string_table[k][1] = string_table[k][0] + FAM_IND_DELIM + string_table[k][1];
+            string_table[k][2] = string_table[k][0] + FAM_IND_DELIM + string_table[k][2];
+            string_table[k][3] = string_table[k][0] + FAM_IND_DELIM + string_table[k][3];
             bool success = child_names.emplace(string_table[k][1], k).second;
             // If child name is duplicate, erase it
             if(!success) {

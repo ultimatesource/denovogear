@@ -69,8 +69,8 @@ BOOST_FIXTURE_TEST_CASE(test_constructor, FixturePedigree ) {
     auto labels = relationship_graph.labels();
 
     const std::vector<std::string> expected_labels = {
-        "GL-1", // founder 1
-        "GL-2", // founder 2
+        "GL-1_F@I_1", // founder 1
+        "GL-1_F@I_2", // founder 2
         "LB-NA12878:Solexa-135852",  // lib 1
         "LB-NA12891:Solexa-135851",  // lib 2
         "LB-NA12892:Solexa-135853"   // lib 3
@@ -239,9 +239,9 @@ BOOST_FIXTURE_TEST_CASE(test_add_lib_from_rgs, ReadTrioFromFile) {
 
     std::vector<std::string> expected_vertex{
         "GL-unknown",
-        "GL-1",
-        "GL-2",
-        "GL-3",
+        "GL-1_F@I_1",
+        "GL-1_F@I_2",
+        "GL-1_F@I_3",
         "SM-NA12891",
         "SM-NA12892",
         "SM-NA12878",
@@ -376,8 +376,8 @@ BOOST_FIXTURE_TEST_CASE(test_update_labels_node_ids, ReadTrioFromFile) {
             S_MAX,S_MAX,S_MAX,S_MAX,
             2, 3, 4};
     std::vector<std::string> expected_labels {
-        "GL-1",
-        "GL-2",
+        "GL-1_F@I_1",
+        "GL-1_F@I_2",
         "LB-NA12878:Solexa-135852",
         "LB-NA12891:Solexa-135851",
         "LB-NA12892:Solexa-135853"
