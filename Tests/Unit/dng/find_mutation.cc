@@ -216,7 +216,7 @@ BOOST_FIXTURE_TEST_CASE(test_calculate_mutation_expected, TrioWorkspace) {
     BOOST_CHECK_SMALL(0.116189 - mutation_stats.mu1p, 1e-6);
 
     BOOST_CHECK_EQUAL("GGxGG>GT", mutation_stats.dnt);
-    BOOST_CHECK_EQUAL("LB-NA12878:Solexa-135852", mutation_stats.dnl);
+    BOOST_CHECK_EQUAL("LB/NA12878:Solexa-135852", mutation_stats.dnl);
     BOOST_CHECK_EQUAL(42, mutation_stats.dnq);
 
 #if CALCULATE_ENTROPY == 1
