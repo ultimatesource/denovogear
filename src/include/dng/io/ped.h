@@ -42,7 +42,8 @@ namespace dng {
 namespace io {
 
 class Pedigree {
-    const std::string FAM_IND_DELIM = "_F@I_";
+    const std::string FAM_IND_DELIM = "\t";
+    const std::string OUTPUT_DELIM ="/";
 
 public:
     typedef boost::multi_index_container<std::string,
@@ -69,23 +70,30 @@ public:
 
     // How many members, including the dummy, are in the pedigree.
     std::size_t member_count() const {
-        return names_.size();
+        return output_names_.size();
     }
 
     // Fetch the name of a member of the pedigree
     const std::string &name(std::size_t id) const {
-        return names_[id];
+        return output_names_[id];
     }
 
     // Given the name of an individual return its id.
     // If the name is not valid, return the id of the 0-th
     // individual.
-    std::size_t id(const std::string &name) const {
-        auto it = names_.get<1>().find(name);
-        if(it == names_.get<1>().end()) {
+//    std::size_t id(const std::string &name) const {
+//        auto it = output_names_.get<1>().find(name);
+//        if(it == output_names_.get<1>().end()) {
+//            return std::size_t(0);
+//        }
+//        return output_names_.project<0>(it) - output_names_.begin();
+//    }
+    std::size_t id(const std::string &name, NameContainer &names) const {
+        auto it = names.get<1>().find(name);
+        if(it == names.get<1>().end()) {
             return std::size_t(0);
         }
-        return names_.project<0>(it) - names_.begin();
+        return names.project<0>(it) - names.begin();
     }
 
     const MemberTable &table() const {
@@ -128,18 +136,50 @@ public:
             k += 1;
         }
         // Build map of unique child names
-        map<string, size_t> child_names;
-        child_names.emplace("", 0);
+        bool is_individual_id_not_unique = false;
+        std::vector<std::size_t> dup_individual;
+        map<string, size_t> child_names {{"", 0}};
+        map<string, size_t> check_dup_id {{FAM_IND_DELIM, 0}};
         for(k = 1; k < string_table.size(); ++k) {
-            string_table[k][1] = string_table[k][0] + FAM_IND_DELIM + string_table[k][1];
-            string_table[k][2] = string_table[k][0] + FAM_IND_DELIM + string_table[k][2];
-            string_table[k][3] = string_table[k][0] + FAM_IND_DELIM + string_table[k][3];
+            auto f_i = string_table[k][0] + FAM_IND_DELIM + string_table[k][1];
+
             bool success = child_names.emplace(string_table[k][1], k).second;
-            // If child name is duplicate, erase it
-            if(!success) {
-                string_table[k][1].clear();
+            bool is_unique = check_dup_id.emplace(f_i, k).second;
+
+            if(!is_unique) {
+                dup_individual.push_back(k);
+            }
+            else if(!success && string_table[k][1]!=""){
+                is_individual_id_not_unique = true;
+                break;
             }
         }
+
+        if(is_individual_id_not_unique){
+            child_names.clear();
+            dup_individual.clear();
+            child_names.emplace("", 0);
+
+            for(k = 1; k < string_table.size(); ++k) {
+                string_table[k][1] = string_table[k][0] + FAM_IND_DELIM + string_table[k][1];
+                string_table[k][2] = string_table[k][0] + FAM_IND_DELIM + string_table[k][2];
+                string_table[k][3] = string_table[k][0] + FAM_IND_DELIM + string_table[k][3];
+
+                bool success = child_names.emplace(string_table[k][1], k).second;
+                if(!success) {
+                    dup_individual.push_back(k);
+                }
+            }
+        }
+
+        // If same family+individual is duplicate, erase it
+        for (auto i : dup_individual) {
+            std::cerr << "Duplicate entry ignored: "
+                    << string_table[i][0] << " "
+                    << string_table[i][1]<< std::endl;
+            string_table[i][1].clear();
+        }
+
         // Parent->children relationships
         vector<vector<size_t>> children(string_table.size());
         for(k = 1; k < string_table.size(); ++k) {
@@ -179,10 +219,14 @@ public:
             children[nmom].push_back(k);
         }
 
+
         // Add a dummy 0-th pedigree member to handle unknown individuals.
         // Use a breadth-first search starting at 0 to order pedigree
-        names_.clear();
-        names_.push_back("");
+
+        NameContainer output_order;
+        output_order.clear();
+        output_order.push_back("");
+
         vector<char> touched(string_table.size(), 0);
         touched[0] = 2;
         deque<size_t> visited{0};
@@ -194,33 +238,45 @@ public:
                 if(touched[a] == 0) {
                     touched[a] = 1;
                 } else if(touched[a] == 1) {
-                    names_.push_back(string_table[a][1]);
+                    output_order.push_back(string_table[a][1]);
                     visited.push_back(a);
                     touched[a] = 2;
                 }
             }
         }
-        // Construct table in the order of names_
+
+        // Construct table in the order of output_index
+        output_names_.clear();
+        output_names_.push_back("");
         table_.clear();
-        table_.emplace_back(Member{0, 0, 0, 0, Gender::Unknown, ""});
-        for(auto && name : names_) {
+        table_.emplace_back(Member {0, 0, 0, 0, Gender::Unknown, ""});
+        for(auto && name : output_order) {
+
             auto nrow = child_names[name];
-            auto child = id(string_table[nrow][1]);
-
-
+            auto child = id(string_table[nrow][1], output_order);
             if(child == 0) {
                 continue;
             }
-            table_.emplace_back(Member{
-                0,
-                child,
-                id(string_table[nrow][2]),
-                id(string_table[nrow][3]),
-                ParseGender(string_table[nrow][4]),
-                string_table[nrow][5]
-            });
+            table_.emplace_back(Member {
+                    0,
+                    child,
+                    id(string_table[nrow][2], output_order),
+                    id(string_table[nrow][3], output_order),
+                    ParseGender(string_table[nrow][4]),
+                    string_table[nrow][5]
+                });
+            if(!is_individual_id_not_unique) {
+                output_names_.push_back(name);
+            }
+            else {
+                std::string temp_name = name;//string_table[nrow][1];
+                auto index = temp_name.find(FAM_IND_DELIM);
+                if(index != std::string::npos) {
+                    temp_name.replace(index, FAM_IND_DELIM.length(), OUTPUT_DELIM);
+                    output_names_.push_back(temp_name);
+                }
+            }
         }
-
         return true;
     }
 
@@ -237,7 +293,7 @@ protected:
         return dng::utility::key_switch_tuple(str, keys, keys[0]).second;
     }
 
-    NameContainer names_;
+    NameContainer output_names_;
     MemberTable table_;
 };
 

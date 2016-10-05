@@ -35,7 +35,7 @@
 #include <dng/peeling.h>
 #include <dng/detail/unit_test.h>
 
-//#define DEBUG_RGRAPH 1
+#define DEBUG_RGRAPH 1
 
 namespace dng {
 

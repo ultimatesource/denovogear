@@ -133,11 +133,11 @@ BOOST_FIXTURE_TEST_CASE(test_constructor, FixturePedigreeMid ) {
     auto labels = relationship_graph.labels();
 
     const std::vector<std::string> expected_labels = {
-            "GL-1_F@I_1", "GL-1_F@I_2",
-            "GL-1_F@I_4", "GL-1_F@I_5",
-            "GL-1_F@I_9", "GL-1_F@I_10",
-            "GL-1_F@I_3", "GL-1_F@I_6",
-            "GL-1_F@I_11", "GL-1_F@I_8",
+            "GL-1", "GL-2",
+            "GL-4", "GL-5",
+            "GL-9", "GL-10",
+            "GL-3", "GL-6",
+            "GL-11", "GL-8",
             "LB-NA12001:Solexa-001", "LB-NA12002:Solexa-002",
             "LB-NA12003:Solexa-003", "LB-NA12004:Solexa-004",
             "LB-NA12005:Solexa-005", "LB-NA12006:Solexa-006",
@@ -427,12 +427,12 @@ BOOST_FIXTURE_TEST_CASE(test_add_lib_from_rgs, FixturePedigreeMid) {
 
     std::vector<std::string> expected_vertex{
         "GL-unknown",
-        "GL-1_F@I_1", "GL-1_F@I_2",
-        "GL-1_F@I_4", "GL-1_F@I_5",
-        "GL-1_F@I_9", "GL-1_F@I_10",
-        "GL-1_F@I_3", "GL-1_F@I_6", "GL-1_F@I_11",
-        "GL-1_F@I_7", "GL-1_F@I_8",
-        "GL-1_F@I_12",
+        "GL-1", "GL-2",
+        "GL-4", "GL-5",
+        "GL-9", "GL-10",
+        "GL-3", "GL-6", "GL-11",
+        "GL-7", "GL-8",
+        "GL-12",
 
         "SM-NA12001", "SM-NA12002",
         "SM-NA12004", "SM-NA12005",
@@ -654,11 +654,11 @@ BOOST_FIXTURE_TEST_CASE(test_update_labels_node_ids, FixturePedigreeMid) {
     };
 
     std::vector<std::string> expected_labels {
-        "GL-1_F@I_1", "GL-1_F@I_2",
-        "GL-1_F@I_4", "GL-1_F@I_5",
-        "GL-1_F@I_9", "GL-1_F@I_10",
-        "GL-1_F@I_3", "GL-1_F@I_6", "GL-1_F@I_11",
-        "GL-1_F@I_8",
+        "GL-1", "GL-2",
+        "GL-4", "GL-5",
+        "GL-9", "GL-10",
+        "GL-3", "GL-6", "GL-11",
+        "GL-8",
 
         "LB-NA12001:Solexa-001", "LB-NA12002:Solexa-002",
         "LB-NA12003:Solexa-003", "LB-NA12004:Solexa-004",
