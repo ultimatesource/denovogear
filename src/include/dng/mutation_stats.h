@@ -37,7 +37,7 @@ class MutationStats {
 
 public:
 
-	MutationStats(double min_prob);
+    explicit MutationStats(double min_prob);
 
 	bool CalculateMutationProb(const dng::peel::workspace_t &work_nomut,
 			const dng::peel::workspace_t &work_full);
@@ -49,16 +49,26 @@ public:
 
 	void SetPosteriorProbabilities(const dng::peel::workspace_t &workspace);
 
-//PR_NOTE(SW): Functions for the next PR
-//	void CalculateExpectedMutation(dng::peel::workspace_t &work_full,
-//			dng::TransitionVector &mean_matrices);
-//
-//	void CalculateNodeMutation(dng::peel::workspace_t &work_full,
-//			dng::TransitionVector &posmut_transition_matrices);
-//
-//	void CalculateDenovoMutation(dng::peel::workspace_t &work_nomut,
-//			dng::TransitionVector &onemut_transition_matrices,
-//			const dng::Pedigree &pedigree);
+
+	void CalculateExpectedMutation(dng::peel::workspace_t &work_full,
+			dng::TransitionVector &mean_matrices);
+
+	void CalculateNodeMutation(dng::peel::workspace_t &work_full,
+			dng::TransitionVector &posmut_transition_matrices);
+
+	void CalculateDenovoMutation(dng::peel::workspace_t &work_nomut,
+			dng::TransitionVector &onemut_transition_matrices,
+			const dng::RelationshipGraph &pedigree);
+
+
+
+    void SetNodeMup(const std::vector<double> &event,
+                    std::size_t first_nonfounder_index);
+
+    void SetNodeMu1p(std::vector<double> &event, double total,
+                     std::size_t first_nonfounder_index);
+
+
 
 public:
 	//TODO(SW): think about whether these should be public or private?
@@ -92,22 +102,21 @@ private:
 	double logdata_;
 	double logdata_nomut_;
 
-//PR_NOTE(SW): Functions for the next PR
-//	void SetExactlyOneMutation(double total);
-//
-//	void SetNodeCore(std::vector<float> &stats,
-//			const std::vector<double> &event,
-//			std::size_t first_nonfounder_index);
-//
-//	void UpdateMaxDeNovoMutation(const Eigen::ArrayXXd &mat, size_t &index,
-//			double &max_coeff, size_t &dn_row, size_t &dn_col, size_t &dn_loc);
-//#if CALCULATE_ENTROPY == 1
-//public:
-//	[[deprecated]]
-//	void CalculateEntropy(dng::peel::workspace_t &work_nomut,
-//			dng::TransitionVector &onemut_transition_matrices,
-//			std::array<double, 5> max_entropies, std::size_t ref_index);
-//#endif
+	void SetExactlyOneMutation(double total);
+
+	void SetNodeCore(std::vector<float> &stats,
+			const std::vector<double> &event,
+			std::size_t first_nonfounder_index);
+
+	void UpdateMaxDeNovoMutation(const Eigen::ArrayXXd &mat, size_t &index,
+			double &max_coeff, size_t &dn_row, size_t &dn_col, size_t &dn_loc);
+#if CALCULATE_ENTROPY == 1
+public:
+	[[deprecated]]
+	void CalculateEntropy(dng::peel::workspace_t &work_nomut,
+			dng::TransitionVector &onemut_transition_matrices,
+			std::array<double, 5> max_entropies, std::size_t ref_index);
+#endif
 
 };
 
