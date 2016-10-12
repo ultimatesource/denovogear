@@ -7,9 +7,9 @@ add_library(libdng STATIC
   mutation.cc
   newick.cc
   peeling.cc
+  read_group.cc
   regions.cc
   relationship_graph.cc
-  read_group.cc
   stats.cc
   utility.cc
   task/call.cc
