@@ -70,7 +70,8 @@ public:
         std::vector<float> node_mu1p;
     };
 
-    FindMutations(double min_prob, const RelationshipGraph &pedigree, params_t params);
+    FindMutations(double min_prob, const RelationshipGraph &graph,
+            params_t params);
 
     ~FindMutations();
 
@@ -79,7 +80,7 @@ public:
 
 
 protected:
-    const dng::RelationshipGraph &pedigree_;
+    const dng::RelationshipGraph relationship_graph_;
 
     params_t params_;
 
