@@ -26,8 +26,8 @@
 namespace dng{
 
 enum class InheritancePattern : int {
-    DEFAULT = 0,
-    AUTOSOMAL = 0, // default
+    UNKNOWN = -1,
+    AUTOSOMAL = 0, // default option
     MITOCHONDRIA = 1, // transmitted by mother to child
     MATERNAL = 1, // transmitted by mother to child
     PATERNAL = 2, // transmitter by father to child
@@ -51,7 +51,7 @@ public:
 
 
     const std::pair<std::string, InheritancePattern> INHERITANCE_KEYS[13] = {
-        {"DEFAULT", InheritancePattern::AUTOSOMAL},
+        {"", InheritancePattern::UNKNOWN},
         {"AUTOSOMAL", InheritancePattern::AUTOSOMAL},
         {"MITOCHONDRIA", InheritancePattern::MATERNAL},
         {"MATERNAL", InheritancePattern::MATERNAL},

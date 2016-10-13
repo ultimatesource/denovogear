@@ -32,15 +32,15 @@ dng::InheritanceModel::InheritanceModel() {
 
 void dng::InheritanceModel::parse_model(std::string &model_string) {
 
-    auto match = dng::utility::key_switch_tuple(model_string, INHERITANCE_KEYS,
-            std::pair<std::string, InheritancePattern>{"UNMATCHED", InheritancePattern::DEFAULT});
-    if ("UNMATCHED" == match.first ){
-        std::cerr << "Warning!! Inheritance model (" + model_string
-                + ") is not supported.\nDefault inheritance model is used.\nSupported values are: "
-                + "[default, autosomal, mitochondria, maternal, paternal, x_linked, y_linked, w_linked, z_linked]"
-                << std::endl;
+    pattern = dng::utility::key_switch_tuple(model_string, INHERITANCE_KEYS,
+                                                INHERITANCE_KEYS[0]).second;
+    if (InheritancePattern::UNKNOWN == pattern){
+        throw  std::runtime_error("ERROR!! Inheritance model (" + model_string
+            + ") is not supported.\nSupported values are: "
+            + "[autosomal, mitochondria, maternal, paternal, x_linked, y_linked, w_linked, z_linked]");
+
     }
-    pattern = match.second;
+
 }
 
 dng::InheritancePattern dng::InheritanceModel::GetInheritancePattern(){
