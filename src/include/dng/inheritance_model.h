@@ -26,24 +26,19 @@
 namespace dng{
 
 enum class InheritancePattern : int {
-    AUTOSOMAL = 0,
     DEFAULT = 0,
-    MATERNAL = 1,
-    PATERNAL = 2,
-    X_LINKED = 3,
-    Y_LINKED = 4,
-    W_LINKED = 5,
-    Z_LINKED = 6,
-    MITOCHONDRIA = 1
-//        autosomal (the default)
-//        xlinked (females have 2 copies, males have 1; males transmit to daughters, not to sons)
-//        ylinked (males have 1 copy, only transmits it to sons)
-//        wlinked (females have 1 copy, only transmited to daughters)
-//        zlinked (males have 2 copies, females have 1; females transmit to sons, not to daughters)
-//        maternal (transmitted by mother to child)
-//        paternal (transmitter by father to child)
-//        mitochondria  (transmitted by mother to child)
+    AUTOSOMAL = 0, // default
+    MITOCHONDRIA = 1, // transmitted by mother to child
+    MATERNAL = 1, // transmitted by mother to child
+    PATERNAL = 2, // transmitter by father to child
+    X_LINKED = 3, // females have 2 copies, males have 1; males transmit to daughters, not to sons
+    Y_LINKED = 4, // males have 1 copy, only transmits it to sons
+    W_LINKED = 5, // females have 1 copy, only transmited to daughters
+    Z_LINKED = 6  // males have 2 copies, females have 1; females transmit to sons, not to daughters
+
 };
+
+
 
 class InheritanceModel{
 public:
@@ -53,6 +48,25 @@ public:
     void parse_model(std::string &pattern_model);
 
     InheritancePattern GetInheritancePattern();
+
+
+    const std::pair<std::string, InheritancePattern> INHERITANCE_KEYS[13] = {
+        {"DEFAULT", InheritancePattern::AUTOSOMAL},
+        {"AUTOSOMAL", InheritancePattern::AUTOSOMAL},
+        {"MITOCHONDRIA", InheritancePattern::MATERNAL},
+        {"MATERNAL", InheritancePattern::MATERNAL},
+        {"PATERNAL", InheritancePattern::PATERNAL},
+        {"X_LINKED", InheritancePattern::X_LINKED},
+        {"Y_LINKED", InheritancePattern::Y_LINKED},
+        {"W_LINKED", InheritancePattern::W_LINKED},
+        {"Z_LINKED", InheritancePattern::Z_LINKED},
+        {"XLINKED", InheritancePattern::X_LINKED},
+        {"YLINKED", InheritancePattern::Y_LINKED},
+        {"WLINKED", InheritancePattern::W_LINKED},
+        {"ZLINKED", InheritancePattern::Z_LINKED}
+    };
+
+
 
 private:
     InheritancePattern pattern = InheritancePattern::AUTOSOMAL;

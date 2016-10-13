@@ -48,7 +48,7 @@ public:
             boost::multi_index::identity<std::string>>
             >> NameContainer;
 
-    enum class Gender : char {
+    enum class Sex : char {
         Unknown = 0, Male = 1, Female = 2
     };
 
@@ -57,7 +57,7 @@ public:
         std::size_t child;
         std::size_t dad;
         std::size_t mom;
-        Gender gender;
+        Sex sex;
         std::string sample_tree;
     };
 
@@ -96,7 +96,7 @@ public:
     // TODO: maybe we can just keep pointers to the delimiters in memory
     // TODO: add comment support
     // TODO: warnings for rows that don't have enough elements?
-    // TODO: gender checking
+    // TODO: sex checking, some checks in RelationshipGraph class
     template<typename Range>
     bool Parse(const Range &text) {
         using namespace boost;
@@ -195,7 +195,7 @@ public:
         }
         // Construct table in the order of names_
         table_.clear();
-        table_.emplace_back(Member{0, 0, 0, 0, Gender::Unknown, ""});
+        table_.emplace_back(Member{0, 0, 0, 0, Sex::Unknown, ""});
         for(auto && name : names_) {
             auto nrow = child_names[name];
             auto child = id(string_table[nrow][1]);
@@ -209,7 +209,7 @@ public:
                 child,
                 id(string_table[nrow][2]),
                 id(string_table[nrow][3]),
-                ParseGender(string_table[nrow][4]),
+                ParseSex(string_table[nrow][4]),
                 string_table[nrow][5]
             });
         }
@@ -218,14 +218,14 @@ public:
     }
 
 protected:
-    static Gender ParseGender(std::string &str) {
-        static std::pair<std::string, Gender> keys[] = {
-            {"0", Gender::Unknown},
-            {"1", Gender::Male},
-            {"2", Gender::Female},
-            {"male", Gender::Male},
-            {"female", Gender::Female},
-            {"unknown", Gender::Unknown}
+    static Sex ParseSex(std::string &str) {
+        static std::pair<std::string, Sex> keys[] = {
+            {"0", Sex::Unknown},
+            {"1", Sex::Male},
+            {"2", Sex::Female},
+            {"male", Sex::Male},
+            {"female", Sex::Female},
+            {"unknown", Sex::Unknown}
         };
         return dng::utility::key_switch_tuple(str, keys, keys[0]).second;
     }

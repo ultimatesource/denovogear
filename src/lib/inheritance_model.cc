@@ -18,8 +18,11 @@
  */
 
 #include <dng/inheritance_model.h>
+
 #include <iostream>
 #include <stdexcept>
+
+#include <dng/utility.h>
 
 dng::InheritanceModel::~InheritanceModel() {
 }
@@ -29,37 +32,15 @@ dng::InheritanceModel::InheritanceModel() {
 
 void dng::InheritanceModel::parse_model(std::string &model_string) {
 
-    char init = tolower(model_string.at(0));
-    switch (init) {
-        case 'a':
-        case 'd':
-            pattern = InheritancePattern::AUTOSOMAL;
-            break;
-        case 'm':
-            pattern = InheritancePattern::MATERNAL;
-            break;
-        case 'p':
-            pattern = InheritancePattern::PATERNAL;
-            break;
-        case 'x':
-            pattern = InheritancePattern::X_LINKED;
-            break;
-        case 'y':
-            pattern = InheritancePattern::Y_LINKED;
-            break;
-        case 'w':
-            pattern = InheritancePattern::W_LINKED;
-            break;
-        case 'z':
-            pattern = InheritancePattern::Z_LINKED;
-            break;
-        default:
-            throw std::runtime_error(
-                    "ERROR!! Inheritance model (" + model_string
-                            + ") is not supported.\nSupported values are: "
-                            + "[autosomal, default, xlinked, ylinked, wlinked, zlinked, maternal, paternal, mitochondria]");
-            break;
+    auto match = dng::utility::key_switch_tuple(model_string, INHERITANCE_KEYS,
+            std::pair<std::string, InheritancePattern>{"UNMATCHED", InheritancePattern::DEFAULT});
+    if ("UNMATCHED" == match.first ){
+        std::cerr << "Warning!! Inheritance model (" + model_string
+                + ") is not supported.\nDefault inheritance model is used.\nSupported values are: "
+                + "[default, autosomal, mitochondria, maternal, paternal, x_linked, y_linked, w_linked, z_linked]"
+                << std::endl;
     }
+    pattern = match.second;
 }
 
 dng::InheritancePattern dng::InheritanceModel::GetInheritancePattern(){
