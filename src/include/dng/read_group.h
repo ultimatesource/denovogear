@@ -170,10 +170,13 @@ void ReadGroups::ParseSamples(InFile &file) {
         // In order to extract library information from VCF data, we support column
         // ids in the following format SAMPLE:LIBRARY.
 
-        const char *sm = samples.first[a];
+//        const
+        char *sm = samples.first[a];
+        char *p = strchr(sm, ':');
+        *p = '/'; //TODO(SW): This is a bug, need to test p==nullptr and bla bla refactor!
         ReadGroup val{sm, sm};
 
-        const char *p = strchr(sm, ':');
+//        const char *p = strchr(sm, ':');
         if(p == nullptr || *(p + 1) == '\0') {
             val.sample = sm;
         } else {

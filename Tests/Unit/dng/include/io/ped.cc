@@ -47,13 +47,13 @@ void boost_check_equal_member(Pedigree::Member expected, Pedigree::Member actual
 BOOST_AUTO_TEST_CASE(test_skip_id) {
 
     std::vector<Pedigree::Member> expected_member_table {
-        Pedigree::Member{0,0,0,0,Pedigree::Gender::Unknown,""},
-        Pedigree::Member{0,1,0,0,Pedigree::Gender::Male,"NA12891"},
-        Pedigree::Member{0,2,0,0,Pedigree::Gender::Female,"NA12892"},
-        Pedigree::Member{0,3,0,0,Pedigree::Gender::Male,"NA12901"},
-        Pedigree::Member{0,4,0,0,Pedigree::Gender::Female,"NA12902"},
-        Pedigree::Member{0,5,1,2,Pedigree::Gender::Female,"NA12878"},
-        Pedigree::Member{0,6,3,4,Pedigree::Gender::Female,"NA12903"}
+        Pedigree::Member{0,0,0,0,Pedigree::Sex::Unknown,""},
+        Pedigree::Member{0,1,0,0,Pedigree::Sex::Male,"NA12891"},
+        Pedigree::Member{0,2,0,0,Pedigree::Sex::Female,"NA12892"},
+        Pedigree::Member{0,3,0,0,Pedigree::Sex::Male,"NA12901"},
+        Pedigree::Member{0,4,0,0,Pedigree::Sex::Female,"NA12902"},
+        Pedigree::Member{0,5,1,2,Pedigree::Sex::Female,"NA12878"},
+        Pedigree::Member{0,6,3,4,Pedigree::Sex::Female,"NA12903"}
     };
 
     std::vector<std::string> expected_name {
@@ -83,13 +83,13 @@ BOOST_AUTO_TEST_CASE(test_skip_id) {
 BOOST_AUTO_TEST_CASE(test_multi_family_dup_id) {
 
     std::vector<Pedigree::Member> expected_member_table {
-        Pedigree::Member{0,0,0,0,Pedigree::Gender::Unknown,""},
-        Pedigree::Member{0,1,0,0,Pedigree::Gender::Male,"NA12891"},
-        Pedigree::Member{0,2,0,0,Pedigree::Gender::Female,"NA12892"},
-        Pedigree::Member{0,3,0,0,Pedigree::Gender::Male,"NA12901"},
-        Pedigree::Member{0,4,0,0,Pedigree::Gender::Female,"NA12902"},
-        Pedigree::Member{0,5,1,2,Pedigree::Gender::Female,"NA12878"},
-        Pedigree::Member{0,6,3,4,Pedigree::Gender::Female,"NA12903"}
+        Pedigree::Member{0,0,0,0,Pedigree::Sex::Unknown,""},
+        Pedigree::Member{0,1,0,0,Pedigree::Sex::Male,"NA12891"},
+        Pedigree::Member{0,2,0,0,Pedigree::Sex::Female,"NA12892"},
+        Pedigree::Member{0,3,0,0,Pedigree::Sex::Male,"NA12901"},
+        Pedigree::Member{0,4,0,0,Pedigree::Sex::Female,"NA12902"},
+        Pedigree::Member{0,5,1,2,Pedigree::Sex::Female,"NA12878"},
+        Pedigree::Member{0,6,3,4,Pedigree::Sex::Female,"NA12903"}
     };
 
     std::vector<std::string> expected_name {
@@ -121,13 +121,13 @@ BOOST_AUTO_TEST_CASE(test_multi_family_dup_id) {
 BOOST_AUTO_TEST_CASE(test_multi_family_diff_id) {
 
     std::vector<Pedigree::Member> expected_member_table {
-        Pedigree::Member{0,0,0,0,Pedigree::Gender::Unknown,""},
-        Pedigree::Member{0,1,0,0,Pedigree::Gender::Male,"NA12891"},
-        Pedigree::Member{0,2,0,0,Pedigree::Gender::Female,"NA12892"},
-        Pedigree::Member{0,3,0,0,Pedigree::Gender::Male,"NA12901"},
-        Pedigree::Member{0,4,0,0,Pedigree::Gender::Female,"NA12902"},
-        Pedigree::Member{0,5,1,2,Pedigree::Gender::Female,"NA12878"},
-        Pedigree::Member{0,6,3,4,Pedigree::Gender::Female,"NA12903"}
+        Pedigree::Member{0,0,0,0,Pedigree::Sex::Unknown,""},
+        Pedigree::Member{0,1,0,0,Pedigree::Sex::Male,"NA12891"},
+        Pedigree::Member{0,2,0,0,Pedigree::Sex::Female,"NA12892"},
+        Pedigree::Member{0,3,0,0,Pedigree::Sex::Male,"NA12901"},
+        Pedigree::Member{0,4,0,0,Pedigree::Sex::Female,"NA12902"},
+        Pedigree::Member{0,5,1,2,Pedigree::Sex::Female,"NA12878"},
+        Pedigree::Member{0,6,3,4,Pedigree::Sex::Female,"NA12903"}
     };
 
     std::vector<std::string> expected_name {
@@ -157,13 +157,13 @@ BOOST_AUTO_TEST_CASE(test_multi_family_diff_id) {
 BOOST_AUTO_TEST_CASE(test_dup_entries) {
 
     std::vector<Pedigree::Member> expected_member_table {
-        Pedigree::Member{0,0,0,0,Pedigree::Gender::Unknown,""},
-        Pedigree::Member{0,1,0,0,Pedigree::Gender::Male,"NA12891"},
-        Pedigree::Member{0,2,0,0,Pedigree::Gender::Female,"NA12892"},
-        Pedigree::Member{0,3,0,0,Pedigree::Gender::Male,"NA12901"},
-        Pedigree::Member{0,4,0,0,Pedigree::Gender::Female,"NA12902"},
-        Pedigree::Member{0,5,1,2,Pedigree::Gender::Female,"NA12878"},
-        Pedigree::Member{0,6,3,4,Pedigree::Gender::Female,"NA12903"}
+        Pedigree::Member{0,0,0,0,Pedigree::Sex::Unknown,""},
+        Pedigree::Member{0,1,0,0,Pedigree::Sex::Male,"NA12891"},
+        Pedigree::Member{0,2,0,0,Pedigree::Sex::Female,"NA12892"},
+        Pedigree::Member{0,3,0,0,Pedigree::Sex::Male,"NA12901"},
+        Pedigree::Member{0,4,0,0,Pedigree::Sex::Female,"NA12902"},
+        Pedigree::Member{0,5,1,2,Pedigree::Sex::Female,"NA12878"},
+        Pedigree::Member{0,6,3,4,Pedigree::Sex::Female,"NA12903"}
     };
 
     std::vector<std::string> expected_name {
@@ -196,13 +196,13 @@ BOOST_AUTO_TEST_CASE(test_dup_entries) {
 BOOST_AUTO_TEST_CASE(test_multi_family_dup_entries) {
 
     std::vector<Pedigree::Member> expected_member_table {
-        Pedigree::Member{0,0,0,0,Pedigree::Gender::Unknown,""},
-        Pedigree::Member{0,1,0,0,Pedigree::Gender::Male,"NA12891"},
-        Pedigree::Member{0,2,0,0,Pedigree::Gender::Female,"NA12892"},
-        Pedigree::Member{0,3,0,0,Pedigree::Gender::Male,"NA12901"},
-        Pedigree::Member{0,4,0,0,Pedigree::Gender::Female,"NA12902"},
-        Pedigree::Member{0,5,1,2,Pedigree::Gender::Female,"NA12878"},
-        Pedigree::Member{0,6,3,4,Pedigree::Gender::Female,"NA12903"}
+        Pedigree::Member{0,0,0,0,Pedigree::Sex::Unknown,""},
+        Pedigree::Member{0,1,0,0,Pedigree::Sex::Male,"NA12891"},
+        Pedigree::Member{0,2,0,0,Pedigree::Sex::Female,"NA12892"},
+        Pedigree::Member{0,3,0,0,Pedigree::Sex::Male,"NA12901"},
+        Pedigree::Member{0,4,0,0,Pedigree::Sex::Female,"NA12902"},
+        Pedigree::Member{0,5,1,2,Pedigree::Sex::Female,"NA12878"},
+        Pedigree::Member{0,6,3,4,Pedigree::Sex::Female,"NA12903"}
     };
 
     std::vector<std::string> expected_name {

@@ -53,7 +53,7 @@ public:
             boost::multi_index::identity<std::string>>
             >> NameContainer;
 
-    enum class Gender : char {
+    enum class Sex : char {
         Unknown = 0, Male = 1, Female = 2
     };
 
@@ -62,21 +62,12 @@ public:
         std::size_t child;
         std::size_t dad;
         std::size_t mom;
-        Gender sex;
+        Sex sex;
         std::string sample_tree;
     };
 
     typedef std::vector<Member> MemberTable;
 
-    // How many members, including the dummy, are in the pedigree.
-    std::size_t member_count() const {
-        return output_names_.size();
-    }
-
-    // Fetch the name of a member of the pedigree
-    const std::string &name(std::size_t id) const {
-        return output_names_[id];
-    }
 
     // Given the name of an individual return its id.
     // If the name is not valid, return the id of the 0-th
@@ -88,13 +79,24 @@ public:
 //        }
 //        return output_names_.project<0>(it) - output_names_.begin();
 //    }
-    std::size_t id(const std::string &name, NameContainer &names) const {
+    static std::size_t id(const std::string &name, NameContainer &names) const {
         auto it = names.get<1>().find(name);
         if(it == names.get<1>().end()) {
             return std::size_t(0);
         }
         return names.project<0>(it) - names.begin();
     }
+
+    // How many members, including the dummy, are in the pedigree.
+    std::size_t member_count() const {
+        return output_names_.size();
+    }
+
+    // Fetch the name of a member of the pedigree
+    const std::string &name(std::size_t id) const {
+        return output_names_[id];
+    }
+
 
     const MemberTable &table() const {
         return table_;
@@ -140,6 +142,7 @@ public:
         std::vector<std::size_t> dup_individual;
         map<string, size_t> child_names {{"", 0}};
         map<string, size_t> check_dup_id {{FAM_IND_DELIM, 0}};
+        //TODO(RC): Think about the algorithm later.
         for(k = 1; k < string_table.size(); ++k) {
             auto f_i = string_table[k][0] + FAM_IND_DELIM + string_table[k][1];
 
@@ -249,7 +252,7 @@ public:
         output_names_.clear();
         output_names_.push_back("");
         table_.clear();
-        table_.emplace_back(Member {0, 0, 0, 0, Gender::Unknown, ""});
+        table_.emplace_back(Member {0, 0, 0, 0, Sex::Unknown, ""});
         for(auto && name : output_order) {
 
             auto nrow = child_names[name];
@@ -262,7 +265,7 @@ public:
                     child,
                     id(string_table[nrow][2], output_order),
                     id(string_table[nrow][3], output_order),
-                    ParseGender(string_table[nrow][4]),
+                    ParseSex(string_table[nrow][4]),
                     string_table[nrow][5]
                 });
             if(!is_individual_id_not_unique) {
@@ -281,14 +284,14 @@ public:
     }
 
 protected:
-    static Gender ParseGender(std::string &str) {
-        static std::pair<std::string, Gender> keys[] = {
-            {"0", Gender::Unknown},
-            {"1", Gender::Male},
-            {"2", Gender::Female},
-            {"male", Gender::Male},
-            {"female", Gender::Female},
-            {"unknown", Gender::Unknown}
+    static Sex ParseSex(std::string &str) {
+        static std::pair<std::string, Sex> keys[] = {
+            {"0", Sex::Unknown},
+            {"1", Sex::Male},
+            {"2", Sex::Female},
+            {"male", Sex::Male},
+            {"female", Sex::Female},
+            {"unknown", Sex::Unknown}
         };
         return dng::utility::key_switch_tuple(str, keys, keys[0]).second;
     }
