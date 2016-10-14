@@ -17,14 +17,13 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 #pragma once
-#ifndef DENOVOGEAR_MUTATION_STATS_H
-#define DENOVOGEAR_MUTATION_STATS_H
+#ifndef DNG_MUTATION_STATS_H
+#define DNG_MUTATION_STATS_H
 
 #include <string>
 #include <vector>
 
 #include <dng/hts/bcf.h>
-#include <dng/matrix.h>
 #include <dng/peeling.h>
 #include <dng/relationship_graph.h>
 #include <dng/mutation.h>
@@ -120,4 +119,4 @@ public:
 
 };
 
-#endif //DENOVOGEAR_MUTATION_STATS_H
+#endif //DNG_MUTATION_STATS_H

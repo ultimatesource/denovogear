@@ -22,94 +22,19 @@
 
 #include <dng/find_mutations.h>
 
+
 using namespace dng;
 
 FindMutations::~FindMutations() {
 	// TODO Auto-generated destructor stub
 }
 
-
 FindMutations::FindMutations(double min_prob, const RelationshipGraph &graph,
-                             params_t params) :
-    relationship_graph_(graph), min_prob_(min_prob),
-    params_(params), genotype_likelihood_{params.params_a, params.params_b},
-    work_full_(graph.CreateWorkspace()), work_nomut_(graph.CreateWorkspace()) {
+        params_t params)
+        : FindMutationsAbstract(min_prob, graph, params) {
 
-    using namespace dng;
-
-    // Use a parent-independent mutation model, which produces a
-    // beta-binomial
-    genotype_prior_[0] = population_prior(params_.theta, params_.nuc_freq, {{params_.ref_weight, 0, 0, 0}});
-    genotype_prior_[1] = population_prior(params_.theta, params_.nuc_freq, {{0, params_.ref_weight, 0, 0}});
-    genotype_prior_[2] = population_prior(params_.theta, params_.nuc_freq, {{0, 0, params_.ref_weight, 0}});
-    genotype_prior_[3] = population_prior(params_.theta, params_.nuc_freq, {{0, 0, 0, params_.ref_weight}});
-    genotype_prior_[4] = population_prior(params_.theta, params_.nuc_freq, {{0, 0, 0, 0}});
-
-    // Calculate mutation expectation matrices
-    full_transition_matrices_.assign(work_full_.num_nodes, {});
-    nomut_transition_matrices_.assign(work_full_.num_nodes, {});
-    posmut_transition_matrices_.assign(work_full_.num_nodes, {});
-    onemut_transition_matrices_.assign(work_full_.num_nodes, {});
-    mean_matrices_.assign(work_full_.num_nodes, {});
-
-    for(size_t child = 0; child < work_full_.num_nodes; ++child) {
-        auto trans = relationship_graph_.transitions()[child];
-        if(trans.type == RelationshipGraph::TransitionType::Germline) {
-            auto dad = f81::matrix(trans.length1, params_.nuc_freq);
-            auto mom = f81::matrix(trans.length2, params_.nuc_freq);
-
-            full_transition_matrices_[child] = meiosis_diploid_matrix(dad, mom);
-
-            nomut_transition_matrices_[child] = meiosis_diploid_matrix(dad, mom, 0);
-            posmut_transition_matrices_[child] = full_transition_matrices_[child] -
-                                                 nomut_transition_matrices_[child];
-            onemut_transition_matrices_[child] = meiosis_diploid_matrix(dad, mom, 1);
-            mean_matrices_[child] = meiosis_diploid_mean_matrix(dad, mom);
-        } else if(trans.type == RelationshipGraph::TransitionType::Somatic ||
-                  trans.type == RelationshipGraph::TransitionType::Library) {
-            auto orig = f81::matrix(trans.length1, params_.nuc_freq);
-
-            full_transition_matrices_[child] = mitosis_diploid_matrix(orig);
-            nomut_transition_matrices_[child] = mitosis_diploid_matrix(orig, 0);
-            posmut_transition_matrices_[child] = full_transition_matrices_[child] -
-                                                 nomut_transition_matrices_[child];
-            onemut_transition_matrices_[child] = mitosis_diploid_matrix(orig, 1);
-            mean_matrices_[child] = mitosis_diploid_mean_matrix(orig);
-        } else {
-            full_transition_matrices_[child] = {};
-            nomut_transition_matrices_[child] = {};
-            posmut_transition_matrices_[child] = {};
-            onemut_transition_matrices_[child] = {};
-            mean_matrices_[child] = {};
-        }
-    }
-
-#if CALCULATE_ENTROPY == 1
-    //Calculate max_entropy based on having no data
-    for (int ref_index = 0; ref_index < 5; ++ref_index) {
-        work_nomut_.SetFounders(genotype_prior_[ref_index]);
-
-        relationship_graph_.PeelForwards(work_nomut_, nomut_transition_matrices_);
-        relationship_graph_.PeelBackwards(work_nomut_, nomut_transition_matrices_);
-        event_.assign(work_nomut_.num_nodes, 0.0);
-        double total = 0.0, entropy = 0.0;
-		for (std::size_t i = work_nomut_.founder_nodes.second;
-				i < work_nomut_.num_nodes; ++i) {
-
-			Eigen::ArrayXXd mat = (work_nomut_.super[i].matrix()
-					* work_nomut_.lower[i].matrix().transpose()).array()
-					* onemut_transition_matrices_[i].array();
-
-			total += mat.sum();
-            entropy += (mat.array() == 0.0).select(mat.array(),
-                                                   mat.array() * mat.log()) .sum();
-        }
-        // Calculate entropy of mutation location
-        max_entropies_[ref_index] = (-entropy / total + log(total)) / M_LN2;
-    }
-#endif
-
-
+    SetupPopulationPriorDiploid();
+    SetupTransitionMatrix();
 }
 
 // Returns true if a mutation was found and the record was modified
@@ -118,7 +43,7 @@ bool FindMutations::operator()(const std::vector<depth_t> &depths,
 //    PR_NOTE(SW): Next version will be pass MutationStats instead of stats_t
 
     assert(stats != nullptr);
-
+    //TODO(SW): Eventually, MutationStats this will replace all stats_t
     MutationStats mutation_stats(min_prob_);
 
     double scale = work_full_.SetGenotypeLikelihood(genotype_likelihood_,
@@ -164,8 +89,6 @@ bool FindMutations::operator()(const std::vector<depth_t> &depths,
 	stats->mu1p = mutation_stats.mu1p_;
 
 	stats->has_single_mut = mutation_stats.has_single_mut_;
-    relationship_graph_.PeelForwards(work_nomut_, nomut_transition_matrices_);
-    relationship_graph_.PeelBackwards(work_nomut_, nomut_transition_matrices_);
 
 	stats->dnq = mutation_stats.dnq_;
 	stats->dnl = mutation_stats.dnl_;
@@ -184,31 +107,56 @@ bool FindMutations::operator()(const std::vector<depth_t> &depths,
 
 }
 
-bool FindMutations::CalculateMutationProb(MutationStats &mutation_stats) {
+void FindMutations::SetupTransitionMatrix(){
 
-    // Calculate log P(Data, nomut ; model)
-	relationship_graph_.PeelForwards(work_nomut_, nomut_transition_matrices_);
+    for(size_t child = 0; child < work_full_.num_nodes; ++child) {
+        auto trans = relationship_graph_.transitions()[child];
 
-    // Calculate log P(Data ; model)
-	relationship_graph_.PeelForwards(work_full_, full_transition_matrices_);
+        if(trans.type == RelationshipGraph::TransitionType::Germline) {
+            auto dad = f81::matrix(trans.length1, params_.nuc_freq);
+            auto mom = f81::matrix(trans.length2, params_.nuc_freq);
 
-    // P(mutation | Data ; model) = 1 - [ P(Data, nomut ; model) / P(Data ; model) ]
-    bool is_mup_less_threshold = mutation_stats.CalculateMutationProb(
-            work_nomut_, work_full_);
+            full_transition_matrices_[child] = meiosis_diploid_matrix(dad, mom);
+            nomut_transition_matrices_[child] = meiosis_diploid_matrix(dad, mom, 0);
+            onemut_transition_matrices_[child] = meiosis_diploid_matrix(dad, mom, 1);
+            mean_matrices_[child] = meiosis_diploid_mean_matrix(dad, mom);
+        } else if(trans.type == RelationshipGraph::TransitionType::Somatic ||
+                  trans.type == RelationshipGraph::TransitionType::Library) {
+            auto orig = f81::matrix(trans.length1, params_.nuc_freq);
+            full_transition_matrices_[child] = mitosis_diploid_matrix(orig);
+            nomut_transition_matrices_[child] = mitosis_diploid_matrix(orig, 0);
+            onemut_transition_matrices_[child] = mitosis_diploid_matrix(orig, 1);
+            mean_matrices_[child] = mitosis_diploid_mean_matrix(orig);
+        }
 
-    return is_mup_less_threshold;
+        posmut_transition_matrices_[child] = full_transition_matrices_[child] -
+                                             nomut_transition_matrices_[child];
+
+    }
+
+#if CALCULATE_ENTROPY == 1
+    //Calculate max_entropy based on having no data
+    for (int ref_index = 0; ref_index < 5; ++ref_index) {
+        work_nomut_.SetFounders(genotype_prior_[ref_index]);
+
+        relationship_graph_.PeelForwards(work_nomut_, nomut_transition_matrices_);
+        relationship_graph_.PeelBackwards(work_nomut_, nomut_transition_matrices_);
+        event_.assign(work_nomut_.num_nodes, 0.0);
+        double total = 0.0, entropy = 0.0;
+        for (std::size_t i = work_nomut_.founder_nodes.second;
+                i < work_nomut_.num_nodes; ++i) {
+
+            Eigen::ArrayXXd mat = (work_nomut_.super[i].matrix() *
+                                   work_nomut_.lower[i].matrix().transpose()).array() *
+                                   onemut_transition_matrices_[i].array();
+
+            total += mat.sum();
+            entropy += (mat.array() == 0.0).select(mat.array(),
+                                                   mat.array() * mat.log()) .sum();
+        }
+        // Calculate entropy of mutation location
+        max_entropies_[ref_index] = (-entropy / total + log(total)) / M_LN2;
+    }
+#endif
+
 }
-
-
-
-void FindMutations::CalculateDenovoMutation(MutationStats &mutation_stats) {
-
-    relationship_graph_.PeelBackwards(work_nomut_, nomut_transition_matrices_);
-    mutation_stats.CalculateDenovoMutation(work_nomut_,
-                                           onemut_transition_matrices_,
-                                           relationship_graph_);
-
-}
-
-
-

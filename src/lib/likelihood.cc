@@ -18,7 +18,6 @@
  */
 
 
-#include <dng/matrix.h>
 #include <dng/likelihood.h>
 
 //  The smallest positive value such that (1-phi)/phi + 1 != (1-phi)/phi
@@ -157,9 +156,8 @@ inline double log_sum_exact(double a, double b) {
 }
 
 double DirichletMultinomialMixture::operator()(
-    const pileup::AlleleDepths& depths, const std::vector<size_t> &indexes,
-    IndividualVector::iterator output) const
-{
+        const pileup::AlleleDepths& depths, const std::vector<size_t> &indexes,
+        IndividualVector::iterator output) const {
     const auto last = output + indexes.size();
 
     int ref_index = depths.type_info().reference;
@@ -205,7 +203,8 @@ double DirichletMultinomialMixture::operator()(
     return scale;
 }
 
-std::pair<GenotypeArray, double> DirichletMultinomialMixture::operator()(depth_t d, int ref_allele) const {
+std::pair<GenotypeArray, double> DirichletMultinomialMixture::operator()(
+        depth_t d, int ref_allele) const {
     GenotypeArray log_ret{10};
     int read_count = d.counts[0] + d.counts[1] +
                      d.counts[2] + d.counts[3];
@@ -223,6 +222,30 @@ std::pair<GenotypeArray, double> DirichletMultinomialMixture::operator()(depth_t
     }
     double scale = log_ret.maxCoeff();
     return {(log_ret - scale).exp(), scale};
-    }
+}
 
-}} // namespace dng::genotype
+
+
+std::pair<GenotypeArray, double> DirichletMultinomialMixture::CalculateHaploid(
+        depth_t d, int ref_allele) const {
+    GenotypeArray log_ret{4};
+    int read_count = d.counts[0] + d.counts[1] +
+                     d.counts[2] + d.counts[3];
+    for(int i = 0; i < 4; ++i) {
+        auto &cache = cache_[ref_allele][MAP_4_TO_10[i]];
+        double lh1 = f1_, lh2 = f2_;
+        for(int j=0;j<4;++j) {
+            lh1 += cache[j].first(d.counts[j]);
+            lh2 += cache[j].second(d.counts[j]);
+        }
+        lh1 -= cache[4].first(read_count);
+        lh2 -= cache[4].second(read_count);
+
+        log_ret[i] = log_sum(lh1,lh2);
+    }
+    double scale = log_ret.maxCoeff();
+    return {(log_ret - scale).exp(), scale};
+}
+
+} // namespace genotype
+} // namespace dng

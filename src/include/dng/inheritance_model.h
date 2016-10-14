@@ -45,7 +45,7 @@ public:
     InheritanceModel();
     ~InheritanceModel();
 
-    void parse_model(std::string &pattern_model);
+    void ParseModel(std::string &pattern_model);
 
     InheritancePattern GetInheritancePattern();
 

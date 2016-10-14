@@ -19,6 +19,10 @@
 
 #include <dng/peeling.h>
 
+#define DEBUG_PEELING 0
+#if DEBUG_PEELING == 1
+#include <iostream>
+#endif
 // Family Order: Parent, Child
 void dng::peel::down(workspace_t &work, const family_members_t &family,
                      const TransitionVector &mat) {
@@ -27,6 +31,7 @@ void dng::peel::down(workspace_t &work, const family_members_t &family,
     auto child = family[1];
     work.upper[child] = (mat[child].transpose() * (work.upper[parent] *
                          work.lower[parent]).matrix()).array();
+
 }
 
 // Family Order: Parent, Child
@@ -74,6 +79,7 @@ void dng::peel::to_father(workspace_t &work, const family_members_t &family,
     work.paired_buffer.resize(width, width);
     work.lower[dad] *= (work.paired_buffer.matrix().transpose() * (work.upper[mom] *
                         work.lower[mom]).matrix()).array();
+
     work.paired_buffer.resize(width*width, 1);
 }
 
