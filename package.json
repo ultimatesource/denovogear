@@ -1,25 +1,27 @@
 {
   "name": "dng-vis",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Visualization for denovogear output",
   "main": "app.js",
   "scripts": {
     "test": "node_modules/.bin/mocha test/",
     "lint": "node_modules/.bin/jshint src test",
-    "browserify": "node_modules/.bin/browserify src/*.js -o dest/bundle.js",
+    "browserify": "node_modules/.bin/browserify src/*.js -o dist/bundle.js",
     "build": "npm run lint && npm test && npm run browserify",
-    "clean": "rm -r dest/*"
+    "clean": "rm -r dist/*"
   },
   "dependencies": {
     "d3": "^4.2.5",
+    "graphlib": "^2.1.1",
+    "graphml-js": "^0.4.0",
     "jquery": "^3.1.0",
-    "vcf.js": "^0.2.6",
-    "xml2js": "^0.4.17"
+    "vcf.js": "^0.2.6"
   },
   "devDependencies": {
     "browserify": "^13.1.0",
     "jshint": "^2.9.3",
-    "mocha": "^3.0.2"
+    "mocha": "^3.0.2",
+    "typescript": "^2.0.3"
   },
   "repository": {
     "type": "git",
