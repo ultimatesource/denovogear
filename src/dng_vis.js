@@ -36,11 +36,12 @@ function main() {
     var graph = convertToGraphlib(inputGraph);
 
     process(graph);
+
     var graphmlGraph = convertFromGraphlib(graph);
     console.dir(graphmlGraph);
 
     for (var node of graphmlGraph.nodes) {
-      if (node.attributes.generation !== -1) {
+      if (node.attributes.generation !== undefined) {
         node.fy = (node.attributes.generation * 200) - 180;
       }
     }
@@ -83,8 +84,8 @@ function main() {
     node.append("text")
       .attr("dx", 12)
       .attr("dy", ".35em")
-      //.text(function(d) { return d.attributes.label });
-      .text(function(d) { return d.id });
+      .text(function(d) { return d.attributes.label });
+      //.text(function(d) { return d.id });
 
     simulation
       .nodes(graphmlGraph.nodes)
@@ -191,43 +192,51 @@ function convertFromGraphlib(graph) {
 }
 
 function process(graph) {
+  var startNodeName = "n1";
+  var startNode = graph.node(startNodeName);
+  startNode.generation = 1;
 
-  for (var sourceName of graph.nodes()) {
-    var source = graph.node(sourceName);
+  processRecurse(graph, startNodeName);
+}
 
-    if (source.generation === undefined) {
-      source.generation = 1;
-    }
+function processRecurse(graph, sourceName) {
 
-    var neighbors = graph.neighbors(sourceName);
+  var neighbors = graph.neighbors(sourceName);
+  var source = graph.node(sourceName);
+
+  for (var targetName of neighbors) {
+    var target = graph.node(targetName);
 
     // remove any nodes with no edges
     if (neighbors.length === 0) {
       graph.removeNode(sourceName);
     }
     else {
-      for (var targetName of neighbors) {
-        var target = graph.node(targetName);
+      if (target.generation === undefined) {
+        var edge = graph.edge(sourceName, targetName);
 
-        if (target.generation === undefined) {
-          var edge = graph.edge(sourceName, targetName);
-
-          if (edge.type === "Meiotic") {
+        if (edge.type === "Meiotic") {
+          if (isHigherGeneration(sourceName, targetName)) {
             target.generation = source.generation + 1;
           }
-          else if (edge.type === "Spousal") {
-            target.generation = source.generation;
-          }
-          else if (edge.type === "Mitotic") {
-            target.generation = -1;
-          }
-          else if (edge.type === "Library") {
-            target.generation = -1;
-          }
           else {
-            throw new Error("Fail");
+            target.generation = source.generation - 1;
           }
         }
+        else if (edge.type === "Spousal") {
+          target.generation = source.generation;
+        }
+        else if (edge.type === "Mitotic") {
+          target.generation = source.generation + 0.2;
+        }
+        else if (edge.type === "Library") {
+          target.generation = source.generation + 0.2;
+        }
+        else {
+          throw new Error("Invalid Edge Type");
+        }
+
+        processRecurse(graph, targetName);
       }
     }
   }
@@ -243,4 +252,10 @@ function isSampleNode(node) {
 
 function hasGeneration(node) {
   return node.attributes.generation !== -1;
+}
+
+function isHigherGeneration(aName, bName) {
+  var aGen = Number(aName.substring(1));
+  var bGen = Number(bName.substring(1));
+  return bGen > aGen;
 }
