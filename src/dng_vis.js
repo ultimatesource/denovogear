@@ -31,14 +31,11 @@ function main() {
     var parser = new graphml.GraphMLParser();
 
   parser.parse(text, function (err, inputGraph) {
-    console.dir(inputGraph);
-
     var graph = convertToGraphlib(inputGraph);
 
     process(graph);
 
     var graphmlGraph = convertFromGraphlib(graph);
-    console.dir(graphmlGraph);
 
     for (var node of graphmlGraph.nodes) {
       if (node.attributes.generation !== undefined) {
@@ -196,7 +193,11 @@ function process(graph) {
   var startNode = graph.node(startNodeName);
   startNode.generation = 1;
 
+  removeEmptyNodes(graph);
+
   processRecurse(graph, startNodeName);
+
+  normalizeGenerations(graph);
 }
 
 function processRecurse(graph, sourceName) {
@@ -207,37 +208,36 @@ function processRecurse(graph, sourceName) {
   for (var targetName of neighbors) {
     var target = graph.node(targetName);
 
-    // remove any nodes with no edges
-    if (neighbors.length === 0) {
-      graph.removeNode(sourceName);
-    }
-    else {
-      if (target.generation === undefined) {
-        var edge = graph.edge(sourceName, targetName);
+    if (target.generation === undefined) {
+      var edge = graph.edge(sourceName, targetName);
+
+      if (edge.type === "Spousal") {
+        target.generation = source.generation;
+      }
+      else {
+        var sign;
+        if (isHigherGeneration(sourceName, targetName)) {
+          sign = 1;
+        }
+        else {
+          sign = -1;
+        }
 
         if (edge.type === "Meiotic") {
-          if (isHigherGeneration(sourceName, targetName)) {
-            target.generation = source.generation + 1;
-          }
-          else {
-            target.generation = source.generation - 1;
-          }
-        }
-        else if (edge.type === "Spousal") {
-          target.generation = source.generation;
+          target.generation = source.generation + (sign * 1);
         }
         else if (edge.type === "Mitotic") {
-          target.generation = source.generation + 0.2;
+          target.generation = source.generation + (sign * 0.2);
         }
         else if (edge.type === "Library") {
-          target.generation = source.generation + 0.2;
+          target.generation = source.generation + (sign * 0.2);
         }
         else {
           throw new Error("Invalid Edge Type");
         }
-
-        processRecurse(graph, targetName);
       }
+
+      processRecurse(graph, targetName);
     }
   }
 }
@@ -258,4 +258,54 @@ function isHigherGeneration(aName, bName) {
   var aGen = Number(aName.substring(1));
   var bGen = Number(bName.substring(1));
   return bGen > aGen;
+}
+
+function normalizeGenerations(graph) {
+  var minGeneration = 1;
+
+  for (var nodeName of graph.nodes()) {
+    var node = graph.node(nodeName);
+
+    if (node.generation < minGeneration) {
+      // need to subtract 1 because the generations start at 1 istead of 0
+      minGeneration = node.generation - 1;
+    }
+  }
+
+  if (minGeneration < 1) {
+    for (var nodeName of graph.nodes()) {
+      var node = graph.node(nodeName);
+      node.generation = node.generation - minGeneration;
+    }
+  }
+}
+
+function removeEmptyNodes(graph) {
+  for (var nodeName of graph.nodes()) {
+    var node = graph.node(nodeName);
+    if (graph.neighbors(nodeName).length === 0) {
+      graph.removeNode(nodeName);
+    }
+  }
+}
+
+function numberOfGenerations(graph) {
+  var minGeneration = 0;
+  var maxGeneration = 0;
+
+  for (var nodeName of graph.nodes()) {
+    var node = graph.node(nodeName);
+
+    if (node.generation < minGeneration) {
+      // need to subtract 1 because the generations start at 1 istead of 0
+      minGeneration = node.generation;
+    }
+
+    if (node.generation > maxGeneration) {
+      // need to subtract 1 because the generations start at 1 istead of 0
+      maxGeneration = node.generation;
+    }
+  }
+
+  return Math.floor(maxGeneration - minGeneration);
 }
