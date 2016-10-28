@@ -81,8 +81,8 @@ void dng::RelationshipGraph::PruneForXLinked(dng::Graph &pedigree_graph){
                 std::cout << v << "\t" << *ei << "\tE_T:"<< (int) edge_types[*ei] << std::endl;
                 if (edge_types[*ei] == dng::graph::EdgeType::Meiotic) {
                     auto child = target(*ei, pedigree_graph);
-                    std::cout << v << "\t" << child << "\tG:"<< (int) gender[child] << std::endl;
-                    if(gender[child] == dng::io::Pedigree::Gender::Male){
+                    std::cout << v << "\t" << child << "\tG:"<< (int) sex[child] << std::endl;
+                    if(sex[child] == dng::io::Pedigree::Sex::Male){
                         std::cout << "Remove_Son_Edge:" << *ei << std::endl;
                     }
                 }
