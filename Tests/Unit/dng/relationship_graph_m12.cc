@@ -138,12 +138,12 @@ BOOST_FIXTURE_TEST_CASE(test_constructor, FixturePedigreeMid ) {
             "GL/9", "GL/10",
             "GL/3", "GL/6",
             "GL/11", "GL/8",
-            "LB/NA12001:Solexa-001", "LB/NA12002:Solexa-002",
-            "LB/NA12003:Solexa-003", "LB/NA12004:Solexa-004",
-            "LB/NA12005:Solexa-005", "LB/NA12006:Solexa-006",
-            "LB/NA12007:Solexa-007", "LB/NA12008:Solexa-008",
-            "LB/NA12009:Solexa-009", "LB/NA12010:Solexa-010",
-            "LB/NA12011:Solexa-011", "LB/NA12012:Solexa-012"
+            "LB/NA12001/Solexa-001", "LB/NA12002/Solexa-002",
+            "LB/NA12003/Solexa-003", "LB/NA12004/Solexa-004",
+            "LB/NA12005/Solexa-005", "LB/NA12006/Solexa-006",
+            "LB/NA12007/Solexa-007", "LB/NA12008/Solexa-008",
+            "LB/NA12009/Solexa-009", "LB/NA12010/Solexa-010",
+            "LB/NA12011/Solexa-011", "LB/NA12012/Solexa-012"
     };
     boost_check_equal_vector(expected_labels, labels);
 
@@ -441,12 +441,12 @@ BOOST_FIXTURE_TEST_CASE(test_add_lib_from_rgs, FixturePedigreeMid) {
         "SM/NA12007", "SM/NA12008",
         "SM/NA12012",
 
-        "LB/NA12001:Solexa-001", "LB/NA12002:Solexa-002",
-        "LB/NA12003:Solexa-003", "LB/NA12004:Solexa-004",
-        "LB/NA12005:Solexa-005", "LB/NA12006:Solexa-006",
-        "LB/NA12007:Solexa-007", "LB/NA12008:Solexa-008",
-        "LB/NA12009:Solexa-009", "LB/NA12010:Solexa-010",
-        "LB/NA12011:Solexa-011", "LB/NA12012:Solexa-012"
+        "LB/NA12001/Solexa-001", "LB/NA12002/Solexa-002",
+        "LB/NA12003/Solexa-003", "LB/NA12004/Solexa-004",
+        "LB/NA12005/Solexa-005", "LB/NA12006/Solexa-006",
+        "LB/NA12007/Solexa-007", "LB/NA12008/Solexa-008",
+        "LB/NA12009/Solexa-009", "LB/NA12010/Solexa-010",
+        "LB/NA12011/Solexa-011", "LB/NA12012/Solexa-012"
 
     };
 
@@ -660,12 +660,12 @@ BOOST_FIXTURE_TEST_CASE(test_update_labels_node_ids, FixturePedigreeMid) {
         "GL/3", "GL/6", "GL/11",
         "GL/8",
 
-        "LB/NA12001:Solexa-001", "LB/NA12002:Solexa-002",
-        "LB/NA12003:Solexa-003", "LB/NA12004:Solexa-004",
-        "LB/NA12005:Solexa-005", "LB/NA12006:Solexa-006",
-        "LB/NA12007:Solexa-007", "LB/NA12008:Solexa-008",
-        "LB/NA12009:Solexa-009", "LB/NA12010:Solexa-010",
-        "LB/NA12011:Solexa-011", "LB/NA12012:Solexa-012"
+        "LB/NA12001/Solexa-001", "LB/NA12002/Solexa-002",
+        "LB/NA12003/Solexa-003", "LB/NA12004/Solexa-004",
+        "LB/NA12005/Solexa-005", "LB/NA12006/Solexa-006",
+        "LB/NA12007/Solexa-007", "LB/NA12008/Solexa-008",
+        "LB/NA12009/Solexa-009", "LB/NA12010/Solexa-010",
+        "LB/NA12011/Solexa-011", "LB/NA12012/Solexa-012"
     };
 
     boost_check_equal_vector(expected_labels, relationship_graph.labels_);

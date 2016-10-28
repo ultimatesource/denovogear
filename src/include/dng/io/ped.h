@@ -37,13 +37,14 @@
 
 #include <dng/utility.h>
 #include <dng/io/utility.h>
+#include <dng/constant.h>
 
 namespace dng {
 namespace io {
 
 class Pedigree {
-    const std::string FAM_IND_DELIM = "\t";
-    const std::string OUTPUT_DELIM ="/";
+    const std::string INTERNAL_DELIM = "\t";
+
 
 public:
     typedef boost::multi_index_container<std::string,
@@ -79,7 +80,7 @@ public:
 //        }
 //        return output_names_.project<0>(it) - output_names_.begin();
 //    }
-    static std::size_t id(const std::string &name, NameContainer &names) const {
+    static std::size_t id(const std::string &name, NameContainer &names)  {
         auto it = names.get<1>().find(name);
         if(it == names.get<1>().end()) {
             return std::size_t(0);
@@ -141,10 +142,10 @@ public:
         bool is_individual_id_not_unique = false;
         std::vector<std::size_t> dup_individual;
         map<string, size_t> child_names {{"", 0}};
-        map<string, size_t> check_dup_id {{FAM_IND_DELIM, 0}};
+        map<string, size_t> check_dup_id {{INTERNAL_DELIM, 0}};
         //TODO(RC): Think about the algorithm later.
         for(k = 1; k < string_table.size(); ++k) {
-            auto f_i = string_table[k][0] + FAM_IND_DELIM + string_table[k][1];
+            auto f_i = string_table[k][0] + INTERNAL_DELIM + string_table[k][1];
 
             bool success = child_names.emplace(string_table[k][1], k).second;
             bool is_unique = check_dup_id.emplace(f_i, k).second;
@@ -164,9 +165,9 @@ public:
             child_names.emplace("", 0);
 
             for(k = 1; k < string_table.size(); ++k) {
-                string_table[k][1] = string_table[k][0] + FAM_IND_DELIM + string_table[k][1];
-                string_table[k][2] = string_table[k][0] + FAM_IND_DELIM + string_table[k][2];
-                string_table[k][3] = string_table[k][0] + FAM_IND_DELIM + string_table[k][3];
+                string_table[k][1] = string_table[k][0] + INTERNAL_DELIM + string_table[k][1];
+                string_table[k][2] = string_table[k][0] + INTERNAL_DELIM + string_table[k][2];
+                string_table[k][3] = string_table[k][0] + INTERNAL_DELIM + string_table[k][3];
 
                 bool success = child_names.emplace(string_table[k][1], k).second;
                 if(!success) {
@@ -273,9 +274,9 @@ public:
             }
             else {
                 std::string temp_name = name;//string_table[nrow][1];
-                auto index = temp_name.find(FAM_IND_DELIM);
+                auto index = temp_name.find(INTERNAL_DELIM);
                 if(index != std::string::npos) {
-                    temp_name.replace(index, FAM_IND_DELIM.length(), OUTPUT_DELIM);
+                    temp_name.replace(index, INTERNAL_DELIM.length(), DNG_GROUP_DELIM);
                     output_names_.push_back(temp_name);
                 }
             }

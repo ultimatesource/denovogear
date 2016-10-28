@@ -34,8 +34,10 @@
 #include <dng/read_group.h>
 #include <dng/peeling.h>
 #include <dng/detail/unit_test.h>
+#include <dng/constant.h>
+#include <dng/inheritance_model.h>
 
-#define DEBUG_RGRAPH 1
+//#define DEBUG_RGRAPH 0
 
 namespace dng {
 
@@ -47,30 +49,11 @@ public:
     typedef boost::property_map<Graph, boost::vertex_label_t>::type PropVertexLabel;
     typedef boost::property_map<Graph, boost::vertex_group_t>::type PropVertexGroup;
     typedef boost::property_map<Graph, boost::vertex_index_t>::type PropVertexIndex;
+    typedef boost::property_map<Graph, boost::vertex_sex_t>::type PropVertexSex;
 
     typedef boost::property_map<Graph, boost::vertex_index_t>::type IndexMap;
 
     typedef std::vector<std::vector<boost::graph_traits<dng::Graph>::edge_descriptor>> family_labels_t;
-
-//    PR_NOTE(SW): Get ready for the next PR, adding multiple inheritance patterns
-    enum class InheritancePattern : int {
-        AUTOSOMAL = 0,
-        DEFAULT = 0,
-        MATERNAL = 1,
-        PATERNAL = 2,
-        X_LINKED = 3,
-        Y_LINKED = 4,
-        W_LINKED = 5,
-        Z_LINKED = 6,
-
-//        autosomal (the default)
-//        xlinked (females have 2 copies, males have 1; males transmit to daughters, not to sons)
-//        ylinked (males have 1 copy, only transmits it to sons)
-//        wlinked (females have 1 copy, only transmited to daughters)
-//        zlinked (males have 2 copies, females have 1; females transmit to sons, not to daughters)
-//        maternal (transmitted by mother to child)
-//        paternal (transmitter by father to child)
-    };
 
     //TODO: struct FamilyInfo/Family structure.
     //Op1: A struct to record info in each family. family_t and ops
@@ -96,26 +79,28 @@ public:
         std::size_t parent2;
         double length1;
         double length2;
+        dng::io::Pedigree::Sex sex;
     };
 
-    bool Construct(const io::Pedigree &pedigree, dng::ReadGroups &rgs,
-                   double mu, double mu_somatic, double mu_library);
+    //PR_NOTE(SW): Both constructor exist now to reduce the chance of merge conflict or breaking something
+    bool Construct(const io::Pedigree& pedigree, dng::ReadGroups& rgs,
+            InheritancePattern inheritance_pattern,
+            double mu, double mu_somatic, double mu_library);
 
-    //TODO(SW): Eventually replace with this, or pass inheritance with a different method
-    bool Construct(const io::Pedigree &pedigree, dng::ReadGroups &rgs,
-            const InheritancePattern &pattern, double mu, double mu_somatic,
-            double mu_library);
-
+    bool Construct(const io::Pedigree& pedigree, dng::ReadGroups& rgs,
+            double mu, double mu_somatic, double mu_library);
 
     double PeelForwards(peel::workspace_t &work,
                         const TransitionVector &mat) const {
         if(work.dirty_lower) {
             work.CleanupFast();
         }
+
         // Peel pedigree one family at a time
         for(std::size_t i = 0; i < peeling_functions_.size(); ++i) {
             (*peeling_functions_[i])(work, family_members_[i], mat);
         }
+
         // Sum over roots
         double ret = 0.0;
         for(auto r : roots_) {
@@ -197,12 +182,11 @@ protected:
 
     void ConstructPeelingMachine();
 
-    //PR_NOTE(SW): New functions here
     void SetupFirstNodeIndex(const io::Pedigree &pedigree);
 
-    //PR_NOTE(SW): Extract all information we needed form io::pedigree, io:pedigree should never be used after this function
     void ParseIoPedigree(dng::Graph &pedigree_graph,
             const dng::io::Pedigree &pedigree);
+
 
     void AddLibrariesFromReadGroups(dng::Graph &pedigree_graph,
             const dng::ReadGroups &rgs);
@@ -223,6 +207,8 @@ protected:
     void CreatePeelingOps(dng::Graph &pedigree_graph,
             const std::vector<size_t> &node_ids, family_labels_t &family_labels,
             std::vector<vertex_t> &pivots);
+
+
 
 private:
     void ConnectSomaticToLibraries(dng::Graph &pedigree_graph,

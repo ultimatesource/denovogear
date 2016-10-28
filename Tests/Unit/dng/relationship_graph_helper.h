@@ -27,10 +27,10 @@
 #include <vector>
 
 #include <dng/relationship_graph.h>
-#include <dng/graph.h>
+
 #include "../boost_test_helper.h"
 
-#define DNG_GL_PREFIX "GL-"
+
 
 constexpr size_t S_MAX = static_cast<size_t>(-1);
 //std::numeric_limits<std::size_t>::max();

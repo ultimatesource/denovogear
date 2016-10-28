@@ -71,10 +71,10 @@ BOOST_FIXTURE_TEST_CASE(test_constructor, FixturePedigree ) {
     const std::vector<std::string> expected_labels = {
         "GL/1", // founder 1
         "GL/2", // founder 2
-        "LB/NA12878:Solexa-135852",  // lib 1
-        "LB/NA12891:Solexa-135851",  // lib 2
-        "LB/NA12892:Solexa-135853"   // lib 3
-//#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA12878:Solexa-135852   NA12891:Solexa-135851   NA12892:Solexa-135853
+        "LB/NA12878/Solexa-135852",  // lib 1
+        "LB/NA12891/Solexa-135851",  // lib 2
+        "LB/NA12892/Solexa-135853"   // lib 3
+//#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA12878/Solexa-135852   NA12891/Solexa-135851   NA12892/Solexa-135853
     };
     for (int j = 0; j < 5; ++j) {
         BOOST_CHECK_EQUAL(expected_labels[j], labels[j]);
@@ -245,9 +245,9 @@ BOOST_FIXTURE_TEST_CASE(test_add_lib_from_rgs, ReadTrioFromFile) {
         "SM/NA12891",
         "SM/NA12892",
         "SM/NA12878",
-        "LB/NA12878:Solexa-135852",
-        "LB/NA12891:Solexa-135851",
-        "LB/NA12892:Solexa-135853"
+        "LB/NA12878/Solexa-135852",
+        "LB/NA12891/Solexa-135851",
+        "LB/NA12892/Solexa-135853"
     };
 
     for (int v = 0; v < relationship_graph.num_nodes_; ++v) {
@@ -378,9 +378,9 @@ BOOST_FIXTURE_TEST_CASE(test_update_labels_node_ids, ReadTrioFromFile) {
     std::vector<std::string> expected_labels {
         "GL/1",
         "GL/2",
-        "LB/NA12878:Solexa-135852",
-        "LB/NA12891:Solexa-135851",
-        "LB/NA12892:Solexa-135853"
+        "LB/NA12878/Solexa-135852",
+        "LB/NA12891/Solexa-135851",
+        "LB/NA12892/Solexa-135853"
     };
 
     boost_check_equal_vector(expected_labels, relationship_graph.labels_);

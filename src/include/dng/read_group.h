@@ -168,15 +168,12 @@ void ReadGroups::ParseSamples(InFile &file) {
         // Each sample column in a vcf file typically corresponds to an @RG SM: tag.
         // However, we prefer to work with @RG LB: tags as our base data.
         // In order to extract library information from VCF data, we support column
-        // ids in the following format SAMPLE:LIBRARY.
+        // ids in the following format SAMPLE/LIBRARY.
 
-//        const
-        char *sm = samples.first[a];
-        char *p = strchr(sm, ':');
-        *p = '/'; //TODO(SW): This is a bug, need to test p==nullptr and bla bla refactor!
+        const char *sm = samples.first[a];
+        const char *p = strrchr(sm, '/');
         ReadGroup val{sm, sm};
 
-//        const char *p = strchr(sm, ':');
         if(p == nullptr || *(p + 1) == '\0') {
             val.sample = sm;
         } else {
