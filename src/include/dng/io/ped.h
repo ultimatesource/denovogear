@@ -32,6 +32,7 @@
 #include <boost/multi_index/identity.hpp>
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/random_access_index.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include <dng/utility.h>
 #include <dng/io/utility.h>
@@ -121,6 +122,7 @@ public:
             }
             // Add token to the current row
             string_table.back()[k] = *tok_iter;
+            boost::trim(string_table.back()[k]);
             k += 1;
         }
         // Build map of unique child names
