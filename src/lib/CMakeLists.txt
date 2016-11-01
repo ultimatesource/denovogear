@@ -30,6 +30,8 @@ target_link_libraries(libdng
 
 set_target_properties(libdng PROPERTIES OUTPUT_NAME dng)
 
+install(TARGETS libdng ARCHIVE DESTINATION lib LIBRARY DESTINATION lib)
+
 if(TARGET ext_eigen3)
   add_dependencies(libdng ext_eigen3)
 endif()
