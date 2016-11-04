@@ -3,6 +3,34 @@ var jQuery = require('jquery');
 var graphml = require('graphml-js');
 var gl = require('graphlib');
 
+var pedData = {
+  "n": [4, 5, 3, 1],
+  "nid": [
+    [1, 2, 4, 5, 0],
+    [3, 6, 10, 9, 6],
+    [7, 8, 11, 0, 0],
+    [12, 0, 0, 0, 0]
+  ],
+  "pos": [
+    [-2.4538e-16, 1, 4, 5, 0],
+    [0.5, 1.5, 2.5, 3.5, 4.5],
+    [0.7929, 1.7929, 2.7929, 0, 0],
+    [2.2929, 0, 0, 0, 0]
+  ],
+  "fam": [
+    [0, 0, 0, 0, 0],
+    [1, 0, 0, 0, 3],
+    [1, 1, 3, 0, 0],
+    [2, 0, 0, 0, 0]
+  ],
+  "spouse": [
+    [1, 0, 1, 0, 0],
+    [1, 0, 1, 0, 0],
+    [0, 1, 0, 0, 0],
+    [0, 0, 0, 0, 0]
+  ]
+};
+
 jQuery.get('example_graph.graphml', function(data) {
     d3.select('#text_box').text(data);
     main();
@@ -33,9 +61,13 @@ function main() {
   parser.parse(text, function (err, inputGraph) {
     var graph = convertToGraphlib(inputGraph);
 
-    process(graph);
+    computeGenerations(graph);
+
 
     var graphmlGraph = convertFromGraphlib(graph);
+
+    console.dir(graphmlGraph);
+    doLayout(graphmlGraph, pedData);
 
     for (var node of graphmlGraph.nodes) {
       if (node.attributes.generation !== undefined) {
@@ -68,28 +100,35 @@ function main() {
       .attr("r", 8)
       .attr("fill", function(d) { 
         if (isLibraryNode(d)) {
-          return "tomato";
+          return "Tomato";
         } 
         else if (isSampleNode(d)) {
-          return "grey";
+          return "Grey";
+        }
+        else if (isSampleRootNode(d)) {
+          return "DarkSeaGreen";
         }
         else {
-          return "steelblue"; 
+          return "SteelBlue"; 
         }
       });
 
     node.append("text")
       .attr("dx", 12)
       .attr("dy", ".35em")
-      .text(function(d) { return d.attributes.label });
-      //.text(function(d) { return d.id });
+      //.text(function(d) { return d.attributes.label });
+      .text(function(d) { return d.id });
+    
+    node.attr("transform", function(d) {
+        return "translate(" + d.x + "," + d.y + ")";
+    });
 
-    simulation
-      .nodes(graphmlGraph.nodes)
-      .on("tick", ticked);
+    //simulation
+    //  .nodes(graphmlGraph.nodes)
+    //  .on("tick", ticked);
 
-    simulation.force("link")
-      .links(graphmlGraph.edges);
+    //simulation.force("link")
+    //  .links(graphmlGraph.edges);
 
     function ticked() {
       link
@@ -188,19 +227,19 @@ function convertFromGraphlib(graph) {
   return g;
 }
 
-function process(graph) {
+function computeGenerations(graph) {
   var startNodeName = "n1";
   var startNode = graph.node(startNodeName);
   startNode.generation = 1;
 
   removeEmptyNodes(graph);
 
-  processRecurse(graph, startNodeName);
+  computeGenerationsRecurse(graph, startNodeName);
 
   normalizeGenerations(graph);
 }
 
-function processRecurse(graph, sourceName) {
+function computeGenerationsRecurse(graph, sourceName) {
 
   var neighbors = graph.neighbors(sourceName);
   var source = graph.node(sourceName);
@@ -237,17 +276,31 @@ function processRecurse(graph, sourceName) {
         }
       }
 
-      processRecurse(graph, targetName);
+      computeGenerationsRecurse(graph, targetName);
     }
   }
 }
 
+function isChildEdge(edge) {
+  return edge.attributes.type === 'Meiotic';
+}
+
 function isLibraryNode(node) {
+  if (node.attributes.label === undefined) {
+    return false;
+  }
   return node.attributes.label.startsWith("LB");
 }
 
 function isSampleNode(node) {
+  if (node.attributes.label === undefined) {
+    return false;
+  }
   return node.attributes.label.startsWith("SM");
+}
+
+function isSampleRootNode(node) {
+  return node.attributes.label === undefined;
 }
 
 function hasGeneration(node) {
@@ -308,4 +361,36 @@ function numberOfGenerations(graph) {
   }
 
   return Math.floor(maxGeneration - minGeneration);
+}
+
+function doLayout(graph, pedData) {
+  var numLevels = pedData.n.length;
+  for (var i = 0; i < numLevels; i++) {
+    var row = pedData.nid[i];
+    console.log("new row");
+    for (var j = 0; j < row.length; j++) {
+      var id = row[j];
+      if (id !== 0) {
+        var node = findNodeById(graph.nodes, id);
+        node.x = 100 + (50 * pedData.pos[i][j]);
+        node.y = 100 * (i + 1);
+        console.log(node.x);
+        console.log(node.y);
+      }
+    }
+  }
+}
+
+function getId(node) {
+  return Number(node.id.substring(1));
+}
+
+function findNodeById(nodes, id) {
+  var foundNode;
+  nodes.forEach(function(node, index) {
+    if (node.id === 'n' + id) {
+      foundNode = node;
+    }
+  });
+  return foundNode;
 }
