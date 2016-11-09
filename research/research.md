@@ -20,6 +20,7 @@
 * [Visualizing Family Trees](http://blogs.ancestry.com/techroots/visualizing-family-trees/)
 * [Comparison of Pedigree Layout Engines](http://madeline.med.umich.edu/madeline/comparisons/)
 * [graphdrawing.org](graphdrawing.org)
+* [pedigraph](http://animalgene.umn.edu/pedigraph/sample-pedigrees)
 
 # Companies/Products
 * [yWorks](http://www.yworks.com/)

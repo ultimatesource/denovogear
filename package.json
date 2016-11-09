@@ -11,6 +11,7 @@
     "clean": "rm -r dist/*"
   },
   "dependencies": {
+    "body-parser": "^1.15.2",
     "d3": "^4.2.5",
     "express": "^4.14.0",
     "graphlib": "^2.1.1",

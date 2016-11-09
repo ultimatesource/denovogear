@@ -3,35 +3,7 @@ var jQuery = require('jquery');
 var graphml = require('graphml-js');
 var gl = require('graphlib');
 
-var pedData = {
-  "n": [4, 5, 3, 1],
-  "nid": [
-    [1, 2, 4, 5, 0],
-    [3, 6, 10, 9, 6],
-    [7, 8, 11, 0, 0],
-    [12, 0, 0, 0, 0]
-  ],
-  "pos": [
-    [-2.4538e-16, 1, 4, 5, 0],
-    [0.5, 1.5, 2.5, 3.5, 4.5],
-    [0.7929, 1.7929, 2.7929, 0, 0],
-    [2.2929, 0, 0, 0, 0]
-  ],
-  "fam": [
-    [0, 0, 0, 0, 0],
-    [1, 0, 0, 0, 3],
-    [1, 1, 3, 0, 0],
-    [2, 0, 0, 0, 0]
-  ],
-  "spouse": [
-    [1, 0, 1, 0, 0],
-    [1, 0, 1, 0, 0],
-    [0, 1, 0, 0, 0],
-    [0, 0, 0, 0, 0]
-  ]
-};
-
-jQuery.get('example_graph.graphml', function(data) {
+jQuery.get('example_pedigree.ped', function(data) {
     d3.select('#text_box').text(data);
     main();
 });
@@ -50,98 +22,111 @@ function main() {
     .force("link", d3.forceLink()
       .id(function(d) { return d.id; })
       .distance(function(d) { return 30; }))
-      //.strength(function(d) { return 3; }))
     .force("charge", d3.forceManyBody()
       .strength(function(d) { return -50; }))
     .force("center", d3.forceCenter(width / 2, height / 2));
 
-    var text = document.getElementById('text_box').value;
-    var parser = new graphml.GraphMLParser();
-
-  parser.parse(text, function (err, inputGraph) {
-    var graph = convertToGraphlib(inputGraph);
-
-    computeGenerations(graph);
-
-
-    var graphmlGraph = convertFromGraphlib(graph);
-
-    console.dir(graphmlGraph);
-    doLayout(graphmlGraph, pedData);
-
-    for (var node of graphmlGraph.nodes) {
-      if (node.attributes.generation !== undefined) {
-        node.fy = (node.attributes.generation * 200) - 180;
-      }
-    }
-
-    var link = svg
-      .append("g")
-        .attr("class", "links")
-      .selectAll("line")
-      .data(graphmlGraph.edges)
-      .enter().append("line")
-        .attr("stroke-width", 1);
-
-    var node = svg
-      .append("g")
-        .attr("class", "nodes")
-      .selectAll(".node")
-      .data(graphmlGraph.nodes)
-      .enter()
-      .append("g")
-        .attr("class", "node")
-        .call(d3.drag()
-          .on("start", dragstarted)
-          .on("drag", dragged)
-          .on("end", dragended));
-
-    node.append("circle")
-      .attr("r", 8)
-      .attr("fill", function(d) { 
-        if (isLibraryNode(d)) {
-          return "Tomato";
-        } 
-        else if (isSampleNode(d)) {
-          return "Grey";
-        }
-        else if (isSampleRootNode(d)) {
-          return "DarkSeaGreen";
-        }
-        else {
-          return "SteelBlue"; 
-        }
-      });
-
-    node.append("text")
-      .attr("dx", 12)
-      .attr("dy", ".35em")
-      //.text(function(d) { return d.attributes.label });
-      .text(function(d) { return d.id });
-    
-    node.attr("transform", function(d) {
-        return "translate(" + d.x + "," + d.y + ")";
+  var pedigreeText = document.getElementById('text_box').value;
+  var pedigreeUploadData = { text: pedigreeText };
+  jQuery.ajax('/pedigree_and_layout',
+    { 
+      type: 'POST',
+      data: JSON.stringify(pedigreeUploadData),
+      contentType: 'application/json',
+      success: gotData
     });
 
-    //simulation
-    //  .nodes(graphmlGraph.nodes)
-    //  .on("tick", ticked);
+  function gotData(jsonData) {
+    var data = JSON.parse(jsonData);
+    console.log(data);
+  }
 
-    //simulation.force("link")
-    //  .links(graphmlGraph.edges);
+  //var parser = new graphml.GraphMLParser();
 
-    function ticked() {
-      link
-        .attr("x1", function(d) { return d.source.x; })
-        .attr("y1", function(d) { return d.source.y; })
-        .attr("x2", function(d) { return d.target.x; })
-        .attr("y2", function(d) { return d.target.y; });
+  //parser.parse(text, function (err, inputGraph) {
+  //  var graph = convertToGraphlib(inputGraph);
 
-      node.attr("transform", function(d) {
-        return "translate(" + d.x + "," + d.y + ")";
-      });
-    }
-  });
+  //  computeGenerations(graph);
+
+
+  //  var graphmlGraph = convertFromGraphlib(graph);
+
+  //  console.dir(graphmlGraph);
+  //  doLayout(graphmlGraph, pedData);
+
+  //  for (var node of graphmlGraph.nodes) {
+  //    if (node.attributes.generation !== undefined) {
+  //      node.fy = (node.attributes.generation * 200) - 180;
+  //    }
+  //  }
+
+  //  var link = svg
+  //    .append("g")
+  //      .attr("class", "links")
+  //    .selectAll("line")
+  //    .data(graphmlGraph.edges)
+  //    .enter().append("line")
+  //      .attr("stroke-width", 1);
+
+  //  var node = svg
+  //    .append("g")
+  //      .attr("class", "nodes")
+  //    .selectAll(".node")
+  //    .data(graphmlGraph.nodes)
+  //    .enter()
+  //    .append("g")
+  //      .attr("class", "node")
+  //      .call(d3.drag()
+  //        .on("start", dragstarted)
+  //        .on("drag", dragged)
+  //        .on("end", dragended));
+
+  //  node.append("circle")
+  //    .attr("r", 8)
+  //    .attr("fill", function(d) { 
+  //      if (isLibraryNode(d)) {
+  //        return "Tomato";
+  //      } 
+  //      else if (isSampleNode(d)) {
+  //        return "Grey";
+  //      }
+  //      else if (isSampleRootNode(d)) {
+  //        return "DarkSeaGreen";
+  //      }
+  //      else {
+  //        return "SteelBlue"; 
+  //      }
+  //    });
+
+  //  node.append("text")
+  //    .attr("dx", 12)
+  //    .attr("dy", ".35em")
+  //    //.text(function(d) { return d.attributes.label });
+  //    .text(function(d) { return d.id });
+  //  
+  //  node.attr("transform", function(d) {
+  //      return "translate(" + d.x + "," + d.y + ")";
+  //  });
+
+  //  //simulation
+  //  //  .nodes(graphmlGraph.nodes)
+  //  //  .on("tick", ticked);
+
+  //  //simulation.force("link")
+  //  //  .links(graphmlGraph.edges);
+
+  //  function ticked() {
+  //    link
+  //      .attr("x1", function(d) { return d.source.x; })
+  //      .attr("y1", function(d) { return d.source.y; })
+  //      .attr("x2", function(d) { return d.target.x; })
+  //      .attr("y2", function(d) { return d.target.y; });
+
+  //    node.attr("transform", function(d) {
+  //      return "translate(" + d.x + "," + d.y + ")";
+  //    });
+  //  }
+  //});
 
   function dragstarted(d) {
     if (!d3.event.active) simulation.alphaTarget(0.3).restart();
@@ -182,10 +167,10 @@ function parse() {
 }
 
 d3.select('#parse_button').on('click', parse);
-d3.select('#graph_file_input').on('change', updateGraphFile);
+d3.select('#pedigree_file_input').on('change', updateGraphFile);
 
 function updateGraphFile() {
-  var selectedFile = document.getElementById('graph_file_input').files[0];
+  var selectedFile = document.getElementById('pedigree_file_input').files[0];
   var reader = new FileReader();
 
   reader.onload = function(readerEvent) {
