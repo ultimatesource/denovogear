@@ -173,7 +173,7 @@ public:
 
     File(const char *file, const char *mode,
          const char *fasta = nullptr,int min_mapQ = 0, const char *header = nullptr)  :
-            File(hts::File(file, mode), fasta, min_mapQ) {
+            File(hts::File(file, mode), fasta, min_mapQ, header) {
     }
 
     int Read(Alignment *p) {
