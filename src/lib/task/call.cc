@@ -238,27 +238,67 @@ int task::Call::operator()(Call::argument_type &arg) {
     int min_qual = arg.min_basequal;
     double min_prob = arg.min_prob;
 
+
+    using utility::FileCat;
+    using utility::FileCatSet;
+    // if input is empty default to stdin.
+    if(arg.input.empty()) {
+        arg.input.emplace_back("-");
+    }
+
+    // Check that all input formats are of same category
+    auto it = arg.input.begin();
+    utility::FileCat mode = utility::input_category(*it, FileCat::Sequence|FileCat::Pileup|FileCat::Variant, FileCat::Sequence);
+    for(++it; it != arg.input.end(); ++it) {
+        if(utility::input_category(*it, FileCat::Sequence|FileCat::Pileup, FileCat::Sequence) != mode) {
+            throw runtime_error("Argument error: mixing pileup, sequencing, and/or variant file types is not supported.");
+        }
+    }
+
+
+
     // Open input files
     dng::ReadGroups rgs;
     vector<hts::File> indata;
     vector<hts::bam::File> bamdata;
     vector<hts::bcf::File> bcfdata;
-    for(auto && str : arg.input) {
-        indata.emplace_back(str.c_str(), "r");
-        if(indata.back().is_open()) {
-            continue;
+    vector<io::Ad> addata;
+    htsFormatCategory cat = htsFormatCategory::unknown_category;
+    if(mode == FileCat::Pileup) {
+
+    	for(auto && str : arg.input) {
+    		io::Ad adfile(str);
+    		addata.push_back(adfile);
+    	}
+
+    	cat = htsFormatCategory::unknown_category;
+    }
+    else if(mode == FileCat::Sequence || mode == FileCat::Variant) {
+        for(auto && str : arg.input) {
+            indata.emplace_back(str.c_str(), "r");
+            if(indata.back().is_open()) {
+                continue;
+            }
+            throw std::runtime_error("unable to open input file '" + str + "'.");
         }
-        throw std::runtime_error("unable to open input file '" + str + "'.");
+        cat = indata[0].format().category;
+    }
+    else {
+
     }
 
+
     // Check to see if all inputs are of the same type
-    const htsFormatCategory cat = indata[0].format().category;
+   //const htsFormatCategory cat = indata[0].format().category;
+
+    /*
     for(auto && f : indata) {
         if(f.format().category == cat) {
             continue;
         }
         throw std::runtime_error("mixing sequence data and variant data as input is not supported.");
     }
+    */
 
     // Begin writing VCF header
     auto out_file = vcf_get_output_mode(arg);
@@ -274,6 +314,8 @@ int task::Call::operator()(Call::argument_type &arg) {
     inheritance_model.parse_model(arg.model);
 
     if(cat == sequence_data) {
+    	std::cout << "SEQ DATA" << std::endl;
+
         // Wrap input in hts::bam::File
         for(auto && f : indata) {
        	    bamdata.emplace_back(std::move(f), arg.fasta.c_str(),
@@ -305,6 +347,7 @@ int task::Call::operator()(Call::argument_type &arg) {
         // Add each genotype/sample column
         rgs.ParseHeaderText(bamdata, arg.rgtag);
     } else if(cat == variant_data) {
+
         bcfdata.emplace_back(std::move(indata[0]));
         rec_reader = bcf_sr_init(); // used for iterating each rec in BCF/VCF
 
@@ -632,7 +675,6 @@ int task::Call::operator()(Call::argument_type &arg) {
             record.info("MUX", stats.mux);
             record.info("MU1P", stats.mu1p);
 
-
             record.sample_genotypes(best_genotypes);
             record.samples("GQ", genotype_qualities);
             record.samples("GP", gp_scores);
@@ -643,6 +685,7 @@ int task::Call::operator()(Call::argument_type &arg) {
             record.samples("ADR", adr_counts);
 
             record.samples("MUP", stats.node_mup);
+
 
             if(stats.has_single_mut) {
                 record.info("DNT", stats.dnt);
@@ -671,56 +714,49 @@ int task::Call::operator()(Call::argument_type &arg) {
     } else if(cat == variant_data) {
         const char *fname = bcfdata[0].name();
         dng::pileup::vcf::VCFPileup vcfpileup{rgs.libraries()};
-        vcfpileup(fname, rec_reader, [&](bcf_hdr_t *hdr, bcf1_t *rec){
-            // Won't be able to access ref->d unless we unpack the record first
-            bcf_unpack(rec, BCF_UN_STR);
+        //vcfpileup(fname, rec_reader, [&](const pileup::vcf::VCFPileup::data_type &data, const pileup::vcf::VCFPileup::allele_list &alleles, const char *chrom, size_t pos) {
+        auto f = [&](const pileup::vcf::VCFPileup::data_type &data, const pileup::vcf::VCFPileup::allele_list &alleles, const char *chrom, size_t pos) {
 
-            // get chrom, position, ref from their fields
-            const char *chrom = bcf_hdr_id2name(hdr, rec->rid);
-            int32_t position = rec->pos;
-            uint32_t n_alleles = rec->n_allele;
-            uint32_t n_samples = bcf_hdr_nsamples(hdr);
-            const char ref_base = *(rec->d.allele[0]);
+            //int target_id = location_to_contig(loc);
+            int position = pos;
+            size_t n_alleles = alleles.size();
+            size_t n_samples = data.size();
+            const char ref_base = alleles[0];
 
-            // Read all the Allele Depths for every sample into ad array
-            int *ad = NULL;
-            int n_ad = 0;
-            int n_ad_array = 0;
-            n_ad = bcf_get_format_int32(hdr, rec, "AD", &ad, &n_ad_array);
-
-            // Create a map between the order of vcf alleles (REF+ALT) and their correct index in read_depths.counts[]
+        	// Create a map between the order of vcf alleles (REF+ALT) and their correct index in read_depths.counts[]
             vector<size_t> a2i;
             string allele_order_str;
             int acgt_to_refalt_allele[5] = { -1, -1, -1, -1, -1}; // Maps allele to REF+ALT order
             int refalt_to_acgt_allele[5] = { -1, -1, -1, -1, -1}; // Maps REF+ALT order to A,C,G,T,N order
-            for(int a = 0; a < n_alleles; a++) {
-                char base = *(rec->d.allele[a]);
-                size_t base_indx = seq::char_index(base);
-                a2i.push_back(seq::char_index(base));
-                acgt_to_refalt_allele[base_indx] = a;
-                refalt_to_acgt_allele[a] = base_indx;
+            for(int a = 0; a < alleles.size(); ++a) {
+            	char base = alleles[a];
+            	size_t base_indx = seq::char_index(base);
+            	a2i.push_back(base_indx);
+            	acgt_to_refalt_allele[base_indx] = a;
+            	refalt_to_acgt_allele[a] = base_indx;
 
                 if(a != 0)
             		allele_order_str += ",";
-            	allele_order_str += rec->d.allele[a];
+            	allele_order_str += alleles[a];
             }
 
-            // Build the read_depths
+
             read_depths.assign(n_samples, {});
-            for(size_t sample_ndx = 0; sample_ndx < n_samples; sample_ndx++) {
-                size_t pos = rgs.library_from_index(sample_ndx);
-                if(pos == -1) {
-                    continue;
-                }
-                for(size_t allele_ndx = 0; allele_ndx < n_alleles; allele_ndx++) {
-                    int32_t depth = ad[n_alleles * sample_ndx + allele_ndx];
-                    size_t base = a2i[allele_ndx];
-                    if(!(base < 4)) {
-                        continue;
-                    }
-                    read_depths[pos].counts[base] = depth;
-                }
+            for(size_t sample_ndx = 0; sample_ndx < data.size(); ++sample_ndx) {
+            	size_t sample_pos = rgs.library_from_index(sample_ndx);
+            	if(sample_pos == -1) {
+            		continue;
+            	}
+
+            	for(size_t allele_ndx = 0; allele_ndx < data[sample_ndx].size(); ++allele_ndx) {
+            		int32_t depth = data[sample_ndx][allele_ndx];
+            		size_t base_pos = a2i[allele_ndx];
+            		if(!(base_pos < 4)) {
+            			continue;
+            		}
+            		read_depths[sample_pos].counts[base_pos] = depth;            	}
             }
+
 
             size_t ref_index = seq::char_index(ref_base);
             if(!calculate(read_depths, ref_index, &stats)) {
@@ -730,12 +766,20 @@ int task::Call::operator()(Call::argument_type &arg) {
             // reformatted AD fields for output. The first few fields are the GL and SM fields and "AD" is missing. The
             // remaining fields are just copied from the input file
             std::vector<int32_t> ad_counts(library_start*n_alleles, hts::bcf::int32_missing);
-            ad_counts.insert(ad_counts.end(), ad, ad + n_samples*n_alleles);
+            for(const pileup::vcf::VCFPileup::depth_list &depths : data) {
+            	for(const int32_t d : depths) {
+            		ad_counts.push_back(d);
+            	}
+            }
 
             // sum up all the counts
             vector<int32_t> ad_info(n_alleles, 0);
-            for(size_t a = 0; a < n_ad; a++)
-            	ad_info[a%n_alleles] += ad[a];
+            for(const pileup::vcf::VCFPileup::depth_list &depths : data) {
+            	for(size_t a = 0; a < depths.size(); ++a) {
+            		ad_info[a%n_alleles] += depths[a];
+            	}
+
+            }
 
             // sum up the depths for each sample and over all
             std::vector<int32_t> dp_counts(num_nodes, hts::bcf::int32_missing);
@@ -744,8 +788,8 @@ int task::Call::operator()(Call::argument_type &arg) {
             for(int sample = 0; sample < n_samples; sample++) {
             	int32_t count = 0;
             	for(int allele = 0; allele < n_alleles; allele++) {
-            		count += ad[sample*n_alleles + allele];
-                    total_depths[allele] += ad[sample*n_alleles + allele];
+            		count += data[sample][allele];
+                    total_depths[allele] += data[sample][allele];
             	}
             	dp_counts[sample+library_start] = count;
             	dp_info += count;
@@ -831,6 +875,7 @@ int task::Call::operator()(Call::argument_type &arg) {
             record.info("MUX", stats.mux);
             record.info("MU1P", stats.mu1p);
 
+
             record.sample_genotypes(best_genotypes);
             record.samples("GQ", genotype_qualities);
             record.samples("GP", gp_scores);
@@ -856,7 +901,8 @@ int task::Call::operator()(Call::argument_type &arg) {
             record.position(position);
             vcfout.WriteRecord(record);
             record.Clear();
-        });
+        };
+        vcfpileup(fname, rec_reader, f);
     } else {
         throw runtime_error("unsupported file category.");
     }

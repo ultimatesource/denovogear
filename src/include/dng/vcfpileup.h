@@ -49,7 +49,16 @@ namespace vcf {
 
 class VCFPileup {
 public:
-    typedef void (callback_type)(bcf_hdr_t *, bcf1_t *);
+
+	typedef std::vector<int32_t> depth_list;
+
+    typedef std::vector<depth_list> data_type;
+
+    typedef std::vector<char> allele_list;
+
+	//typedef void (callback_type)(bcf_hdr_t *, bcf1_t *);
+	typedef void (callback_type)(const data_type &data, const allele_list &alleles, const char *chrom, size_t loc);
+
 
     template<typename LB>
     VCFPileup(const LB &lb) : libraries_{lb} {
@@ -57,11 +66,21 @@ public:
     }
 
     template<typename Func>
+    void operator()(const char *fname, Func func);
+
+    template<typename Func>
     void operator()(const char *fname, bcf_srs_t *rec_reader, Func func);
 
 private:
     ReadGroups::StrSet libraries_;
 };
+
+template<typename Func>
+void VCFPileup::operator()(const char *fname, Func func) {
+
+
+}
+
 
 template<typename Func>
 void VCFPileup::operator()(const char *fname, bcf_srs_t *rec_reader, Func func) {
@@ -93,9 +112,45 @@ void VCFPileup::operator()(const char *fname, bcf_srs_t *rec_reader, Func func) 
     		continue;
     	}
 
+    	// Won't be able to access ref->d unless we unpack the record first
+    	bcf_unpack(rec, BCF_UN_STR);
+
+
+
+        // get chrom, position, ref from their fields
+        //const char *chrom = bcf_hdr_id2name(hdr, rec->rid);
+        //int32_t position = rec->pos;
+        uint32_t n_alleles = rec->n_allele;
+        uint32_t n_samples = bcf_hdr_nsamples(hdr);
+        const char ref_base = *(rec->d.allele[0]);
+
+        const char *chrom = bcf_hdr_id2name(hdr, rec->rid);
+        int pos = rec->pos;
+
+        // REF+ALT in the order they appear in the record
+        allele_list alleles(n_alleles);
+        for(int a = 0; a < n_alleles; ++a) {
+        	alleles[a] = *(rec->d.allele[a]);
+        }
+
+
+        // Read all the Allele Depths for every sample into ad array
+        int *ad = NULL;
+        int n_ad = 0;
+        int n_ad_array = 0;
+        n_ad = bcf_get_format_int32(hdr, rec, "AD", &ad, &n_ad_array);
+        data_type read_depths(n_samples, depth_list(n_alleles));
+        for(size_t sample_ndx = 0; sample_ndx < n_samples; ++sample_ndx) {
+        	for(size_t allele_ndx = 0; allele_ndx < n_alleles; ++allele_ndx) {
+        		read_depths[sample_ndx][allele_ndx] = ad[n_alleles * sample_ndx + allele_ndx];
+        	}
+        }
+
+
+
         // TODO? Check the QUAL field or PL,PP genotype fields
         // execute func
-        call_back(hdr, rec);
+        call_back(read_depths, alleles, chrom, pos);
     }
 }
 
