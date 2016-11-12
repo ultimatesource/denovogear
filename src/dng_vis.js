@@ -8,14 +8,6 @@ jQuery.get('example_pedigree.ped', function(data) {
 
 function main() {
 
-  var width = 1280,
-      height = 720;
-
-  var svg = d3.select("#wrapper").append("svg")
-      .attr("class", "mainSvg")
-      .attr("width", width)
-      .attr("height", height)
-    .append("g");
 
   d3.select('#process_button').on('click', serverPedigreeAndLayout);
   d3.select('#pedigree_file_input').on('change', updateFile);
@@ -42,7 +34,18 @@ function main() {
       var links = ret.links;
 
       console.log(nodes);
-      
+
+      var width = 1280,
+          height = 720;
+
+      d3.select("svg").remove();
+
+      var svg = d3.select("#wrapper").append("svg")
+          .attr("class", "mainSvg")
+          .attr("width", width)
+          .attr("height", height)
+        .append("g");
+        
       var link = svg
         .append("g")
           .attr("class", "links")
