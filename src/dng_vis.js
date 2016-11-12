@@ -121,6 +121,7 @@ function main() {
       });
 
     function gotData(jsonData) {
+      console.log(jsonData);
       var data = JSON.parse(jsonData);
 
       var ret = processPedigree(data);
@@ -211,8 +212,11 @@ function main() {
         var id = row[colIdx];
         var node = {};
         node.dataNode = newNode(id);
-        node.x = 100 + (100 * layout.pos[rowIdx][colIdx]);
-        node.y = 100 * (rowIdx + 1);
+        node.id = id;
+        node.fatherId = data.pedigree.findex[oneToZeroBase(id)];
+        node.motherId = data.pedigree.mindex[oneToZeroBase(id)];
+        node.x = 410 + (80 * layout.pos[rowIdx][colIdx]);
+        node.y = 100 + (100 * (rowIdx + 1));
 
         node.type = getGender(data.pedigree, id);
 
@@ -224,7 +228,7 @@ function main() {
       }
     });
 
-    // build marriage nodes
+    // build marriage nodes and links
     nodes.forEach(function(node, index) {
       if (layout.spouse[node.rowIdx][node.colIdx] === 1) {
         var spouseNode = nodes[index + 1];
@@ -235,10 +239,27 @@ function main() {
         marriageNode.dataNode = {};
         nodes.push(marriageNode);
 
-        var marriageLink = {};
-        marriageLink.source = node;
-        marriageLink.target = spouseNode;
-        links.push(marriageLink);
+        var marriageLeftLink = {};
+        marriageLeftLink.type = 'spouse';
+        marriageLeftLink.source = node;
+        marriageLeftLink.target = marriageNode;
+        links.push(marriageLeftLink);
+
+        var marriageRightLink = {};
+        marriageRightLink.type = 'spouse';
+        marriageRightLink.source = spouseNode;
+        marriageRightLink.target = marriageNode;
+        links.push(marriageRightLink);
+
+        var kids = getAllKids(data, nodes, node, spouseNode);
+
+        for (var kid of kids) {
+          var childLink = {};
+          childLink.type = 'child';
+          childLink.source = kid;
+          childLink.target = marriageNode;
+          links.push(childLink);
+        }
 
       }
 
@@ -250,8 +271,37 @@ function main() {
     return { nodes: nodes, links: links };
   }
 
+  function oneToZeroBase(index) {
+    return index - 1;
+  }
+
   function newNode(id) {
     return { id: id };
+  }
+
+  function getAllKids(data, nodes, nodeA, nodeB) {
+    var father;
+    var mother;
+    if (nodeA.type === 'male') {
+      father = nodeA;
+      mother = nodeB;
+    }
+    else {
+      father = nodeB;
+      mother = nodeA;
+    }
+
+    var kids = [];
+    for (var node of nodes) {
+      if (node.type != 'marriage') {
+        if (data.pedigree.findex[oneToZeroBase(node.id)] === father.id &&
+            data.pedigree.mindex[oneToZeroBase(node.id)] === mother.id) {
+          kids.push(node);
+        }
+      }
+    }
+
+    return kids;
   }
 
   function halfwayBetween(nodeA, nodeB) {
