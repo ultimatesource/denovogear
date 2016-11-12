@@ -33,18 +33,21 @@ function main() {
       var nodes = ret.nodes;
       var links = ret.links;
 
-      console.log(nodes);
-
       var width = 1280,
           height = 720;
 
       d3.select("svg").remove();
 
+      var zoom = d3.zoom()
+        .on("zoom", zoomed);
+
       var svg = d3.select("#wrapper").append("svg")
           .attr("class", "mainSvg")
           .attr("width", width)
           .attr("height", height)
+        .call(zoom)
         .append("g");
+
         
       var link = svg
         .append("g")
@@ -112,6 +115,10 @@ function main() {
       node.attr("transform", function(d) {
           return "translate(" + d.x + "," + d.y + ")";
       });
+
+      function zoomed() {
+        svg.attr("transform", d3.event.transform);
+      }
 
     }
 
@@ -230,11 +237,12 @@ function main() {
   }
 
   function getGender(pedigree, id) {
-    for (var i in pedigree.id) {
-      if (pedigree.id[i] === id) {
-        return pedigree.sex[i];
-      }
-    }
+    return pedigree.sex[oneToZeroBase(id)];
+    //for (var i in pedigree.id) {
+    //  if (pedigree.id[i] === id) {
+    //    return pedigree.sex[i];
+    //  }
+    //}
   }
 
 }
