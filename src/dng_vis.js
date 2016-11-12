@@ -1,8 +1,9 @@
 var d3 = require('d3');
-var jQuery = require('jquery');
+
+var text;
 
 jQuery.get('example_pedigree.ped', function(data) {
-    d3.select('#text_box').text(data);
+    text = data;
     main();
 });
 
@@ -12,10 +13,13 @@ function main() {
   d3.select('#process_button').on('click', serverPedigreeAndLayout);
   d3.select('#pedigree_file_input').on('change', updateFile);
 
+  var idText = d3.select('#id_display');
+  
+
   serverPedigreeAndLayout();
 
   function serverPedigreeAndLayout() {
-    var pedigreeText = document.getElementById('text_box').value;
+    var pedigreeText = text;
     var pedigreeUploadData = { text: pedigreeText };
     jQuery.ajax('/pedigree_and_layout',
       { 
@@ -26,30 +30,33 @@ function main() {
       });
 
     function gotData(jsonData) {
-      console.log(jsonData);
+      //console.log(jsonData);
       var data = JSON.parse(jsonData);
 
       var ret = processPedigree(data);
       var nodes = ret.nodes;
       var links = ret.links;
 
-      var width = 1280,
-          height = 720;
+      var height = 500;
 
       d3.select("svg").remove();
 
       var zoom = d3.zoom()
         .on("zoom", zoomed);
 
-      var svg = d3.select("#wrapper").append("svg")
-          .attr("class", "mainSvg")
-          .attr("width", width)
-          .attr("height", height)
-        .call(zoom)
+
+      var chartWrapper= d3.select("#chart_wrapper")
+      var dim = chartWrapper.node().getBoundingClientRect();
+
+      var svg = chartWrapper.append("svg")
+          .attr("width", dim.width)
+          .attr("height", height);
+
+      var container = svg.call(zoom)
         .append("g");
 
         
-      var link = svg
+      var link = container
         .append("g")
           .attr("class", "links")
         .selectAll("line")
@@ -63,14 +70,15 @@ function main() {
         .attr("y2", function(d) { return d.target.y; });
 
 
-      var node = svg
+      var node = container
         .append("g")
           .attr("class", "nodes")
         .selectAll(".node")
         .data(nodes)
         .enter()
         .append("g")
-          .attr("class", "node");
+          .attr("class", "node")
+          .on("mouseover", mouseover);
 
       node.append("path")
         .attr("d", d3.symbol()
@@ -117,7 +125,13 @@ function main() {
       });
 
       function zoomed() {
-        svg.attr("transform", d3.event.transform);
+        container.attr("transform", d3.event.transform);
+      }
+
+      function mouseover(d) {
+        if (d.type !== 'marriage') {
+          document.getElementById('id_display').value = d.id;
+        }
       }
 
     }
@@ -252,7 +266,7 @@ function updateFile() {
   var reader = new FileReader();
 
   reader.onload = function(readerEvent) {
-    d3.select('#text_box').text(reader.result);
+    text = reader.result;
   };
   reader.readAsText(selectedFile);
 }

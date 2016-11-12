@@ -4,7 +4,9 @@ var app = express();
 var exec = require('child_process').exec;
 
 app.use(express.static('dist'));
-//app.use(bodyParser.urlencoded({ extended: false }));
+app.use(express.static('node_modules/bootstrap/dist'));
+app.use(express.static('node_modules/jquery/dist'));
+
 app.use(bodyParser.json());
 
 app.post('/pedigree_and_layout', function(req, res) {
@@ -16,6 +18,4 @@ app.post('/pedigree_and_layout', function(req, res) {
   r.stdin.end();
 });
 
-app.listen(3000, function () {
-    console.log('Hi there');
-});
+app.listen(3000, '10.10.10.239');

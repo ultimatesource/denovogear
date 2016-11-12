@@ -2,28 +2,16 @@
 <html>
 <head>
 <meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link href="css/bootstrap.min.css" rel="stylesheet">
 
 <style>
-
-.center-container {
-  width: 1280px;
-  margin: auto;
-}
-
-.wrapper {
-  height: 720px;
-  width: 100%;
-  border: 2px solid;
-}
 
 .links line {
   stroke: #999;
   stroke-opacity: 0.6;
-}
-
-.nodes circle {
-  stroke: #fff;
-  stroke-width: 1.5px;
 }
 
 .node text {
@@ -36,17 +24,20 @@
 </head>
 <body>
 
-<div class='center-container'>
-  <div id='wrapper' class='wrapper'></div>
-  <br>
+<div class='container'>
+  <div class='row'>
+    <div id='chart_wrapper' class='col-xs-8 panel panel-default'></div>
+    <div id='details_wrapper' class='col-xs-4 panel panel-default'>
+      <div>ID:</div>
+      <input id="id_display" type="text" class="form-control" placeholder="ID">
+    </div>
+  </div>
   <button id='process_button'>Parse Graph</button>
   <input type="file" id="pedigree_file_input">
-  <br>
-  <br>
-  <textarea id="text_box" rows="20" cols="120"></textarea>
-  <br>
 </div>
 
+<script src="jquery.min.js"></script>
+<script src="js/bootstrap.min.js"></script>
 <script src="bundle.js"></script>
 
 </body>
