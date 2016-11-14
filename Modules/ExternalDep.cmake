@@ -97,7 +97,7 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT ZLIB_FOUND)
   ExternalProject_add(ext_zlib
     URL http://zlib.net/zlib-1.2.8.tar.gz
     URL_MD5 44d667c142d7cda120332623eab69f40
-    PREFIX ext_deps/zlib
+    PREFIX "{EXT_PREFIX}/zlib"
     PATCH_COMMAND ""
     UPDATE_COMMAND ""
     CONFIGURE_COMMAND "env" "CC=${CMAKE_C_COMPILER}" "CFLAGS=${EXT_CFLAGS}" "LDFLAGS=${EXT_LDFLAGS}"
@@ -215,7 +215,7 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT Boost_FOUND)
   ExternalProject_add(ext_boost
     URL http://downloads.sourceforge.net/project/boost/boost/${Boost_VERSION}/boost_${boost_file_version}.tar.bz2
     URL_MD5 65a840e1a0b13a558ff19eeb2c4f0cbe
-    PREFIX ext_deps/boost
+    PREFIX "${EXT_PREFIX}/boost"
     BUILD_IN_SOURCE TRUE
     CONFIGURE_COMMAND ${boost_bootstrap}
     BUILD_COMMAND ${boost_build}
