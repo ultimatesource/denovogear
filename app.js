@@ -18,4 +18,4 @@ app.post('/pedigree_and_layout', function(req, res) {
   r.stdin.end();
 });
 
-app.listen(3000, '10.10.10.239');
+app.listen(3000);
