@@ -1,7 +1,7 @@
 ###############################################################################
 # Testdata information
-set(TESTDATA_COMMIT 81c03e57ec72d1a2122a33b8b1b6c5bd15224e05)
-set(TESTDATA_SHA256 6a794e9cc26da1232b5afad6a8223b55b9067e77a830a51d0556c490ba314f16)
+set(TESTDATA_COMMIT 61699f329fb699c07851137a6e84313e3767f026)
+set(TESTDATA_SHA256 e76f0da74afe82bcaee139c71846d86c3ea5560e5ad0a8118df3b29f37465913)
 set(TESTDATA_REPO denovogear/testdata)
 set(TESTDATA_URL "https://api.github.com/repos/${TESTDATA_REPO}/tarball/${TESTDATA_COMMIT}")
 set(TESTDATA_DIR "${CMAKE_BINARY_DIR}/testdata")
@@ -101,6 +101,7 @@ AddCMakeTest(DngCall.Run "" "Build.dng-call")
 AddCMakeTest(DngCall.Bam "" "Build.dng-call;Build.testdata")
 AddCMakeTest(DngCall.Vcf "" "Build.dng-call;Build.testdata")
 AddCmakeTest(DngCall.Cram "" "Build.dng-call;Build.testdata")
+AddCmakeTest(DngCall.Tad "" "Build.dng-call;Build.testdata")
 
 AddCMakeTest(DngLoglike.Run "" "Build.dng-loglike")
 
