@@ -886,7 +886,7 @@ int process_tad_data(task::Call::argument_type &arg) {
     }
     vcfout.WriteHeader();
 
-	pileup::variant::TadPileup tadpileup(rgs.libraries());
+    pileup::variant::TadPileup tadpileup(rgs.libraries());
 	const char *fname = arg.input[0].c_str();
 	return variant_call(arg, vcfout, fname, tadpileup, relationship_graph, rgs);
 }

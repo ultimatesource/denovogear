@@ -196,7 +196,7 @@ protected:
 
     void SimplifyPedigree(dng::Graph &pedigree_graph);
 
-    void UpdateLabelsNodeIds(dng::Graph &pedigree_graph, dng::ReadGroups rgs,
+    void UpdateLabelsNodeIds(dng::Graph &pedigree_graph, dng::ReadGroups &rgs,
             std::vector<size_t> &node_ids);
 
 

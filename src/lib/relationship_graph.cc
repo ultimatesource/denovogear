@@ -589,7 +589,7 @@ void dng::RelationshipGraph::SimplifyPedigree(dng::Graph &pedigree_graph) {
 }
 
 void dng::RelationshipGraph::UpdateLabelsNodeIds(dng::Graph &pedigree_graph,
-        dng::ReadGroups rgs, std::vector<size_t> &node_ids) {
+        dng::ReadGroups &rgs, std::vector<size_t> &node_ids) {
 
     auto labels = get(boost::vertex_label, pedigree_graph);
 
@@ -609,7 +609,8 @@ void dng::RelationshipGraph::UpdateLabelsNodeIds(dng::Graph &pedigree_graph,
     }
     num_nodes_ = vid;
 
-    EraseRemovedLibraries(rgs, node_ids);//How important is this? rgs is never used after this point
+    // Update rgs so we know what libraries to filter out when building the vcf.
+    EraseRemovedLibraries(rgs, node_ids);
 
     auto update_position = [&node_ids, vid](size_t pos) -> size_t {
         for (; pos < node_ids.size() && node_ids[pos] == -1; ++pos)
@@ -653,6 +654,7 @@ void dng::RelationshipGraph::EraseRemovedLibraries(dng::ReadGroups &rgs,
         if (node_ids[u] != -1) {
             continue;
         }
+
         bad_libraries.push_back(*it);
     }
     rgs.EraseLibraries(bad_libraries);

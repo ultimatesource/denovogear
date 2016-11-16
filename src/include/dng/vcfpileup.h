@@ -81,7 +81,6 @@ public:
 	    // Get the header (should be only one input file)
 	    bcf_hdr_t *hdr = bcf_sr_get_header(rec_reader_, 0);
 
-
 	    std::string samples;
 	    for(auto && str : libraries_) {
 	        samples += str + ',';
@@ -140,13 +139,14 @@ public:
 class TadPileup : public VariantPileup {
 private:
 	ReadGroups::StrSet libraries_;
+	dng::RelationshipGraph relationship_graph_;
 
 public:
 
     template<typename LB>
-    TadPileup(const LB &lb) : libraries_{lb} {
+    TadPileup(const LB lb) : libraries_{lb} {
 
-    }
+	}
 
 
 	void operator()(const char *fname, std::function<variant_callback> call_back) {
@@ -155,9 +155,6 @@ public:
 
 		io::Ad input{fname, std::ios_base::in};
 		input.ReadHeader();
-
-
-		//std::cout << "libraries_.size() = " << libraries_.size() << std::endl;
 
 	    // Since pedigree may have removed libraries, map libraries to positions
 	    std::vector<size_t> library_to_index;
@@ -170,21 +167,12 @@ public:
 	        library_to_index[pos] = u;
 	    }
 
-	    /*
-	    for(size_t s : library_to_index) {
-	    	std::cout << s << std::endl;
-	    }
-	    */
-
-	    //std::cout << "libraries_.size() = " << libraries_.size() << std::endl;
-
 	    pileup::AlleleDepths line;
 	    line.data().reserve(input.libraries().size());
-	    // read each line of data into line and process it
+	    const size_type n_libraries = libraries_.size();
 	    while(input.Read(&line)) {
-	    	const size_type n_libraries = line.num_libraries();
+		    // read each line of data into line and process it
 	    	const size_type n_nucleotides = line.num_nucleotides();
-
 
 	    	// Create list of alleles
 	    	allele_list alleles(n_libraries);
@@ -194,56 +182,22 @@ public:
 
 	    	// Get contig and position
 	    	location_t loc = line.location();
-	    	int contig = utility::location_to_contig(loc);
 	    	int position = utility::location_to_position(loc);
+	    	const std::string &contig = input.contig(utility::location_to_contig(loc)).name;
 
-	    	// Create list of alleles
+
+	    	// Create list of read depths
 	    	data_type read_depths(n_libraries, depth_list(n_nucleotides));
-			for(size_t lib = 0; lib < n_libraries; ++lib) {
-				//std::cout << "library[" << lib << "] = " << library_to_index[lib] << std::endl;
-				for(size_t nuc = 0; nuc < n_nucleotides; ++nuc) {
-					read_depths[lib][nuc] = line(nuc, lib);
-	    			//std::cout << line(nuc, lib) << std::endl;
+			for(size_t l_indx = 0; l_indx < n_libraries; ++l_indx) {
+				size_t c_indx = library_to_index[l_indx]; // Match library to column in tad file
+	    		for(size_t nuc = 0; nuc < n_nucleotides; ++nuc) {
+					read_depths[l_indx][nuc] = line(nuc, c_indx);
 	    		}
 	    	}
 
-			call_back(read_depths, alleles, "5", position);
-
-			/*
-
-	        const size_type nlib = line.num_libraries();
-	        const size_type nnuc = line.num_nucleotides();
-
-
-	    	std::cout << "contig = " << contig << std::endl;
-	    	std::cout << "pos = " << position << std::endl;
-
-
-	    	//allele_list alleles(n_alleles);
-	    	//indexed_char
-	        std::cout << line.num_libraries() << std::endl;
-	        std::cout << line.num_nucleotides() << std::endl;
-
-	        for(int32_t d : line.data()) {
-	        	std::cout << ">> " << d << std::endl;
-	        }
-
-	        std::cout << "------------" << std::endl;
-	        for(int a = 0; a < line.type_info().width; ++a) {
-	        	std::cout << "> type_info().indexes = " << seq::indexed_char(line.type_info().indexes[a]) << std::endl;
-
-	        }
-
-            std::cout << "type_info().reference = " << int(line.type_info().reference) << std::endl;
-            //int color = line.color();
-            std::cout << "type_gt_info() = " << size_t(line.type_gt_info().width) << std::endl;
-
-	        //typedef std::vector<int32_t> data_t;
-
-	         */
+			call_back(read_depths, alleles, contig.c_str(), position);
 	    }
 
-	    //exit(0);
 	}
 };
 
