@@ -152,8 +152,8 @@ function main() {
         node.id = id;
         node.fatherId = data.pedigree.findex[oneToZeroBase(id)];
         node.motherId = data.pedigree.mindex[oneToZeroBase(id)];
-        node.x = 410 + (80 * layout.pos[rowIdx][colIdx]);
-        node.y = 100 + (100 * (rowIdx + 1));
+        node.x = 80 * layout.pos[rowIdx][colIdx];
+        node.y = 100 * rowIdx;
 
         node.type = getGender(data.pedigree, id);
 
