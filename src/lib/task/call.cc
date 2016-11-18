@@ -886,6 +886,7 @@ int process_tad_data(task::Call::argument_type &arg) {
     }
     vcfout.WriteHeader();
 
+
     pileup::variant::TadPileup tadpileup(rgs.libraries());
 	const char *fname = arg.input[0].c_str();
 	return variant_call(arg, vcfout, fname, tadpileup, relationship_graph, rgs);
@@ -949,7 +950,6 @@ int process_vcf_data(task::Call::argument_type &arg) {
 
     const char *fname = bcfdata.name();
     dng::pileup::variant::VCFPileup vcfpileup{rec_reader, rgs.libraries()};
-
 
     // Begin writing VCF header
     auto out_file = vcf_get_output_mode(arg);

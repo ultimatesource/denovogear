@@ -175,7 +175,7 @@ public:
 	    	const size_type n_nucleotides = line.num_nucleotides();
 
 	    	// Create list of alleles
-	    	allele_list alleles(n_libraries);
+	    	allele_list alleles(n_nucleotides);
 	    	for(size_t a = 0; a  < alleles.size(); ++a) {
 	    		alleles[a] = seq::indexed_char(line.type_info().indexes[a]);
 	    	}
