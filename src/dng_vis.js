@@ -90,11 +90,13 @@ function main() {
       node.append("path")
         .attr("d", d3.symbol()
           .type(function(d) {
-            if (d.type === 'male') {
-              return d3.symbolSquare;
-            }
-            else if (d.type === 'female') {
-              return d3.symbolCircle;
+            if (d.type === 'person') {
+              if (d.dataNode.sex === 'male') {
+                return d3.symbolSquare;
+              }
+              else if (d.dataNode.sex === 'female') {
+                return d3.symbolCircle;
+              }
             }
             else {
               return d3.symbolTriangle;
@@ -102,11 +104,13 @@ function main() {
           })
           .size(500))
         .attr("fill", function(d) { 
-          if (d.type === 'male') {
-            return "SteelBlue";
-          }
-          else if (d.type === 'female') {
-            return "Tomato";
+          if (d.type === 'person') {
+            if (d.dataNode.sex === 'male') {
+              return "SteelBlue";
+            }
+            else if (d.dataNode.sex === 'female') {
+              return "Tomato";
+            }
           }
           else {
             return "black";
@@ -163,15 +167,14 @@ function main() {
     // build person nodes
     layout.nid.forEach(function(row, rowIdx) {
       for (var colIdx = 0; colIdx < layout.n[rowIdx]; colIdx++) {
-        var id = row[colIdx];
-        var node = {};
 
-        //node.dataNode = {id: id};
+        var id = row[colIdx];
+
+        var node = {};
+        node.type = 'person';
         node.dataNode = pedGraph.getPerson(id);
         node.x = 80 * layout.pos[rowIdx][colIdx];
         node.y = 100 * rowIdx;
-
-        node.type = getGender(data.pedigree, id);
 
         // TODO: such a hack. remove
         node.rowIdx = rowIdx;
@@ -213,12 +216,11 @@ function main() {
     var pedGraph = pedigr.PedigreeGraph.createGraph();
 
     pedigreeData.forEach(function(person) {
-      var attr = {
-        id: person.individualId,
-        sex: person.sex,
-        data: { sampleIds: person.sampleIds }
-      };
-      var person = pedigr.Person.createPerson(attr);
+      var person = pedigr.PersonBuilder
+        .createPersonBuilder(person.individualId)
+          .sex(person.sex)
+          .data({ sampleIds: person.sampleIds })
+          .build();
       pedGraph.addPerson(person);
     });
 
@@ -261,7 +263,7 @@ function main() {
   function getAllKids(data, nodes, nodeA, nodeB) {
     var father;
     var mother;
-    if (nodeA.type === 'male') {
+    if (nodeA.dataNode.sex === 'male') {
       father = nodeA;
       mother = nodeB;
     }
@@ -290,15 +292,6 @@ function main() {
     else {
       return nodeB.x + ((nodeA.x - nodeB.x) / 2);
     }
-  }
-
-  function getGender(pedigree, id) {
-    return pedigree.sex[oneToZeroBase(id)];
-    //for (var i in pedigree.id) {
-    //  if (pedigree.id[i] === id) {
-    //    return pedigree.sex[i];
-    //  }
-    //}
   }
 
   function updatePedigreeFile() {
