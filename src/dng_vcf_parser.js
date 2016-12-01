@@ -5,6 +5,7 @@
 
   function parseVCFText(text) {
     var parsed = vcf.parser()(text);
+    console.log(parsed);
     var inheritancePattern = parsed.records[0].INFO.DNT;
     var ret = {};
     ret.parent0 = inheritancePattern.slice(0, 2);

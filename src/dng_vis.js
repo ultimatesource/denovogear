@@ -1,39 +1,46 @@
 var d3 = require('d3');
+var vcfParser = require('./dng_vcf_parser');
+var pedParser = require('./ped_parser');
+var pedigr = require('./pedigr');
 
-var text;
+var pedigreeFileText;
+var dngOutputFileText;
 
 jQuery.get('example_pedigree.ped', function(data) {
-    text = data;
+    pedigreeFileText = data;
     main();
 });
 
 function main() {
 
-
-  d3.select('#process_button').on('click', serverPedigreeAndLayout);
-  d3.select('#pedigree_file_input').on('change', updateFile);
+  d3.select('#pedigree_file_input').on('change', updatePedigreeFile);
+  d3.select('#dng_output_file_input').on('change', updateDNGOutputFile);
 
   var idText = d3.select('#id_display');
   
-
   serverPedigreeAndLayout();
 
+  function dngOverlay() {
+    vcfParser.parseVCFText(dngOutputFileText);
+  }
+
   function serverPedigreeAndLayout() {
-    var pedigreeText = text;
-    var pedigreeUploadData = { text: pedigreeText };
+    var pedigreeUploadData = { text: pedigreeFileText };
     jQuery.ajax('/pedigree_and_layout',
       { 
         type: 'POST',
         data: JSON.stringify(pedigreeUploadData),
         contentType: 'application/json',
-        success: gotData
+        success: gotLayoutData
       });
 
-    function gotData(jsonData) {
+    function gotLayoutData(jsonData) {
       //console.log(jsonData);
-      var data = JSON.parse(jsonData);
+      var layoutData = JSON.parse(jsonData);
 
-      var ret = processPedigree(data);
+      var pedigreeData = pedParser.parsePedigreeFile(pedigreeFileText);
+
+      var ret = processPedigree(layoutData, pedigreeData);
       var nodes = ret.nodes;
       var links = ret.links;
 
@@ -117,8 +124,11 @@ function main() {
       node.append("text")
         .attr("dx", 20)
         .attr("dy", ".35em")
-        //.text(function(d) { return d.attributes.label });
-        .text(function(d) { return d.dataNode.id });
+        .text(function(d) { 
+          if (d.type !== 'marriage') {
+            return d.dataNode.id
+          }
+        });
       
       node.attr("transform", function(d) {
           return "translate(" + d.x + "," + d.y + ")";
@@ -130,7 +140,8 @@ function main() {
 
       function mouseover(d) {
         if (d.type !== 'marriage') {
-          document.getElementById('id_display').value = d.id;
+          document.getElementById('id_display').value =
+            d.dataNode.data.sampleIds.children[0].name;
         }
       }
 
@@ -138,7 +149,13 @@ function main() {
 
   }
 
-  function processPedigree(data) {
+  function processPedigree(data, pedigreeData) {
+    console.log(pedigreeData);
+
+    var pedGraph = buildGraphFromPedigree(pedigreeData);
+
+    console.log(pedGraph);
+
     var layout = data.layout;
     var nodes = [];
     var links = [];
@@ -148,10 +165,9 @@ function main() {
       for (var colIdx = 0; colIdx < layout.n[rowIdx]; colIdx++) {
         var id = row[colIdx];
         var node = {};
-        node.dataNode = newNode(id);
-        node.id = id;
-        node.fatherId = data.pedigree.findex[oneToZeroBase(id)];
-        node.motherId = data.pedigree.mindex[oneToZeroBase(id)];
+
+        //node.dataNode = {id: id};
+        node.dataNode = pedGraph.getPerson(id);
         node.x = 80 * layout.pos[rowIdx][colIdx];
         node.y = 100 * rowIdx;
 
@@ -169,32 +185,17 @@ function main() {
     nodes.forEach(function(node, index) {
       if (layout.spouse[node.rowIdx][node.colIdx] === 1) {
         var spouseNode = nodes[index + 1];
-        var marriageNode = {};
-        marriageNode.x = halfwayBetween(node, spouseNode);
-        marriageNode.y = node.y;
-        marriageNode.type = "marriage";
-        marriageNode.dataNode = {};
+
+        var marriageNode = createMarriageNode(node, spouseNode);
         nodes.push(marriageNode);
 
-        var marriageLeftLink = {};
-        marriageLeftLink.type = 'spouse';
-        marriageLeftLink.source = node;
-        marriageLeftLink.target = marriageNode;
-        links.push(marriageLeftLink);
+        links.push(createMarriageLink(node, marriageNode));
+        links.push(createMarriageLink(spouseNode, marriageNode));
 
-        var marriageRightLink = {};
-        marriageRightLink.type = 'spouse';
-        marriageRightLink.source = spouseNode;
-        marriageRightLink.target = marriageNode;
-        links.push(marriageRightLink);
+        var children = getAllKids(data, nodes, node, spouseNode);
 
-        var kids = getAllKids(data, nodes, node, spouseNode);
-
-        for (var kid of kids) {
-          var childLink = {};
-          childLink.type = 'child';
-          childLink.source = kid;
-          childLink.target = marriageNode;
+        for (var childNode of children) {
+          var childLink = createChildLink(childNode, marriageNode);
           links.push(childLink);
         }
 
@@ -208,12 +209,53 @@ function main() {
     return { nodes: nodes, links: links };
   }
 
+  function buildGraphFromPedigree(pedigreeData) {
+    var pedGraph = pedigr.PedigreeGraph.createGraph();
+
+    pedigreeData.forEach(function(person) {
+      var attr = {
+        id: person.individualId,
+        sex: person.sex,
+        data: { sampleIds: person.sampleIds }
+      };
+      var person = pedigr.Person.createPerson(attr);
+      pedGraph.addPerson(person);
+    });
+
+    return pedGraph;
+  }
+
   function oneToZeroBase(index) {
     return index - 1;
   }
 
   function newNode(id) {
     return { id: id };
+  }
+
+  function createMarriageNode(spouseA, spouseB) {
+    var marriageNode = {};
+    marriageNode.x = halfwayBetween(spouseA, spouseB);
+    marriageNode.y = spouseA.y;
+    marriageNode.type = "marriage";
+    marriageNode.dataNode = {};
+    return marriageNode;
+  }
+
+  function createMarriageLink(spouseNode, marriageNode) {
+    var marriageLink = {};
+    marriageLink.type = 'spouse';
+    marriageLink.source = spouseNode;
+    marriageLink.target = marriageNode;
+    return marriageLink;
+  }
+
+  function createChildLink(childNode, marriageNode) {
+    var childLink = {};
+    childLink.type = 'child';
+    childLink.source = childNode;
+    childLink.target = marriageNode;
+    return childLink;
   }
 
   function getAllKids(data, nodes, nodeA, nodeB) {
@@ -231,8 +273,8 @@ function main() {
     var kids = [];
     for (var node of nodes) {
       if (node.type != 'marriage') {
-        if (data.pedigree.findex[oneToZeroBase(node.id)] === father.id &&
-            data.pedigree.mindex[oneToZeroBase(node.id)] === mother.id) {
+        if (data.pedigree.findex[oneToZeroBase(node.dataNode.id)] === father.dataNode.id &&
+            data.pedigree.mindex[oneToZeroBase(node.dataNode.id)] === mother.dataNode.id) {
           kids.push(node);
         }
       }
@@ -259,14 +301,30 @@ function main() {
     //}
   }
 
-}
+  function updatePedigreeFile() {
+    updateFile('pedigree_file_input', function(fileData) {
+      pedigreeFileText = fileData;
+      serverPedigreeAndLayout();
+    });
+  }
 
-function updateFile() {
-  var selectedFile = document.getElementById('pedigree_file_input').files[0];
-  var reader = new FileReader();
+  function updateDNGOutputFile() {
+    updateFile('dng_output_file_input', function(fileData) {
+      dngOutputFileText = fileData;
+      dngOverlay();
+    });
+  }
 
-  reader.onload = function(readerEvent) {
-    text = reader.result;
-  };
-  reader.readAsText(selectedFile);
+  function updateFile(fileInputElementId, callback) {
+    var selectedFile = document.getElementById(fileInputElementId).files[0];
+
+    if (selectedFile !== undefined) {
+      var reader = new FileReader();
+
+      reader.onload = function(readerEvent) {
+        callback(reader.result);
+      };
+      reader.readAsText(selectedFile);
+    }
+  }
 }
