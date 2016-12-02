@@ -33,7 +33,7 @@
   };
 
   function PersonBuilder(id) {
-    this.id = id;
+    this._id = id;
     this._sex = undefined;
     this._father = undefined;
     this._mother = undefined;
@@ -69,7 +69,7 @@
 
   PersonBuilder.prototype.build = function() {
     return Person.createPerson({
-      id: this.id,
+      id: this._id,
       sex: this._sex,
       father: this._father,
       mother: this._mother,
@@ -85,7 +85,6 @@
 
   module.exports = {
     PedigreeGraph: PedigreeGraph,
-    Person: Person,
     PersonBuilder: PersonBuilder
   };
 }());

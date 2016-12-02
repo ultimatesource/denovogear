@@ -6,9 +6,14 @@ var pedigr = require('./pedigr');
 var pedigreeFileText;
 var dngOutputFileText;
 
-jQuery.get('example_pedigree.ped', function(data) {
-    pedigreeFileText = data;
-    main();
+//TODO: clean this up
+jQuery.get('example_pedigree.ped', function(pedData) {
+    pedigreeFileText = pedData;
+
+    jQuery.get('example_output.vcf', function(outputData) {
+      dngOutputFileText = outputData;
+      main();
+    });
 });
 
 function main() {
@@ -17,14 +22,29 @@ function main() {
   d3.select('#dng_output_file_input').on('change', updateDNGOutputFile);
 
   var idText = d3.select('#id_display');
+  var pedGraph = null;
   
-  serverPedigreeAndLayout();
+  serverPedigreeAndLayout(function() {
+    dngOverlay()
+  });
 
   function dngOverlay() {
-    vcfParser.parseVCFText(dngOutputFileText);
+    var vcfData = vcfParser.parseVCFText(dngOutputFileText);
+
+    for (var sampleName of vcfData.header.sampleNames) {
+      var format = vcfData.records[0][sampleName];
+
+      if (isPersonNode(sampleName)) {
+        var id = getIdFromSampleName(sampleName);
+        var personNode = pedGraph.getPerson(id);
+        personNode.data.dngOutputData = format;
+      }
+    }
+
+    console.log(pedGraph);
   }
 
-  function serverPedigreeAndLayout() {
+  function serverPedigreeAndLayout(callback) {
     var pedigreeUploadData = { text: pedigreeFileText };
     jQuery.ajax('/pedigree_and_layout',
       { 
@@ -144,21 +164,24 @@ function main() {
 
       function mouseover(d) {
         if (d.type !== 'marriage') {
-          document.getElementById('id_display').value =
-            d.dataNode.data.sampleIds.children[0].name;
+            //d.dataNode.data.sampleIds.children[0].name;
+            if (d.dataNode.data.dngOutputData !== undefined) {
+              document.getElementById('id_display').value =
+                d.dataNode.data.dngOutputData.GP;
+            }
         }
       }
 
+      callback();
     }
-
   }
 
   function processPedigree(data, pedigreeData) {
-    console.log(pedigreeData);
+    //console.log(pedigreeData);
 
-    var pedGraph = buildGraphFromPedigree(pedigreeData);
+    pedGraph = buildGraphFromPedigree(pedigreeData);
 
-    console.log(pedGraph);
+    //console.log(pedGraph);
 
     var layout = data.layout;
     var nodes = [];
@@ -225,6 +248,14 @@ function main() {
     });
 
     return pedGraph;
+  }
+
+  function isPersonNode(sampleName) {
+    return sampleName.startsWith('GL-');
+  }
+
+  function getIdFromSampleName(sampleName) {
+    return sampleName.slice(3);
   }
 
   function oneToZeroBase(index) {
