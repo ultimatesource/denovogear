@@ -23,7 +23,7 @@ function main() {
 
   var idText = d3.select('#id_display');
   var pedGraph = null;
-  var selectedNode = null;
+  var activeNode = null;
   
   serverPedigreeAndLayout(function() {
     dngOverlay()
@@ -31,6 +31,24 @@ function main() {
 
   function dngOverlay() {
     var vcfData = vcfParser.parseVCFText(dngOutputFileText);
+    console.log(vcfData);
+
+    //for (var person of pedGraph.getPersons()) {
+    //  var thisSampleName = 'GL-'+person.id;
+    //  var found = false;
+    //  for (var sampleName of vcfData.header.sampleNames) {
+    //    if (sampleName === thisSampleName) {
+    //      var format = vcfData.records[0][sampleName];
+    //      person.data.dngOutputData = format;
+    //      found = true;
+    //      break;
+    //    }
+    //  }
+
+    //  if (!found) {
+    //    console.log("not found for " + thisSampleName);
+    //  }
+    //}
 
     for (var sampleName of vcfData.header.sampleNames) {
       var format = vcfData.records[0][sampleName];
@@ -39,6 +57,10 @@ function main() {
         var id = getIdFromSampleName(sampleName);
         var personNode = pedGraph.getPerson(id);
         personNode.data.dngOutputData = format;
+      }
+      else {
+        var sampleNode = findMatchingSampleNode(sampleName);
+        sampleNode.dngOutputData = format;
       }
     }
 
@@ -153,13 +175,16 @@ function main() {
 
       function nodeClicked(d) {
         if (d.type !== 'marriage') {
-          d3.select(selectedNode).style('fill', fillColor);
-          selectedNode = this;
+          d3.select(activeNode).style('fill', fillColor);
+          activeNode = this;
           d3.select(this).style('fill', 'grey');
 
           if (d.dataNode.data.dngOutputData !== undefined) {
             document.getElementById('id_display').value =
               d.dataNode.data.dngOutputData.GP;
+          }
+          else {
+            document.getElementById('id_display').value = "";
           }
 
         }
@@ -255,6 +280,45 @@ function main() {
     });
 
     return pedGraph;
+  }
+
+  function findMatchingSampleNode(sampleName) {
+    var strippedName = getStrippedName(sampleName);
+    for (var person of pedGraph.getPersons()) {
+      var sampleNode = findInTree(person.data.sampleIds, strippedName);
+      if (sampleNode !== undefined) {
+        return sampleNode;
+      }
+    }
+    return undefined;
+  }
+
+  function findInTree(tree, sampleName) {
+
+    if (tree.name === sampleName) {
+      return tree;
+    }
+
+    if (tree.children !== undefined) {
+      if (tree.children.length === 0) {
+        return undefined;
+      }
+      else {
+        for (child of tree.children) {
+          var inChild = findInTree(child, sampleName);
+          if (inChild !== undefined) {
+            return inChild;
+          }
+        }
+      }
+    }
+
+    return undefined;
+  }
+
+  function getStrippedName(sampleName) {
+    var stripped = sampleName.slice(3, sampleName.indexOf(':'));
+    return stripped;
   }
 
   function isPersonNode(sampleName) {

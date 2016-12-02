@@ -9,6 +9,14 @@
     return this.nodes[id];
   };
 
+  PedigreeGraph.prototype.getPersons = function(query) {
+    var persons = [];
+    for (var key in this.nodes) {
+      persons.push(this.nodes[key]);
+    }
+    return persons;
+  };
+
   PedigreeGraph.prototype.addPerson = function(attr) {
     this.nodes[attr.id] = Person.createPerson(attr);
     return this.nodes[attr.id];
