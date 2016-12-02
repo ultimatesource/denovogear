@@ -23,6 +23,7 @@ function main() {
 
   var idText = d3.select('#id_display');
   var pedGraph = null;
+  var selectedNode = null;
   
   serverPedigreeAndLayout(function() {
     dngOverlay()
@@ -105,7 +106,6 @@ function main() {
         .enter()
         .append("g")
           .attr("class", "node")
-          .on("mouseover", mouseover);
 
       node.append("path")
         .attr("d", d3.symbol()
@@ -123,19 +123,7 @@ function main() {
             }
           })
           .size(500))
-        .attr("fill", function(d) { 
-          if (d.type === 'person') {
-            if (d.dataNode.sex === 'male') {
-              return "SteelBlue";
-            }
-            else if (d.dataNode.sex === 'female') {
-              return "Tomato";
-            }
-          }
-          else {
-            return "black";
-          }
-        })
+        .attr("fill", fillColor)
         .attr('opacity', function(d) {
           if (d.type === 'marriage') {
             return 0;
@@ -143,7 +131,8 @@ function main() {
           else {
             return 1;
           }
-        });
+        })
+        .on("click", nodeClicked);
 
       node.append("text")
         .attr("dx", 20)
@@ -162,13 +151,31 @@ function main() {
         container.attr("transform", d3.event.transform);
       }
 
-      function mouseover(d) {
+      function nodeClicked(d) {
         if (d.type !== 'marriage') {
-            //d.dataNode.data.sampleIds.children[0].name;
-            if (d.dataNode.data.dngOutputData !== undefined) {
-              document.getElementById('id_display').value =
-                d.dataNode.data.dngOutputData.GP;
-            }
+          d3.select(selectedNode).style('fill', fillColor);
+          selectedNode = this;
+          d3.select(this).style('fill', 'grey');
+
+          if (d.dataNode.data.dngOutputData !== undefined) {
+            document.getElementById('id_display').value =
+              d.dataNode.data.dngOutputData.GP;
+          }
+
+        }
+      }
+
+      function fillColor(d) {
+        if (d.type === 'person') {
+          if (d.dataNode.sex === 'male') {
+            return "SteelBlue";
+          }
+          else if (d.dataNode.sex === 'female') {
+            return "Tomato";
+          }
+        }
+        else {
+          return "black";
         }
       }
 
