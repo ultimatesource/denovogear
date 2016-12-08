@@ -50,8 +50,17 @@ function main() {
     //  }
     //}
 
+    //console.log(vcfData.records[0].INFO.DNT);
+
+    var mutationLocation = vcfData.records[0].INFO.DNL;
+    console.log(mutationLocation);
+    var owner = findOwnerNode(mutationLocation);
+    console.log(owner);
+
     for (var sampleName of vcfData.header.sampleNames) {
       var format = vcfData.records[0][sampleName];
+
+      //console.log(sampleName);
 
       if (isPersonNode(sampleName)) {
         var id = getIdFromSampleName(sampleName);
@@ -250,11 +259,20 @@ function main() {
         links.push(createMarriageLink(node, marriageNode));
         links.push(createMarriageLink(spouseNode, marriageNode));
 
+        var marriage = pedigr.MarriageBuilder.createMarriageBuilder()
+          .spouse(node.dataNode)
+          .spouse(spouseNode.dataNode)
+          //.children([])
+          .build();
+
+        pedGraph.addMarriage(marriage);
+
         var children = getAllKids(data, nodes, node, spouseNode);
 
         for (var childNode of children) {
           var childLink = createChildLink(childNode, marriageNode);
           links.push(childLink);
+          marriage.addChild(childNode.dataNode);
         }
 
       }
@@ -280,6 +298,17 @@ function main() {
     });
 
     return pedGraph;
+  }
+
+  function findOwnerNode(sampleName) {
+    var strippedName = getStrippedName(sampleName);
+    for (var person of pedGraph.getPersons()) {
+      var sampleNode = findInTree(person.data.sampleIds, strippedName);
+      if (sampleNode !== undefined) {
+        return person;
+      }
+    }
+    return undefined;
   }
 
   function findMatchingSampleNode(sampleName) {
@@ -377,8 +406,10 @@ function main() {
     var kids = [];
     for (var node of nodes) {
       if (node.type != 'marriage') {
-        if (data.pedigree.findex[oneToZeroBase(node.dataNode.id)] === father.dataNode.id &&
-            data.pedigree.mindex[oneToZeroBase(node.dataNode.id)] === mother.dataNode.id) {
+        if (data.pedigree.findex[oneToZeroBase(node.dataNode.id)] ===
+              father.dataNode.id &&
+            data.pedigree.mindex[oneToZeroBase(node.dataNode.id)] ===
+              mother.dataNode.id) {
           kids.push(node);
         }
       }
