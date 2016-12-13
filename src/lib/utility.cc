@@ -19,6 +19,8 @@
 
 #include <dng/utility.h>
 
+#include <boost/filesystem/convenience.hpp>
+
 namespace dng { namespace utility {
 
 // extracts extension and filename from both file.ext and ext:file.foo
@@ -77,8 +79,15 @@ FileCat file_category(const std::string &ext) {
     return FileCat::Unknown;
 }
 
+
 FileCat input_category(const std::string &in, FileCatSet mask, FileCat def) {
+
     std::string ext = extract_file_type(in).first;
+    if(ext == "gz" || ext == "gzip" || ext == "bgz") {
+    	std::string extr = boost::filesystem::change_extension(in, "").string();
+    	ext = extract_file_type(extr).first;
+    }
+
     FileCat cat = file_category(ext);
     if(cat == FileCat::Unknown)
         cat = def;
