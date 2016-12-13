@@ -217,7 +217,6 @@ int process_bam(LogLike::argument_type &arg) {
 
     const size_t num_nodes = pedigree.num_nodes();
     const size_t library_start = pedigree.library_nodes().first;
-
     const int min_basequal = arg.min_basequal;
     auto filter_read = [min_basequal](
     dng::BamPileup::data_type::value_type::const_reference r) -> bool {

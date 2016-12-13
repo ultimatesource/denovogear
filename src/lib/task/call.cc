@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2014-2016 Reed A. Cartwright
- * Copyright (c) 2015 Kael Dai
+ * Copyright (c) 2015-2016 Kael Dai
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *           Kael Dai <kdai1@asu.edu>
  *
@@ -48,6 +48,7 @@
 #include <dng/mutation.h>
 #include <dng/stats.h>
 #include <dng/io/utility.h>
+#include <dng/io/fasta.h>
 #include <dng/find_mutations.h>
 
 #include "htslib/synced_bcf_reader.h"
@@ -59,17 +60,12 @@
 
 using namespace dng;
 
-
-
-int process_seq_data(task::Call::argument_type &arg);
-int process_vcf_data(task::Call::argument_type &arg);
-int process_tad_data(task::Call::argument_type &arg);
+int process_bam(task::Call::argument_type &arg);
+int process_bcf(task::Call::argument_type &arg);
+int process_ad(task::Call::argument_type &arg);
 
 int variant_call(task::Call::argument_type &arg,  hts::bcf::File &vcfout, const char *fname,
 		 	 	 pileup::variant::VariantPileup &vp, dng::RelationshipGraph &relationship_graph, dng::ReadGroups &rgs);
-
-//std::array<double, 4> get_frequencies(task::Call::argument_type &arg);
-
 
 // Helper function to determines if output should be bcf file, vcf file, or stdout. Also
 // parses filename "bcf:<file>" --> "<file>"
@@ -91,52 +87,16 @@ std::pair<std::string, std::string> vcf_get_output_mode(
     return {};
 }
 
-std::string vcf_timestamp() {
-    using namespace std;
-    using namespace std::chrono;
-    std::string buffer(127, '\0');
-    auto now = system_clock::now();
-    auto now_t = system_clock::to_time_t(now);
-    size_t sz = strftime(&buffer[0], 127, "Date=\"%FT%T%z\",Epoch=",
-                         localtime(&now_t));
-    buffer.resize(sz);
-    auto epoch = std::chrono::duration_cast<std::chrono::milliseconds>(
-                     now.time_since_epoch());
-    buffer += to_string(epoch.count());
-    return buffer;
-}
-
-template<typename V, typename A>
-std::string vcf_command_line_text(const char *arg,
-                                  const std::vector<V, A> &val) {
-    std::string str;
-    for(auto && a : val) {
-        str += std::string("--") + arg + '=' + dng::utility::to_pretty(a) + ' ';
-    }
-    str.pop_back();
-    return str;
-}
-
-
-template<typename VAL>
-std::string vcf_command_line_text(const char *arg, VAL val) {
-    return std::string("--") + arg + '=' + dng::utility::to_pretty(val);
-}
-
-std::string vcf_command_line_text(const char *arg, std::string val) {
-    return std::string("--") + arg + "=\'" + val + "\'";
-}
-
 // Helper function for writing the vcf header information
 void vcf_add_header_text(hts::bcf::File &vcfout, task::Call::argument_type &arg) {
     using namespace std;
     string line{"##DeNovoGearCommandLine=<ID=dng-call,Version="
                 PACKAGE_VERSION ","};
-    line += vcf_timestamp();
+    line += utility::vcf_timestamp();
     line += ",CommandLineOptions=\"";
 
 #define XM(lname, sname, desc, type, def) \
-	line += vcf_command_line_text(XS(lname),arg.XV(lname)) + ' ';
+	line +=  utility::vcf_command_line_text(XS(lname),arg.XV(lname)) + ' ';
 #	include <dng/task/call.xmh>
 #undef XM
     for(auto && a : arg.input) {
@@ -187,13 +147,9 @@ using dng::utility::location_to_position;
 using dng::utility::FileCat;
 using namespace task;
 
-
-
-
 // The main loop for dng-call application
 // argument_type arg holds the processed command line arguments
 int task::Call::operator()(Call::argument_type &arg) {
-
 	// Check gamma parameter
     if(arg.gamma.size() < 2) {
         throw std::runtime_error("1 Unable to construct genotype-likelihood model; "
@@ -202,7 +158,6 @@ int task::Call::operator()(Call::argument_type &arg) {
 
     // replace arg.region with the contents of a file if needed
     io::at_slurp(arg.region);
-
 
     // Determine the type of input files
     auto it = arg.input.begin();
@@ -216,75 +171,63 @@ int task::Call::operator()(Call::argument_type &arg) {
 
     if(mode == utility::FileCat::Sequence) {
     	// sam, bam, cram
-    	return process_seq_data(arg);
-
-    }
-    else if(mode == utility::FileCat::Variant) {
+    	return process_bam(arg);
+    } else if(mode == utility::FileCat::Variant) {
     	// vcf, bcf
-    	return process_vcf_data(arg);
-
-    }
-    else if(mode == utility::FileCat::Pileup) {
+    	return process_bcf(arg);
+    } else if(mode == utility::FileCat::Pileup) {
     	// tad, ad
-    	return process_tad_data(arg);
-    }
-    else {
+    	return process_ad(arg);
+    } else {
     	throw std::runtime_error("Error: Unknown input data file type.");
     }
-
-    return EXIT_FAILURE;;
+    return EXIT_FAILURE;
 }
 
-
-
 // Processes bam, sam, and cram files.
-int process_seq_data(task::Call::argument_type &arg) {
-	// Get the prior frequencies
-	std::array<double, 4> freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
+int process_bam(task::Call::argument_type &arg) {
+    // Parse pedigree from file
+    io::Pedigree ped = io::parse_pedigree(arg.ped);
 
-	// Parse the pedigree file
-	io::Pedigree ped = io::parse_pedigree(arg.ped);
+    // Open Reference
+    io::Fasta reference{arg.fasta.c_str()};
 
-    // Open Reference index
-    std::unique_ptr<char[], void(*)(void *)> ref{nullptr, free};
-    int ref_sz = 0, ref_target_id = -1;
-    std::unique_ptr<faidx_t, void(*)(faidx_t *)> fai{nullptr, fai_destroy};
-    if(!arg.fasta.empty()) {
-        fai.reset(fai_load(arg.fasta.c_str()));
-        if(!fai)
-            throw std::runtime_error("unable to open faidx-indexed reference file '"
-                                     + arg.fasta + "'.");
-    }
-
-
-    // Read input data
-    std::vector<hts::bam::File> bamdata;
-    for(auto &&fname : arg.input) {
-    	bamdata.emplace_back(fname.c_str(), "r", arg.fasta.c_str(), arg.min_mapqual, arg.header.c_str());
-    }
+    // Parse Nucleotide Frequencies
+    std::array<double, 4> freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
 
     // Fetch the selected regions
     io::at_slurp(arg.region); // replace arg.region with the contents of a file if needed
-    if(!arg.region.empty()) {
-		if(arg.region.find(".bed")!=std::string::npos){
-			for(auto && f : bamdata) {
-				auto r = regions::bam_parse_bed(arg.region, f);
-				f.regions(std::move(r));
+
+    // Open input files
+    dng::ReadGroups rgs;
+    std::vector<hts::bam::File> bamdata;
+    for(auto && str : arg.input) {
+        bamdata.emplace_back(str.c_str(), "r", arg.fasta.c_str(), arg.min_mapqual, arg.header.c_str());
+        if(!bamdata.back().is_open()) {
+            throw std::runtime_error("unable to open input file '" + str + "'.");
+        }
+        // add regions
+        if(!arg.region.empty()) {
+			if(arg.region.find(".bed")!=std::string::npos){
+				for(auto && f : bamdata) {
+					auto r = regions::bam_parse_bed(arg.region, f);
+					f.regions(std::move(r));
+				}
+			} else {
+				for(auto && f : bamdata) {
+					auto r = regions::bam_parse_region(arg.region, f);
+					f.regions(std::move(r));
+				}
 			}
-		}else{
-			for(auto && f : bamdata) {
-				auto r = regions::bam_parse_region(arg.region, f);
-				f.regions(std::move(r));
-			}
-		}
+        }
+        // Add each genotype/sample column
+        rgs.ParseHeaderText(bamdata, arg.rgtag);
     }
 
 
     // Construct peeling algorithm from parameters and pedigree information
     InheritanceModel inheritance_model;
     inheritance_model.parse_model(arg.model);
-    dng::ReadGroups rgs;
-    rgs.ParseHeaderText(bamdata, arg.rgtag);
     dng::RelationshipGraph relationship_graph;
     if (!relationship_graph.Construct(ped, rgs,
                                       inheritance_model.GetInheritancePattern(),
@@ -319,7 +262,6 @@ int process_seq_data(task::Call::argument_type &arg) {
     }
     vcfout.WriteHeader();
 
-
     // Pileup data
     std::vector<depth_t> read_depths(rgs.libraries().size());
 
@@ -329,12 +271,10 @@ int process_seq_data(task::Call::argument_type &arg) {
     // Calculated stats
     FindMutations::stats_t stats;
 
-    // Paraemters used by site calculation anon function
+    // Parameters used by site calculation anon function
     const size_t num_nodes = relationship_graph.num_nodes();
     const size_t library_start = relationship_graph.library_nodes().first;
     const int min_basequal = arg.min_basequal;
-
-
     auto filter_read = [min_basequal](
     dng::BamPileup::data_type::value_type::const_reference r) -> bool {
         return (r.is_missing
@@ -345,37 +285,29 @@ int process_seq_data(task::Call::argument_type &arg) {
     dng::BamPileup mpileup{rgs.groups(), arg.min_qlen};
     mpileup(bamdata, [&](const dng::BamPileup::data_type & data, utility::location_t loc) {
     	// Calculate target position and fetch sequence name
-    	int target_id = location_to_contig(loc);
-    	int position = location_to_position(loc);
+        int contig = utility::location_to_contig(loc);
+        int position = utility::location_to_position(loc);
 
-    	if(target_id != ref_target_id && fai) {
-    		ref.reset(faidx_fetch_seq(fai.get(), h->target_name[target_id],
-    				0, 0x7fffffff, &ref_sz));
-				ref_target_id = target_id;
-    	}
-
-		// Calculate reference base
-		char ref_base = (ref && 0 <= position && position < ref_sz) ?
-						ref[position] : 'N';
+        // Calculate reference base
+        assert(0 <= contig && contig < h->n_targets);
+        char ref_base = reference.FetchBase(h->target_name[contig],position);
+        size_t ref_index = seq::char_index(ref_base);
 
 		// reset all depth counters
 		read_depths.assign(read_depths.size(), {});
 
 		// pileup on read counts
-		// TODO: handle overflow?  Down sample? Reservoir Sample?
-		// The biggest read-depth we can handle per nucleotide is 2^32-1
 		for(std::size_t u = 0; u < data.size(); ++u) {
 			for(auto && r : data[u]) {
 				if(filter_read(r)) {
 					continue;
 				}
-				std::size_t base = seq::base_index(r.base());
-				assert(read_depths[rgs.library_from_id(u)].counts[ base ] < 65535);
+                std::size_t base = seq::base_index(r.aln.seq_at(r.pos));
+                assert(read_depths[rgs.library_from_id(u)].counts[ base ] < 65535);
 
-				read_depths[rgs.library_from_id(u)].counts[ base ] += 1;
+                read_depths[rgs.library_from_id(u)].counts[ base ] += 1;
 			}
 		}
-		size_t ref_index = seq::char_index(ref_base);
 		if(!calculate(read_depths, ref_index, &stats)) {
 			return;
 		}
@@ -609,7 +541,7 @@ int process_seq_data(task::Call::argument_type &arg) {
 		record.info("RPTa", static_cast<float>(rp_info));
 		record.info("BQTa", static_cast<float>(bq_info));
 
-		record.target(h->target_name[target_id]);
+		record.target(h->target_name[contig]);
 		record.position(position);
 		vcfout.WriteRecord(record);
 		record.Clear();
@@ -619,8 +551,6 @@ int process_seq_data(task::Call::argument_type &arg) {
 
 }
 
-
-
 // Helper function used by process_vcf and process_tad that uses a function to process
 // each site based on the allele depths.
 int variant_call(task::Call::argument_type &arg,  hts::bcf::File &vcfout, const char *fname,
@@ -628,7 +558,6 @@ int variant_call(task::Call::argument_type &arg,  hts::bcf::File &vcfout, const 
 				 dng::ReadGroups &rgs) {
 
     // Get the prior frequencies
-    //std::array<double, 4> freqs = get_frequencies(arg);
 	std::array<double, 4> freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
 
     int min_qual = arg.min_basequal; // quality thresholds
@@ -837,8 +766,7 @@ int variant_call(task::Call::argument_type &arg,  hts::bcf::File &vcfout, const 
 	return EXIT_SUCCESS;
 }
 
-
-int process_tad_data(task::Call::argument_type &arg) {
+int process_ad(task::Call::argument_type &arg) {
 
 	// Parse the pedigree file
 	io::Pedigree ped = io::parse_pedigree(arg.ped);
@@ -894,7 +822,7 @@ int process_tad_data(task::Call::argument_type &arg) {
 
 
 // Process vcf, bcf input data
-int process_vcf_data(task::Call::argument_type &arg) {
+int process_bcf(task::Call::argument_type &arg) {
 
 	// Parse the pedigree file
 	io::Pedigree ped = io::parse_pedigree(arg.ped);
