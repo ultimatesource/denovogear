@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014-2015 Reed A. Cartwright
- * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
+ * Copyright (c) 2016 Steven H. Wu
+ * Authors:  Steven H. Wu <stevenwu@asu.edu>
  *
  * This file is part of DeNovoGear.
  *
@@ -18,20 +18,14 @@
  */
 
 #pragma once
-#ifndef DNG_NEWICK_H
-#define DNG_NEWICK_H
+#ifndef DNG_CONSTANT_H_
+#define DNG_CONSTANT_H_
 
-#include <dng/graph.h>
-#include <dng/constant.h>
+#define DNG_GROUP_DELIM "/"
+#define DNG_GL_PREFIX "GL" DNG_GROUP_DELIM
+#define DNG_SM_PREFIX "SM" DNG_GROUP_DELIM
+#define DNG_LB_PREFIX "LB" DNG_GROUP_DELIM
 
 
-namespace dng {
-namespace newick {
 
-int parse(const std::string &text, dng::vertex_t root, Graph &graph);
-
-}
-}
-
-#endif // DNG_NEWICK_H
-
+#endif /* DNG_CONSTANT_H_ */

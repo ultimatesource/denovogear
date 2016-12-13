@@ -25,9 +25,7 @@
 #include <boost/graph/connected_components.hpp>
 #include <boost/range/algorithm/find.hpp>
 
-#define DNG_GL_PREFIX "GL-"
-#define DNG_SM_PREFIX "SM-" // define also in newick.cc
-#define DNG_LB_PREFIX "LB-"
+
 
 /*
 RULES FOR LINKING READ GROUPS TO PEOPLE.

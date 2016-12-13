@@ -31,7 +31,7 @@
 
 #include <boost/algorithm/string/trim_all.hpp>
 
-#define DNG_SM_PREFIX "SM-" // define also in pedigree.cc
+
 
 using namespace dng::newick;
 

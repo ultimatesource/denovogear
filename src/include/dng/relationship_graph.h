@@ -34,6 +34,7 @@
 #include <dng/read_group.h>
 #include <dng/peeling.h>
 #include <dng/detail/unit_test.h>
+#include <dng/constant.h>
 #include <dng/inheritance_model.h>
 
 //#define DEBUG_RGRAPH 1

@@ -69,20 +69,20 @@ BOOST_FIXTURE_TEST_CASE(test_constructor, FixturePedigree ) {
     auto labels = relationship_graph.labels();
 
     const std::vector<std::string> expected_labels = {
-        "GL-1", // founder 1
-        "GL-2", // founder 2
-        "LB-NA12878:Solexa-135852",  // lib 1
-        "LB-NA12891:Solexa-135851",  // lib 2
-        "LB-NA12892:Solexa-135853"   // lib 3
-//#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA12878:Solexa-135852   NA12891:Solexa-135851   NA12892:Solexa-135853
+        "GL/1", // founder 1
+        "GL/2", // founder 2
+        "LB/NA12878/Solexa-135852",  // lib 1
+        "LB/NA12891/Solexa-135851",  // lib 2
+        "LB/NA12892/Solexa-135853"   // lib 3
+//#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA12878/Solexa-135852   NA12891/Solexa-135851   NA12892/Solexa-135853
     };
     for (int j = 0; j < 5; ++j) {
         BOOST_CHECK_EQUAL(expected_labels[j], labels[j]);
     }
 /* Code relate to labels
-//#define DNG_GL_PREFIX "GL-"
-//#define DNG_SM_PREFIX "SM-" // define also in newick.cc
-//#define DNG_LB_PREFIX "LB-"
+//#define DNG_GL_PREFIX "GL/"
+//#define DNG_SM_PREFIX "SM/" // define also in newick.cc
+//#define DNG_LB_PREFIX "LB/"
 //    // Add the labels for the germline nodes
 //    labels[0] = DNG_GL_PREFIX "unknown";
 //    for (size_t i = 1; i < num_members; ++i) {
@@ -238,16 +238,16 @@ BOOST_FIXTURE_TEST_CASE(test_add_lib_from_rgs, ReadTrioFromFile) {
     };
 
     std::vector<std::string> expected_vertex{
-        "GL-unknown",
-        "GL-1",
-        "GL-2",
-        "GL-3",
-        "SM-NA12891",
-        "SM-NA12892",
-        "SM-NA12878",
-        "LB-NA12878:Solexa-135852",
-        "LB-NA12891:Solexa-135851",
-        "LB-NA12892:Solexa-135853"
+        "GL/unknown",
+        "GL/1",
+        "GL/2",
+        "GL/3",
+        "SM/NA12891",
+        "SM/NA12892",
+        "SM/NA12878",
+        "LB/NA12878/Solexa-135852",
+        "LB/NA12891/Solexa-135851",
+        "LB/NA12892/Solexa-135853"
     };
 
     for (int v = 0; v < relationship_graph.num_nodes_; ++v) {
@@ -376,11 +376,11 @@ BOOST_FIXTURE_TEST_CASE(test_update_labels_node_ids, ReadTrioFromFile) {
             S_MAX,S_MAX,S_MAX,S_MAX,
             2, 3, 4};
     std::vector<std::string> expected_labels {
-        "GL-1",
-        "GL-2",
-        "LB-NA12878:Solexa-135852",
-        "LB-NA12891:Solexa-135851",
-        "LB-NA12892:Solexa-135853"
+        "GL/1",
+        "GL/2",
+        "LB/NA12878/Solexa-135852",
+        "LB/NA12891/Solexa-135851",
+        "LB/NA12892/Solexa-135853"
     };
 
     boost_check_equal_vector(expected_labels, relationship_graph.labels_);
