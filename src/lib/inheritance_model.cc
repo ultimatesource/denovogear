@@ -30,7 +30,7 @@ dng::InheritanceModel::~InheritanceModel() {
 dng::InheritanceModel::InheritanceModel() {
 }
 
-void dng::InheritanceModel::parse_model(std::string &model_string) {
+void dng::InheritanceModel::ParseModel(std::string &model_string) {
 
     pattern = dng::utility::key_switch_tuple(model_string, INHERITANCE_KEYS,
                                                 INHERITANCE_KEYS[0]).second;

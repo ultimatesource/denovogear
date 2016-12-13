@@ -20,52 +20,55 @@
 
 
 #pragma once
-#ifndef DENOVOGEAR_FIXTURE_TRIO_WORKSPACE_H
-#define DENOVOGEAR_FIXTURE_TRIO_WORKSPACE_H
+#ifndef DNG_FIXTURE_TRIO_WORKSPACE_H
+#define DNG_FIXTURE_TRIO_WORKSPACE_H
 
 #include <algorithm>
 
 #include <dng/utility.h>
 #include <dng/find_mutations.h>
-#include "fixture_read_trio_from_file.h"
+#include "fixture_read_test_from_file.h"
 
 struct TrioWorkspace : public  ReadTrioFromFile {
 
-    double min_prob;
+    std::string fixture;
 
-    dng::RelationshipGraph pedigree;
+//    double min_prob;
+
+    dng::RelationshipGraph r_graph;
     dng::peel::workspace_t workspace;
 
-    int ref_index = 2;
-    std::vector<depth_t> read_depths{3};
+//    int ref_index = 2;
+//    std::vector<depth_t> read_depths{3};
+//
+//    FindMutations::params_t test_param_1 {0, {{0,0,0,0}}, 0,
+//                                          std::string{"0,0,0,0"},
+//                                          std::string{"0,0,0,0"} };
 
-    FindMutations::params_t test_param_1 {0, {{0,0,0,0}}, 0,
-                                          std::string{"0,0,0,0"},
-                                          std::string{"0,0,0,0"} };
-
-    TrioWorkspace(std::string s = "TrioWorkspace") : ReadTrioFromFile(s) {
+    TrioWorkspace(std::string s = "TrioWorkspace") : ReadTrioFromFile(), fixture(s) {
         BOOST_TEST_MESSAGE("set up fixture: " << fixture);
 
+        r_graph.Construct(io_pedigree, rgs, arg.mu, arg.mu_somatic,
+                                     arg.mu_library);
 
-        pedigree.Construct(io_pedigree, rgs, arg.mu, arg.mu_somatic, arg.mu_library);
+//        std::array<double, 4> freqs;
+//        auto f = dng::utility::parse_double_list(arg.nuc_freqs, ',', 4);
+//        std::copy(f.first.begin(), f.first.end(), &freqs[0]);
+//
+//        test_param_1 = FindMutations::params_t {arg.theta, freqs,
+//                arg.ref_weight, arg.gamma[0], arg.gamma[1]};
 
-        std::array<double, 4> freqs;
-        auto f = dng::utility::parse_double_list(arg.nuc_freqs, ',', 4);
-        std::copy(f.first.begin(), f.first.end(), &freqs[0]);
 
-        test_param_1 = FindMutations::params_t {arg.theta, freqs, arg.ref_weight, arg.gamma[0], arg.gamma[1]};
-
-
-        int min_qual = arg.min_basequal;
-        min_prob = arg.min_prob;
-
-        ref_index = 2;
-        uint16_t cc[3][4] = {{0, 1, 25, 29},
-                             {0, 0, 57, 0},
-                             {0, 0, 76, 1}};
-        for (int j = 0; j < 3; ++j) {
-            std::copy(cc[j], cc[j] + 4, read_depths[j].counts);
-        }
+//        int min_qual = arg.min_basequal;
+//        min_prob = arg.min_prob;
+//
+//        ref_index = 2;
+//        uint16_t cc[3][4] = {{0, 1, 25, 29},
+//                             {0, 0, 57, 0},
+//                             {0, 0, 76, 1}};
+//        for (int j = 0; j < 3; ++j) {
+//            std::copy(cc[j], cc[j] + 4, read_depths[j].counts);
+//        }
         setup_workspace(ref_index, read_depths);
 
     }
@@ -81,7 +84,9 @@ struct TrioWorkspace : public  ReadTrioFromFile {
         std::array<double, 4> prior {};
         prior.fill(0);
         prior[ref_index] = test_param_1.ref_weight;
-        auto genotype_prior_prior = population_prior(test_param_1.theta, test_param_1.nuc_freq, prior);
+        auto genotype_prior_prior = population_prior(test_param_1.theta,
+                                                     test_param_1.nuc_freq,
+                                                     prior);
         workspace.SetFounders(genotype_prior_prior);
 
         std::vector<std::string> expect_gamma{"0.98, 0.0005, 0.0005, 1.04",
@@ -102,4 +107,4 @@ struct TrioWorkspace : public  ReadTrioFromFile {
 };
 
 
-#endif //DENOVOGEAR_FIXTURE_TRIO_WORKSPACE_H
+#endif //DNG_FIXTURE_TRIO_WORKSPACE_H

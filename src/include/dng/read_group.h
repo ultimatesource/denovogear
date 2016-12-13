@@ -71,11 +71,11 @@ struct rg_t {
 };
 
 typedef boost::multi_index_container<rg_t, indexed_by<
-ordered_unique<tag<rg::id>, member<rg_t, std::string, &rg_t::id>>,
-               ordered_non_unique<tag<rg::lb>, member<rg_t, std::string, &rg_t::library>>,
-               ordered_non_unique<tag<rg::sm>, member<rg_t, std::string, &rg_t::sample>>,
-               random_access<tag<rg::nx>>
-               >> DataBase;
+        ordered_unique<tag<rg::id>, member<rg_t, std::string, &rg_t::id>>,
+        ordered_non_unique<tag<rg::lb>, member<rg_t, std::string, &rg_t::library>>,
+        ordered_non_unique<tag<rg::sm>, member<rg_t, std::string, &rg_t::sample>>,
+        random_access<tag<rg::nx>>
+    >> DataBase;
 }
 
 class ReadGroups {
@@ -123,6 +123,22 @@ public:
         for(auto && lib : range) {
             data_.get<rg::lb>().erase(lib);
         }
+        ReloadData();
+    }
+
+    void KeepTheseOnly(std::vector<int> keep){
+        //PR_NOTE(SW): This is the wrong and stupid work around for multi_index_container
+        DataBase data2;
+        int count = 0;
+        for(auto && a : data_) {
+            if( std::find(keep.begin(), keep.end(), count) != keep.end() ){
+                data2.insert(a);
+            }
+            count++;
+        }
+        auto t = data_;
+        data_ = data2;
+        data2 = t;
         ReloadData();
     }
 
@@ -191,6 +207,7 @@ void ReadGroups::ParseLibraries(const std::vector<io::Ad::library_t>& libs) {
     }
     ReloadData();
 }
+
 
 } // namespace dng
 

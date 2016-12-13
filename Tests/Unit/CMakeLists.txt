@@ -30,15 +30,17 @@ macro(AddUnitTest NAME)
     --build-noclean
     --build-project "${CMAKE_PROJECT_NAME}" 
     --build-target "${target}" 
-    --test-command "${CMAKE_CURRENT_BINARY_DIR}/${head}" --log_level=unit_scope
+    --test-command "${CMAKE_CURRENT_BINARY_DIR}/${head}" 
+        --log_level=test_suite --report_level=short
   )
 endmacro()
 
 ###############################################################################
 # Add Unit tests based on CXX namespaces
 
-AddUnitTest(dng::io::ad) 
-AddUnitTest(dng::find_mutation)
+AddUnitTest(dng::io::ad)
+AddUnitTest(dng::find_mutations_ylinked) 
+AddUnitTest(dng::find_mutations)
 AddUnitTest(dng::multithread)
 AddUnitTest(dng::mutation_stats)
 AddUnitTest(dng::mutation)
@@ -46,6 +48,7 @@ AddUnitTest(dng::peel)
 AddUnitTest(dng::ReadGroups)
 AddUnitTest(dng::regions)
 AddUnitTest(dng::relationship_graph_m12)
+AddUnitTest(dng::relationship_graph_peeling)
 AddUnitTest(dng::relationship_graph_trio)
 AddUnitTest(dng::seq)
 AddUnitTest(dng::stats)

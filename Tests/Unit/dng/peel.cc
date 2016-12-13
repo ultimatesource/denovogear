@@ -91,11 +91,6 @@ struct TestData {
 };
 
 
-void setup() { BOOST_TEST_MESSAGE("set up fun"); }
-
-void teardown() { BOOST_TEST_MESSAGE("tear down fun"); }
-
-
 // TODO: Example of BOOST_DATA_TEST_CASE and BOOST_PARAM_TEST_CASE.
 // TODO: Should be able to replace the for loop with these.
 

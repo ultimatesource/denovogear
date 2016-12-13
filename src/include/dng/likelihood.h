@@ -32,6 +32,9 @@
 #include <dng/depths.h>
 
 namespace dng {
+
+constexpr int MAP_4_TO_10[4] = {0, 4, 7, 9};
+
 namespace genotype {
 
 namespace detail {
@@ -116,12 +119,18 @@ public:
         }
     };
 
-    std::pair<GenotypeArray, double> operator()(depth_t d, int ref_allele) const;
-    
-    double operator()(const pileup::AlleleDepths& depths, const std::vector<size_t> &indexes, IndividualVector::iterator output) const;
-
     DirichletMultinomialMixture(params_t model_a, params_t model_b);
 
+    double operator()(const pileup::AlleleDepths& depths,
+            const std::vector<size_t> &indexes,
+            IndividualVector::iterator output) const;
+
+    std::pair<GenotypeArray, double> operator()(depth_t d,
+            int ref_allele) const;
+
+    std::pair<GenotypeArray, double> CalculateHaploid(depth_t d,
+            int ref_allele) const;
+    
 protected:
 
     // NOTE: a = reference; b = genotype; c = nucleotide; d = depth

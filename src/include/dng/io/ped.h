@@ -200,7 +200,6 @@ public:
             auto nrow = child_names[name];
             auto child = id(string_table[nrow][1]);
 
-
             if(child == 0) {
                 continue;
             }

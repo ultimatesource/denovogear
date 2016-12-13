@@ -1,5 +1,5 @@
 ## Test prior
-options(digits=10)
+options(digits=15)
 
 prior0<- c(0,0,0,0)
 freq<- c(0.3,0.2,0.2,0.3)

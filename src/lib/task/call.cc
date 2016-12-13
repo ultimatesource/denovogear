@@ -48,7 +48,10 @@
 #include <dng/mutation.h>
 #include <dng/stats.h>
 #include <dng/io/utility.h>
+#include <dng/find_mutations_ylinked.h>
+#include <dng/find_mutations_xlinked.h>
 #include <dng/find_mutations.h>
+
 
 #include "htslib/synced_bcf_reader.h"
 
@@ -217,7 +220,7 @@ int task::Call::operator()(Call::argument_type &arg) {
         if(f.first.size() != 4) {
             throw std::runtime_error("Wrong number of values passed to nuc-freq. "
                                      "Expected 4; found " + std::to_string(f.first.size()) + ".");
-        }        
+        }
         std::copy(f.first.begin(), f.first.end(), &freqs[0]);
     }
     // Scale frequencies and makes sure they sum to 1.
@@ -271,7 +274,8 @@ int task::Call::operator()(Call::argument_type &arg) {
     bcf_srs_t *rec_reader;
 
     InheritanceModel inheritance_model;
-    inheritance_model.parse_model(arg.model);
+    inheritance_model.ParseModel(arg.model);
+    dng::InheritancePattern inheritance_pattern = inheritance_model.GetInheritancePattern();
 
     if(cat == sequence_data) {
         // Wrap input in hts::bam::File
@@ -350,13 +354,15 @@ int task::Call::operator()(Call::argument_type &arg) {
     }
 
     // Construct peeling algorithm from parameters and pedigree information
+
+
     dng::RelationshipGraph relationship_graph;
-    if (!relationship_graph.Construct(ped, rgs,
-                                      inheritance_model.GetInheritancePattern(),
+    if (!relationship_graph.Construct(ped, rgs, inheritance_pattern,
                                       arg.mu, arg.mu_somatic, arg.mu_library)) {
         throw std::runtime_error("Unable to construct peeler for pedigree; "
                                  "possible non-zero-loop relationship_graph.");
     }
+
     if(arg.gamma.size() < 2) {
         throw std::runtime_error("Unable to construct genotype-likelihood model; "
                                  "Gamma needs to be specified at least twice to change model from default.");
@@ -366,8 +372,46 @@ int task::Call::operator()(Call::argument_type &arg) {
         vcfout.AddHeaderMetadata(line.c_str());
     }
 
-    FindMutations calculate ( min_prob, relationship_graph,
-        { arg.theta, freqs, arg.ref_weight, arg.gamma[0], arg.gamma[1] } );
+    FindMutationsAbstract *calculate;
+    FindMutationsAbstract::params_t find_mutation_params {arg.theta, freqs,
+            arg.ref_weight, arg.gamma[0], arg.gamma[1]};
+
+    switch (inheritance_pattern) {
+        case InheritancePattern::AUTOSOMAL:
+            calculate = new FindMutations(min_prob, relationship_graph,
+                                          find_mutation_params);
+            break;
+        case InheritancePattern::Y_LINKED:
+            std::cerr << "Warning! Y Linked model are not fully implemented yet. Many stats are still missing."
+                    << std::endl;
+            //TODO(SW): HACK!! Remove libraries to keep the count simple (0->Lib)
+            rgs.KeepTheseOnly(relationship_graph.KeepLibraryIndex());
+
+            calculate = new FindMutationsYLinked(min_prob, relationship_graph,
+                                                 find_mutation_params);
+            if(cat == sequence_data) {
+                auto message = "Y Linked are not implemented for sequence data yet. "
+                                "Many things will break at this stage!\nExit!!";
+                throw std::runtime_error(message);
+            }
+            break;
+        case InheritancePattern::X_LINKED:
+
+            rgs.KeepTheseOnly(relationship_graph.KeepLibraryIndex());
+            calculate = new FindMutationsXLinked(min_prob, relationship_graph,
+                                                 find_mutation_params);
+
+
+            throw std::runtime_error("X Linked are not implemented yet."
+                    "Many things will break at this stage!!\nExit!");
+            break;
+
+        default:
+            auto message = "Other inheritance model are not implemented yet!\nExit!";
+            throw std::runtime_error(message);
+            break;
+    }
+
 
     // Pileup data
     std::vector<depth_t> read_depths(rgs.libraries().size());
@@ -430,9 +474,10 @@ int task::Call::operator()(Call::argument_type &arg) {
                 }
             }
             size_t ref_index = seq::char_index(ref_base);
-            if(!calculate(read_depths, ref_index, &stats)) {
+            if(!(*calculate)(read_depths, ref_index, &stats)) {
                 return;
             }
+
 
             // Determine what nucleotides show up and the order they will appear in the REF and ALT field
             // TODO: write tests that make sure REF="N" is properly handled
@@ -723,7 +768,8 @@ int task::Call::operator()(Call::argument_type &arg) {
             }
 
             size_t ref_index = seq::char_index(ref_base);
-            if(!calculate(read_depths, ref_index, &stats)) {
+            if(!(*calculate)(read_depths, ref_index, &stats)) {
+//            if(!calculate->operator ()(read_depths, ref_index, &stats)) {
                 return;
             }
 
@@ -794,6 +840,16 @@ int task::Call::operator()(Call::argument_type &arg) {
             vector<int32_t> best_genotypes(2 * num_nodes);
             vector<int32_t> genotype_qualities(num_nodes);
             int gt_count = n_alleles * (n_alleles + 1) / 2;
+
+            //TODO(SW): FIXME: Hack for haploid/Y_linked, always output 4.
+            //TODO(SW): Completely broken for X_LINKED, need both 4 and 10. Refactor this later
+            if(inheritance_pattern == InheritancePattern::Y_LINKED){
+                gt_count = 4;
+                for(int i = 0, k = 0; i < gt_count; ++i) {
+                    genotype_index[i] = i;
+                }
+            }
+
             vector<float> gp_scores(num_nodes * gt_count);
 
             for(size_t i = 0, k = 0; i < num_nodes; ++i) {
@@ -860,6 +916,6 @@ int task::Call::operator()(Call::argument_type &arg) {
     } else {
         throw runtime_error("unsupported file category.");
     }
-
+    delete calculate;
     return EXIT_SUCCESS;
 }

@@ -20,26 +20,22 @@
  */
 
 #pragma once
-#ifndef DNG_FIND_MUTATIONS_H_
-#define DNG_FIND_MUTATIONS_H_
+#ifndef DNG_FIND_MUTATIONS_YLINKED_H_
+#define DNG_FIND_MUTATIONS_YLINKED_H_
 
 #include <dng/find_mutations_abstract.h>
 #include <dng/detail/unit_test.h>
 
-
 namespace dng {
 
-//TODO(SW): Eventually FindMutationsAbstract will be just FindMutations.
-//TODO(SW): This FindMutations will become FindMutationsAutosomal
-class FindMutations : public FindMutationsAbstract {
-
+class FindMutationsYLinked : public FindMutationsAbstract {
 
 public:
 
-    FindMutations(double min_prob, const RelationshipGraph &graph,
+    FindMutationsYLinked(double min_prob, const RelationshipGraph &graph,
             params_t params);
 
-    ~FindMutations();
+    ~FindMutationsYLinked();
 
     bool operator()(const std::vector<depth_t> &depths, int ref_index,
                     stats_t *stats);
@@ -51,10 +47,11 @@ protected:
 
     DNG_UNIT_TEST(test_constructor);
     DNG_UNIT_TEST(test_prior);
+    DNG_UNIT_TEST(test_genotype);
     DNG_UNIT_TEST(test_full_transition);
     DNG_UNIT_TEST(test_operator);
-
+    DNG_UNIT_TEST(test_operator_m12);
 };
 } // namespace dng
 
-#endif /* DNG_FIND_MUTATIONS_H_ */
+#endif /* DNG_FIND_MUTATIONS_YLINKED_H_ */
