@@ -117,7 +117,7 @@ void ReadGroups::ParseHeaderText(const char* text, const std::string &lbtag) {
         if(it == tags.end()) {
             // Will throw an error if any @RG header line is missing tag.
             throw std::runtime_error("An @RG header is missing " + lbtag_str + " tag." +
-                                     "  Please fix or use option \'--lbtag\' to use another tag to identify libraries.");
+                                     "  Please fix or use option \'--rgtag\' to use another tag to identify libraries.");
         } else {
             // Unless using SM tag to group different libraries, prepend SM tag for readability
             if(lbtag_str == "SM" || val.sample == it->second) {

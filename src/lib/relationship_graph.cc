@@ -559,8 +559,9 @@ void dng::RelationshipGraph::SimplifyPedigree(dng::Graph &pedigree_graph) {
         } else if (children >= 2 || spouses != 0) {
             /*noop*/;
         }
-        else {
-            edge_t edge_trio[3];// TODO: How "wrong" does the graph has to be to have ancestor>2? should be impossible (at least logically)
+        else if (ancestors > 0) {
+            assert(ancestors < 3); // TODO: How "wrong" does the graph has to be to have ancestor>2? should be impossible (at least logically)
+            edge_t edge_trio[3];
             vertex_t vertex_trio[3];//
             int child_index = ancestors;
             for (size_t j = 0; j <= ancestors; ++j) {
