@@ -16,11 +16,12 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
+
 #define BOOST_SPIRIT_USE_PHOENIX_V3 1
 
 #include <iostream>
 
-#include <dng/newick.h>
+#include <dng/detail/graph.h>
 
 #include <boost/fusion/adapted/std_pair.hpp>
 #include <boost/fusion/include/std_pair.hpp>
@@ -33,7 +34,7 @@
 
 #define DNG_SM_PREFIX "SM-" // define also in pedigree.cc
 
-using namespace dng::newick;
+using namespace dng::detail::graph;
 
 namespace qi = boost::spirit::qi;
 namespace standard = boost::spirit::standard;
@@ -112,7 +113,7 @@ qi::grammar<Iterator, void(tree_t &), standard::space_type> {
     qi::rule<Iterator, double(), standard::space_type> length;
 };
 
-int dng::newick::parse(const std::string &text, vertex_t root, Graph &graph) {
+int dng::detail::graph::parse_newick(const std::string &text, vertex_t root, Graph &graph) {
     using standard::space; using phoenix::ref;
     newick_grammar<std::string::const_iterator> newick_parser;
     std::string::const_iterator first = text.begin();
@@ -135,7 +136,7 @@ int dng::newick::parse(const std::string &text, vertex_t root, Graph &graph) {
         }
         vertex_t v = add_vertex(a.label, graph);
         add_edge((a.parent == -1) ? root : offset - a.parent,
-                 v, {dng::EdgeType::Mitotic, a.length}, graph);
+                 v, {EdgeType::Mitotic, a.length}, graph);
     }
 
     return 1;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Reed A. Cartwright
+ * Copyright (c) 2014,2016 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -17,14 +17,13 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 #pragma once
-#ifndef DNG_GRAPH_H
-#define DNG_GRAPH_H
+#ifndef DNG_DETAIL_GRAPH_H
+#define DNG_DETAIL_GRAPH_H
 
 #include <string>
 
 #include <dng/io/ped.h>
 #include <boost/graph/adjacency_list.hpp>
-
 
 // Install graph properties for pedigree analysis.
 namespace boost {
@@ -46,12 +45,15 @@ BOOST_INSTALL_PROPERTY(vertex, group);
 }
 
 namespace dng {
+namespace detail {
 namespace graph {
 enum struct EdgeType : std::size_t {
     Spousal, Meiotic, Mitotic, Library
 };
+using Sex = dng::io::Pedigree::Sex;
 
-typedef boost::property<boost::vertex_sex_t, dng::io::Pedigree::Sex> VertexSexProp;
+
+typedef boost::property<boost::vertex_sex_t, Sex> VertexSexProp;
 typedef boost::property<boost::vertex_group_t, std::size_t, VertexSexProp> VertexGroupProp;
 typedef boost::property<boost::vertex_label_t, std::string, VertexGroupProp>
     VertexLabelProp;
@@ -62,13 +64,14 @@ typedef boost::property<boost::edge_type_t, EdgeType, EdgeLengthProp>
     EdgeTypeProp;
 typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS,
         VertexLabelProp, EdgeTypeProp> Graph;
-} // namespace graph
 
-using graph::Graph;
-using graph::EdgeType;
 typedef boost::graph_traits<Graph>::vertex_descriptor vertex_t;
 typedef boost::graph_traits<Graph>::edge_descriptor edge_t;
 
+int parse_newick(const std::string &text, vertex_t root, Graph &graph);
+
+} // namespace graph
+} // namespace detail
 } //namespace dng
 
 

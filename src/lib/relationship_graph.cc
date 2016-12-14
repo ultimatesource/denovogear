@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015 Reed A. Cartwright
+ * Copyright (c) 2014-2016 Reed A. Cartwright
  * Copyright (c) 2016 Steven H. Wu
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *           Steven H. Wu <stevenwu@asu.edu>
@@ -29,6 +29,7 @@
 #define DNG_LB_PREFIX "LB-"
 
 using namespace dng;
+using namespace dng::detail::graph;
 
 const std::pair<std::string, InheritanceModel> inheritance_keys[] = {
     {"", InheritanceModel::UNKNOWN},
@@ -76,7 +77,7 @@ RULES FOR LINKING READ GROUPS TO PEOPLE.
 4) If a library has multiple read-groups, concat the read-groups.
 
 */
-void dng::RelationshipGraph::PruneForYLinked(dng::Graph &pedigree_graph){
+void dng::RelationshipGraph::PruneForYLinked(Graph &pedigree_graph){
 
     PrintDebugEdges("Before prune Y=================", pedigree_graph);
 
@@ -91,7 +92,7 @@ void dng::RelationshipGraph::PruneForYLinked(dng::Graph &pedigree_graph){
 
 }
 
-void dng::RelationshipGraph::PruneForXLinked(dng::Graph &pedigree_graph){
+void dng::RelationshipGraph::PruneForXLinked(Graph &pedigree_graph){
 
     PrintDebugEdges("Before prune X=================", pedigree_graph);
 
@@ -108,7 +109,7 @@ void dng::RelationshipGraph::PruneForXLinked(dng::Graph &pedigree_graph){
                      << std::endl;
             for (tie(ei, ei_end) = out_edges(v, pedigree_graph); ei != ei_end;++ei) {
                 std::cerr << v << "\t" << *ei << "\tE_T:"<< (int) edge_types[*ei] << std::endl;
-                if (edge_types[*ei] == dng::graph::EdgeType::Meiotic) {
+                if (edge_types[*ei] == EdgeType::Meiotic) {
                     auto child = target(*ei, pedigree_graph);
                     std::cerr << v << "\t" << child << "\tG:"<< (int) sex[child] << std::endl;
                     if(sex[child] == dng::io::Pedigree::Sex::Male){
@@ -120,7 +121,7 @@ void dng::RelationshipGraph::PruneForXLinked(dng::Graph &pedigree_graph){
             bool only_connect_to_male = true;
             bool only_connect_to_son = true;
             for (tie(ei, ei_end) = out_edges(v, pedigree_graph); ei != ei_end; ++ei) {
-                if (edge_types[*ei] == dng::graph::EdgeType::Meiotic) {
+                if (edge_types[*ei] == EdgeType::Meiotic) {
                     auto child = target(*ei, pedigree_graph);
                     if(sex[child] == dng::io::Pedigree::Sex::Female){
                         only_connect_to_male = false;
@@ -132,7 +133,7 @@ void dng::RelationshipGraph::PruneForXLinked(dng::Graph &pedigree_graph){
                         remove_edge(*ei, pedigree_graph);
                     }
                 }
-                else if (edge_types[*ei] == dng::graph::EdgeType::Spousal) {
+                else if (edge_types[*ei] == EdgeType::Spousal) {
                     ei_spousal = ei;
                 }
             }
@@ -454,7 +455,7 @@ void dng::RelationshipGraph::SetupFirstNodeIndex(const io::Pedigree &pedigree){
 
 }
 
-void dng::RelationshipGraph::ParseIoPedigree(dng::Graph &pedigree_graph,
+void dng::RelationshipGraph::ParseIoPedigree(Graph &pedigree_graph,
         const dng::io::Pedigree &pedigree) {
     using Sex = dng::io::Pedigree::Sex;
 
@@ -502,7 +503,7 @@ void dng::RelationshipGraph::ParseIoPedigree(dng::Graph &pedigree_graph,
         // TODO(SW): What should newick::parse do? parse "tree" only? Or add vertex/edge/sex as well?
         // TODO(SW): Refactor newick::parse and the if_else(res==?) condition. The same operation performed at two different places
         int current_index = num_vertices(pedigree_graph);
-        int res = newick::parse(row.sample_tree, child, pedigree_graph);
+        int res = parse_newick(row.sample_tree, child, pedigree_graph);
 
         // Mark the sex of the somatic nodes
         for (int i = current_index; i < num_vertices(pedigree_graph); ++i) {
@@ -546,7 +547,7 @@ void dng::RelationshipGraph::AddLibrariesFromReadGroups(
 }
 
 void dng::RelationshipGraph::ConnectSomaticToLibraries(
-        dng::Graph &pedigree_graph, const ReadGroups &rgs,
+        Graph &pedigree_graph, const ReadGroups &rgs,
         const PropVertexLabel &labels) {
 
     auto sex  = get(boost::vertex_sex, pedigree_graph);
@@ -572,18 +573,18 @@ void dng::RelationshipGraph::ConnectSomaticToLibraries(
 
 
 
-void dng::RelationshipGraph::UpdateEdgeLengths(dng::Graph &pedigree_graph,
+void dng::RelationshipGraph::UpdateEdgeLengths(Graph &pedigree_graph,
         double mu_meiotic, double mu_somatic, double mu_library) {
-    boost::graph_traits<dng::Graph>::edge_iterator ei, ei_end;
+    boost::graph_traits<Graph>::edge_iterator ei, ei_end;
     auto edge_types = get(boost::edge_type, pedigree_graph);
     auto lengths = get(boost::edge_length, pedigree_graph);
 
     for (tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei) {
-        if (edge_types[*ei] == dng::graph::EdgeType::Meiotic) {
+        if (edge_types[*ei] == EdgeType::Meiotic) {
             lengths[*ei] *= mu_meiotic;
-        } else if (edge_types[*ei] == dng::graph::EdgeType::Mitotic) {
+        } else if (edge_types[*ei] == EdgeType::Mitotic) {
             lengths[*ei] *= mu_somatic;
-        } else if (edge_types[*ei] == dng::graph::EdgeType::Library) {
+        } else if (edge_types[*ei] == EdgeType::Library) {
             lengths[*ei] *= mu_library;
         }
     }
@@ -593,7 +594,7 @@ void dng::RelationshipGraph::UpdateEdgeLengths(dng::Graph &pedigree_graph,
 #endif
 }
 
-void dng::RelationshipGraph::SimplifyPedigree(dng::Graph &pedigree_graph) {
+void dng::RelationshipGraph::SimplifyPedigree(Graph &pedigree_graph) {
 
     auto edge_types = get(boost::edge_type, pedigree_graph);
     auto lengths = get(boost::edge_length, pedigree_graph);
@@ -652,7 +653,7 @@ void dng::RelationshipGraph::SimplifyPedigree(dng::Graph &pedigree_graph) {
 
 }
 
-void dng::RelationshipGraph::UpdateLabelsNodeIds(dng::Graph &pedigree_graph,
+void dng::RelationshipGraph::UpdateLabelsNodeIds(Graph &pedigree_graph,
         dng::ReadGroups &rgs, std::vector<size_t> &node_ids) {
 
     auto labels = get(boost::vertex_label, pedigree_graph);
@@ -729,7 +730,7 @@ void dng::RelationshipGraph::EraseRemovedLibraries(dng::ReadGroups &rgs,
 }
 
 
-void dng::RelationshipGraph::CreateFamiliesInfo(dng::Graph &pedigree_graph,
+void dng::RelationshipGraph::CreateFamiliesInfo(Graph &pedigree_graph,
         family_labels_t &family_labels, std::vector<vertex_t> &pivots) {
 
 //    //PR_NOTE:: only need 2 variables here
@@ -804,7 +805,7 @@ void dng::RelationshipGraph::CreateFamiliesInfo(dng::Graph &pedigree_graph,
 }
 
 void dng::RelationshipGraph::CreatePeelingOps(
-        dng::Graph &pedigree_graph, const std::vector<size_t> &node_ids,
+        Graph &pedigree_graph, const std::vector<size_t> &node_ids,
         family_labels_t &family_labels, std::vector<vertex_t> &pivots) {
 
     auto edge_types = get(boost::edge_type, pedigree_graph);
@@ -992,7 +993,7 @@ void dng::RelationshipGraph::ResetFamilyInfo(){
 }
 
 void dng::RelationshipGraph::ExtractRequiredLibraries(
-        dng::Graph &pedigree_graph, const std::vector<size_t> &node_ids) {
+        Graph &pedigree_graph, const std::vector<size_t> &node_ids) {
 
     int counter = 0;
     for (int i = first_library_; i < node_ids.size(); ++i) {
@@ -1012,7 +1013,7 @@ void dng::RelationshipGraph::ExtractRequiredLibraries(
 }
 
 void dng::RelationshipGraph::PrintDebugEdges(const std::string &prefix,
-                                             const dng::Graph &pedigree_graph) {
+                                             const Graph &pedigree_graph) {
 
 #if DEBUG_RGRAPH == 1
 
