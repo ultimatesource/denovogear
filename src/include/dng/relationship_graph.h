@@ -236,7 +236,7 @@ private:
     void EraseRemovedLibraries(dng::ReadGroups &rgs,
                 std::vector<size_t> &node_ids);
 
-    void ResetFamilyInfo();
+    void ClearFamilyInfo();
 
     void PrintDebugEdges(const std::string &prefix,
             const Graph &pedigree_graph);
