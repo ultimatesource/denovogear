@@ -200,10 +200,8 @@ protected:
     void ParseIoPedigree(dng::Graph &pedigree_graph,
             const dng::io::Pedigree &pedigree);
 
-
     void AddLibrariesFromReadGroups(dng::Graph &pedigree_graph,
             const dng::ReadGroups &rgs);
-
 
     void UpdateEdgeLengths(dng::Graph &pedigree_graph, double mu_meiotic,
             double mu_somatic, double mu_library);
@@ -212,7 +210,6 @@ protected:
 
     void UpdateLabelsNodeIds(dng::Graph &pedigree_graph, dng::ReadGroups &rgs,
             std::vector<size_t> &node_ids);
-
 
     void CreateFamiliesInfo(dng::Graph &pedigree_graph,
             family_labels_t &family_labels, std::vector<vertex_t> &pivots);

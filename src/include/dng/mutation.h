@@ -264,7 +264,7 @@ std::array<double, 4> population_alphas(double theta,
     };
 }
 
-inline dng::GenotypeArray population_prior(double theta,
+inline dng::GenotypeArray population_prior_diploid(double theta,
         const std::array<double, 4> &nuc_freq,
         const std::array<double, 4> &prior) {
     std::array<double, 4> alpha = population_alphas(theta, nuc_freq, prior);
@@ -286,7 +286,7 @@ inline dng::GenotypeArray population_prior(double theta,
 }
 
 
-inline dng::GenotypeArray PopulationPriorHaploid(double theta,
+inline dng::GenotypeArray population_prior_haploid(double theta,
         const std::array<double, 4> &nuc_freq,
         const std::array<double, 4> &prior) {
     std::array<double, 4> alpha = population_alphas(theta, nuc_freq, prior);
@@ -297,7 +297,6 @@ inline dng::GenotypeArray PopulationPriorHaploid(double theta,
             alpha[1] / alpha_sum,
             alpha[2] / alpha_sum,
             alpha[3] / alpha_sum;
-
     return ret;
 }
 

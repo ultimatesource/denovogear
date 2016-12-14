@@ -49,28 +49,28 @@ FindMutationsAbstract::FindMutationsAbstract(double min_prob, const Relationship
 }
 
 void FindMutationsAbstract::SetupPopulationPriorDiploid() {
-    genotype_prior_[0] = population_prior(params_.theta, params_.nuc_freq,
+    genotype_prior_[0] = population_prior_diploid(params_.theta, params_.nuc_freq,
                                           {params_.ref_weight, 0, 0, 0});
-    genotype_prior_[1] = population_prior(params_.theta, params_.nuc_freq,
+    genotype_prior_[1] = population_prior_diploid(params_.theta, params_.nuc_freq,
                                           {0, params_.ref_weight, 0, 0});
-    genotype_prior_[2] = population_prior(params_.theta, params_.nuc_freq,
+    genotype_prior_[2] = population_prior_diploid(params_.theta, params_.nuc_freq,
                                           {0, 0, params_.ref_weight, 0});
-    genotype_prior_[3] = population_prior(params_.theta, params_.nuc_freq,
+    genotype_prior_[3] = population_prior_diploid(params_.theta, params_.nuc_freq,
                                           {0, 0, 0, params_.ref_weight});
-    genotype_prior_[4] = population_prior(params_.theta, params_.nuc_freq,
+    genotype_prior_[4] = population_prior_diploid(params_.theta, params_.nuc_freq,
                                           {0, 0, 0, 0});
 }
 
 void FindMutationsAbstract::SetupPopulationPriorHaploid() {
-    genotype_prior_[0] = PopulationPriorHaploid(params_.theta, params_.nuc_freq,
+    genotype_prior_[0] = population_prior_haploid(params_.theta, params_.nuc_freq,
                                                 {params_.ref_weight, 0, 0, 0});
-    genotype_prior_[1] = PopulationPriorHaploid(params_.theta, params_.nuc_freq,
+    genotype_prior_[1] = population_prior_haploid(params_.theta, params_.nuc_freq,
                                                 {0, params_.ref_weight, 0, 0});
-    genotype_prior_[2] = PopulationPriorHaploid(params_.theta, params_.nuc_freq,
+    genotype_prior_[2] = population_prior_haploid(params_.theta, params_.nuc_freq,
                                                 {0, 0, params_.ref_weight, 0});
-    genotype_prior_[3] = PopulationPriorHaploid(params_.theta, params_.nuc_freq,
+    genotype_prior_[3] = population_prior_haploid(params_.theta, params_.nuc_freq,
                                                 {0, 0, 0, params_.ref_weight});
-    genotype_prior_[4] = PopulationPriorHaploid(params_.theta, params_.nuc_freq,
+    genotype_prior_[4] = population_prior_haploid(params_.theta, params_.nuc_freq,
                                                 {0, 0, 0, 0});
 }
 

@@ -25,7 +25,7 @@
 
 using namespace dng;
 
-// pedigree_ will be initialized before work_, so we will reference it.
+// pedigree_ will be initialized before work_, so we can reference it.
 LogProbability::LogProbability(RelationshipGraph pedigree, params_t params) :
     pedigree_{std::move(pedigree)},
     params_(std::move(params)),
@@ -34,13 +34,15 @@ LogProbability::LogProbability(RelationshipGraph pedigree, params_t params) :
 
     using namespace dng;
 
-    // Use a parent-independent mutation model, which produces a
-    // beta-binomial
-    genotype_prior_[0] = population_prior(params_.theta, params_.nuc_freq, {params_.ref_weight, 0, 0, 0});
-    genotype_prior_[1] = population_prior(params_.theta, params_.nuc_freq, {0, params_.ref_weight, 0, 0});
-    genotype_prior_[2] = population_prior(params_.theta, params_.nuc_freq, {0, 0, params_.ref_weight, 0});
-    genotype_prior_[3] = population_prior(params_.theta, params_.nuc_freq, {0, 0, 0, params_.ref_weight});
-    genotype_prior_[4] = population_prior(params_.theta, params_.nuc_freq, {0, 0, 0, 0});
+    // Use a parent-independent mutation model, which produces a beta-binomial
+    for(int i=0; i < 5; i++) {
+        std::array<double, 4> weights = {0,0,0,0};
+        if(i < 4) {
+            weights[i] = params_.ref_weight;
+        }
+        haploid_prior_[i] = population_prior_haploid(params_.theta, params_.nuc_freq, weights);
+        diploid_prior_[i] = population_prior_diploid(params_.theta, params_.nuc_freq, weights);
+    }
 
     // Calculate mutation matrices
     full_transition_matrices_.assign(work_.num_nodes, {});
@@ -116,7 +118,7 @@ LogProbability::LogProbability(RelationshipGraph pedigree, params_t params) :
         // setup monomorphic prior
         depths.color(color);
         GenotypeArray prior(1);
-        prior(0) = genotype_prior_[color](pileup::AlleleDepths::type_info_gt_table[color].indexes[0]);
+        prior(0) = diploid_prior_[color](pileup::AlleleDepths::type_info_gt_table[color].indexes[0]);
         work_.SetFounders(prior);
         double scale = genotype_likelihood_(depths, indexes, work_.lower.begin()+work_.library_nodes.first);
         double logdata = pedigree_.PeelForwards(work_, transition_matrices_[color]);
@@ -136,7 +138,7 @@ LogProbability::stats_t LogProbability::operator()(const std::vector<depth_t> &d
     }
 
     // Set the prior probability of the founders given the reference
-    work_.SetFounders(genotype_prior_[ref_index]);
+    work_.SetFounders(diploid_prior_[ref_index]);
 
     // Calculate log P(Data ; model)
     double logdata = pedigree_.PeelForwards(work_, full_transition_matrices_);
@@ -170,7 +172,7 @@ LogProbability::stats_t LogProbability::operator()(const pileup::AlleleDepths &d
         // Set the prior probability of the founders given the reference
         GenotypeArray prior(gt_width);
         for(int i=0;i<gt_width;++i) {
-            prior(i) = genotype_prior_[ref_index](depths.type_gt_info().indexes[i]);
+            prior(i) = diploid_prior_[ref_index](depths.type_gt_info().indexes[i]);
         }
         work_.SetFounders(prior);
     

@@ -56,10 +56,13 @@ struct workspace_t {
 
     // Information about the pedigree
     std::size_t num_nodes = 0;
-    std::pair<std::size_t, std::size_t> founder_nodes;
-    std::pair<std::size_t, std::size_t> germline_nodes;
-    std::pair<std::size_t, std::size_t> somatic_nodes;
-    std::pair<std::size_t, std::size_t> library_nodes;
+    typedef std::pair<std::size_t, std::size_t> node_range_t;
+    node_range_t founder_nodes,
+                 germline_nodes,
+                 somatic_nodes,
+                 library_nodes;
+    node_range_t diploid_founder_nodes,
+                 haploid_founder_nodes;
 
     // Resize the workspace to fit a pedigree with sz nodes
     void Resize(std::size_t sz) {
@@ -88,10 +91,21 @@ struct workspace_t {
 
     // Set the prior probability of the founders given the reference
     void SetFounders(const GenotypeArray &prior) {
-
         assert(founder_nodes.first <= founder_nodes.second);
         std::fill(upper.begin() + founder_nodes.first,
                   upper.begin() + founder_nodes.second, prior);
+    }
+
+    void SetDiploidFounders(const GenotypeArray &prior) {
+        assert(diploid_founder_nodes.first <= diploid_founder_nodes.second);
+        std::fill(upper.begin() + diploid_founder_nodes.first,
+                  upper.begin() + diploid_founder_nodes.second, prior);
+    }
+
+    void SetHaploidFounders(const GenotypeArray &prior) {
+        assert(haploid_founder_nodes.first <= haploid_founder_nodes.second);
+        std::fill(upper.begin() + haploid_founder_nodes.first,
+                  upper.begin() + haploid_founder_nodes.second, prior);
     }
 
     template<typename T>

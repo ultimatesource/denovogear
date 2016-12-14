@@ -62,7 +62,8 @@ protected:
     // TODO: control these with parameters
     dng::genotype::DirichletMultinomialMixture genotype_likelihood_;
 
-    dng::GenotypeArray genotype_prior_[5]; // Holds P(G | theta)
+    dng::GenotypeArray diploid_prior_[5]; // Holds P(G | theta)
+    dng::GenotypeArray haploid_prior_[5]; // Holds P(G | theta)
 };
 
 }; // namespace dng
