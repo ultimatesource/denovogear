@@ -90,7 +90,8 @@ public:
         std::size_t parent2;
         double length1;
         double length2;
-        dng::io::Pedigree::Sex sex;
+        PropVertexSex::value_type sex;
+        int ploidy;
     };
 
     //PR_NOTE(SW): Both constructor exist now to reduce the chance of breaking something

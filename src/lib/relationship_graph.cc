@@ -78,9 +78,6 @@ RULES FOR LINKING READ GROUPS TO PEOPLE.
 
 */
 void dng::RelationshipGraph::PruneForYLinked(Graph &pedigree_graph){
-
-    PrintDebugEdges("Before prune Y=================", pedigree_graph);
-
     auto labels = get(boost::vertex_label, pedigree_graph);
     auto sex  = get(boost::vertex_sex, pedigree_graph);
     for (auto v = first_founder_; v < num_nodes_; ++v) {
@@ -88,14 +85,9 @@ void dng::RelationshipGraph::PruneForYLinked(Graph &pedigree_graph){
             clear_vertex(v, pedigree_graph);
         }
     }
-    PrintDebugEdges("After prune Y=================", pedigree_graph);
-
 }
 
 void dng::RelationshipGraph::PruneForXLinked(Graph &pedigree_graph){
-
-    PrintDebugEdges("Before prune X=================", pedigree_graph);
-
     auto edge_types = get(boost::edge_type, pedigree_graph);
     auto labels = get(boost::vertex_label, pedigree_graph);
     auto sex = get(boost::vertex_sex, pedigree_graph);
@@ -103,21 +95,6 @@ void dng::RelationshipGraph::PruneForXLinked(Graph &pedigree_graph){
     boost::graph_traits<Graph>::out_edge_iterator ei, ei_end, ei_spousal;
     for (auto v = first_founder_; v < first_somatic_; ++v) {
         if(sex[v] == dng::io::Pedigree::Sex::Male){
-
-#if DEBUG_RGRAPH == 1
-            std::cerr << "MaleV: " << v << "\t" << in_degree(v, pedigree_graph)
-                     << std::endl;
-            for (tie(ei, ei_end) = out_edges(v, pedigree_graph); ei != ei_end;++ei) {
-                std::cerr << v << "\t" << *ei << "\tE_T:"<< (int) edge_types[*ei] << std::endl;
-                if (edge_types[*ei] == EdgeType::Meiotic) {
-                    auto child = target(*ei, pedigree_graph);
-                    std::cerr << v << "\t" << child << "\tG:"<< (int) sex[child] << std::endl;
-                    if(sex[child] == dng::io::Pedigree::Sex::Male){
-                        std::cerr << "Remove_Son_Edge:" << *ei << std::endl;
-                    }
-                }
-            }
-#endif
             bool only_connect_to_male = true;
             bool only_connect_to_son = true;
             for (tie(ei, ei_end) = out_edges(v, pedigree_graph); ei != ei_end; ++ei) {
@@ -128,26 +105,21 @@ void dng::RelationshipGraph::PruneForXLinked(Graph &pedigree_graph){
                         if(child > v){
                             only_connect_to_son = false;
                         }
-                    }
-                    else if(sex[child] == dng::io::Pedigree::Sex::Male){
+                    } else if(sex[child] == dng::io::Pedigree::Sex::Male){
                         remove_edge(*ei, pedigree_graph);
                     }
-                }
-                else if (edge_types[*ei] == EdgeType::Spousal) {
+                } else if (edge_types[*ei] == EdgeType::Spousal) {
                     ei_spousal = ei;
                 }
             }
 
             if(only_connect_to_male){
                 clear_vertex(v, pedigree_graph);
-            }
-            else if(only_connect_to_son){
+            } else if(only_connect_to_son){
                 remove_edge(*ei_spousal, pedigree_graph);
             }
         }
     }
-    PrintDebugEdges("After prune X=================", pedigree_graph);
-
 }
 
 
@@ -167,7 +139,6 @@ bool dng::RelationshipGraph::Construct(const io::Pedigree& pedigree,
 
     // Construct a graph of the pedigree and somatic information
     Graph pedigree_graph(first_somatic_);
-    PrintDebugEdges("========== VERISON 2 =========\ninit pedigree", pedigree_graph);
 
     auto edge_types = get(boost::edge_type, pedigree_graph);
     auto lengths = get(boost::edge_length, pedigree_graph);
@@ -185,8 +156,7 @@ bool dng::RelationshipGraph::Construct(const io::Pedigree& pedigree,
     //Less efficient, but less changes for now.
     if(model == InheritanceModel::Y_LINKED){
         PruneForYLinked(pedigree_graph);
-    }
-    else if(model == InheritanceModel::X_LINKED){
+    } else if(model == InheritanceModel::X_LINKED){
         PruneForXLinked(pedigree_graph);
     }
 
@@ -205,11 +175,7 @@ bool dng::RelationshipGraph::Construct(const io::Pedigree& pedigree,
     CreatePeelingOps(pedigree_graph, node_ids, family_labels, pivots);
     ConstructPeelingMachine();
 
-#if DEBUG_RGRAPH == 1
-    PrintMachine(cerr);
-//    PrintTable(cout);
-#endif
-
+    // PrintMachine(cerr);
     return true;
 }
 
@@ -500,8 +466,6 @@ void dng::RelationshipGraph::ParseIoPedigree(Graph &pedigree_graph,
         add_edge(dad, child, {EdgeType::Meiotic, 1.0f}, pedigree_graph);
 
         // Process newick file
-        // TODO(SW): What should newick::parse do? parse "tree" only? Or add vertex/edge/sex as well?
-        // TODO(SW): Refactor newick::parse and the if_else(res==?) condition. The same operation performed at two different places
         int current_index = num_vertices(pedigree_graph);
         int res = parse_newick(row.sample_tree, child, pedigree_graph);
 
@@ -533,17 +497,9 @@ void dng::RelationshipGraph::AddLibrariesFromReadGroups(
     for (auto &&a : rgs.libraries()) {
         vertex_t v = add_vertex(pedigree_graph);
         labels[v] = DNG_LB_PREFIX + a;
-
-#if DEBUG_RGRAPH == 1
-        std::cerr << "Add lib: " << labels[v] << std::endl;
-#endif
     }
-    PrintDebugEdges("After add libs", pedigree_graph);
-
     ConnectSomaticToLibraries(pedigree_graph, rgs, labels);
     num_nodes_ = num_vertices(pedigree_graph);
-
-    PrintDebugEdges("After connect somatic", pedigree_graph);
 }
 
 void dng::RelationshipGraph::ConnectSomaticToLibraries(
@@ -571,8 +527,6 @@ void dng::RelationshipGraph::ConnectSomaticToLibraries(
     }
 }
 
-
-
 void dng::RelationshipGraph::UpdateEdgeLengths(Graph &pedigree_graph,
         double mu_meiotic, double mu_somatic, double mu_library) {
     boost::graph_traits<Graph>::edge_iterator ei, ei_end;
@@ -588,10 +542,6 @@ void dng::RelationshipGraph::UpdateEdgeLengths(Graph &pedigree_graph,
             lengths[*ei] *= mu_library;
         }
     }
-
-#if DEBUG_RGRAPH == 1
-    PrintDebugEdges("After UpdateEdgeLengths", pedigree_graph);
-#endif
 }
 
 void dng::RelationshipGraph::SimplifyPedigree(Graph &pedigree_graph) {
@@ -617,14 +567,10 @@ void dng::RelationshipGraph::SimplifyPedigree(Graph &pedigree_graph) {
         if (children == 0) {
             // this node has no descendants
             clear_vertex(v, pedigree_graph);
-#if DEBUG_RGRAPH == 1
-    std::cerr << "Remove child==0:" << v << std::endl;
-#endif
         } else if (children >= 2 || spouses != 0) {
             /*noop*/;
-        }
-        else if (ancestors > 0) {
-            assert(ancestors < 3); // TODO: How "wrong" does the graph has to be to have ancestor>2? should be impossible (at least logically)
+        } else if (ancestors > 0) {
+            assert(ancestors < 3); 
             edge_t edge_trio[3];
             vertex_t vertex_trio[3];//
             int child_index = ancestors;
@@ -642,15 +588,8 @@ void dng::RelationshipGraph::SimplifyPedigree(Graph &pedigree_graph) {
                          pedigree_graph);
             }
             clear_vertex(v, pedigree_graph);
-
-#if DEBUG_RGRAPH == 1
-    std::cerr << "CleanV2 anc==" << ancestors << " remove: " << v << std::endl;
-#endif
         }
-
     }
-    PrintDebugEdges("After SimplifyPedigree", pedigree_graph);
-
 }
 
 void dng::RelationshipGraph::UpdateLabelsNodeIds(Graph &pedigree_graph,
@@ -690,25 +629,6 @@ void dng::RelationshipGraph::UpdateLabelsNodeIds(Graph &pedigree_graph,
     first_nonfounder_ = update_position(first_nonfounder_);
     first_somatic_ = update_position(first_somatic_);
     first_library_ = update_position(first_library_);
-
-
-
-#if DEBUG_RGRAPH == 1
-    auto sex  = get(boost::vertex_sex, pedigree_graph);
-    std::cerr << num_nodes_ << std::endl;
-    std::cerr << "After remove some nodes: new V labels_sizse: " << vid << "\t" << labels_.size() << std::endl;
-//    for (auto item : labels_) {
-//        std::cerr << item << std::endl;
-//    }
-    std::cerr << "node_ids:" << std::endl;
-    for (int j = 0; j < node_ids.size(); ++j) {
-        std::cerr << j << " -> " << node_ids[j] << "\tsex:"
-                << (int) sex[j] << std::endl;
-    }
-#endif
-    PrintDebugEdges("END UpdateLabelsNodeIds", pedigree_graph);
-
-
 }
 
 void dng::RelationshipGraph::EraseRemovedLibraries(dng::ReadGroups &rgs,
@@ -763,7 +683,6 @@ void dng::RelationshipGraph::CreateFamiliesInfo(Graph &pedigree_graph,
 
     // Determine the last family in each group.  All singleton groups will have
     // a value of -1 since they have no family assignment.
-    //XXX: strictly size_t != -1, is it good to overflow trick here?
     typedef std::deque<std::size_t> root_families_t;
     root_families_t root_families(num_groups, -1);
     for (std::size_t f = 0; f < family_labels.size(); ++f) {
@@ -791,17 +710,6 @@ void dng::RelationshipGraph::CreateFamiliesInfo(Graph &pedigree_graph,
             pivots[f] = DUMMY_INDEX;
         }
     }
-
-
-#if DEBUG_RGRAPH == 1
-    for (int l = 0; l < family_labels.size(); ++l) {
-        std::cerr << "Families : " << l << "\tPivots: " << pivots[l] << "\t";
-        for (auto f : family_labels[l]) {
-            std::cerr << f << " ";
-        }
-        std::cerr << std::endl;
-    }
-#endif
 }
 
 void dng::RelationshipGraph::CreatePeelingOps(
@@ -817,62 +725,32 @@ void dng::RelationshipGraph::CreatePeelingOps(
         auto it = std::find(node_ids.begin(), node_ids.end(), i);
         assert (it != node_ids.end());
         auto k = std::distance(node_ids.begin(), it);
+        constexpr size_t null_id = static_cast<size_t>(-1);
 
-        transitions_[i] = {TransitionType::Founder, static_cast<size_t>(-1),
-                          static_cast<size_t>(-1), 0, 0, sex[k]};
-        //PR_NOTE(RC): I'm pretty sure this can be optimized.
-        //PR_NOTE(SW): I think the k==i+1 is true all the time
-        // But, let's redo this part later, after all inheritance models are implemented.
-        // Maybe non of these are needed since we might never use these info.
-        // The original code might just work fine.
-//        for (std::size_t i = first_founder_; i < first_nonfounder_; ++i) {      +
-//            transitions_[i] = {TransitionType::Founder, static_cast<size_t>(-1), static_cast<size_t>(-1), 0, 0};
-//        }
-        //TODO: faster hack! k=i+1, needs to double check if k==i+1 is always true
+        transitions_[i] = {TransitionType::Founder, null_id, null_id, 0.0, 0.0, sex[k]};
     }
 
-
-//    index = get(vertex_index, pedigree_graph);
     // Detect Family Structure and pivot positions
     for (std::size_t k = 0; k < family_labels.size(); ++k) {
         auto &family_edges = family_labels[k];
 
-#if DEBUG_RGRAPH == 1
-        std::cerr << "\nStart family: " << k << "\nEdges: ";
-        for (auto a : family_edges) {
-            std::cerr << a << " ";
-        }
-        std::cerr << "" << std::endl;
-#endif
         // Sort edges based on type and target
         boost::sort(family_edges, [&](edge_t x, edge_t y) -> bool {
             return (edge_types(x) < edge_types(y)) && (target(x, pedigree_graph) < target(y, pedigree_graph));
         });
 
-#if DEBUG_RGRAPH == 1
-    std::cerr << "Sorted edges: ";
-    for (auto a : family_edges) {
-        std::cerr << a << " ";
-    }
-    std::cerr << "" << std::endl;
-#endif
         // Find the range of the parent types
         auto pos = boost::find_if(family_edges, [&](edge_t x) -> bool {
             return (edge_types(x) != EdgeType::Spousal);
         });
         size_t num_parent_edges = distance(family_edges.begin(), pos);
 
-#if DEBUG_RGRAPH == 1
-    std::cerr << "family_edge.size(): " << family_edges.size() << "\tnum_parent_E: " << num_parent_edges << "\t"
-            << "\tpos!=(EdgeType::Spousal): " << *pos << "\tpivot_V: "<< pivots[k] << std::endl;
-#endif
         // Check to see what type of graph we have
         if (num_parent_edges == 0) {
             // If we do not have a parent-child single branch,
             // we can't construct the pedigree.
             // TODO: Write Error message
             if (family_edges.size() != 1) {
-//                return false;
                 throw std::runtime_error("Unable to construct peeler for pedigree;  "
                         "do not have a parent-child single branch");
             }
@@ -887,19 +765,10 @@ void dng::RelationshipGraph::CreatePeelingOps(
                     lengths[*pos], 0, sex[child_index]};//TODO(SW): Double check the index is correct
             family_members_.push_back({parent, child});
 
-#if DEBUG_RGRAPH == 1
-            std::cerr << "=numParentEdge==0: parent "
-                    << source(*pos, pedigree_graph) << "->" << parent
-                    << "\tChild " << child_index << "->" << child
-                    << "\n===pivots[k]: " << pivots[k] << "->node_id:"
-                    << node_ids[pivots[k]] << std::endl;
-#endif
             if (node_ids[pivots[k]] == child) {
                 peeling_ops_.push_back(peel::op::DOWN);
-//                std::cerr << "=====ADD OP: down" << std::endl;
             } else {
                 peeling_ops_.push_back(peel::op::UP);
-//                std::cerr << "=====ADD OP: up" << std::endl;
                 if (pivots[k] == DUMMY_INDEX) {
                     roots_.push_back(parent);
                 }
@@ -917,10 +786,6 @@ void dng::RelationshipGraph::CreatePeelingOps(
             family_members_.push_back({dad, mom});
             auto &family_members = family_members_.back();
 
-#if DEBUG_RGRAPH == 1
-    std::cerr << "==numParentEdge==1: dad: " << source(family_edges.front(), pedigree_graph) << "->" <<
-            dad << "\tmom: " << target(family_edges.front(), pedigree_graph) << "->" << mom << std::endl;
-#endif
             while (pos != family_edges.end()) {
                 auto child_index = target(*pos, pedigree_graph);
                 vertex_t child = node_ids[target(*pos, pedigree_graph)];
@@ -928,9 +793,6 @@ void dng::RelationshipGraph::CreatePeelingOps(
                     lengths[*pos], lengths[*(pos + 1)], sex[child_index]}; //TODO(SW): Double check the index is correct
                 family_members.push_back(child); // Child
 
-#if DEBUG_RGRAPH == 1
-    std::cerr << "====Add child to family: " << child_index << "<-" << child << std::endl;
-#endif
                 // child edges come in pairs
                 ++pos;
                 assert(node_ids[target(*pos, pedigree_graph)] == child);
@@ -941,31 +803,18 @@ void dng::RelationshipGraph::CreatePeelingOps(
                 peeling_ops_.push_back(peel::op::TOFATHER);
                 roots_.push_back(family_members[0]);
 
-#if DEBUG_RGRAPH == 1
-    std::cerr << "=====ADD OP: toFather Root" << std::endl;
-#endif
             } else {
                 auto pivot_pos = boost::range::find(family_members, node_ids[pivots[k]]);
                 size_t p = distance(family_members.begin(), pivot_pos);
 
-#if DEBUG_RGRAPH == 1
-    std::cerr << "===pivot_pos: " << pivots[k]
-            << "->node_id:" << node_ids[pivots[k]]
-            << "\tdistance_pivot_to_family_member_begin(): " << p
-            << std::endl;
-#endif
                 if (p == 0) {
                     peeling_ops_.push_back(peel::op::TOFATHER);
-//                    std::cerr << "=====ADD OP: toFather" << std::endl;
                 } else if (p == 1) {
                     peeling_ops_.push_back(peel::op::TOMOTHER);
-//                    std::cerr << "=====ADD OP: toMother" << std::endl;
                 } else if (p == 2) {
                     peeling_ops_.push_back(peel::op::TOCHILD);
-//                    std::cerr << "=====ADD OP: toChild" << std::endl;
                 } else {
                     peeling_ops_.push_back(peel::op::TOCHILD);
-//                    std::cerr << "=====ADD OP: toChild swap" << std::endl;
                     boost::swap(family_members[p], family_members[2]);
                 }
             }
