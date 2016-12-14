@@ -73,7 +73,6 @@ public:
 	//TODO(SW): think about whether these should be public or private?
 	float mup_;
 	float lld_;
-	[[deprecated]] float llh_;
 	float lls_;
 	float mux_;
 
@@ -83,7 +82,7 @@ public:
 	std::string dnt_;
 	std::string dnl_;
 	int32_t dnq_;
-	[[deprecated]]int32_t dnc_;
+	int32_t dnc_;
 
 	dng::IndividualVector posterior_probabilities_;
 	dng::IndividualVector genotype_likelihoods_;
@@ -111,7 +110,6 @@ private:
 			double &max_coeff, size_t &dn_row, size_t &dn_col, size_t &dn_loc);
 #if CALCULATE_ENTROPY == 1
 public:
-	[[deprecated]]
 	void CalculateEntropy(dng::peel::workspace_t &work_nomut,
 			dng::TransitionVector &onemut_transition_matrices,
 			std::array<double, 5> max_entropies, std::size_t ref_index);
