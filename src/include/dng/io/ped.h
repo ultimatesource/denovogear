@@ -168,6 +168,7 @@ public:
             }
 
             // Push k onto dad and mom
+            // if dad==mom, it will appear in the vector twice
             children[ndad].push_back(k);
             children[nmom].push_back(k);
         }
@@ -176,20 +177,48 @@ public:
         // Use a breadth-first search starting at 0 to order pedigree
         names_.clear();
         names_.push_back("");
-        vector<char> touched(string_table.size(), 0);
-        touched[0] = 2;
+
+        // Keep track of everyone we have visited
+        vector<int> touched(string_table.size(), 0);
         deque<size_t> visited{0};
+        touched[0] = 2;
+
+        // Parse the sex of every individual in the table
+        vector<Sex> sex;
+        for( auto & row : string_table) {
+            sex.push_back(parse_sex(row[4]));
+        }
+
+        // Go through the founders three times and order by sex
+        for(auto child : children[0]) {
+            if(sex[child] == Sex::Unknown) {
+                names_.push_back(string_table[child][1]);
+            }
+            visited.push_back(child);
+            touched[child] = 2;
+        }
+        for(auto child : children[0]) {
+            if(sex[child] == Sex::Male) {
+                names_.push_back(string_table[child][1]);
+            }
+        }
+        for(auto child : children[0]) {
+            if(sex[child] == Sex::Female) {
+                names_.push_back(string_table[child][1]);
+            }
+        }
+
         while(!visited.empty()) {
             size_t id = visited.front();
             visited.pop_front();
-            for(auto a : children[id]) {
+            for(auto child : children[id]) {
                 // only add child to list after we have visited both parents
-                if(touched[a] == 0) {
-                    touched[a] = 1;
-                } else if(touched[a] == 1) {
-                    names_.push_back(string_table[a][1]);
-                    visited.push_back(a);
-                    touched[a] = 2;
+                if(touched[child] == 0) {
+                    touched[child] = 1;
+                } else if(touched[child] == 1) {
+                    names_.push_back(string_table[child][1]);
+                    visited.push_back(child);
+                    touched[child] = 2;
                 }
             }
         }
@@ -200,7 +229,6 @@ public:
             auto nrow = child_names[name];
             auto child = id(string_table[nrow][1]);
 
-
             if(child == 0) {
                 continue;
             }
@@ -209,7 +237,7 @@ public:
                 child,
                 id(string_table[nrow][2]),
                 id(string_table[nrow][3]),
-                ParseSex(string_table[nrow][4]),
+                sex[nrow],
                 string_table[nrow][5]
             });
         }
@@ -218,7 +246,7 @@ public:
     }
 
 protected:
-    static Sex ParseSex(std::string &str) {
+    static Sex parse_sex(std::string &str) {
         static std::pair<std::string, Sex> keys[] = {
             {"0", Sex::Unknown},
             {"1", Sex::Male},
@@ -237,11 +265,11 @@ protected:
 inline
 Pedigree parse_pedigree(const std::string &input) {
     if(input.empty()) {
-        throw std::runtime_error("pedigree file was not specified.");        
+        throw std::runtime_error("Error: pedigree file was not specified.");        
     }
     std::ifstream ped_file(input);
     if(!ped_file.is_open()) {
-        throw std::runtime_error("unable to open pedigree file '" + input + "'.");
+        throw std::runtime_error("Error: unable to open pedigree file '" + input + "'.");
     }
     Pedigree ped;
     ped.Parse(io::istreambuf_range(ped_file));

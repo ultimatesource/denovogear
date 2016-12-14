@@ -23,18 +23,20 @@
 #include <dng/relationship_graph.h>
 
 #include "../boost_test_helper.h"
-#include "fixture_read_trio_from_file.h"
+#include "fixture_read_test_from_file.h"
 #include "relationship_graph_helper.h"
 
 
 struct FixturePedigree : public ReadTrioFromFile{
 
-
+    std::string fixture;
     dng::RelationshipGraph relationship_graph;
 
-    FixturePedigree(std::string s = "FixturePedigree") : ReadTrioFromFile(s) {
+    FixturePedigree(std::string s = "FixturePedigree")
+            : ReadTrioFromFile(), fixture(s) {
         BOOST_TEST_MESSAGE("set up fixture: " << fixture);
-        relationship_graph.Construct(io_pedigree, rgs, arg.mu, arg.mu_somatic, arg.mu_library);
+        relationship_graph.Construct(io_pedigree, rgs, arg.mu, arg.mu_somatic,
+                                     arg.mu_library);
     }
 
     ~FixturePedigree() {
@@ -140,6 +142,7 @@ BOOST_FIXTURE_TEST_CASE(test_constructor, FixturePedigree ) {
         BOOST_CHECK_CLOSE(expected.length2, actual.length2, BOOST_CLOSE_PERCENTAGE_THRESHOLD);
 
     }
+
 }
 
 

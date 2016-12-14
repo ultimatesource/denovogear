@@ -19,8 +19,8 @@
 
 
 #pragma once
-#ifndef DENOVOGEAR_FIXTURE_RANDOM_FAMILY_H
-#define DENOVOGEAR_FIXTURE_RANDOM_FAMILY_H
+#ifndef DNG_FIXTURE_RANDOM_FAMILY_H
+#define DNG_FIXTURE_RANDOM_FAMILY_H
 
 #include <dng/peeling.h>
 
@@ -136,4 +136,4 @@ struct RandomWorkspace {
 
 
 
-#endif //DENOVOGEAR_FIXTURE_RANDOM_FAMILY_H
+#endif //DNG_FIXTURE_RANDOM_FAMILY_H

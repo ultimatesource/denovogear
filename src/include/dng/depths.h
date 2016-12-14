@@ -23,12 +23,11 @@
 
 #include <utility>
 #include <cstdint>
-
-#include <dng/utility.h>
-
 #include <unordered_map>
 
 #include <boost/algorithm/string/case_conv.hpp>
+
+#include <dng/utility.h>
 
 namespace dng {
 namespace pileup {

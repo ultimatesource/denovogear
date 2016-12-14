@@ -24,7 +24,7 @@
 #include <cmath>
 #include <cassert>
 #include <array>
-
+#include <iostream>
 #include <dng/matrix.h>
 
 namespace dng {
@@ -128,6 +128,36 @@ inline TransitionMatrix meiosis_diploid_matrix(const MutationMatrix &mdad,
     }
 
     return ret; // 100 x 10
+}
+
+inline TransitionMatrix meiosis_diploid_matrix_xlinked(const MutationMatrix &mdad,
+        const MutationMatrix &mmom, int mutype = -1) {
+    // Construct Mutation Process
+    TransitionMatrix ret = TransitionMatrix::Zero(40, 10);
+    TransitionMatrix temp;
+
+    if(mutype <= 0) {
+        auto dad = mitosis_haploid_matrix(mdad, mutype);
+        auto mom = meiosis_haploid_matrix(mmom, mutype);
+        temp = kroneckerProduct(dad, mom);
+    } else {
+        temp = dng::TransitionMatrix::Zero(40, 16);
+        for(int i = 0; i <= mutype; ++i) {
+            auto dad = mitosis_haploid_matrix(mdad, i);
+            auto mom = meiosis_haploid_matrix(mmom, mutype - i);
+            temp += kroneckerProduct(dad, mom);
+        }
+    }
+
+    // Fold the rows
+    for(int i = 0; i < 40; ++i) {
+        for(int j = 0; j < 16; ++j) {
+            int k = folded_diploid_genotypes[j];
+            ret(i, k) += temp(i, j);
+        }
+    }
+
+    return ret; // 40 x 10
 }
 
 inline TransitionMatrix mitosis_haploid_mean_matrix(const MutationMatrix &m) {
@@ -254,6 +284,23 @@ inline dng::GenotypeArray population_prior(double theta,
               alpha[3]*(1.0 + alpha[3]) / alpha_sum / (1.0 + alpha_sum); // GG
     return ret;
 }
+
+
+inline dng::GenotypeArray PopulationPriorHaploid(double theta,
+        const std::array<double, 4> &nuc_freq,
+        const std::array<double, 4> &prior) {
+    std::array<double, 4> alpha = population_alphas(theta, nuc_freq, prior);
+
+    double alpha_sum = alpha[0] + alpha[1] + alpha[2] + alpha[3];
+    dng::GenotypeArray ret{4};
+    ret <<  alpha[0] / alpha_sum,
+            alpha[1] / alpha_sum,
+            alpha[2] / alpha_sum,
+            alpha[3] / alpha_sum;
+
+    return ret;
+}
+
 
 } // namespace dng
 

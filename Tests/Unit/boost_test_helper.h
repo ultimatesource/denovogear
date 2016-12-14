@@ -17,8 +17,8 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef DENOVOGEAR_BOOST_TEST_HELPER_H
-#define DENOVOGEAR_BOOST_TEST_HELPER_H
+#ifndef DNG_BOOST_TEST_HELPER_H
+#define DNG_BOOST_TEST_HELPER_H
 
 #include <boost/test/test_tools.hpp>
 #include <boost/test/unit_test.hpp>
@@ -123,4 +123,4 @@ void AssertEigenMatrixNear(A expected, A actual){
 };
 
 
-#endif //DENOVOGEAR_BOOST_TEST_HELPER_H
+#endif //DNG_BOOST_TEST_HELPER_H

@@ -23,84 +23,27 @@
 #include <dng/relationship_graph.h>
 
 #include "../boost_test_helper.h"
-#include "fixture_read_trio_from_file.h"
+#include "fixture_read_test_from_file.h"
 #include "relationship_graph_helper.h"
 
-struct FixturePedigreeMid {
+struct FixturePedigreeM12 : public ReadM12FromFile{
 
     std::string fixture;
+    dng::RelationshipGraph relationship_graph;
 
-    dng::io::Pedigree io_pedigree;
-    dng::ReadGroups rgs;
-
-    typedef dng::task::Call task_type;
-    struct arg_t : public task_type::argument_type {
-        bool help;
-        bool version;
-        std::string arg_file;
-
-        std::string run_name;
-        std::string run_path;
-    } arg;
-
-    FixturePedigreeMid(std::string s = "FixturePedigreeMid") : fixture(s) {
+    FixturePedigreeM12(std::string s = "FixturePedigreeM12")
+            : ReadM12FromFile(), fixture(s) {
         BOOST_TEST_MESSAGE("set up fixture: " << fixture);
-
-        po::options_description ext_desc, int_desc;
-        po::positional_options_description pos_desc;
-        po::variables_map vm;
-
-        int argc=4;
-        char *argv[argc];
-        argv[0] = (char*) "test";
-        argv[1] = (char*) "-p";
-
-        std::string ped_filename (TESTDATA_DIR);
-        ped_filename.append("/relationship_graph/relationship_graph.ped");
-        argv[2] = (char*) ped_filename.data();
-
-        std::string vcf_filename = TESTDATA_DIR;
-        vcf_filename.append("/relationship_graph/relationship_graph.vcf");
-        argv[3] = (char*) vcf_filename.data();
-
-        add_app_args(ext_desc,
-                     static_cast<typename task_type::argument_type &>(arg));
-        int_desc.add_options()("input",
-                               po::value<std::vector<std::string> >(&arg.input),
-                               "input files");
-        int_desc.add(ext_desc);
-        pos_desc.add("input", -1);
-        po::store(
-                po::command_line_parser(argc, argv).options(int_desc).positional(
-                        pos_desc).run(), vm);
-        po::notify(vm);
-
-        // Parse pedigree from file
-        std::ifstream ped_file(arg.ped);
-        io_pedigree.Parse(istreambuf_range(ped_file));
-
-        std::vector<hts::File> indata;
-        std::vector<hts::bcf::File> bcfdata;
-        for (auto &&str : arg.input) {
-            indata.emplace_back(str.c_str(), "r");
-            if (indata.back().is_open()) {
-                continue;
-            }
-            throw std::runtime_error("unable to open input file '" + str + "'.");
-        }
-        bcfdata.emplace_back(std::move(indata[0]));
-        rgs.ParseSamples(bcfdata[0]);
-        arg.mu= 0.05;
-        arg.mu_somatic = 0.07;
-        arg.mu_library = 0.11;
-
+        relationship_graph.Construct(io_pedigree, rgs, arg.mu, arg.mu_somatic,
+                                     arg.mu_library);
     }
 
-    ~FixturePedigreeMid() {
+    ~FixturePedigreeM12() {
         BOOST_TEST_MESSAGE("tear down fixture: " << fixture);
     }
-
 };
+
+
 
 /*
 1-2    3-4
@@ -113,7 +56,7 @@ struct FixturePedigreeMid {
 */
 
 namespace dng {
-BOOST_FIXTURE_TEST_CASE(test_constructor, FixturePedigreeMid ) {
+BOOST_FIXTURE_TEST_CASE(test_constructor, FixturePedigreeM12 ) {
 
     dng::RelationshipGraph relationship_graph;
     relationship_graph.Construct(io_pedigree, rgs, arg.mu, arg.mu_somatic, arg.mu_library);
@@ -149,9 +92,9 @@ BOOST_FIXTURE_TEST_CASE(test_constructor, FixturePedigreeMid ) {
 
 
     auto transitions = relationship_graph.transitions();
-    double expected_mu = 0.05;
-    double expected_som_lib = 0.18;
-    double expected_mu_som_lib = 0.23;
+    double expected_mu = 1e-8;
+    double expected_som_lib = 2e-8;
+    double expected_mu_som_lib = 3e-8;
     std::vector<RelationshipGraph::transition_t> expected_transitions = {
             {RelationshipGraph::TransitionType::Founder, S_MAX, S_MAX, 0, 0},
             {RelationshipGraph::TransitionType::Founder, S_MAX, S_MAX, 0, 0},
@@ -213,7 +156,7 @@ BOOST_FIXTURE_TEST_CASE(test_constructor, FixturePedigreeMid ) {
 }
 
 
-BOOST_FIXTURE_TEST_CASE(test_pedigree_inspect, FixturePedigreeMid) {
+BOOST_FIXTURE_TEST_CASE(test_pedigree_inspect, FixturePedigreeM12) {
 
     dng::RelationshipGraph relationship_graph;
     relationship_graph.Construct(io_pedigree, rgs, arg.mu, arg.mu_somatic, arg.mu_library);
@@ -286,7 +229,7 @@ BOOST_FIXTURE_TEST_CASE(test_pedigree_inspect, FixturePedigreeMid) {
 }
 
 
-BOOST_FIXTURE_TEST_CASE(test_parse_io_pedigree, FixturePedigreeMid){
+BOOST_FIXTURE_TEST_CASE(test_parse_io_pedigree, FixturePedigreeM12){
 
     RelationshipGraph relationship_graph;
 
@@ -351,7 +294,7 @@ BOOST_FIXTURE_TEST_CASE(test_parse_io_pedigree, FixturePedigreeMid){
 }
 
 
-BOOST_FIXTURE_TEST_CASE(test_add_lib_from_rgs, FixturePedigreeMid) {
+BOOST_FIXTURE_TEST_CASE(test_add_lib_from_rgs, FixturePedigreeM12) {
 
 
     Graph pedigree_graph(io_pedigree.member_count());
@@ -461,7 +404,7 @@ BOOST_FIXTURE_TEST_CASE(test_add_lib_from_rgs, FixturePedigreeMid) {
 }
 
 
-BOOST_FIXTURE_TEST_CASE(test_update_edge_lengths, FixturePedigreeMid) {
+BOOST_FIXTURE_TEST_CASE(test_update_edge_lengths, FixturePedigreeM12) {
 
     Graph pedigree_graph(io_pedigree.member_count());
 
@@ -540,7 +483,7 @@ BOOST_FIXTURE_TEST_CASE(test_update_edge_lengths, FixturePedigreeMid) {
 }
 
 
-BOOST_FIXTURE_TEST_CASE(test_simplify_pedigree, FixturePedigreeMid) {
+BOOST_FIXTURE_TEST_CASE(test_simplify_pedigree, FixturePedigreeM12) {
 
     Graph pedigree_graph(io_pedigree.member_count());
 
@@ -614,7 +557,7 @@ BOOST_FIXTURE_TEST_CASE(test_simplify_pedigree, FixturePedigreeMid) {
 }
 
 
-BOOST_FIXTURE_TEST_CASE(test_update_labels_node_ids, FixturePedigreeMid) {
+BOOST_FIXTURE_TEST_CASE(test_update_labels_node_ids, FixturePedigreeM12) {
 
     Graph pedigree_graph(io_pedigree.member_count());
 
@@ -673,7 +616,7 @@ BOOST_FIXTURE_TEST_CASE(test_update_labels_node_ids, FixturePedigreeMid) {
 }
 
 
-BOOST_FIXTURE_TEST_CASE(test_create_families_info, FixturePedigreeMid) {
+BOOST_FIXTURE_TEST_CASE(test_create_families_info, FixturePedigreeM12) {
 
     Graph pedigree_graph(io_pedigree.member_count());
 
@@ -750,7 +693,7 @@ BOOST_FIXTURE_TEST_CASE(test_create_families_info, FixturePedigreeMid) {
 }
 
 
-BOOST_FIXTURE_TEST_CASE(test_create_peeling_ops, FixturePedigreeMid) {
+BOOST_FIXTURE_TEST_CASE(test_create_peeling_ops, FixturePedigreeM12) {
 
     Graph pedigree_graph(io_pedigree.member_count());
 

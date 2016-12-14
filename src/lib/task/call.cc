@@ -1,8 +1,10 @@
 /*
  * Copyright (c) 2014-2016 Reed A. Cartwright
  * Copyright (c) 2015-2016 Kael Dai
+ * Copyright (c) 2016 Steven H. Wu
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *           Kael Dai <kdai1@asu.edu>
+ *           Steven H. Wu <stevenwu@asu.edu>
  *
  * This file is part of DeNovoGear.
  *
@@ -49,7 +51,10 @@
 #include <dng/stats.h>
 #include <dng/io/utility.h>
 #include <dng/io/fasta.h>
+#include <dng/find_mutations_ylinked.h>
+#include <dng/find_mutations_xlinked.h>
 #include <dng/find_mutations.h>
+
 
 #include "htslib/synced_bcf_reader.h"
 
@@ -195,6 +200,20 @@ int process_bam(task::Call::argument_type &arg) {
     // Parse Nucleotide Frequencies
     std::array<double, 4> freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
 
+    // Scale frequencies and makes sure they sum to 1.
+    for(int i=0;i<freqs.size();++i) {
+        if(freqs[i] < 0.0) {
+            throw std::runtime_error("Error: Nucleotide frequencies must be non-negative. "
+                "Parsing of '" + arg.nuc_freqs + "' generated a frequency of " + std::to_string(freqs[i])
+                + " in position " + std::to_string(i) + "."
+                );
+        }
+    }
+    double freqs_sum = freqs[0] + freqs[1] + freqs[2] + freqs[3];
+    for(int i=0;i<freqs.size();++i) {
+        freqs[i] = freqs[i]/freqs_sum;
+    }
+
     // Fetch the selected regions
     io::at_slurp(arg.region); // replace arg.region with the contents of a file if needed
 
@@ -205,7 +224,7 @@ int process_bam(task::Call::argument_type &arg) {
         bamdata.emplace_back(str.c_str(), "r", arg.fasta.c_str(), arg.min_mapqual, arg.header.c_str());
         if(!bamdata.back().is_open()) {
             throw std::runtime_error("unable to open input file '" + str + "'.");
-        }
+         }
         // add regions
         if(!arg.region.empty()) {
 			if(arg.region.find(".bed")!=std::string::npos){
@@ -226,11 +245,10 @@ int process_bam(task::Call::argument_type &arg) {
 
 
     // Construct peeling algorithm from parameters and pedigree information
-    InheritanceModel inheritance_model;
-    inheritance_model.parse_model(arg.model);
+    InheritanceModel model = inheritance_model(arg.model);
+
     dng::RelationshipGraph relationship_graph;
-    if (!relationship_graph.Construct(ped, rgs,
-                                      inheritance_model.GetInheritancePattern(),
+    if (!relationship_graph.Construct(ped, rgs, model,
                                       arg.mu, arg.mu_somatic, arg.mu_library)) {
         throw std::runtime_error("Unable to construct peeler for pedigree; "
                                  "possible non-zero-loop relationship_graph.");
@@ -238,9 +256,8 @@ int process_bam(task::Call::argument_type &arg) {
     // quality thresholds
     int min_qual = arg.min_basequal;
     double min_prob = arg.min_prob;
-    FindMutations calculate ( min_prob, relationship_graph,
-    		{ arg.theta, freqs, arg.ref_weight, arg.gamma[0], arg.gamma[1] } );
-
+    // FindMutations calculate ( min_prob, relationship_graph,
+    // 		{ arg.theta, freqs, arg.ref_weight, arg.gamma[0], arg.gamma[1] } );
 
     // Write VCF output header
     auto out_file = vcf_get_output_mode(arg);
@@ -257,13 +274,53 @@ int process_bam(task::Call::argument_type &arg) {
     	vcfout.AddHeaderMetadata(line.c_str()); // Add pedigree information
     }
 
+
+    FindMutationsAbstract *calculate;
+    FindMutationsAbstract::params_t find_mutation_params {arg.theta, freqs,
+            arg.ref_weight, arg.gamma[0], arg.gamma[1]};
+
+    switch (model) {
+        case InheritanceModel::AUTOSOMAL:
+            calculate = new FindMutations(min_prob, relationship_graph,
+                                          find_mutation_params);
+            break;
+        case InheritanceModel::Y_LINKED:
+            std::cerr << "Warning! Y Linked model are not fully implemented yet. Many stats are still missing."
+                    << std::endl;
+            //TODO(SW): HACK!! Remove libraries to keep the count simple (0->Lib)
+            rgs.KeepTheseOnly(relationship_graph.KeepLibraryIndex());
+
+            calculate = new FindMutationsYLinked(min_prob, relationship_graph,
+                                                 find_mutation_params);
+            throw std::runtime_error("Y Linked are not implemented for sequence data yet. "
+                                "Many things will break at this stage!\nExit!!");
+            break;
+        case InheritanceModel::X_LINKED:
+
+            rgs.KeepTheseOnly(relationship_graph.KeepLibraryIndex());
+            calculate = new FindMutationsXLinked(min_prob, relationship_graph,
+                                                 find_mutation_params);
+
+
+            throw std::runtime_error("X Linked are not implemented yet."
+                    "Many things will break at this stage!!\nExit!");
+            break;
+
+        default:
+            auto message = "Other inheritance model are not implemented yet!\nExit!";
+            throw std::runtime_error(message);
+            break;
+    }
+
+
+    // Pileup data
+    std::vector<depth_t> read_depths(rgs.libraries().size());
+
+    // Finish Header
     for(auto && str : relationship_graph.labels()) {
     	vcfout.AddSample(str.c_str()); // Create samples
     }
     vcfout.WriteHeader();
-
-    // Pileup data
-    std::vector<depth_t> read_depths(rgs.libraries().size());
 
     // Record for each output
     auto record = vcfout.InitVariant();
@@ -308,7 +365,7 @@ int process_bam(task::Call::argument_type &arg) {
                 read_depths[rgs.library_from_id(u)].counts[ base ] += 1;
 			}
 		}
-		if(!calculate(read_depths, ref_index, &stats)) {
+		if(!(*calculate)(read_depths, ref_index, &stats)) {
 			return;
 		}
 
@@ -614,6 +671,10 @@ int variant_call(task::Call::argument_type &arg,  hts::bcf::File &vcfout, const 
         	}
         }
 
+//             if(!(*calculate)(read_depths, ref_index, &stats)) {
+// //            if(!calculate->operator ()(read_depths, ref_index, &stats)) {
+//                 return;
+//             }
 
         size_t ref_index = seq::char_index(ref_base);
         if(!calculate(read_depths, ref_index, &stats)) {
@@ -732,7 +793,6 @@ int variant_call(task::Call::argument_type &arg,  hts::bcf::File &vcfout, const 
         record.info("MUX", stats.mux);
         record.info("MU1P", stats.mu1p);
 
-
         record.sample_genotypes(best_genotypes);
         record.samples("GQ", genotype_qualities);
         record.samples("GP", gp_scores);
@@ -785,15 +845,13 @@ int process_ad(task::Call::argument_type &arg) {
     }
 
     // Construct peeling algorithm from parameters and pedigree information
-    InheritanceModel inheritance_model;
-    inheritance_model.parse_model(arg.model);
+    InheritanceModel model = inheritance_model(arg.model);
     dng::ReadGroups rgs;
     rgs.ParseLibraries(input.libraries());
     dng::RelationshipGraph relationship_graph;
-    if (!relationship_graph.Construct(ped, rgs,
-                                      inheritance_model.GetInheritancePattern(),
+    if (!relationship_graph.Construct(ped, rgs, model,
                                       arg.mu, arg.mu_somatic, arg.mu_library)) {
-        throw std::runtime_error("Unable to construct peeler for pedigree; "
+        throw std::runtime_error("Error: Unable to construct peeler for pedigree; "
                                  "possible non-zero-loop relationship_graph.");
     }
 
@@ -864,15 +922,13 @@ int process_bcf(task::Call::argument_type &arg) {
 
 
     // Construct peeling algorithm from parameters and pedigree information
-    InheritanceModel inheritance_model;
-    inheritance_model.parse_model(arg.model);
+    InheritanceModel model = inheritance_model(arg.model);
     dng::ReadGroups rgs;
     rgs.ParseSamples(bcfdata);
     dng::RelationshipGraph relationship_graph;
-    if (!relationship_graph.Construct(ped, rgs,
-                                      inheritance_model.GetInheritancePattern(),
+    if (!relationship_graph.Construct(ped, rgs, model,
                                       arg.mu, arg.mu_somatic, arg.mu_library)) {
-        throw std::runtime_error("Unable to construct peeler for pedigree; "
+        throw std::runtime_error("Error: Unable to construct peeler for pedigree; "
                                  "possible non-zero-loop relationship_graph.");
     }
 

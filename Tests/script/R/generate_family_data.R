@@ -1,4 +1,4 @@
-options(digits=20)
+options(digits=15)
 
 set.seed(0)
 dip_count<- 10

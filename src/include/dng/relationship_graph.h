@@ -27,18 +27,30 @@
 #include <string>
 #include <vector>
 
-#include <dng/io/ped.h>
 #include <dng/matrix.h>
 #include <dng/graph.h>
 #include <dng/newick.h>
 #include <dng/read_group.h>
 #include <dng/peeling.h>
 #include <dng/detail/unit_test.h>
-#include <dng/inheritance_model.h>
 
-//#define DEBUG_RGRAPH 1
+#define DEBUG_RGRAPH 0
 
 namespace dng {
+
+enum class InheritanceModel : int {
+    UNKNOWN = -1,
+    AUTOSOMAL = 0,    // default option
+    MITOCHONDRIA = 1, // transmitted by mother to child
+    MATERNAL = 1,     // transmitted by mother to child
+    PATERNAL = 2,     // transmitter by father to child
+    X_LINKED = 3,     // females have 2 copies, males have 1; males transmit to daughters, not to sons
+    Y_LINKED = 4,     // males have 1 copy, only transmits it to sons
+    W_LINKED = 5,     // females have 1 copy, only transmitted to daughters
+    Z_LINKED = 6      // males have 2 copies, females have 1; females transmit to sons, not to daughters
+};
+
+InheritanceModel inheritance_model(const std::string &pattern);
 
 class RelationshipGraph {
 public:
@@ -81,9 +93,9 @@ public:
         dng::io::Pedigree::Sex sex;
     };
 
-    //PR_NOTE(SW): Both constructor exist now to reduce the chance of merge conflict or breaking something
+    //PR_NOTE(SW): Both constructor exist now to reduce the chance of breaking something
     bool Construct(const io::Pedigree& pedigree, dng::ReadGroups& rgs,
-            InheritancePattern inheritance_pattern,
+            InheritanceModel inheritance_model,
             double mu, double mu_somatic, double mu_library);
 
     bool Construct(const io::Pedigree& pedigree, dng::ReadGroups& rgs,
@@ -105,6 +117,7 @@ public:
         for(auto r : roots_) {
             ret += log((work.lower[r] * work.upper[r]).sum());
         }
+
         work.forward_result = ret;
         return ret;
     }
@@ -151,6 +164,7 @@ public:
     size_t num_nodes() const { return num_nodes_; }
     std::pair<size_t, size_t> library_nodes() const { return {first_library_, num_nodes_}; }
 
+    const std::vector<int> &KeepLibraryIndex() const {return keep_library_index_;}
 
 protected:
 
@@ -207,7 +221,11 @@ protected:
             const std::vector<size_t> &node_ids, family_labels_t &family_labels,
             std::vector<vertex_t> &pivots);
 
+    void PruneForYLinked(dng::Graph &pedigree_graph);
+    void PruneForXLinked(dng::Graph &pedigree_graph);
 
+    void ExtractRequiredLibraries(dng::Graph &pedigree_graph,
+            const std::vector<size_t> &node_ids);
 
 private:
     void ConnectSomaticToLibraries(dng::Graph &pedigree_graph,
@@ -221,6 +239,8 @@ private:
     void PrintDebugEdges(const std::string &prefix,
             const dng::Graph &pedigree_graph);
 
+    std::vector<int> keep_library_index_;
+
     const vertex_t DUMMY_INDEX = 0;
 
     DNG_UNIT_TEST(test_pedigree_inspect);
@@ -231,7 +251,7 @@ private:
     DNG_UNIT_TEST(test_update_labels_node_ids);
     DNG_UNIT_TEST(test_create_families_info);
     DNG_UNIT_TEST(test_create_peeling_ops);
-
+    DNG_UNIT_TEST(test_peeling_forward_each_op);
 };
 }; // namespace dng
 
