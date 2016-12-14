@@ -171,6 +171,8 @@ protected:
     using Graph = dng::detail::graph::Graph;
     using vertex_t = dng::detail::graph::vertex_t;
 
+    InheritanceModel inheritance_model_{InheritanceModel::AUTOSOMAL};
+
     // node structure:
     // founder germline, non-founder germline, somatic, library
     std::size_t num_nodes_{0};        // total number of nodes

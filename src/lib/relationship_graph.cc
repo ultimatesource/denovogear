@@ -77,6 +77,7 @@ RULES FOR LINKING READ GROUPS TO PEOPLE.
 4) If a library has multiple read-groups, concat the read-groups.
 
 */
+
 void dng::RelationshipGraph::PruneForYLinked(Graph &pedigree_graph){
     auto labels = get(boost::vertex_label, pedigree_graph);
     auto sex  = get(boost::vertex_sex, pedigree_graph);
@@ -135,6 +136,8 @@ bool dng::RelationshipGraph::Construct(const io::Pedigree& pedigree,
 
     using namespace std;
 
+    inheritance_model_ = model;
+
     SetupFirstNodeIndex(pedigree);
 
     // Construct a graph of the pedigree and somatic information
@@ -154,9 +157,9 @@ bool dng::RelationshipGraph::Construct(const io::Pedigree& pedigree,
     //PR_NOTE(SW): Prune after the original graph are constructed.
     //so many functions can be the same for now.
     //Less efficient, but less changes for now.
-    if(model == InheritanceModel::Y_LINKED){
+    if(inheritance_model_ == InheritanceModel::Y_LINKED){
         PruneForYLinked(pedigree_graph);
-    } else if(model == InheritanceModel::X_LINKED){
+    } else if(inheritance_model_ == InheritanceModel::X_LINKED){
         PruneForXLinked(pedigree_graph);
     }
 
