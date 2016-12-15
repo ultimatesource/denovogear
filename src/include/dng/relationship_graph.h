@@ -22,7 +22,6 @@
 #ifndef DNG_RELATIONSHIP_GRAPH_H
 #define DNG_RELATIONSHIP_GRAPH_H
 
-
 #include <cmath>
 #include <string>
 #include <vector>
@@ -32,8 +31,6 @@
 #include <dng/peeling.h>
 #include <dng/detail/graph.h>
 #include <dng/detail/unit_test.h>
-
-#define DEBUG_RGRAPH 0
 
 namespace dng {
 
@@ -90,7 +87,6 @@ public:
         std::size_t parent2;
         double length1;
         double length2;
-        PropVertexSex::value_type sex;
         int ploidy;
     };
 
@@ -200,19 +196,6 @@ protected:
 
     void ConstructPeelingMachine();
 
-    void SetupFirstNodeIndex(const io::Pedigree &pedigree);
-
-    void ParseIoPedigree(dng::detail::graph::Graph &pedigree_graph,
-            const dng::io::Pedigree &pedigree);
-
-    void AddLibrariesFromReadGroups(Graph &pedigree_graph,
-            const dng::ReadGroups &rgs);
-
-    void UpdateEdgeLengths(Graph &pedigree_graph, double mu_meiotic,
-            double mu_somatic, double mu_library);
-
-    void SimplifyPedigree(Graph &pedigree_graph);
-
     void UpdateLabelsNodeIds(Graph &pedigree_graph, dng::ReadGroups &rgs,
             std::vector<size_t> &node_ids);
 
@@ -223,16 +206,12 @@ protected:
             const std::vector<size_t> &node_ids, family_labels_t &family_labels,
             std::vector<vertex_t> &pivots);
 
-    void PruneForYLinked(Graph &pedigree_graph);
     void PruneForXLinked(Graph &pedigree_graph);
 
     void ExtractRequiredLibraries(Graph &pedigree_graph,
             const std::vector<size_t> &node_ids);
 
 private:
-    void ConnectSomaticToLibraries(Graph &pedigree_graph,
-                const ReadGroups &rgs, const PropVertexLabel &labels);
-
     void EraseRemovedLibraries(dng::ReadGroups &rgs,
                 std::vector<size_t> &node_ids);
 
@@ -242,8 +221,6 @@ private:
             const Graph &pedigree_graph);
 
     std::vector<int> keep_library_index_;
-
-    const vertex_t DUMMY_INDEX = 0;
 
     DNG_UNIT_TEST(test_pedigree_inspect);
     DNG_UNIT_TEST(test_parse_io_pedigree);
@@ -255,6 +232,28 @@ private:
     DNG_UNIT_TEST(test_create_peeling_ops);
     DNG_UNIT_TEST(test_peeling_forward_each_op);
 };
+
+namespace detail {
+
+inline std::string germline_label(const std::string &input) {
+    std::string out = "GL-";
+    out += input;
+    return out;
+}
+
+inline std::string somatic_label(const std::string &input) {
+    std::string out = "SM-";
+    out += input;
+    return out;
+}
+
+inline std::string library_label(const std::string &input) {
+    std::string out = "LB-";
+    out += input;
+    return out;
+}
+};
+
 }; // namespace dng
 
 #endif // DNG_RELATIONSHIP_GRAPH_H

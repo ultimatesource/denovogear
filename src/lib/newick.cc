@@ -32,8 +32,6 @@
 
 #include <boost/algorithm/string/trim_all.hpp>
 
-#define DNG_SM_PREFIX "SM-" // define also in pedigree.cc
-
 using namespace dng::detail::graph;
 
 namespace qi = boost::spirit::qi;
@@ -131,10 +129,7 @@ int dng::detail::graph::parse_newick(const std::string &text, vertex_t root, Gra
     for(std::size_t i = tree.size(); i > 0; --i) {
         auto &&a = tree[i - 1];
         boost::trim_fill(a.label, "_");
-        if(!a.label.empty()) {
-            a.label = DNG_SM_PREFIX + a.label;
-        }
-        vertex_t v = add_vertex(a.label, graph);
+        vertex_t v = add_vertex({a.label,VertexType::Somatic}, graph);
         add_edge((a.parent == -1) ? root : offset - a.parent,
                  v, {EdgeType::Mitotic, a.length}, graph);
     }
