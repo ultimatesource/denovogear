@@ -34,16 +34,15 @@
 
 namespace dng {
 
-enum class InheritanceModel : int {
-    UNKNOWN = -1,
-    AUTOSOMAL = 0,    // default option
-    MITOCHONDRIA = 1, // transmitted by mother to child
-    MATERNAL = 1,     // transmitted by mother to child
-    PATERNAL = 2,     // transmitter by father to child
-    X_LINKED = 3,     // females have 2 copies, males have 1; males transmit to daughters, not to sons
-    Y_LINKED = 4,     // males have 1 copy, only transmits it to sons
-    W_LINKED = 5,     // females have 1 copy, only transmitted to daughters
-    Z_LINKED = 6      // males have 2 copies, females have 1; females transmit to sons, not to daughters
+enum struct InheritanceModel {
+    Autosomal,    // default option
+    Maternal,     // transmitted by mother to child
+    Paternal,     // transmitter by father to child
+    XLinked,     // females have 2 copies, males have 1; males transmit to daughters, not to sons
+    YLinked,     // males have 1 copy, only transmits it to sons
+    WLinked,     // females have 1 copy, only transmitted to daughters
+    ZLinked,      // males have 2 copies, females have 1; females transmit to sons, not to daughters
+    Unknown
 };
 
 InheritanceModel inheritance_model(const std::string &pattern);
@@ -66,12 +65,12 @@ public:
     //TODO: struct FamilyInfo/Family structure.
     //Op1: A struct to record info in each family. family_t and ops
     //Op2: Another struct to group families together, include pivots and root?
-    enum class FamilyType : int {
+    enum struct FamilyType {
         PAIR = 2,
         TRIO = 3
     };
 
-    enum class TransitionType {
+    enum struct TransitionType {
         Founder, Germline, Somatic, Library
     };
 
@@ -90,7 +89,6 @@ public:
         int ploidy;
     };
 
-    //PR_NOTE(SW): Both constructor exist now to reduce the chance of breaking something
     bool Construct(const io::Pedigree& pedigree, dng::ReadGroups& rgs,
             InheritanceModel inheritance_model,
             double mu, double mu_somatic, double mu_library);
@@ -167,7 +165,7 @@ protected:
     using Graph = dng::detail::graph::Graph;
     using vertex_t = dng::detail::graph::vertex_t;
 
-    InheritanceModel inheritance_model_{InheritanceModel::AUTOSOMAL};
+    InheritanceModel inheritance_model_{InheritanceModel::Autosomal};
 
     // node structure:
     // founder germline, non-founder germline, somatic, library

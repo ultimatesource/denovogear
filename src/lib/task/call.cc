@@ -280,11 +280,11 @@ int process_bam(task::Call::argument_type &arg) {
             arg.ref_weight, arg.gamma[0], arg.gamma[1]};
 
     switch (model) {
-        case InheritanceModel::AUTOSOMAL:
+        case InheritanceModel::Autosomal:
             calculate = new FindMutations(min_prob, relationship_graph,
                                           find_mutation_params);
             break;
-        case InheritanceModel::Y_LINKED:
+        case InheritanceModel::YLinked:
             std::cerr << "Warning! Y Linked model are not fully implemented yet. Many stats are still missing."
                     << std::endl;
             //TODO(SW): HACK!! Remove libraries to keep the count simple (0->Lib)
@@ -295,7 +295,7 @@ int process_bam(task::Call::argument_type &arg) {
             throw std::runtime_error("Y Linked are not implemented for sequence data yet. "
                                 "Many things will break at this stage!\nExit!!");
             break;
-        case InheritanceModel::X_LINKED:
+        case InheritanceModel::XLinked:
 
             rgs.KeepTheseOnly(relationship_graph.KeepLibraryIndex());
             calculate = new FindMutationsXLinked(min_prob, relationship_graph,

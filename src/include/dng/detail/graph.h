@@ -24,12 +24,14 @@
 
 #include <dng/io/ped.h>
 #include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/graphviz.hpp>
 
 // Install graph properties for pedigree analysis.
 namespace boost {
 enum edge_length_t { edge_length };
 enum edge_type_t { edge_type };
 enum vertex_sex_t { vertex_sex };
+enum vertex_ploidy_t {vertex_ploidy };
 enum vertex_label_t { vertex_label };
 enum vertex_type_t { vertex_type };
 
@@ -39,6 +41,7 @@ enum vertex_group_t { vertex_group };
 BOOST_INSTALL_PROPERTY(edge, length);
 BOOST_INSTALL_PROPERTY(edge, type);
 BOOST_INSTALL_PROPERTY(vertex, sex);
+BOOST_INSTALL_PROPERTY(vertex, ploidy);
 BOOST_INSTALL_PROPERTY(vertex, label);
 BOOST_INSTALL_PROPERTY(vertex, type);
 
@@ -50,7 +53,7 @@ namespace dng {
 namespace detail {
 namespace graph {
 enum struct EdgeType : std::size_t {
-    Spousal, Meiotic, Mitotic, Library
+    Spousal, Maternal, Paternal, Mitotic, Library
 };
 enum struct VertexType : std::size_t {
     Germline, Somatic, Library
@@ -58,7 +61,8 @@ enum struct VertexType : std::size_t {
 using Sex = dng::io::Pedigree::Sex;
 
 typedef boost::property<boost::vertex_group_t, std::size_t> VertexGroupProp;
-typedef boost::property<boost::vertex_sex_t, Sex, VertexGroupProp> VertexSexProp;
+typedef boost::property<boost::vertex_ploidy_t, int, VertexGroupProp> VertexPloidyProp;
+typedef boost::property<boost::vertex_sex_t, Sex, VertexPloidyProp> VertexSexProp;
 typedef boost::property<boost::vertex_type_t, VertexType,VertexSexProp> VertexTypeProp;
 typedef boost::property<boost::vertex_label_t, std::string, VertexTypeProp> VertexLabelProp;
 

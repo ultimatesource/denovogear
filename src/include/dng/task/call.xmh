@@ -40,6 +40,7 @@ XM((min)(prob), (m), "minimum probability for reporting a mutation", double,
 XM((mu), , "the germline mutation rate", double, DL(1e-8, "1e-8"))
 XM((mu)(somatic), , "the somatic mutation rate", double, DL(1e-8, "1e-8"))
 XM((mu)(library), , "the library prep mutation rate", double, DL(1e-8, "1e-8"))
+XM((model), (M), "Inheritance model", std::string, "autosomal")
 XM((nuc)(freqs), , "nucleotide frequencies in ACGT order", std::string,
    "0.3,0.2,0.2,0.3")
 XM((output), (o), "output VCF/BCF file", std::string, "-")
@@ -54,8 +55,6 @@ XM((rgtag), , "combine read groups using @RG tags, e.g. ID, SM, LB, or DS.",
 XM((sam)(files), (s), "file containing a list of input filenames, one per line",
    std::string, "")
 XM((theta), , "the population diversity", double, DL(0.001, "0.001"))
-XM((model), (M), "Inheritance model, currently only support autosomal", std::string, "autosomal")
-//TODO(SW): Change help text later
 
 /***************************************************************************
  *    cleanup                                                              *
