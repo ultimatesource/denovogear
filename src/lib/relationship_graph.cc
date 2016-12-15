@@ -166,6 +166,7 @@ bool dng::RelationshipGraph::Construct(const io::Pedigree& pedigree,
 }
 
 void prune_pedigree_ylinked(Graph &pedigree_graph);
+void prune_pedigree_xlinked(Graph &pedigree_graph);
 
 void prune_pedigree(Graph &pedigree_graph, InheritanceModel model) {
     switch(model) {
@@ -174,55 +175,37 @@ void prune_pedigree(Graph &pedigree_graph, InheritanceModel model) {
     case InheritanceModel::Y_LINKED:
         prune_pedigree_ylinked(pedigree_graph);
         break;
+    case InheritanceModel::X_LINKED:
+        prune_pedigree_xlinked(pedigree_graph);
+        break;
     default:
         throw std::runtime_error("ERROR: Selected inheritance model not implemented yet.");
     }
 }
 
 void prune_pedigree_ylinked(Graph &pedigree_graph) {
-    auto labels = get(boost::vertex_label, pedigree_graph);
     auto sexes  = get(boost::vertex_sex, pedigree_graph);
-
-    for (vertex_t v = 0; v < num_vertices(pedigree_graph); ++v) {
-        if(sexes[v] == dng::io::Pedigree::Sex::Female){
+    auto vertex_range = boost::make_iterator_range(vertices(pedigree_graph));
+    for (vertex_t v : vertex_range) {
+        if(sexes[v] == Sex::Female){
             clear_vertex(v, pedigree_graph);
         }
     }
 }
 
-void dng::RelationshipGraph::PruneForXLinked(Graph &pedigree_graph){
-    auto edge_types = get(boost::edge_type, pedigree_graph);
-    auto labels = get(boost::vertex_label, pedigree_graph);
-    auto sexes = get(boost::vertex_sex, pedigree_graph);
-
-    boost::graph_traits<Graph>::out_edge_iterator ei, ei_end, ei_spousal;
-    for (auto v = first_founder_; v < first_somatic_; ++v) {
-        if(sexes[v] == dng::io::Pedigree::Sex::Male){
-            bool only_connect_to_male = true;
-            bool only_connect_to_son = true;
-            for (tie(ei, ei_end) = out_edges(v, pedigree_graph); ei != ei_end; ++ei) {
-                if (edge_types[*ei] == EdgeType::Meiotic) {
-                    auto child = target(*ei, pedigree_graph);
-                    if(sexes[child] == dng::io::Pedigree::Sex::Female){
-                        only_connect_to_male = false;
-                        if(child > v){
-                            only_connect_to_son = false;
-                        }
-                    } else if(sexes[child] == dng::io::Pedigree::Sex::Male){
-                        remove_edge(*ei, pedigree_graph);
-                    }
-                } else if (edge_types[*ei] == EdgeType::Spousal) {
-                    ei_spousal = ei;
-                }
-            }
-
-            if(only_connect_to_male){
-                clear_vertex(v, pedigree_graph);
-            } else if(only_connect_to_son){
-                remove_edge(*ei_spousal, pedigree_graph);
-            }
+void prune_pedigree_xlinked(Graph &pedigree_graph) {
+    auto check = [&](edge_t e) -> bool {
+        if(get(boost::edge_type, pedigree_graph, e) != EdgeType::Meiotic)
+            return false;
+        vertex_t a = target(e, pedigree_graph);
+        vertex_t b = source(e, pedigree_graph);
+        if(get(boost::vertex_sex, pedigree_graph, a) == Sex::Male &&
+           get(boost::vertex_sex, pedigree_graph, b) == Sex::Male) {
+            return true;
         }
-    }
+        return false;
+    };
+    remove_edge_if(check, pedigree_graph);
 }
 
 void dng::RelationshipGraph::ConstructPeelingMachine() {

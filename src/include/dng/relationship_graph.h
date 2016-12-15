@@ -206,8 +206,6 @@ protected:
             const std::vector<size_t> &node_ids, family_labels_t &family_labels,
             std::vector<vertex_t> &pivots);
 
-    void PruneForXLinked(Graph &pedigree_graph);
-
     void ExtractRequiredLibraries(Graph &pedigree_graph,
             const std::vector<size_t> &node_ids);
 
