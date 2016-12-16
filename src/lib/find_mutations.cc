@@ -120,7 +120,7 @@ void FindMutations::SetupTransitionMatrix(){
             nomut_transition_matrices_[child] = meiosis_diploid_matrix(dad, mom, 0);
             onemut_transition_matrices_[child] = meiosis_diploid_matrix(dad, mom, 1);
             mean_matrices_[child] = meiosis_diploid_mean_matrix(dad, mom);
-        } else if(trans.type == RelationshipGraph::TransitionType::Somatic ||
+        } else if(trans.type == RelationshipGraph::TransitionType::Mitotic ||
                   trans.type == RelationshipGraph::TransitionType::Library) {
             auto orig = f81::matrix(trans.length1, params_.nuc_freq);
             full_transition_matrices_[child] = mitosis_diploid_matrix(orig);

@@ -54,7 +54,7 @@ LogProbability::LogProbability(RelationshipGraph pedigree, params_t params) :
             auto mom = f81::matrix(trans.length2, params_.nuc_freq);
 
             full_transition_matrices_[child] = meiosis_diploid_matrix(dad, mom);
-        } else if(trans.type == RelationshipGraph::TransitionType::Somatic ||
+        } else if(trans.type == RelationshipGraph::TransitionType::Mitotic ||
                   trans.type == RelationshipGraph::TransitionType::Library) {
             auto orig = f81::matrix(trans.length1, params_.nuc_freq);
 
@@ -90,7 +90,7 @@ LogProbability::LogProbability(RelationshipGraph pedigree, params_t params) :
                         }
                     }
                 }
-            } else if(trans.type == RelationshipGraph::TransitionType::Somatic ||
+            } else if(trans.type == RelationshipGraph::TransitionType::Mitotic ||
                       trans.type == RelationshipGraph::TransitionType::Library) {
                 transition_matrices_[color][child].resize(width,width);
                 // Assume column major order which is the default

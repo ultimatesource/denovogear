@@ -62,22 +62,8 @@ public:
 
     typedef std::vector<std::vector<boost::graph_traits<detail::graph::Graph>::edge_descriptor>> family_labels_t;
 
-    //TODO: struct FamilyInfo/Family structure.
-    //Op1: A struct to record info in each family. family_t and ops
-    //Op2: Another struct to group families together, include pivots and root?
-    enum struct FamilyType {
-        PAIR = 2,
-        TRIO = 3
-    };
-
     enum struct TransitionType {
-        Founder, Germline, Somatic, Library
-    };
-
-    struct FamilyInfo {
-        FamilyType family_type;
-        family_labels_t family_labels; //(num_families);
-        std::vector<detail::graph::vertex_t> pivots; //(num_families, dummy_index);
+        Founding, Germline, Meiotic, Mitotic, Library
     };
 
     struct transition_t {

@@ -806,7 +806,7 @@ void dng::RelationshipGraph::CreatePeelingOps(
         auto k = std::distance(node_ids.begin(), it);
         constexpr size_t null_id = static_cast<size_t>(-1);
 
-        transitions_[i] = {TransitionType::Founder, null_id, null_id, 0.0, 0.0, ploidies[k]};
+        transitions_[i] = {TransitionType::Founding, null_id, null_id, 0.0, 0.0, ploidies[k]};
     }
 
     // Detect Family Structure and pivot positions
@@ -822,26 +822,38 @@ void dng::RelationshipGraph::CreatePeelingOps(
         auto pos = boost::find_if(family_edges, [&](edge_t x) -> bool {
             return (edge_types(x) != EdgeType::Spousal);
         });
-        size_t num_parent_edges = distance(family_edges.begin(), pos);
+        size_t num_spousal_edges = distance(family_edges.begin(), pos);
 
         // Check to see what type of graph we have
-        if (num_parent_edges == 0) {
+        if (num_spousal_edges == 0) {
             // If we do not have a parent-child single branch,
             // we can't construct the pedigree.
             // TODO: Write Error message
             if (family_edges.size() != 1) {
-                throw std::runtime_error("Unable to construct peeler for pedigree;  "
+                throw std::runtime_error("ERROR: Unable to construct peeler for pedigree;  "
                         "do not have a parent-child single branch");
             }
             // Create a mitotic peeling operation.
             auto child_index = target(*pos, pedigree_graph);
             size_t parent = node_ids[source(*pos, pedigree_graph)];
             size_t child = node_ids[child_index];
-
-            TransitionType tt = (edge_types(*pos) == EdgeType::Library) ?
-                                TransitionType::Library : TransitionType::Somatic;
+            TransitionType tt;
+            switch(edge_types(*pos)) {
+            case EdgeType::Paternal:
+            case EdgeType::Maternal:
+                tt = TransitionType::Meiotic;
+                break;
+            case EdgeType::Library:
+                tt = TransitionType::Library;
+                break;
+            case EdgeType::Mitotic:
+                tt = TransitionType::Mitotic;
+                break;
+            default:
+                throw std::runtime_error("ERROR: Unable to construct peeler for pedigree; unsupported TransitionType encountered.");
+            }
             transitions_[child] = {tt, parent, static_cast<size_t>(-1),
-                    lengths[*pos], 0, 2};
+                    lengths[*pos], 0, ploidies[child]};
             family_members_.push_back({parent, child});
 
             if (node_ids[pivots[k]] == child) {
@@ -853,7 +865,7 @@ void dng::RelationshipGraph::CreatePeelingOps(
                 }
             }
 
-        } else if (num_parent_edges == 1) {
+        } else if (num_spousal_edges == 1) {
             // If this family contains no children, skip it
             if (pos == family_edges.end()) {
                 continue;
@@ -869,7 +881,7 @@ void dng::RelationshipGraph::CreatePeelingOps(
                 auto child_index = target(*pos, pedigree_graph);
                 vertex_t child = node_ids[target(*pos, pedigree_graph)];
                 transitions_[child] = {TransitionType::Germline, dad, mom,
-                    lengths[*pos], lengths[*(pos + 1)], 2};
+                    lengths[*pos], lengths[*(pos + 1)], ploidies[child]};
                 family_members.push_back(child); // Child
 
                 // child edges come in pairs
