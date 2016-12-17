@@ -25,6 +25,11 @@
 
 using namespace dng;
 
+TransitionVector create_mutation_matrices(const RelationshipGraph &pedigree,
+        const std::array<double, 4> &nuc_freq);
+
+TransitionVector create_mutation_matrices_subset(const TransitionVector &full_matrices, size_t color);
+
 // pedigree_ will be initialized before work_, so we can reference it.
 LogProbability::LogProbability(RelationshipGraph pedigree, params_t params) :
     pedigree_{std::move(pedigree)},
@@ -45,67 +50,11 @@ LogProbability::LogProbability(RelationshipGraph pedigree, params_t params) :
     }
 
     // Calculate mutation matrices
-    full_transition_matrices_.assign(work_.num_nodes, {});
- 
-    for(size_t child = 0; child < work_.num_nodes; ++child) {
-        auto trans = pedigree_.transitions()[child];
-        if(trans.type == RelationshipGraph::TransitionType::Germline) {
-            auto dad = f81::matrix(trans.length1, params_.nuc_freq);
-            auto mom = f81::matrix(trans.length2, params_.nuc_freq);
-
-            full_transition_matrices_[child] = meiosis_diploid_matrix(dad, mom);
-        } else if(trans.type == RelationshipGraph::TransitionType::Mitotic ||
-                  trans.type == RelationshipGraph::TransitionType::Library) {
-            auto orig = f81::matrix(trans.length1, params_.nuc_freq);
-
-            full_transition_matrices_[child] = mitosis_diploid_matrix(orig);
-        } else {
-            full_transition_matrices_[child] = {};
-        }
-    }
+    full_transition_matrices_ = create_mutation_matrices(pedigree_, params_.nuc_freq);
 
     // Extract relevant subsets of matrices
     for(size_t color = 0; color < dng::pileup::AlleleDepths::type_info_table_length; ++color) {
-        int width = dng::pileup::AlleleDepths::type_info_gt_table[color].width;
-        // Resize our subsets to the right width
-        transition_matrices_[color].resize(full_transition_matrices_.size());
-        // enumerate over all children
-        for(size_t child = 0; child < work_.num_nodes; ++child) {
-            auto trans = pedigree_.transitions()[child];
-            if(trans.type == RelationshipGraph::TransitionType::Germline) {
-                // resize transition matrix to w*w,w
-                transition_matrices_[color][child].resize(width*width,width);
-                // Assume column major order which is the default
-                for(int a = 0; a < width; ++a) {
-                    int ga = dng::pileup::AlleleDepths::type_info_gt_table[color].indexes[a];
-                    for(int b = 0; b < width; ++b) {
-                        int gb = dng::pileup::AlleleDepths::type_info_gt_table[color].indexes[b];
-                        // copy correct value from the full matrix to the subset matrix
-                        int x = a*width+b;
-                        int gx = ga*10+gb;
-                        for(int y = 0; y < width; ++y) {
-                            int gy = dng::pileup::AlleleDepths::type_info_gt_table[color].indexes[y];
-                            // copy correct value from the full matrix to the subset matrix
-                            transition_matrices_[color][child](x,y) = full_transition_matrices_[child](gx,gy); 
-                        }
-                    }
-                }
-            } else if(trans.type == RelationshipGraph::TransitionType::Mitotic ||
-                      trans.type == RelationshipGraph::TransitionType::Library) {
-                transition_matrices_[color][child].resize(width,width);
-                // Assume column major order which is the default
-                for(int x = 0; x < width; ++x) {
-                    int gx = dng::pileup::AlleleDepths::type_info_gt_table[color].indexes[x];
-                    for(int y = 0; y < width; ++y) {
-                        int gy = dng::pileup::AlleleDepths::type_info_gt_table[color].indexes[y];
-                        // copy correct value from the full matrix to the subset matrix
-                        transition_matrices_[color][child](x,y) = full_transition_matrices_[child](gx,gy); 
-                    }
-                }
-            } else {
-                transition_matrices_[color][child] = {};
-            }
-        }
+        transition_matrices_[color] = create_mutation_matrices_subset(full_transition_matrices_, color);
     }
 
     // Precalculate monomorphic histories (first 4 colors)
@@ -113,13 +62,14 @@ LogProbability::LogProbability(RelationshipGraph pedigree, params_t params) :
     pileup::AlleleDepths depths{0,0,num_libraries,pileup::AlleleDepths::data_t(num_libraries, 0)};
     std::vector<size_t> indexes(num_libraries,0);
     std::iota(indexes.begin(),indexes.end(),0);
-
     for(int color=0; color<4;++color) {
         // setup monomorphic prior
         depths.color(color);
-        GenotypeArray prior(1);
-        prior(0) = diploid_prior_[color](pileup::AlleleDepths::type_info_gt_table[color].indexes[0]);
-        work_.SetFounders(prior);
+        GenotypeArray diploid_prior(1), haploid_prior(1);
+        diploid_prior(0) = diploid_prior_[color](pileup::AlleleDepths::type_info_gt_table[color].indexes[0]);
+        haploid_prior(0) = haploid_prior_[color](pileup::AlleleDepths::type_info_table[color].indexes[0]);
+        work_.SetFounders(diploid_prior, haploid_prior);
+
         double scale = genotype_likelihood_(depths, indexes, work_.lower.begin()+work_.library_nodes.first);
         double logdata = pedigree_.PeelForwards(work_, transition_matrices_[color]);
         prob_monomorphic_[color] = exp(logdata);
@@ -151,12 +101,11 @@ LogProbability::stats_t LogProbability::operator()(const std::vector<depth_t> &d
 LogProbability::stats_t LogProbability::operator()(const pileup::AlleleDepths &depths, const std::vector<size_t>& indexes) {
     int ref_index = depths.type_info().reference;
     int color = depths.color();
-    size_t gt_width = depths.type_gt_info().width;
 
     double scale, logdata;
     // For monomorphic sites we have pre-calculated the peeling part
     if(color < 4) {
-        assert(gt_width == 1 && ref_index == color);
+        assert(depths.type_info().width == 1 && depths.type_gt_info().width == 1 && ref_index == color);
         // Calculate genotype likelihoods
         scale = genotype_likelihood_(depths, indexes, work_.lower.begin()+work_.library_nodes.first);
 
@@ -169,13 +118,21 @@ LogProbability::stats_t LogProbability::operator()(const pileup::AlleleDepths &d
         // convert to a log-likelihood
         logdata = log(logdata);
     } else {
+        size_t gt_width = depths.type_gt_info().width;
+        size_t width = depths.type_info().width;
         // Set the prior probability of the founders given the reference
-        GenotypeArray prior(gt_width);
+        GenotypeArray diploid_prior(gt_width);
         for(int i=0;i<gt_width;++i) {
-            prior(i) = diploid_prior_[ref_index](depths.type_gt_info().indexes[i]);
+            diploid_prior(i) = diploid_prior_[ref_index](depths.type_gt_info().indexes[i]);
         }
-        work_.SetFounders(prior);
-    
+        GenotypeArray haploid_prior(width);
+        for(int i=0;i<width;++i) {
+            haploid_prior(i) = diploid_prior_[ref_index](depths.type_info().indexes[i]);
+        }
+
+        // Set founders
+        work_.SetFounders(diploid_prior, haploid_prior);
+  
         // Calculate genotype likelihoods
         scale = genotype_likelihood_(depths, indexes, work_.lower.begin()+work_.library_nodes.first);
 
@@ -183,4 +140,141 @@ LogProbability::stats_t LogProbability::operator()(const pileup::AlleleDepths &d
         logdata = pedigree_.PeelForwards(work_, transition_matrices_[color]);
     }
     return {logdata/M_LN10, scale/M_LN10};
+}
+
+// Construct the mutation matrices for each transition
+TransitionVector create_mutation_matrices(const RelationshipGraph &pedigree,
+    const std::array<double, 4> &nuc_freq) {
+    TransitionVector matrices(pedigree.num_nodes());
+ 
+    for(size_t child = 0; child < pedigree.num_nodes(); ++child) {
+        auto trans = pedigree.transition(child);
+        if(trans.type == RelationshipGraph::TransitionType::Trio) {
+            assert(pedigree.ploidy(child) == 2);
+            auto dad = f81::matrix(trans.length1, nuc_freq);
+            auto mom = f81::matrix(trans.length2, nuc_freq);            
+            if(pedigree.ploidy(trans.parent1) == 2 && pedigree.ploidy(trans.parent2) == 2) {
+                matrices[child] = meiosis_diploid_matrix(dad, mom);
+            } else if(pedigree.ploidy(trans.parent1) == 1 && pedigree.ploidy(trans.parent2) == 2) {
+                matrices[child] = meiosis_diploid_matrix_xlinked(dad, mom);
+            } else if(pedigree.ploidy(trans.parent1) == 2 && pedigree.ploidy(trans.parent2) == 1) {
+                assert(false); // not yet implemented
+            } else {
+                assert(pedigree.ploidy(trans.parent1) == 1);
+                assert(pedigree.ploidy(trans.parent2) == 1);
+                assert(false); // not yet implemented
+            }
+        } else if(trans.type == RelationshipGraph::TransitionType::Pair) {
+            auto orig = f81::matrix(trans.length1, nuc_freq);
+            if(pedigree.ploidy(child) == 2) {
+                assert(pedigree.ploidy(trans.parent1) == 2);
+                matrices[child] = mitosis_diploid_matrix(orig);
+            } else if(pedigree.ploidy(trans.parent1) == 2) {
+                assert(pedigree.ploidy(child) == 1);
+                matrices[child] = meiosis_haploid_matrix(orig);
+            } else {
+                assert(pedigree.ploidy(child) == 1);
+                assert(pedigree.ploidy(trans.parent1) == 1);
+                matrices[child] = mitosis_haploid_matrix(orig);               
+            }
+        } else {
+            matrices[child] = {};
+        }
+    }
+    return matrices;
+}
+
+TransitionVector create_mutation_matrices_subset(const TransitionVector &full_matrices, size_t color) {
+
+    auto &type_info_table = dng::pileup::AlleleDepths::type_info_table;
+    auto &type_info_gt_table = dng::pileup::AlleleDepths::type_info_gt_table;
+
+    // Create out output vector
+    TransitionVector matrices(full_matrices.size());
+
+    // enumerate over all matrices
+    for(size_t child = 0; child < full_matrices.size(); ++child) {
+        if(full_matrices[child].rows() == 100 && full_matrices[child].cols() == 10) {
+            // resize transition matrix to w*w,w
+            const int width = type_info_gt_table[color].width;
+            matrices[child].resize(width*width,width);
+            // a: parent1/dad; b: parent2/mom;
+            // kronecker product is 'b-major'
+            for(int a = 0; a < width; ++a) {
+                const int ga = type_info_gt_table[color].indexes[a];
+                for(int b = 0; b < width; ++b) {
+                    const int gb = type_info_gt_table[color].indexes[b];
+                    // copy correct value from the full matrix to the subset matrix
+                    const int x = a*width+b;
+                    const int gx = ga*10+gb;
+                    for(int y = 0; y < width; ++y) {
+                        const int gy = type_info_gt_table[color].indexes[y];
+                        // copy correct value from the full matrix to the subset matrix
+                        matrices[child](x,y) = full_matrices[child](gx,gy); 
+                    }
+                }
+            }
+        } else if(full_matrices[child].rows() == 40 && full_matrices[child].cols() == 10) {
+            // FIXME: ASSUME x-linkage for now
+            // a: parent1/dad; b: parent2/mom;
+            // kronecker product is 'b-major'
+            // a: haploid; b: diploid
+            const int widthA = type_info_table[color].width;                      
+            const int widthB = type_info_gt_table[color].width;
+            for(int a = 0; a < widthA; ++a) {
+                const int ga = type_info_table[color].indexes[a];
+                for(int b = 0; b < widthB; ++b) {
+                    const int gb = type_info_gt_table[color].indexes[b];
+                    // copy correct value from the full matrix to the subset matrix
+                    const int x = a*widthB+b;
+                    const int gx = ga*10+gb;
+                    for(int y = 0; y < widthB; ++y) {
+                        const int gy = type_info_gt_table[color].indexes[y];
+                        // copy correct value from the full matrix to the subset matrix
+                        matrices[child](x,y) = full_matrices[child](gx,gy); 
+                    }
+                }
+            }
+        } else if(full_matrices[child].rows() == 10 && full_matrices[child].cols() == 10) {
+            const int width = type_info_gt_table[color].width;
+            matrices[child].resize(width,width);
+            for(int x = 0; x < width; ++x) {
+                const int gx = type_info_gt_table[color].indexes[x];
+                for(int y = 0; y < width; ++y) {
+                    const int gy = type_info_gt_table[color].indexes[y];
+                    // copy correct value from the full matrix to the subset matrix
+                    matrices[child](x,y) = full_matrices[child](gx,gy); 
+                }
+            }           
+        } else if(full_matrices[child].rows() == 4 && full_matrices[child].cols() == 4) {
+            const int width = type_info_table[color].width;
+            matrices[child].resize(width,width);
+            for(int x = 0; x < width; ++x) {
+                const int gx = type_info_table[color].indexes[x];
+                for(int y = 0; y < width; ++y) {
+                    const int gy = type_info_table[color].indexes[y];
+                    // copy correct value from the full matrix to the subset matrix
+                    matrices[child](x,y) = full_matrices[child](gx,gy); 
+                }
+            }           
+        } else if(full_matrices[child].rows() == 10 && full_matrices[child].cols() == 4) {
+            const int widthP = type_info_gt_table[color].width;
+            const int widthC = type_info_table[color].width;
+            matrices[child].resize(widthP,widthC);
+            for(int x = 0; x < widthP; ++x) {
+                const int gx = type_info_gt_table[color].indexes[x];
+                for(int y = 0; y < widthC; ++y) {
+                    const int gy = type_info_table[color].indexes[y];
+                    // copy correct value from the full matrix to the subset matrix
+                    matrices[child](x,y) = full_matrices[child](gx,gy); 
+                }
+            }
+        } else if(full_matrices[child].rows() == 0 && full_matrices[child].cols() == 0 ) {
+            matrices[child] = {};
+        } else {
+            // should never reach here
+            assert(false);
+        }
+    }
+    return matrices;    
 }

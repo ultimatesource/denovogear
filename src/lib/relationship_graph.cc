@@ -447,9 +447,10 @@ std::vector<std::string> dng::RelationshipGraph::BCFHeaderLines() const {
                          };
 
     string head{"##PEDIGREE=<ID="};
-    for(size_t child = first_nonfounder_; child < num_nodes_; ++child) {
-        auto parents = transitions_[child];
-        if(parents.parent2 != -1) {
+    for(size_t child = 0; child != transitions_.size(); ++child) {
+        auto & parents = transitions_[child];
+        switch(parents.type) {
+        case TransitionType::Trio:
             ret.push_back(head + labels_[child]
                           + ",Father=" + labels_[parents.parent1]
                           + ",Mother=" + labels_[parents.parent2]
@@ -457,12 +458,17 @@ std::vector<std::string> dng::RelationshipGraph::BCFHeaderLines() const {
                           + ",MotherMR=" + utility::to_pretty(parents.length2)
                           + ">"
                          );
-        } else {
+            break;
+        case TransitionType::Pair:
             ret.push_back(head + labels_[child]
                           + ",Original=" + labels_[parents.parent1]
                           + ",OriginalMR=" + utility::to_pretty(parents.length1)
                           + ">"
                          );
+            break;
+        case TransitionType::Founder:
+        default:
+            break;    
         }
     }
     return ret;
@@ -516,11 +522,11 @@ void parse_pedigree_table(Graph &pedigree_graph, const dng::io::Pedigree &pedigr
         add_edge(dad, child, {EdgeType::Paternal, 1.0f}, pedigree_graph);
 
         // Process newick file
-        int current_index = num_vertices(pedigree_graph);
+        std::size_t current_index = num_vertices(pedigree_graph);
         int res = parse_newick(row.sample_tree, child, pedigree_graph);
 
         // Mark the sex of the somatic nodes
-        for (int i = current_index; i < num_vertices(pedigree_graph); ++i) {
+        for (vertex_t i = current_index; i < num_vertices(pedigree_graph); ++i) {
             sexes[i] = sexes[child];
         }
 
@@ -669,26 +675,33 @@ void simplify_pedigree(Graph &pedigree_graph) {
     }
 }
 
-void dng::RelationshipGraph::UpdateLabelsNodeIds(Graph &pedigree_graph,
+void dng::RelationshipGraph::UpdateLabelsNodeIds(const Graph &pedigree_graph,
         dng::ReadGroups &rgs, std::vector<size_t> &node_ids) {
-
-    size_t num_vert = num_vertices(pedigree_graph);
-    node_ids.assign(num_vert, -1);
-    auto labels = get(boost::vertex_label, pedigree_graph);
+    // node_ids[vertex] will convert vertex_id to node position.
 
     labels_.clear();
     labels_.reserve(128);
+    ploidies_.clear();
+    ploidies_.reserve(128);
+
+    node_ids.assign(num_vertices(pedigree_graph), -1);
+
+    auto labels = get(boost::vertex_label, pedigree_graph);
+    auto ploidies = get(boost::vertex_ploidy, pedigree_graph);
+
     std::size_t vid = 0;
-    for (std::size_t u = 0; u < num_vert; ++u) {
-        if (out_degree(u, pedigree_graph) == 0) {
+    auto vertex_range = boost::make_iterator_range(vertices(pedigree_graph));
+    for(vertex_t v : vertex_range) {
+        if (out_degree(v, pedigree_graph) == 0) {
             continue;
         }
-        if (!labels[u].empty()) {
-            labels_.push_back(labels[u]);
+        if (!labels[v].empty()) {
+            labels_.push_back(labels[v]);
         } else {
             labels_.push_back("unnamed_node_" + utility::to_pretty(vid));
         }
-        node_ids[u] = vid++;
+        ploidies_.push_back(ploidies[v]);
+        node_ids[v] = vid++;
     }
     num_nodes_ = vid;
 
@@ -726,7 +739,6 @@ void dng::RelationshipGraph::EraseRemovedLibraries(dng::ReadGroups &rgs,
     rgs.EraseLibraries(bad_libraries);
 
 }
-
 
 void dng::RelationshipGraph::CreateFamiliesInfo(Graph &pedigree_graph,
         family_labels_t &family_labels, std::vector<vertex_t> &pivots) {
@@ -787,7 +799,7 @@ void dng::RelationshipGraph::CreateFamiliesInfo(Graph &pedigree_graph,
 }
 
 void dng::RelationshipGraph::CreatePeelingOps(
-        Graph &pedigree_graph, const std::vector<size_t> &node_ids,
+        const Graph &pedigree_graph, const std::vector<size_t> &node_ids,
         family_labels_t &family_labels, std::vector<vertex_t> &pivots) {
 
     auto edge_types = get(boost::edge_type, pedigree_graph);
@@ -799,14 +811,11 @@ void dng::RelationshipGraph::CreatePeelingOps(
 
     transitions_.resize(num_nodes_);
 
+    constexpr size_t null_id = static_cast<size_t>(-1);
+
     // Setup founder Transitions
     for (std::size_t i = first_founder_; i < first_nonfounder_; ++i) {
-        auto it = std::find(node_ids.begin(), node_ids.end(), i);
-        assert (it != node_ids.end());
-        auto k = std::distance(node_ids.begin(), it);
-        constexpr size_t null_id = static_cast<size_t>(-1);
-
-        transitions_[i] = {TransitionType::Founding, null_id, null_id, 0.0, 0.0, ploidies[k]};
+        transitions_[i] = {TransitionType::Founder, null_id, null_id, 0.0, 0.0};
     }
 
     // Detect Family Structure and pivot positions
@@ -828,7 +837,6 @@ void dng::RelationshipGraph::CreatePeelingOps(
         if (num_spousal_edges == 0) {
             // If we do not have a parent-child single branch,
             // we can't construct the pedigree.
-            // TODO: Write Error message
             if (family_edges.size() != 1) {
                 throw std::runtime_error("ERROR: Unable to construct peeler for pedigree;  "
                         "do not have a parent-child single branch");
@@ -837,23 +845,7 @@ void dng::RelationshipGraph::CreatePeelingOps(
             auto child_index = target(*pos, pedigree_graph);
             size_t parent = node_ids[source(*pos, pedigree_graph)];
             size_t child = node_ids[child_index];
-            TransitionType tt;
-            switch(edge_types(*pos)) {
-            case EdgeType::Paternal:
-            case EdgeType::Maternal:
-                tt = TransitionType::Meiotic;
-                break;
-            case EdgeType::Library:
-                tt = TransitionType::Library;
-                break;
-            case EdgeType::Mitotic:
-                tt = TransitionType::Mitotic;
-                break;
-            default:
-                throw std::runtime_error("ERROR: Unable to construct peeler for pedigree; unsupported TransitionType encountered.");
-            }
-            transitions_[child] = {tt, parent, static_cast<size_t>(-1),
-                    lengths[*pos], 0, ploidies[child]};
+            transitions_[child] = {TransitionType::Pair, parent, null_id, lengths[*pos], 0.0};
             family_members_.push_back({parent, child});
 
             if (node_ids[pivots[k]] == child) {
@@ -880,8 +872,7 @@ void dng::RelationshipGraph::CreatePeelingOps(
             while (pos != family_edges.end()) {
                 auto child_index = target(*pos, pedigree_graph);
                 vertex_t child = node_ids[target(*pos, pedigree_graph)];
-                transitions_[child] = {TransitionType::Germline, dad, mom,
-                    lengths[*pos], lengths[*(pos + 1)], ploidies[child]};
+                transitions_[child] = {TransitionType::Trio, dad, mom, lengths[*pos], lengths[*(pos + 1)]};
                 family_members.push_back(child); // Child
 
                 // child edges come in pairs
@@ -929,7 +920,7 @@ void dng::RelationshipGraph::ClearFamilyInfo(){
 }
 
 void dng::RelationshipGraph::ExtractRequiredLibraries(
-        Graph &pedigree_graph, const std::vector<size_t> &node_ids) {
+        const Graph &pedigree_graph, const std::vector<size_t> &node_ids) {
 
     int counter = 0;
     for (int i = first_library_; i < node_ids.size(); ++i) {

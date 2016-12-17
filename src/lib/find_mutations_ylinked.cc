@@ -117,8 +117,7 @@ void FindMutationsYLinked::SetupTransitionMatrix(){
     for(size_t child = 0; child < work_full_.num_nodes; ++child) {
         auto trans = relationship_graph_.transitions()[child];
 
-        if (trans.type == RelationshipGraph::TransitionType::Mitotic
-                || trans.type == RelationshipGraph::TransitionType::Library) {
+        if (trans.type == RelationshipGraph::TransitionType::Pair) {
             auto orig = f81::matrix(trans.length1, params_.nuc_freq);
             full_transition_matrices_[child] = mitosis_haploid_matrix(orig);
             nomut_transition_matrices_[child] = mitosis_haploid_matrix(orig, 0);
