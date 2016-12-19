@@ -13,7 +13,7 @@ macro(AddUnitTest NAME)
   set(target "unittest_${exe}")
   add_executable("${target}" EXCLUDE_FROM_ALL "${head}.cc")
   # TODO WIN64: add .exe if needed
-  set_target_properties("${target}" PROPERTIES OUTPUT_NAME "${head}")
+  set_target_properties("${target}" PROPERTIES OUTPUT_NAME "${head}_test")
   get_filename_component(dir "${head}" DIRECTORY)
   file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${dir}")
 
@@ -30,7 +30,7 @@ macro(AddUnitTest NAME)
     --build-noclean
     --build-project "${CMAKE_PROJECT_NAME}" 
     --build-target "${target}" 
-    --test-command "${CMAKE_CURRENT_BINARY_DIR}/${head}" 
+    --test-command "${CMAKE_CURRENT_BINARY_DIR}/${head}_test" 
         --log_level=test_suite --report_level=short
   )
 endmacro()
@@ -38,6 +38,7 @@ endmacro()
 ###############################################################################
 # Add Unit tests based on CXX namespaces
 
+AddUnitTest(dng)
 AddUnitTest(dng::io::ad)
 AddUnitTest(dng::find_mutations_ylinked) 
 AddUnitTest(dng::find_mutations)
