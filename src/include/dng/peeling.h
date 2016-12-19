@@ -61,8 +61,8 @@ struct workspace_t {
                  germline_nodes,
                  somatic_nodes,
                  library_nodes;
-    node_range_t diploid_founder_nodes,
-                 haploid_founder_nodes;
+
+    std::vector<int> ploidies;
 
     // Resize the workspace to fit a pedigree with sz nodes
     void Resize(std::size_t sz) {
@@ -96,16 +96,16 @@ struct workspace_t {
                   upper.begin() + founder_nodes.second, prior);
     }
 
-    void SetDiploidFounders(const GenotypeArray &prior) {
-        assert(diploid_founder_nodes.first <= diploid_founder_nodes.second);
-        std::fill(upper.begin() + diploid_founder_nodes.first,
-                  upper.begin() + diploid_founder_nodes.second, prior);
-    }
-
-    void SetHaploidFounders(const GenotypeArray &prior) {
-        assert(haploid_founder_nodes.first <= haploid_founder_nodes.second);
-        std::fill(upper.begin() + haploid_founder_nodes.first,
-                  upper.begin() + haploid_founder_nodes.second, prior);
+    void SetFounders(const GenotypeArray &diploid_prior, const GenotypeArray &haploid_prior) {
+        for(auto i = founder_nodes.first; i < founder_nodes.second; ++i) {
+            if(ploidies[i] == 2) {
+                upper[i] = diploid_prior;
+            } else if(ploidies[i] == 1) {
+                upper[i] = haploid_prior;                
+            } else {
+                assert(false); // should not be here
+            }
+        } 
     }
 
     template<typename T>

@@ -21,6 +21,7 @@
 #define DNG_DETAIL_GRAPH_H
 
 #include <string>
+#include <type_traits>
 
 #include <dng/io/ped.h>
 #include <boost/graph/adjacency_list.hpp>
@@ -76,6 +77,9 @@ typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS,
 
 typedef boost::graph_traits<Graph>::vertex_descriptor vertex_t;
 typedef boost::graph_traits<Graph>::edge_descriptor edge_t;
+
+static_assert(std::is_integral<vertex_t>::value,
+	"vertex_t is not an integral type, this violates many assumptions that have been made.");
 
 int parse_newick(const std::string &text, vertex_t root, Graph &graph);
 

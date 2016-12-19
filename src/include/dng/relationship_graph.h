@@ -63,7 +63,7 @@ public:
     typedef std::vector<std::vector<boost::graph_traits<detail::graph::Graph>::edge_descriptor>> family_labels_t;
 
     enum struct TransitionType {
-        Founding, Germline, Meiotic, Mitotic, Library
+        Founder, Pair, Trio
     };
 
     struct transition_t {
@@ -72,7 +72,6 @@ public:
         std::size_t parent2;
         double length1;
         double length2;
-        int ploidy;
     };
 
     bool Construct(const io::Pedigree& pedigree, dng::ReadGroups& rgs,
@@ -129,6 +128,9 @@ public:
         work.germline_nodes = std::make_pair(first_founder_, first_somatic_);
         work.somatic_nodes = std::make_pair(first_somatic_, first_library_);
         work.library_nodes = std::make_pair(first_library_, num_nodes_);
+
+        work.ploidies = ploidies_;
+
         return work;
     }
 
@@ -139,8 +141,12 @@ public:
     std::vector<std::string> BCFHeaderLines() const;
 
     const std::vector<transition_t> &transitions() const { return transitions_; }
-
     const std::vector<std::string> &labels() const { return labels_; }
+    const std::vector<int> &ploidies() const { return ploidies_; }
+
+    const transition_t & transition(size_t pos) const { return transitions_[pos]; }
+    const std::string & label(size_t pos) const { return labels_[pos]; }
+    int ploidy(size_t pos) const { return ploidies_[pos]; }
 
     size_t num_nodes() const { return num_nodes_; }
     std::pair<size_t, size_t> library_nodes() const { return {first_library_, num_nodes_}; }
@@ -165,6 +171,7 @@ protected:
 
     // Pedigree Structure
     std::vector<std::string> labels_;
+    std::vector<int> ploidies_;
     std::vector<transition_t> transitions_;
 
     // The original, simplified peeling operations
@@ -180,17 +187,17 @@ protected:
 
     void ConstructPeelingMachine();
 
-    void UpdateLabelsNodeIds(Graph &pedigree_graph, dng::ReadGroups &rgs,
+    void UpdateLabelsNodeIds(const Graph &pedigree_graph, dng::ReadGroups &rgs,
             std::vector<size_t> &node_ids);
 
     void CreateFamiliesInfo(Graph &pedigree_graph,
             family_labels_t &family_labels, std::vector<vertex_t> &pivots);
 
-    void CreatePeelingOps(Graph &pedigree_graph,
+    void CreatePeelingOps(const Graph &pedigree_graph,
             const std::vector<size_t> &node_ids, family_labels_t &family_labels,
             std::vector<vertex_t> &pivots);
 
-    void ExtractRequiredLibraries(Graph &pedigree_graph,
+    void ExtractRequiredLibraries(const Graph &pedigree_graph,
             const std::vector<size_t> &node_ids);
 
 private:
@@ -213,27 +220,6 @@ private:
     DNG_UNIT_TEST(test_create_families_info);
     DNG_UNIT_TEST(test_create_peeling_ops);
     DNG_UNIT_TEST(test_peeling_forward_each_op);
-};
-
-namespace detail {
-
-inline std::string germline_label(const std::string &input) {
-    std::string out = "GL-";
-    out += input;
-    return out;
-}
-
-inline std::string somatic_label(const std::string &input) {
-    std::string out = "SM-";
-    out += input;
-    return out;
-}
-
-inline std::string library_label(const std::string &input) {
-    std::string out = "LB-";
-    out += input;
-    return out;
-}
 };
 
 }; // namespace dng

@@ -116,7 +116,7 @@ void MutationStats::CalculateDenovoMutation(dng::peel::workspace_t &work_nomut,
 
         dnq_ = dng::utility::lphred<int32_t>(1.0 - (max_coeff / total), 255);
         dnl_ = pedigree.labels()[dn_location];
-        if (pedigree.transitions()[dn_location].type == dng::RelationshipGraph::TransitionType::Germline) {
+        if (pedigree.transitions()[dn_location].type == dng::RelationshipGraph::TransitionType::Trio) {
             dnt_ = &dng::meiotic_diploid_mutation_labels[dn_row][dn_col][0];
         } else {
             dnt_ = &dng::mitotic_diploid_mutation_labels[dn_row][dn_col][0];

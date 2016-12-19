@@ -112,7 +112,7 @@ void FindMutations::SetupTransitionMatrix(){
     for(size_t child = 0; child < work_full_.num_nodes; ++child) {
         auto trans = relationship_graph_.transitions()[child];
 
-        if(trans.type == RelationshipGraph::TransitionType::Germline) {
+        if(trans.type == RelationshipGraph::TransitionType::Trio) {
             auto dad = f81::matrix(trans.length1, params_.nuc_freq);
             auto mom = f81::matrix(trans.length2, params_.nuc_freq);
 
@@ -120,8 +120,7 @@ void FindMutations::SetupTransitionMatrix(){
             nomut_transition_matrices_[child] = meiosis_diploid_matrix(dad, mom, 0);
             onemut_transition_matrices_[child] = meiosis_diploid_matrix(dad, mom, 1);
             mean_matrices_[child] = meiosis_diploid_mean_matrix(dad, mom);
-        } else if(trans.type == RelationshipGraph::TransitionType::Mitotic ||
-                  trans.type == RelationshipGraph::TransitionType::Library) {
+        } else if(trans.type == RelationshipGraph::TransitionType::Pair) {
             auto orig = f81::matrix(trans.length1, params_.nuc_freq);
             full_transition_matrices_[child] = mitosis_diploid_matrix(orig);
             nomut_transition_matrices_[child] = mitosis_diploid_matrix(orig, 0);
