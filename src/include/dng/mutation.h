@@ -271,17 +271,16 @@ inline dng::GenotypeArray population_prior_diploid(double theta,
 
     double alpha_sum = alpha[0] + alpha[1] + alpha[2] + alpha[3];
     dng::GenotypeArray ret{10};
-    ret <<
-        alpha[0]*(1.0 + alpha[0]) / alpha_sum / (1.0 + alpha_sum), // AA
-              2.0 * alpha[0]*(alpha[1]) / alpha_sum / (1.0 + alpha_sum), // AC
-              2.0 * alpha[0]*(alpha[2]) / alpha_sum / (1.0 + alpha_sum), // AG
-              2.0 * alpha[0]*(alpha[3]) / alpha_sum / (1.0 + alpha_sum), // AT
-              alpha[1]*(1.0 + alpha[1]) / alpha_sum / (1.0 + alpha_sum), // CC
-              2.0 * alpha[1]*(alpha[2]) / alpha_sum / (1.0 + alpha_sum), // CG
-              2.0 * alpha[1]*(alpha[3]) / alpha_sum / (1.0 + alpha_sum), // CT
-              alpha[2]*(1.0 + alpha[2]) / alpha_sum / (1.0 + alpha_sum), // GG
-              2.0 * alpha[2]*(alpha[3]) / alpha_sum / (1.0 + alpha_sum), // GT
-              alpha[3]*(1.0 + alpha[3]) / alpha_sum / (1.0 + alpha_sum); // GG
+    for(int i=0;i<10;++i) {
+        int n1 = folded_diploid_nucleotides[i][0];
+        int n2 = folded_diploid_nucleotides[i][1];
+        if(n1 == n2) {
+            ret(i) = alpha[n1]*(1.0 + alpha[n1]) / alpha_sum / (1.0 + alpha_sum);
+        } else {
+            ret(i) = 2.0 * alpha[n1]*(alpha[n2]) / alpha_sum / (1.0 + alpha_sum);
+
+        }
+    }
     return ret;
 }
 
