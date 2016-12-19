@@ -21,7 +21,7 @@ catCppMatrix<-function(matrix, file=""){
             paste(y, sep="", collapse=", ") 
         })
         ,"}", collapse=",\n", sep="")
-    cat("{", paste(s, collapse="}, \n{"), "};\n", sep="", file=file )
+    cat("{", paste(s, collapse="}, \n{"), "};\n\n", sep="", file=file )
 }
 
 catEigenMatrix<-function(matrix, file=""){
@@ -29,7 +29,7 @@ catEigenMatrix<-function(matrix, file=""){
             apply(matrix,1,function(y){
                 paste(y, sep="", collapse=", ") 
             }), collapse=",\n", sep="")
-    cat("<< ", paste(s, collapse=", \n{"), ";\n", sep="", file=file )
+    cat("<< ", paste(s, collapse=", \n{"), ";\n\n", sep="", file=file )
 }
 
 ## Test transition_matrix
@@ -50,7 +50,7 @@ catEigenMatrix(meiosis_haploid_matrix(F81, -1))
 catEigenMatrix(meiosis_haploid_matrix(F81, 0))
 catEigenMatrix(meiosis_haploid_matrix(F81, 1))
 
-catEigenMatrix(meiosis_diploid_matrix(F81, F81, -1), file="temp.txt")
-catEigenMatrix(meiosis_diploid_matrix(F81, F81, 0), file="temp.txt")
-catEigenMatrix(meiosis_diploid_matrix(F81, F81, 1), file="temp.txt")
-catEigenMatrix(meiosis_diploid_matrix(F81, F81, 2), file="temp.txt")
+catEigenMatrix(meiosis_diploid_matrix(F81, F81, -1))
+catEigenMatrix(meiosis_diploid_matrix(F81, F81, 0))
+catEigenMatrix(meiosis_diploid_matrix(F81, F81, 1))
+catEigenMatrix(meiosis_diploid_matrix(F81, F81, 2))

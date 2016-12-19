@@ -19,7 +19,6 @@ mitotic_haploid_mutation_counts<- rbind(
 
 
 mitosis_haploid_matrix<- function(mut, numMutation){
-
     mitosis<- matrix(0, nrow=4, ncol=4)
     if(numMutation<0){
         mitosis<- mut
@@ -54,9 +53,26 @@ mitotic_diploid_mutation_counts<- rbind(
     c(2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 1, 0, 1, 1),
     c(2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 1, 1, 0, 1),
     c(2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 1, 1, 1, 0) )
-unfold_index<-c(1, 2, 3, 4, 6, 7, 8, 11, 12, 16)
-fold_index<-c(1, 2, 3, 4, 2, 5, 6, 7, 3, 6, 8, 9, 4, 7, 9, 10)
 
+# Homozgotes come first
+unfold_index = c()
+for(a in 0:3) {
+    unfold_index = c(unfold_index, 1+a*4+a)
+}
+for(a in 0:2) {
+    for(b in (a+1):3) {
+        unfold_index = c(unfold_index, 1+a*4+b)
+    } 
+}
+
+fold_index = rep(-1,16)
+for(i in seq_along(unfold_index)) {
+    h = unfold_index[i]
+    fold_index[h] = i
+    a = (h-1)%/%4
+    b = (h-1)%%4
+    fold_index[1+b*4+a] = i
+}
 
 mitosis_diploid_matrix<- function(mut, numMutation){
 
@@ -82,23 +98,20 @@ mitosis_diploid_matrix<- function(mut, numMutation){
 }
 
 meiosis_haploid_matrix<- function(mut, numMutation=0){
-
     mm<- mitosis_haploid_matrix(mut, numMutation)
-#     meiosis<- matrix(0,nrow=10, ncol=4)
-#     index<- 1
-#     for(i in 1:4){
-#         for(j in i:4){
-#             meiosis[index,]<-0.5*(mm[i,]+mm[j,])
-#             index<- index+1
-#         }
-#     }
-    meiosis<- 0.5*(mm[c(1,1,1,1,2,2,2,3,3,4),]+mm[c(1:4,2:4,3:4,4),])
+    meiosis<- matrix(0,nrow=10, ncol=4)
+    for(i in 1:10) {
+        h = unfold_index[i]
+        a = (h-1)%/%4
+        b = (h-1)%%4
+        for(j in 1:4) {
+            meiosis[i,j] = 0.5*(mm[a+1,j]+mm[b+1,j])
+        }
+    }
     return(meiosis)
 }
 
 meiosis_diploid_matrix<- function(dad, mom, numMutation){
-
-
     if(numMutation <=0){
         meiosis_dad<- meiosis_haploid_matrix(dad, numMutation)
         meiosis_mom<- meiosis_haploid_matrix(mom, numMutation)
@@ -112,10 +125,12 @@ meiosis_diploid_matrix<- function(dad, mom, numMutation){
             temp<- temp + kronecker(meiosis_dad, meiosis_mom)
         }
     }
+
+
 #     meiosis_diploid<- matrix(0,nrow=100, ncol=10)
 #     for(i in 1:16){
 #         meiosis_diploid[,fold_index[i]] <- meiosis_diploid[,fold_index[i]]+temp[,i]
 #     }
-    meiosis_diploid<- t(rowsum(t(temp), fold_index, reorder=F))
+    meiosis_diploid<- t(rowsum(t(temp), fold_index, reorder=TRUE))
     return(meiosis_diploid)
 }

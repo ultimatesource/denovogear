@@ -1,22 +1,34 @@
 n = c("A","C","G","T")
-h = outer(n,n,function(x,y) { sprintf("%s>%s",x,y) })
-d = kronecker(h,h,function(x,y) { sprintf("%s,%s",x,y) })
-s = strsplit(d,",|>")
-z = sapply(s, function(x) {
-	if(x[1] != x[2] && x[3] != x[4]) {
-		return(sprintf("%s%s>%s%s", x[1],x[3],x[2],x[4]))
-	} else if(x[1] != x[2]) {
-		return(sprintf("%s>%s", x[1],x[2]))		
-	} else if(x[3] != x[4]) {
-		return(sprintf("%s>%s", x[3],x[4]))	
-	}
-	return("")
-})
-z = matrix(z,16,16)
+# h = outer(n,n,function(x,y) { sprintf("%s>%s",x,y) })
+# d = kronecker(h,h,function(x,y) { sprintf("%s,%s",x,y) })
+# s = strsplit(d,",|>")
+# z = sapply(s, function(x) {
+# 	if(x[1] != x[2] && x[3] != x[4]) {
+# 		return(sprintf("%s%s>%s%s", x[1],x[3],x[2],x[4]))
+# 	} else if(x[1] != x[2]) {
+# 		return(sprintf("%s>%s", x[1],x[2]))		
+# 	} else if(x[3] != x[4]) {
+# 		return(sprintf("%s>%s", x[3],x[4]))	
+# 	}
+# 	return("")
+# })
+# z = matrix(z,16,16)
 
-g = outer(n,n,function(x,y) { sprintf("%s%s",x,y) })
-f = t(g)[lower.tri(g,TRUE)]
+
+f = c()
+for(i in n) {
+	f = c(f, sprintf("%s%s",i,i))
+}
+for(i in seq_along(n)) {
+	for(j in seq_along(n)) {
+		if(i >= j) {
+			next
+		}
+		f=c(f, sprintf("%s%s",n[i],n[j]))
+	}
+}
 m = outer(f,f,function(x,y) { sprintf("%s>%s",x,y) })
+
 
 p = kronecker(f,f,function(x,y) { sprintf("%sx%s",x,y) })
 q = outer(p,f,function(x,y) { sprintf("%s>%s",x,y)})

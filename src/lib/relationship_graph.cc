@@ -161,7 +161,7 @@ void prune_pedigree_ylinked(Graph &pedigree_graph);
 void prune_pedigree_xlinked(Graph &pedigree_graph);
 
 void prune_pedigree(Graph &pedigree_graph, InheritanceModel model) {
-    boost::write_graphviz(std::cerr, pedigree_graph);
+    //boost::write_graphviz(std::cerr, pedigree_graph);
 
     switch(model) {
     case InheritanceModel::Autosomal:
@@ -176,7 +176,7 @@ void prune_pedigree(Graph &pedigree_graph, InheritanceModel model) {
     default:
         throw std::runtime_error("ERROR: Selected inheritance model not implemented yet.");
     }
-    boost::write_graphviz(std::cerr, pedigree_graph);
+    //boost::write_graphviz(std::cerr, pedigree_graph);
 
 }
 
