@@ -50,6 +50,8 @@ public:
     stats_t operator()(const pileup::AlleleDepths &depths, const std::vector<size_t>& indexes);
 
 protected:
+    double CalculateGenotypeLikelihoods(const pileup::AlleleDepths &depths, const std::vector<size_t>& indexes);
+
     dng::RelationshipGraph pedigree_;
     params_t params_;
     dng::peel::workspace_t work_; // must be declared after pedigree_ (see constructor)

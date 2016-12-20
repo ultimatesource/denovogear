@@ -108,16 +108,12 @@ public:
 
     DirichletMultinomialMixture(params_t model_a, params_t model_b);
 
-    double operator()(const pileup::AlleleDepths& depths,
-            const std::vector<size_t> &indexes,
-            IndividualVector::iterator output) const;
+    std::pair<GenotypeArray, double> operator()(
+        const pileup::AlleleDepths& depths, size_t pos, int ploidy=2) const;
 
     std::pair<GenotypeArray, double> operator()(depth_t d,
             int ref_allele, int ploidy=2) const;
 
-    std::pair<GenotypeArray, double> CalculateHaploid(depth_t d,
-            int ref_allele) const;
-    
 protected:
 
     // NOTE: a = reference; b = genotype; c = nucleotide; d = depth

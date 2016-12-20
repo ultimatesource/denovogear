@@ -60,7 +60,7 @@ bool FindMutationsYLinked::operator()(const std::vector<depth_t> &depths,
     double scale = 0.0, stemp;
     for(std::size_t u = 0; u < depths.size(); ++u) {
         std::tie(work_full_.lower[work_full_.library_nodes.first + u], stemp) =
-                genotype_likelihood_.CalculateHaploid(depths[u], ref_index);
+                genotype_likelihood_(depths[u], ref_index,1);
         scale += stemp;
     }
     // Set the prior probability of the founders given the reference

@@ -70,7 +70,10 @@ LogProbability::LogProbability(RelationshipGraph pedigree, params_t params) :
         haploid_prior(0) = haploid_prior_[color](pileup::AlleleDepths::type_info_table[color].indexes[0]);
         work_.SetFounders(diploid_prior, haploid_prior);
 
-        double scale = genotype_likelihood_(depths, indexes, work_.lower.begin()+work_.library_nodes.first);
+        for(std::size_t u = 0; u < num_libraries; ++u) {
+            auto pos = work_.library_nodes.first + u;
+            work_.lower[pos] = genotype_likelihood_(depths, u, work_.ploidies[pos]).first;
+        }
         double logdata = pedigree_.PeelForwards(work_, transition_matrices_[color]);
         prob_monomorphic_[color] = exp(logdata);
     }
@@ -82,13 +85,21 @@ LogProbability::stats_t LogProbability::operator()(const std::vector<depth_t> &d
     // calculate genotype likelihoods and store in the lower library vector
     double scale = 0.0, stemp;
     for(std::size_t u = 0; u < depths.size(); ++u) {
-        std::tie(work_.lower[work_.library_nodes.first + u], stemp) =
-            genotype_likelihood_(depths[u], ref_index);
+        auto pos = work_.library_nodes.first + u;
+        std::tie(work_.lower[pos], stemp) =
+            genotype_likelihood_(depths[u], ref_index, work_.ploidies[pos]);
         scale += stemp;
     }
 
     // Set the prior probability of the founders given the reference
-    work_.SetFounders(diploid_prior_[ref_index]);
+    work_.SetFounders(diploid_prior_[ref_index], haploid_prior_[ref_index]);
+
+    // for(int i=0; i < full_transition_matrices_.size(); ++i) {
+    //     std::cerr << i << "\t";
+    //     std::cerr << full_transition_matrices_[i].rows() << "x" << full_transition_matrices_[i].cols() << "\t";
+    //     std::cerr << work_.upper[i].rows() << "x" << work_.upper[i].cols() << "\t";
+    //     std::cerr << work_.lower[i].rows() << "x" << work_.lower[i].cols() << std::endl;
+    // }
 
     // Calculate log P(Data ; model)
     double logdata = pedigree_.PeelForwards(work_, full_transition_matrices_);
@@ -107,7 +118,7 @@ LogProbability::stats_t LogProbability::operator()(const pileup::AlleleDepths &d
     if(color < 4) {
         assert(depths.type_info().width == 1 && depths.type_gt_info().width == 1 && ref_index == color);
         // Calculate genotype likelihoods
-        scale = genotype_likelihood_(depths, indexes, work_.lower.begin()+work_.library_nodes.first);
+        scale = CalculateGenotypeLikelihoods(depths, indexes);
 
         // Multiply our pre-calculated peeling results with the genotype likelihoods
         logdata = prob_monomorphic_[color];
@@ -134,13 +145,26 @@ LogProbability::stats_t LogProbability::operator()(const pileup::AlleleDepths &d
         work_.SetFounders(diploid_prior, haploid_prior);
   
         // Calculate genotype likelihoods
-        scale = genotype_likelihood_(depths, indexes, work_.lower.begin()+work_.library_nodes.first);
+        scale = CalculateGenotypeLikelihoods(depths, indexes);
 
          // Calculate log P(Data ; model)
         logdata = pedigree_.PeelForwards(work_, transition_matrices_[color]);
     }
     return {logdata/M_LN10, scale/M_LN10};
 }
+
+
+double LogProbability::CalculateGenotypeLikelihoods(const pileup::AlleleDepths &depths,const std::vector<size_t>& indexes) {
+    double scale=0.0, stemp;
+    for(std::size_t u = 0; u < indexes.size(); ++u) {
+        auto pos = work_.library_nodes.first + u;
+        std::tie(work_.lower[pos], stemp) =
+            genotype_likelihood_(depths, indexes[u], work_.ploidies[pos]);
+        scale += stemp;
+    }
+    return scale;
+}
+
 
 // Construct the mutation matrices for each transition
 TransitionVector create_mutation_matrices(const RelationshipGraph &pedigree,
@@ -221,6 +245,7 @@ TransitionVector create_mutation_matrices_subset(const TransitionVector &full_ma
             // a: haploid; b: diploid
             const int widthA = type_info_table[color].width;                      
             const int widthB = type_info_gt_table[color].width;
+            matrices[child].resize(widthA*widthB,widthB);
             for(int a = 0; a < widthA; ++a) {
                 const int ga = type_info_table[color].indexes[a];
                 for(int b = 0; b < widthB; ++b) {
