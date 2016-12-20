@@ -201,7 +201,7 @@ std::pair<GenotypeArray, double> DirichletMultinomialMixture::operator()(
     }
     // Calculate log_likelihoods for genotypes
     for(int genotype = 0; genotype < sz; ++genotype) {
-        log_ret[genotype] = log_sum_exact(temp[genotype],temp[10+genotype]);
+        log_ret[genotype] = log_sum(temp[genotype],temp[10+genotype]);
         assert(std::isfinite(log_ret[genotype]));
     }
     // Scale and calculate likelihoods
@@ -278,7 +278,7 @@ std::pair<GenotypeArray, double> DirichletMultinomialMixture::operator()(
     }
     // Calculate log_likelihoods for genotypes
     for(int j = 0; j < sz; ++j) {
-        log_ret[j] = log_sum_exact(temp[j],temp[10+j]);
+        log_ret[j] = log_sum(temp[j],temp[10+j]);
         assert(std::isfinite(log_ret[j]));
     }
     // Scale and calculate likelihoods
