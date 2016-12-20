@@ -7,14 +7,16 @@ var pedigreeFileText;
 var dngOutputFileText;
 
 //TODO: clean this up
-jQuery.get('example_pedigree.ped', function(pedData) {
-    pedigreeFileText = pedData;
+//jQuery.get('example_pedigree.ped', function(pedData) {
+//    pedigreeFileText = pedData;
+//
+//    jQuery.get('example_output.vcf', function(outputData) {
+//      dngOutputFileText = outputData;
+//      main();
+//    });
+//});
 
-    jQuery.get('example_output.vcf', function(outputData) {
-      dngOutputFileText = outputData;
-      main();
-    });
-});
+main();
 
 function main() {
 
@@ -25,13 +27,14 @@ function main() {
   var pedGraph = null;
   var activeNode = null;
   
-  serverPedigreeAndLayout(function() {
-    dngOverlay()
-  });
+  //serverPedigreeAndLayout(function(nodes, links) {
+  //  dngOverlay()
+  //  doVisuals(nodes, links);
+  //});
 
   function dngOverlay() {
     var vcfData = vcfParser.parseVCFText(dngOutputFileText);
-    console.log(vcfData);
+    //console.log(vcfData);
 
     //for (var person of pedGraph.getPersons()) {
     //  var thisSampleName = 'GL-'+person.id;
@@ -50,17 +53,16 @@ function main() {
     //  }
     //}
 
-    //console.log(vcfData.records[0].INFO.DNT);
-
     var mutationLocation = vcfData.records[0].INFO.DNL;
-    console.log(mutationLocation);
     var owner = findOwnerNode(mutationLocation);
-    console.log(owner);
+    var ownerParentageLink = owner.getParentageLink();
+    var parentageLinkData = {
+      mutation: vcfData.records[0].INFO.DNT
+    };
+    ownerParentageLink.setData(parentageLinkData);
 
     for (var sampleName of vcfData.header.sampleNames) {
       var format = vcfData.records[0][sampleName];
-
-      //console.log(sampleName);
 
       if (isPersonNode(sampleName)) {
         var id = getIdFromSampleName(sampleName);
@@ -72,12 +74,12 @@ function main() {
         sampleNode.dngOutputData = format;
       }
     }
-
-    console.log(pedGraph);
   }
 
   function serverPedigreeAndLayout(callback) {
+
     var pedigreeUploadData = { text: pedigreeFileText };
+
     jQuery.ajax('/pedigree_and_layout',
       { 
         type: 'POST',
@@ -96,6 +98,13 @@ function main() {
       var nodes = ret.nodes;
       var links = ret.links;
 
+      //doVisuals(nodes, links);
+
+      callback(nodes, links);
+    }
+  }
+
+  function doVisuals(nodes, links) {
       var height = 500;
 
       d3.select("svg").remove();
@@ -120,13 +129,45 @@ function main() {
           .attr("class", "links")
         .selectAll("line")
         .data(links)
-        .enter().append("line")
-          .attr("stroke-width", 1);
-      link
+        .enter()
+        .append("g")
+          .attr("class", "link");
+
+      link.append("line")
+        .attr("stroke-width", function(d) {
+          if (linkHasData(d)) {
+              return 5;
+          }
+          return 1;
+        })
+        .attr("stroke", function(d) {
+          if (linkHasData(d)) {
+            return "green";
+          }
+
+          return "#999";
+        })
         .attr("x1", function(d) { return d.source.x; })
         .attr("y1", function(d) { return d.source.y; })
         .attr("x2", function(d) { return d.target.x; })
         .attr("y2", function(d) { return d.target.y; });
+
+      link.append("text")
+        .attr("dx", function(d) {
+          return halfwayBetweenGeneric(d.source.x, d.target.x) - 45;
+        })
+        .attr("dy", function(d) {
+          return halfwayBetweenGeneric(d.source.y, d.target.y);
+        })
+        .text(function(d) {
+          if (linkHasData(d)) {
+            return d.dataLink.data.mutation;
+          }
+        });
+
+      function linkHasData(d) {
+          return d.dataLink !== undefined && d.dataLink.data !== undefined;
+      }
 
 
       var node = container
@@ -136,7 +177,7 @@ function main() {
         .data(nodes)
         .enter()
         .append("g")
-          .attr("class", "node")
+          .attr("class", "node");
 
       node.append("path")
         .attr("d", d3.symbol()
@@ -186,11 +227,11 @@ function main() {
         if (d.type !== 'marriage') {
           d3.select(activeNode).style('fill', fillColor);
           activeNode = this;
-          d3.select(this).style('fill', 'grey');
+          d3.select(this).style('fill', 'DarkSeaGreen');
 
           if (d.dataNode.data.dngOutputData !== undefined) {
             document.getElementById('id_display').value =
-              d.dataNode.data.dngOutputData.GP;
+              d.dataNode.id;
           }
           else {
             document.getElementById('id_display').value = "";
@@ -212,9 +253,6 @@ function main() {
           return "black";
         }
       }
-
-      callback();
-    }
   }
 
   function processPedigree(data, pedigreeData) {
@@ -262,7 +300,6 @@ function main() {
         var marriage = pedigr.MarriageBuilder.createMarriageBuilder()
           .spouse(node.dataNode)
           .spouse(spouseNode.dataNode)
-          //.children([])
           .build();
 
         pedGraph.addMarriage(marriage);
@@ -271,8 +308,9 @@ function main() {
 
         for (var childNode of children) {
           var childLink = createChildLink(childNode, marriageNode);
+          var parentageLink = marriage.addChild(childNode.dataNode);
+          childLink.dataLink = parentageLink;
           links.push(childLink);
-          marriage.addChild(childNode.dataNode);
         }
 
       }
@@ -427,17 +465,31 @@ function main() {
     }
   }
 
+  function halfwayBetweenGeneric(a, b) {
+    if (a > b) {
+      return a + ((b - a) / 2);
+    }
+    else {
+      return b + ((a - b) / 2);
+    }
+  }
+
   function updatePedigreeFile() {
     updateFile('pedigree_file_input', function(fileData) {
       pedigreeFileText = fileData;
-      serverPedigreeAndLayout();
+      serverPedigreeAndLayout(function(nodes, links) {
+        doVisuals(nodes, links);
+      });
     });
   }
 
   function updateDNGOutputFile() {
     updateFile('dng_output_file_input', function(fileData) {
-      dngOutputFileText = fileData;
-      dngOverlay();
+      serverPedigreeAndLayout(function(nodes, links) {
+        dngOutputFileText = fileData;
+        dngOverlay();
+        doVisuals(nodes, links);
+      });
     });
   }
 

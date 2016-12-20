@@ -39,8 +39,8 @@
     this.sex = attr.sex;
     //this.father = attr.father;
     //this.mother = attr.mother;
-    this.parentage = attr.parentage;
-    this.marriage = attr.marriage;
+    this.parentageLink = attr.parentageLink;
+    this.marriageLink = attr.marriageLink;
     this.data = attr.data;
   };
 
@@ -48,13 +48,17 @@
     return new Person(attr);
   };
 
+  Person.prototype.getParentageLink = function() {
+    return this.parentageLink;
+  };
+
   function PersonBuilder(id) {
     this._id = id;
     this._sex = undefined;
     //this._father = undefined;
     //this._mother = undefined;
-    this._parentage = undefined;
-    this._marriage = undefined;
+    this._parentageLink = undefined;
+    this._marriageLink = undefined;
     this._data = undefined;
     return this;
   };
@@ -64,8 +68,8 @@
     return this;
   }
 
-  PersonBuilder.prototype.parentage = function(parentage) {
-    this._parentage = parentage;
+  PersonBuilder.prototype.parentageLink = function(parentageLink) {
+    this._parentageLink = parentageLink;
     return this;
   };
 
@@ -95,8 +99,8 @@
       sex: this._sex,
       //father: this._father,
       //mother: this._mother,
-      parentage: this._parentage,
-      marriage: this._marriage,
+      parentageLink: this._parentageLink,
+      marriageLink: this._marriageLink,
       data: this._data
     });
   };
@@ -126,7 +130,10 @@
   };
 
   Marriage.prototype.addChild = function(child) {
-    this.childLinks.push(ParentageLink.createParentageLink(this, child));
+    var parentageLink = ParentageLink.createParentageLink(this, child);
+    this.childLinks.push(parentageLink);
+    child.parentageLink = parentageLink;
+    return parentageLink;
   };
 
   Marriage.createMarriage = function(attr) {
@@ -197,10 +204,15 @@
   function ParentageLink(parentage, child) {
     this.parentage = parentage;
     this.child = child;
+    this.data = undefined;
   }
 
   ParentageLink.createParentageLink = function(parentage, child) {
     return new ParentageLink(parentage, child);
+  };
+
+  ParentageLink.prototype.setData = function(data) {
+    this.data = data;
   };
 
 
