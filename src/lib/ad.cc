@@ -591,7 +591,7 @@ int dng::io::Ad::ReadTad(AlleleDepths *pline) {
                 + " columns. Found " + utility::to_pretty(data.size())));
         }
         for(size_t j=0;j<data.size();++j) {
-            (*pline)(j,i-3) = data[j];
+            (*pline)(i-3,j) = data[j];
         }
     }
     return 1;
@@ -621,9 +621,9 @@ int dng::io::Ad::WriteTad(const AlleleDepths& line) {
         stream_  << '\t';
         size_type x = 0;
         for(; x != nnuc-1; ++x) {
-            stream_  << line(x,y) << ',';
+            stream_  << line(y,x) << ',';
         }
-        stream_  << line(x,y);
+        stream_  << line(y,x);
     }
     stream_ << '\n';
     return 1;
@@ -743,15 +743,17 @@ int dng::io::Ad::ReadAd(AlleleDepths *pline) {
 
     // Reference depths
     for(size_t i=0;i<num_libraries_;++i) {
-        pline->data()[i] = last_data_[i];
+        (*pline)(i,0) = last_data_[i];
     }
     // Alternate depths
-    for(size_t i=num_libraries_; i<pline->data_size(); ++i) {
-        result = varint::get(stream_.rdbuf());
-        if(!result.second) {
-            return 0;
+    for(size_t j=1;j< pline->num_nucleotides();++j) {
+        for(size_t i=0; i < num_libraries_; ++i) {
+            result = varint::get(stream_.rdbuf());
+            if(!result.second) {
+                return 0;
+            }
+            (*pline)(i,j) = result.first;
         }
-        pline->data()[i] = result.first;
     }
     return 1;
 }
@@ -804,7 +806,7 @@ int dng::io::Ad::WriteAd(const AlleleDepths& line) {
     if(location_to_contig(loc) == 0) {
         // when using relative positioning output reference depths relative to previous
         for(size_type i = 0; i < num_libraries_; ++i) {
-            int64_t n = line.data()[i]-last_data_[i];
+            int64_t n = line(i,0)-last_data_[i];
             if(!varint::put_zig_zag(stream_.rdbuf(),n)) {
                 return 0;
             }
@@ -812,20 +814,22 @@ int dng::io::Ad::WriteAd(const AlleleDepths& line) {
     } else {
         // when using absolute positioning output reference depths normally
         for(size_type i = 0; i < num_libraries_; ++i) {
-            if(!varint::put(stream_.rdbuf(),line.data()[i])) {
+            if(!varint::put(stream_.rdbuf(),line(i,0))) {
                 return 0;
             }
         }
     }
     // output all non-reference depths normally
-    for(size_type i = num_libraries_; i < line.data_size(); ++i) {
-        if(!varint::put(stream_.rdbuf(),line.data()[i])) {
-            return 0;
+    for(size_t j=1;j<line.num_nucleotides();++j) {
+        for(size_t i=0; i < line.num_libraries(); ++i) {
+            if(!varint::put(stream_.rdbuf(),line(i,j))) {
+                return 0;
+            }
         }
     }
     // Save reference depths
     for(size_type i = 0; i < num_libraries_; ++i) {
-        last_data_[i] = line.data()[i];
+        last_data_[i] = line(i,0);
     }
 
     return 1;

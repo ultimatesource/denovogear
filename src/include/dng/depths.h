@@ -90,15 +90,16 @@ public:
     {
     }
 
-    data_t::const_reference operator()(data_t::size_type nuc, data_t::size_type lib) const {
-        // storage is nucleotide major
+    data_t::reference operator()(data_t::size_type lib, data_t::size_type nuc) {
+        // storage is library major
         assert(0 <= nuc && nuc < num_nucleotides() && 0 <= lib && lib < num_libraries());
-        return data_[nuc*num_libraries_ + lib];
+        return data_[lib*num_nucleotides()+nuc];
     }
-    data_t::reference operator()(data_t::size_type nuc, data_t::size_type lib) {
-        // storage is nucleotide major
+
+    data_t::const_reference operator()(data_t::size_type lib, data_t::size_type nuc) const {
+        // storage is library major
         assert(0 <= nuc && nuc < num_nucleotides() && 0 <= lib && lib < num_libraries());
-        return data_[nuc*num_libraries_ + lib];
+        return data_[lib*num_nucleotides()+nuc];
     }
 
     location_t location() const { return location_; }

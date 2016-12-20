@@ -253,7 +253,7 @@ int process_bam(Pileup::argument_type &arg) {
         int n=0;
         for(auto it = rng.begin(); it != rng.end(); ++it,++n) {
             for(int lib = 0; lib < line.num_libraries(); ++lib) {
-                line(n,lib) = read_depths[lib].counts[*it];
+                line(lib,n) = read_depths[lib].counts[*it];
             }
         }
         output.Write(line);
