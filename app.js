@@ -1,3 +1,4 @@
+var process = require('process');
 var express = require('express');
 var bodyParser = require('body-parser');
 var app = express();
@@ -18,4 +19,5 @@ app.post('/pedigree_and_layout', function(req, res) {
   r.stdin.end();
 });
 
-app.listen(3000);
+var port = process.argv[2];
+app.listen(port);
