@@ -41,11 +41,9 @@ namespace detail {
 class log_pochhammer {
     typedef boost::math::lanczos::lanczos13m53 Lanczos;
 public:
-    static constexpr int kCacheSize{512};
-
     log_pochhammer() { }
 
-    log_pochhammer(double a) : cache_(kCacheSize) {
+    log_pochhammer(double a) {
         // store these values for later usage
         a_ = a;
         ah_ = a - 0.5;
@@ -53,26 +51,18 @@ public:
         agh_ = a + Lanczos::g() - 0.5;
         la_ = log(Lanczos::lanczos_sum(a));
         logam1_ = loga_-1.0;
-        for(int i=0;i<kCacheSize;++i) {
-            cache_[i] = lnpoch_pos(i+1);
-        }
     }
 
     double operator()(int n) const {
         assert(n >= 0);
-        assert(cache_.size() == kCacheSize); // Check for proper initialization
-        if(n <= 0) {
+        if(n == 0) {
             return 0.0;
-        } else if(n <= kCacheSize) {
-            return cache_[n-1];
         }
         return lnpoch_pos(n);
     }
 private:
     // store these values for later usage
     double a_, loga_, agh_, ah_, la_, logam1_;
-
-    std::vector<double> cache_;
 
     double lnpoch_pos(double n) const {
         assert(n >= 1.0);
@@ -92,9 +82,6 @@ private:
 
 class DirichletMultinomialMixture {
 public:
-    // TODO: Make this configurable with a define
-    static const int kCacheSize = 512;
-
     struct params_t {
         double pi;      // probability of this component
         double phi;     // overdispersion parameter
@@ -126,7 +113,7 @@ public:
             IndividualVector::iterator output) const;
 
     std::pair<GenotypeArray, double> operator()(depth_t d,
-            int ref_allele) const;
+            int ref_allele, int ploidy=2) const;
 
     std::pair<GenotypeArray, double> CalculateHaploid(depth_t d,
             int ref_allele) const;
@@ -134,12 +121,21 @@ public:
 protected:
 
     // NOTE: a = reference; b = genotype; c = nucleotide; d = depth
-    // NOTE: cache_[a][b][c].first(d)  = sum alpha1[a][b][c]+x for x in [0,d)
-    // NOTE: cache_[a][b][c].second(d) = sum alpha2[a][b][c]+x for x in [0,d)
-    typedef detail::log_pochhammer cache_type;
-    typedef std::vector<std::array<std::array<std::pair<cache_type,cache_type>, 5>, 10>> cache_t;
+    // NOTE: cache_[d][a][c][0][b]  = log_pochamer(alpha1[a][b][c],d)
+    // NOTE: cache_[d][a][c][1][b]  = log_pochamer(alpha2[a][b][c],d)
+    typedef double cache_type;
+    typedef std::vector<std::array<std::array<std::array<std::array<cache_type,10>, 2>, 5>,5>> cache_t;
 
-    cache_t cache_;
+    typedef detail::log_pochhammer model_type;
+
+    typedef std::vector<std::array<std::array<std::array<model_type,10>, 2>, 5>> model_cache_t;
+
+
+    static constexpr int kCacheSize = 512;
+
+    cache_t cache_{kCacheSize};
+    model_cache_t models_{5};
+
     double f1_, f2_; // log(f) and log(1-f)
 };
 

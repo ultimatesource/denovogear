@@ -19,8 +19,9 @@ sub next_permutation {
 	return @idx;
 }
 
-my @gt_list = (0, 1, 2, 3, 1, 4, 5, 6, 2, 5, 7, 8, 3, 6, 8, 9);
+my @gt_list = (0, 4, 5, 6, 4, 1, 7, 8, 5, 7, 2, 9, 6, 8, 9, 3);
 sub gt10 {
+	my $k = shift;
 	my @s = @_;
 	my @r = ();
 	for(my $i = 0; $i < @s; ++$i) {
@@ -41,7 +42,7 @@ for(my $k = 1;$k<=4;++$k) {
 		@n = (@front, reverse(@n[$k..$#n]));
 		push(@types,[@front]);
 		push(@types4,[@n]);
-		push(@genotypes10,[gt10(@n)]);
+		push(@genotypes10,[gt10($k, @n)]);
 	} while(@n = next_permutation(@n))
 }
 

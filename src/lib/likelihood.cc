@@ -28,90 +28,75 @@
 namespace dng {
 namespace genotype {
 
-DirichletMultinomialMixture::DirichletMultinomialMixture(params_t model_a, params_t model_b) :
-    cache_(5) {
-    double a, u, e, m, h;
+std::array<double,5> make_alphas(int reference, int genotype, double phi, double epsilon, double omega) {
+    assert(0 <= reference && reference <= 4);
+    assert(0 <= genotype && genotype <= 9);
+    assert(0.0 <= phi && phi <= 1.0 );
+    assert(0.0 <= epsilon && epsilon <= 1.0 );
+    assert(0.0 <= omega);
 
+    // Don't allow phi to be zero until we have rewritten the likelihood function
+    if(phi < DNG_LIKLIHOOD_PHI_MIN) {
+        phi = DNG_LIKLIHOOD_PHI_MIN;
+    }
+    double a = (1.0 - phi) / phi;
+    double u = omega;
+    double e = epsilon/3.0;
+    double m = 1.0 - 3.0 * e; // prob of a read that matches a homozygote
+    double h = 1.0 - 2.0 * e; // prob of a read that matches a heterozygote
+
+    std::array<double,5> ret = {e,e,e,e,e};
+    int g1 = folded_diploid_nucleotides[genotype][0];
+    int g2 = folded_diploid_nucleotides[genotype][1];
+    if(g1 == g2) {
+        ret[g1] = m;
+    } else if(g1 == reference) {
+        ret[g1] = h*u/(1.0+u);
+        ret[g2] = h*1.0/(1.0+u);
+    } else if(g2 == reference) {
+        ret[g1] = h*1.0/(1.0+u);
+        ret[g2] = h*u/(1.0+u);
+    } else {
+        ret[g1] = h/2.0;
+        ret[g2] = h/2.0;
+    }
+    double total = ret[0] + ret[1] + ret[2] + ret[3];
+    for(int i=0;i<4;++i) {
+        ret[i] = ret[i]/total * a;
+    }
+    ret[4] = a;
+    return ret;
+}
+
+DirichletMultinomialMixture::DirichletMultinomialMixture(params_t model_a, params_t model_b) {
     assert(0.0 < model_a.pi && 0.0 < model_b.pi);
-    assert(0.0 <= model_a.phi && model_a.phi <= 1.0 );
-    assert(0.0 <= model_b.phi && model_b.phi <= 1.0 );
-    assert(0.0 <= model_a.epsilon && model_a.epsilon <= 1.0 );
-    assert(0.0 <= model_b.epsilon && model_b.epsilon <= 1.0 );
-    assert(0.0 < model_a.omega && 0.0 < model_b.omega);
-
     // Calculate log(mixing proportions) and ensure that they are normalized
     f1_ = log(model_a.pi) - log(model_a.pi + model_b.pi);
     f2_ = log(model_b.pi) - log(model_a.pi + model_b.pi);
 
-    // model a
-    // Don't allow phi to be zero until we have rewritten the likelihood function
-    if(model_a.phi < DNG_LIKLIHOOD_PHI_MIN) {
-        model_a.phi = DNG_LIKLIHOOD_PHI_MIN;
-    }
-    a = (1.0 - model_a.phi) / model_a.phi;
-    u = model_a.omega;
-    e = model_a.epsilon/3.0;
-
-    m = 1.0 - 3.0 * e; // prob of a read that matches a homozygote
-    h = 1.0 - 2.0 * e; // prob of a read that matches a heterozygote
-    for(int r = 0; r < 5; ++r) {
-        for(int g = 0; g < 10; ++g) {
-            double tmp[5] = {e, e, e, e, e};
-            int g1 = folded_diploid_nucleotides[g][0];
-            int g2 = folded_diploid_nucleotides[g][1];
-            if(g1 == g2) {
-                tmp[g1] = m;
-            } else if(g1 == r) {
-                tmp[g1] = h*u/(1.0+u);
-                tmp[g2] = h*1.0/(1.0+u);
-            } else if(g2 == r) {
-                tmp[g1] = h*1.0/(1.0+u);
-                tmp[g2] = h*u/(1.0+u);
-            } else {
-                tmp[g1] = h/2.0;
-                tmp[g2] = h/2.0;
-            }
-            tmp[4] = tmp[0] + tmp[1] + tmp[2] + tmp[3];
-            double aa = a / tmp[4];
-            for(int x = 0; x < 5; ++x) {
-                // TODO: Is it worth eliminating redundant calculations?
-                cache_[r][g][x].first = cache_type{aa*tmp[x]};
-            }
-        }
-    }
-
-    // model b
-    if(model_b.phi < DNG_LIKLIHOOD_PHI_MIN) {
-        model_b.phi = DNG_LIKLIHOOD_PHI_MIN;
-    }
-    a = (1.0 - model_b.phi) / model_b.phi;
-    u = model_b.omega;
-    e = model_b.epsilon/3.0;
-
-    m = 1.0 - 3.0 * e; // prob of a read that matches a homozygote
-    h = 1.0 - 2.0 * e; // prob of a read that matches a heterozygote
-    for(int r = 0; r < 5; ++r) {
-        for(int g = 0; g < 10; ++g) {
-            double tmp[5] = {e, e, e, e, e};
-            int g1 = folded_diploid_nucleotides[g][0];
-            int g2 = folded_diploid_nucleotides[g][1];
-            if(g1 == g2) {
-                tmp[g1] = m;
-            } else if(g1 == r) {
-                tmp[g1] = h*u/(1.0+u);
-                tmp[g2] = h*1.0/(1.0+u);
-            } else if(g2 == r) {
-                tmp[g1] = h*1.0/(1.0+u);
-                tmp[g2] = h*u/(1.0+u);
-            } else {
-                tmp[g1] = h/2.0;
-                tmp[g2] = h/2.0;
-            }
-            tmp[4] = tmp[0] + tmp[1] + tmp[2] + tmp[3];
-            double aa = a / tmp[4];
-            for(int x = 0; x < 5; ++x) {
-                // TODO: Is it worth eliminating redundant calculations?
-                cache_[r][g][x].second = cache_type{aa*tmp[x]};
+    // Construct our log_pochhammer functors and cache some of their outputs
+    for(int reference=0; reference<5; ++reference) {
+        for(int genotype=0; genotype<10; ++genotype) {
+            auto alphas0 = make_alphas(reference, genotype,
+                model_a.phi, model_a.epsilon, model_a.omega);
+            auto alphas1 = make_alphas(reference, genotype,
+                model_b.phi, model_b.epsilon, model_b.omega);            
+            for(int nucleotide=0; nucleotide<5; ++nucleotide) {
+                models_[reference][nucleotide][0][genotype] = detail::log_pochhammer{alphas0[nucleotide]};
+                models_[reference][nucleotide][1][genotype] = detail::log_pochhammer{alphas1[nucleotide]};
+                for(int i=0;i<cache_.size();++i) {
+                    if(nucleotide < 4) {
+                        cache_[i][reference][nucleotide][0][genotype] =
+                            models_[reference][nucleotide][0][genotype](i);
+                        cache_[i][reference][nucleotide][1][genotype] =
+                            models_[reference][nucleotide][1][genotype](i);
+                    } else {
+                        cache_[i][reference][nucleotide][0][genotype] =
+                            -models_[reference][nucleotide][0][genotype](i);
+                        cache_[i][reference][nucleotide][1][genotype] =
+                            -models_[reference][nucleotide][1][genotype](i);                        
+                    }
+                }
             }
         }
     }
@@ -158,93 +143,120 @@ inline double log_sum_exact(double a, double b) {
 double DirichletMultinomialMixture::operator()(
         const pileup::AlleleDepths& depths, const std::vector<size_t> &indexes,
         IndividualVector::iterator output) const {
-    const auto last = output + indexes.size();
+    // const auto last = output + indexes.size();
 
-    int ref_index = depths.type_info().reference;
-    int width = depths.type_info().width;
-    int gt_width = depths.type_gt_info().width;
-    // resize output to hold genotypes
-    for(auto first = output; first != last; ++first ) {
-        first->resize(gt_width);
-    }
+    // int ref_index = depths.type_info().reference;
+    // int width = depths.type_info().width;
+    // int gt_width = depths.type_gt_info().width;
+    // // resize output to hold genotypes
+    // for(auto first = output; first != last; ++first ) {
+    //     first->resize(gt_width);
+    // }
 
-    // calculate log_likelihoods for each genotype
-    for(int g=0;g<gt_width;++g) {
-        int real_g = depths.type_gt_info().indexes[g];
-        auto &cache = cache_[ref_index][real_g];
-        for(size_t u = 0; u < indexes.size(); ++u) {
-            size_t lib = indexes[u];
-            // create a reference to the output site
-            auto &out = *(output+u);
-            double lh1 = f1_, lh2 = f2_;
-            int read_count = 0;
-            for(int i=0;i<width;++i) {
-                // get the depth of nucleotide i from library lib
-                int d = depths(i,lib);
-                read_count += d;
-                // find which nucleotide this depth refers to
-                int j = depths.type_info().indexes[i];
-                lh1 += cache[j].first(d);
-                lh2 += cache[j].second(d);
-            }
-            lh1 -= cache[4].first(read_count);
-            lh2 -= cache[4].second(read_count);
-            out[g] = log_sum(lh1,lh2);
-            assert(std::isfinite(out[g]));
-        }
-    }
-    // rescale output to hold genotypes
-    double scale = 0.0;
-    for(auto first = output; first != last; ++first ) {
-        double scaleg = first->maxCoeff();
-        scale += scaleg;
-        *first = (*first - scaleg).exp();
-    }
-    return scale;
+    // // calculate log_likelihoods for each genotype
+    // for(int g=0;g<gt_width;++g) {
+    //     int real_g = depths.type_gt_info().indexes[g];
+    //     auto &cache = cache_[ref_index][real_g];
+    //     for(size_t u = 0; u < indexes.size(); ++u) {
+    //         size_t lib = indexes[u];
+    //         // create a reference to the output site
+    //         auto &out = *(output+u);
+    //         double lh1 = f1_, lh2 = f2_;
+    //         int read_count = 0;
+    //         for(int i=0;i<width;++i) {
+    //             // get the depth of nucleotide i from library lib
+    //             int d = depths(i,lib);
+    //             read_count += d;
+    //             // find which nucleotide this depth refers to
+    //             int j = depths.type_info().indexes[i];
+    //             lh1 += cache[j].first(d);
+    //             lh2 += cache[j].second(d);
+    //         }
+    //         lh1 -= cache[4].first(read_count);
+    //         lh2 -= cache[4].second(read_count);
+    //         out[g] = log_sum(lh1,lh2);
+    //         assert(std::isfinite(out[g]));
+    //     }
+    // }
+    // // rescale output to hold genotypes
+    // double scale = 0.0;
+    // for(auto first = output; first != last; ++first ) {
+    //     double scaleg = first->maxCoeff();
+    //     scale += scaleg;
+    //     *first = (*first - scaleg).exp();
+    // }
+    // return scale;
+    return 0.0;
 }
 
 std::pair<GenotypeArray, double> DirichletMultinomialMixture::operator()(
-        depth_t d, int ref_allele) const {
-    GenotypeArray log_ret{10};
-    int read_count = d.counts[0] + d.counts[1] +
-                     d.counts[2] + d.counts[3];
-    for(int i = 0; i < 10; ++i) {
-        auto &cache = cache_[ref_allele][i];
-        double lh1 = f1_, lh2 = f2_;
-        for(int j=0;j<4;++j) {
-            lh1 += cache[j].first(d.counts[j]);
-            lh2 += cache[j].second(d.counts[j]);
-        }
-        lh1 -= cache[4].first(read_count);
-        lh2 -= cache[4].second(read_count);
+        depth_t d, int ref_allele, int ploidy) const {
 
-        log_ret[i] = log_sum(lh1,lh2);
+    const int sz = (ploidy==2) ? 10 : 4;
+    
+    GenotypeArray log_ret{sz};
+    const int read_count = d.counts[0] + d.counts[1] +
+                     d.counts[2] + d.counts[3];
+
+    cache_type temp[20];
+    std::fill(&temp[0],&temp[10],f1_);
+    std::fill(&temp[10],&temp[20],f2_);
+
+    for(int nucleotide = 0; nucleotide < 5; ++nucleotide) {
+        int count = (nucleotide < 4) ? d.counts[nucleotide] : read_count;
+        if(count < cache_.size()) {
+            const auto &cache = cache_[count][ref_allele];
+            for(int genotype = 0; genotype < sz; ++genotype) {
+                temp[genotype] += cache[nucleotide][0][genotype];
+            }
+            for(int genotype = 0; genotype < sz; ++genotype) {
+                temp[10+genotype] += cache[nucleotide][1][genotype];
+            }
+        } else if(nucleotide < 4) {
+            const auto &model = models_[ref_allele];
+            for(int genotype = 0; genotype < sz; ++genotype) {
+                temp[genotype] += model[nucleotide][0][genotype](count);
+            }
+            for(int genotype = 0; genotype < sz; ++genotype) {
+                temp[10+genotype] += model[nucleotide][1][genotype](count);
+            }           
+        } else {
+            const auto &model = models_[ref_allele];
+            for(int genotype = 0; genotype < sz; ++genotype) {
+                temp[genotype] -= model[nucleotide][0][genotype](count);
+            }
+            for(int genotype = 0; genotype < sz; ++genotype) {
+                temp[10+genotype] -= model[nucleotide][1][genotype](count);
+            }
+        }
+    }
+    for(int genotype = 0; genotype < sz; ++genotype) {
+        log_ret[genotype] = log_sum_exact(temp[genotype],temp[10+genotype]);
     }
     double scale = log_ret.maxCoeff();
     return {(log_ret - scale).exp(), scale};
 }
 
-
-
 std::pair<GenotypeArray, double> DirichletMultinomialMixture::CalculateHaploid(
         depth_t d, int ref_allele) const {
-    GenotypeArray log_ret{4};
-    int read_count = d.counts[0] + d.counts[1] +
-                     d.counts[2] + d.counts[3];
-    for(int i = 0; i < 4; ++i) {
-        auto &cache = cache_[ref_allele][MAP_4_TO_10[i]];
-        double lh1 = f1_, lh2 = f2_;
-        for(int j=0;j<4;++j) {
-            lh1 += cache[j].first(d.counts[j]);
-            lh2 += cache[j].second(d.counts[j]);
-        }
-        lh1 -= cache[4].first(read_count);
-        lh2 -= cache[4].second(read_count);
+    // GenotypeArray log_ret{4};
+    // int read_count = d.counts[0] + d.counts[1] +
+    //                  d.counts[2] + d.counts[3];
+    // for(int i = 0; i < 4; ++i) {
+    //     auto &cache = cache_[ref_allele][MAP_4_TO_10[i]];
+    //     double lh1 = f1_, lh2 = f2_;
+    //     for(int j=0;j<4;++j) {
+    //         lh1 += cache[j].first(d.counts[j]);
+    //         lh2 += cache[j].second(d.counts[j]);
+    //     }
+    //     lh1 -= cache[4].first(read_count);
+    //     lh2 -= cache[4].second(read_count);
 
-        log_ret[i] = log_sum(lh1,lh2);
-    }
-    double scale = log_ret.maxCoeff();
-    return {(log_ret - scale).exp(), scale};
+    //     log_ret[i] = log_sum(lh1,lh2);
+    // }
+    // double scale = log_ret.maxCoeff();
+    // return {(log_ret - scale).exp(), scale};
+    return {};
 }
 
 } // namespace genotype
