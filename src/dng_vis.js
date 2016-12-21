@@ -36,43 +36,33 @@ function main() {
     var vcfData = vcfParser.parseVCFText(dngOutputFileText);
     //console.log(vcfData);
 
-    //for (var person of pedGraph.getPersons()) {
-    //  var thisSampleName = 'GL-'+person.id;
-    //  var found = false;
-    //  for (var sampleName of vcfData.header.sampleNames) {
-    //    if (sampleName === thisSampleName) {
-    //      var format = vcfData.records[0][sampleName];
-    //      person.data.dngOutputData = format;
-    //      found = true;
-    //      break;
-    //    }
-    //  }
-
-    //  if (!found) {
-    //    console.log("not found for " + thisSampleName);
-    //  }
-    //}
-
     var mutationLocation = vcfData.records[0].INFO.DNL;
+    console.log(mutationLocation);
     var owner = findOwnerNode(mutationLocation);
-    var ownerParentageLink = owner.getParentageLink();
-    var parentageLinkData = {
-      mutation: vcfData.records[0].INFO.DNT
-    };
-    ownerParentageLink.setData(parentageLinkData);
 
-    for (var sampleName of vcfData.header.sampleNames) {
-      var format = vcfData.records[0][sampleName];
+    if (owner !== undefined) {
+      var ownerParentageLink = owner.getParentageLink();
+      var parentageLinkData = {
+        mutation: vcfData.records[0].INFO.DNT
+      };
+      ownerParentageLink.setData(parentageLinkData);
 
-      if (isPersonNode(sampleName)) {
-        var id = getIdFromSampleName(sampleName);
-        var personNode = pedGraph.getPerson(id);
-        personNode.data.dngOutputData = format;
+      for (var sampleName of vcfData.header.sampleNames) {
+        var format = vcfData.records[0][sampleName];
+
+        if (isPersonNode(sampleName)) {
+          var id = getIdFromSampleName(sampleName);
+          var personNode = pedGraph.getPerson(id);
+          personNode.data.dngOutputData = format;
+        }
+        else {
+          var sampleNode = findMatchingSampleNode(sampleName);
+          sampleNode.dngOutputData = format;
+        }
       }
-      else {
-        var sampleNode = findMatchingSampleNode(sampleName);
-        sampleNode.dngOutputData = format;
-      }
+    }
+    else {
+      alert("No mutation found!");
     }
   }
 
@@ -341,6 +331,7 @@ function main() {
   function findOwnerNode(sampleName) {
     var strippedName = getStrippedName(sampleName);
     for (var person of pedGraph.getPersons()) {
+      console.log(person.data.sampleIds);
       var sampleNode = findInTree(person.data.sampleIds, strippedName);
       if (sampleNode !== undefined) {
         return person;

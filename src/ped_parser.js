@@ -46,8 +46,19 @@
         entry.sex = undefined;
       }
 
-      entry.sampleIds =
-        newickParser.parse_newick(convertToValidNewick(row[5]));
+      var sampleIds = row[5];
+
+      if (sampleIds !== undefined) {
+        entry.sampleIds =
+          newickParser.parse_newick(convertToValidNewick(sampleIds));
+      }
+      else {
+        entry.sampleIds = {
+          children: [],
+          name: String(entry.individualId)
+        };
+      }
+
       entries.push(entry);
     }
 
