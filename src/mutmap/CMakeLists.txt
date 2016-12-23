@@ -1,4 +1,5 @@
 find_package(PythonLibs 2.7)
+find_package(Rscript)
 
 set(MUTMAP_DIR ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBEXECDIR}/mutmap)
 

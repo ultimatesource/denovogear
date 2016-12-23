@@ -2,10 +2,21 @@
 
 import sys
 import os
-from subprocess import Popen, PIPE 
+from subprocess import Popen, PIPE, call
 
 def escapeForJavaScript(string):
+    # Need to escape quotes and newlines for JavaScript
     return string.replace('"', '\\x22').replace('\n', '\\x0A')
+
+def checkRscriptDependencies():
+    for dep in ['kinship2', 'jsonlite']:
+        proc = Popen(['@RSCRIPT_COMMAND@', '-'], stdout=PIPE, stdin=PIPE,
+                     stderr=PIPE)
+        proc.communicate(input="library({})".format(dep))
+
+        if proc.returncode != 0:
+            print("mutmap requires {} library for R. Please install".format(dep))
+            exit(1)
 
 
 if __name__ == '__main__':
@@ -13,15 +24,14 @@ if __name__ == '__main__':
         print("mutmap requires 3 arguments")
         sys.exit(1)
 
+    checkRscriptDependencies()
+
     pedFilename = sys.argv[1]
     with open(pedFilename, 'r') as pedFile:
         pedFileData = pedFile.read()
 
     dngOutputFilePath = sys.argv[2]
     with open(dngOutputFilePath, 'r') as dngOutputFile:
-        # Need to escape quotes and newlines for JavaScript
-        #dngOutputData = dngOutputFile.read().replace('"', '\\x22')
-        #dngOutputData = dngOutputData.replace('\n', '\\x0A')
         dngOutputData = escapeForJavaScript(dngOutputFile.read())
 
     templateFilePath = os.path.join('@MUTMAP_DIR@', 'index.html')
@@ -29,8 +39,8 @@ if __name__ == '__main__':
         templateFileData = templateFile.read()
 
     layoutScriptPath = os.path.join('@MUTMAP_DIR@', 'pedigree_and_layout.R')
-    rProc = Popen(['Rscript', layoutScriptPath], stdout=PIPE,
-                             stdin=PIPE, stderr=PIPE)
+    rProc = Popen(['@RSCRIPT_COMMAND@', layoutScriptPath], stdout=PIPE,
+                  stdin=PIPE, stderr=PIPE)
     layoutData = rProc.communicate(input=pedFileData)[0]
 
     outFileData = templateFileData
