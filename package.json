@@ -6,9 +6,10 @@
   "scripts": {
     "test": "mocha test/",
     "lint": "jshint src test",
-    "browserify": "browserify src/*.js -o build/bundle.js",
-    "build": "npm run browserify && node build.js && cp src/pedigree_and_layout.R dist",
-    "clean": "rm -r dist/* && rm -r build/*"
+    "browserify": "browserify src/*.js -o dist/bundle.js",
+    "build": "npm run browserify && cp index.html dist && cp src/pedigree_and_layout.R dist && cp build.py dist",
+    "test-build": "npm run build && ./build.py",
+    "clean": "rm -r dist/*"
   },
   "dependencies": {
     "biojs-io-newick": "^1.5.0",
