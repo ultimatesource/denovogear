@@ -1,0 +1,5 @@
+#!/bin/bash
+
+@PYTHON_EXECUTABLE@ @MUTMAP_DIR@/build.py \
+    --rscript_location @RSCRIPT_COMMAND@ \
+    --source_dir @MUTMAP_DIR@ $@

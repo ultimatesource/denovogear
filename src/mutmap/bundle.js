@@ -1,50 +1,3 @@
-<!doctype html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
-
-<style>
-
-.links line {
-  //stroke: #999;
-  stroke-opacity: 0.6;
-}
-
-.node text {
-  pointer-events: none;
-  font: 10px sans-serif;
-}
-
-</style>
-
-</head>
-<body>
-
-<div class='container'>
-  <div class='row'>
-    <div id='chart_wrapper' class='col-xs-8 panel panel-default'></div>
-    <div id='details_wrapper' class='col-xs-4 panel panel-default'>
-      <div>ID:</div>
-      <input id="id_display" type="text" class="form-control" placeholder="ID">
-    </div>
-  </div>
-  <!--
-  Upload Pedigree File:
-  <input type="file" id="pedigree_file_input" value="Pedigree File">
-  Upload DNG Output VCF File:
-  <input type="file" id="dng_output_file_input">
-  -->
-</div>
-
-<script src="https://code.jquery.com/jquery-3.1.1.js"></script>
-<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
-<script src="https://d3js.org/d3.v4.min.js"></script>
-
-<script>
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 /**
  * Extended Newick format parser in JavaScript.
@@ -3192,9 +3145,3 @@ function main() {
 },{}],10:[function(require,module,exports){
 arguments[4][5][0].apply(exports,arguments)
 },{"dup":5,"underscore":4}]},{},[6,7,9,8,10]);
-
-</script>
-
-</body>
-
-</html>

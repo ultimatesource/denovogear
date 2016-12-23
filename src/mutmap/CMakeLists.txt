@@ -3,22 +3,35 @@ find_package(Rscript)
 
 set(MUTMAP_DIR ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBEXECDIR}/mutmap)
 
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/mutmap.py.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/mutmap.py" @ONLY)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/mutmap.sh.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/mutmap.sh" @ONLY)
 
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/pedigree_and_layout.R.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/pedigree_and_layout.R" @ONLY)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/build.py"
+  "${CMAKE_CURRENT_BINARY_DIR}/build.py" @ONLY)
 
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/index.html.in"
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/bundle.js"
+  "${CMAKE_CURRENT_BINARY_DIR}/bundle.js" @ONLY)
+
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/index.html"
   "${CMAKE_CURRENT_BINARY_DIR}/index.html" @ONLY)
+
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/pedigree_and_layout.R"
+  "${CMAKE_CURRENT_BINARY_DIR}/pedigree_and_layout.R" @ONLY)
 
 install (DIRECTORY DESTINATION ${MUTMAP_DIR})
 
-install (PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/mutmap.py"
+install (PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/mutmap.sh"
   DESTINATION ${CMAKE_INSTALL_LIBEXECDIR} RENAME dng-mutmap)
 
-install (FILES "${CMAKE_CURRENT_BINARY_DIR}/pedigree_and_layout.R"
+install (FILES "${CMAKE_CURRENT_BINARY_DIR}/build.py"
+  DESTINATION ${MUTMAP_DIR})
+
+install (FILES "${CMAKE_CURRENT_BINARY_DIR}/bundle.js"
   DESTINATION ${MUTMAP_DIR})
 
 install (FILES "${CMAKE_CURRENT_BINARY_DIR}/index.html"
   DESTINATION ${MUTMAP_DIR})
+
+install (FILES "${CMAKE_CURRENT_BINARY_DIR}/pedigree_and_layout.R"
+  DESTINATION ${MUTMAP_DIR})
+

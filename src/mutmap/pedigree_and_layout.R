@@ -1,4 +1,4 @@
-#!@RSCRIPT_COMMAND@
+#!/usr/bin/env Rscript
 
 library(kinship2)
 library(jsonlite)
