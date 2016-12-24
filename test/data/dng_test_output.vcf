@@ -1,6 +1,6 @@
 ##fileformat=VCFv4.2
 ##FILTER=<ID=PASS,Description="All filters passed">
-##DeNovoGearCommandLine=<ID=dng-call,Version=1.1.1-247-g36bbe99,Date="2016-12-08T11:18:25-0700",Epoch=1481221105734,CommandLineOptions="--fasta='' --gamma=0.98,0.0005,0.0005,1.04 --gamma=0.02,0.075,0.005,1.18 --header='' --min-qlen=0 --min-prob=0.001 --mu=1.0e-08 --mu-somatic=1.0e-08 --mu-library=1.0e-08 --nuc-freqs='0.3,0.2,0.2,0.3' --output='-' --ped='testdata/relationship_graph/relationship_graph.ped' --min-basequal=13 --min-mapqual=0 --region='' --ref-weight=1.0 --rgtag='LB' --sam-files='' --theta=0.001 --model='autosomal' testdata/relationship_graph/relationship_graph.vcf">
+##DeNovoGearCommandLine=<ID=dng-call,Version=1.1.1-271-g0562cf2-dirty,Date=2016-12-23T10:42:59-0700,Epoch=1482514979540,CommandLineOptions="--fasta='' --gamma=0.98,0.0005,0.0005,1.04 --gamma=0.02,0.075,0.005,1.18 --header='' --min-qlen=0 --min-prob=0.001 --mu=1.0e-08 --mu-somatic=1.0e-08 --mu-library=1.0e-08 --nuc-freqs='0.3,0.2,0.2,0.3' --output='-' --ped='relationship_graph.ped' --min-basequal=13 --min-mapqual=0 --region='' --ref-weight=1.0 --rgtag='LB' --sam-files='' --theta=0.001 --model='autosomal' relationship_graph.vcf">
 ##INFO=<ID=MUP,Number=1,Type=Float,Description="Probability of at least 1 de novo mutation">
 ##INFO=<ID=MU1P,Number=1,Type=Float,Description="Probability of exactly 1 de novo mutation">
 ##INFO=<ID=MUX,Number=1,Type=Float,Description="Expected number of de novo mutations">

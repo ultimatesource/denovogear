@@ -4,18 +4,17 @@
   "description": "Visualization for denovogear output",
   "main": "app.js",
   "scripts": {
-    "test": "node_modules/.bin/mocha test/",
-    "lint": "node_modules/.bin/jshint src test",
-    "browserify": "node_modules/.bin/browserify src/*.js -o dist/bundle.js",
-    "build": "npm run lint && npm test && npm run browserify",
+    "test": "mocha test/",
+    "lint": "jshint src/js test",
+    "browserify": "browserify src/js/*.js -o dist/bundle.js",
+    "build": "npm run browserify && cp src/html/index.html dist && cp src/r/pedigree_and_layout.R dist && cp tools/build.R dist",
+    "test-build": "npm run build && ./build.py",
     "clean": "rm -r dist/*"
   },
   "dependencies": {
     "biojs-io-newick": "^1.5.0",
-    "body-parser": "^1.15.2",
     "bootstrap": "^3.3.7",
     "d3": "^4.2.5",
-    "express": "^4.14.0",
     "graphlib": "^2.1.1",
     "graphml-js": "^0.4.0",
     "jquery": "^3.1.0",
