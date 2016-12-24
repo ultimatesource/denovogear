@@ -14,9 +14,6 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/dist/bundle.js"
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/dist/index.html"
   "${CMAKE_CURRENT_BINARY_DIR}/index.html" @ONLY)
 
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/dist/pedigree_and_layout.R"
-  "${CMAKE_CURRENT_BINARY_DIR}/pedigree_and_layout.R" @ONLY)
-
 install (DIRECTORY DESTINATION ${MUTMAP_DIR})
 
 install (PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/mutmap.sh"
@@ -30,7 +27,3 @@ install (FILES "${CMAKE_CURRENT_BINARY_DIR}/bundle.js"
 
 install (FILES "${CMAKE_CURRENT_BINARY_DIR}/index.html"
   DESTINATION ${MUTMAP_DIR})
-
-install (FILES "${CMAKE_CURRENT_BINARY_DIR}/pedigree_and_layout.R"
-  DESTINATION ${MUTMAP_DIR})
-
