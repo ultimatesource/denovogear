@@ -281,13 +281,13 @@ bool ad_write(std::vector<AlleleDepths> lines, std::vector<uint8_t> match) {
 
 BOOST_AUTO_TEST_CASE(test_ad_write) {
     BOOST_CHECK(ad_write({{make_location(0,0), 0, 2, {0,0}}}, {0x80,0x80,0x80,0x80,0x80,0x10,0x00,0x00}));
-    BOOST_CHECK(ad_write({{make_location(1,9), 4, 2, {10,11,3,4}}}, {0x84,0x89,0x80,0x80,0x80,0x20,10,11,3,4}));
-    BOOST_CHECK(ad_write({{make_location(2,100), 68, 2, {10,11,1000,4}}}, {0xC4,0xE4,0x80,0x80,0x80,0x30,10,11,0xE8,0x07,4}));
+    BOOST_CHECK(ad_write({{make_location(1,9), 4, 2, {10,3,11,4}}}, {0x84,0x89,0x80,0x80,0x80,0x20,10,11,3,4}));
+    BOOST_CHECK(ad_write({{make_location(2,100), 68, 2, {10,1000,11,4}}}, {0xC4,0xE4,0x80,0x80,0x80,0x30,10,11,0xE8,0x07,4}));
 
     BOOST_CHECK(ad_write({
         {make_location(1,0), 1, 2, {100,1001}},
-        {make_location(1,1), 5, 2, {200,201,0,10}}, 
-        {make_location(1,3), 5, 2, {200,201,0,10}}, 
+        {make_location(1,1), 5, 2, {200,0,201,10}}, 
+        {make_location(1,3), 5, 2, {200,0,201,10}}, 
         {make_location(2,3), 0, 2, {1,0}} 
     }, {
         0x81,0x80,0x80,0x80,0x80,0x20,    0x64, 0xE9,0x07,
@@ -405,11 +405,11 @@ bool tad_write(std::vector<AlleleDepths> lines, std::string text) {
 
 BOOST_AUTO_TEST_CASE(test_tad_write) {
     BOOST_CHECK(tad_write({{make_location(0,0), 0, 2, {0,0}}}, "seq1\t1\tA\t0\t0\n"));
-    BOOST_CHECK(tad_write({{make_location(1,9), 4, 2, {10,11,3,4}}}, "seq2\t10\tAC\t10,3\t11,4\n"));
-    BOOST_CHECK(tad_write({{make_location(2,100), 68, 2, {10,11,3,4}}}, "seq3\t101\tNAC\t10,3\t11,4\n"));
+    BOOST_CHECK(tad_write({{make_location(1,9), 4, 2, {10,3,11,4}}}, "seq2\t10\tAC\t10,3\t11,4\n"));
+    BOOST_CHECK(tad_write({{make_location(2,100), 68, 2, {10,3,11,4}}}, "seq3\t101\tNAC\t10,3\t11,4\n"));
 
     BOOST_CHECK(tad_write({
-        {make_location(0,0), 1, 2, {100,1001}}, {make_location(0,1), 5, 2, {200,201,0,10}} 
+        {make_location(0,0), 1, 2, {100,1001}}, {make_location(0,1), 5, 2, {200,0,201,10}} 
     }, "seq1\t1\tC\t100\t1001\n" "seq1\t2\tAG\t200,0\t201,10\n"));
 }
 
@@ -481,7 +481,7 @@ BOOST_AUTO_TEST_CASE(test_tad_read) {
     adfile.Read(&depths);
     BOOST_CHECK(depths.location() == make_location(2,0));
     BOOST_CHECK(depths.color() == 127);
-    BOOST_CHECK(depths.data() == V({0,4,0,0,0,0,1,0}));
+    BOOST_CHECK(depths.data() == V({0,0,0,1,4,0,0,0}));
 }
 
 bool string_equal(const std::string &a, const std::string &b) {

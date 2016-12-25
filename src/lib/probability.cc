@@ -208,6 +208,119 @@ TransitionVector create_mutation_matrices(const RelationshipGraph &pedigree,
     return matrices;
 }
 
+TransitionMatrix subset_mutation_matrix_meiosis_autosomal(const TransitionMatrix &full_matrix, size_t color) {
+    const auto &type_info_gt_table = dng::pileup::AlleleDepths::type_info_gt_table;
+
+    const int width = type_info_gt_table[color].width;
+
+	TransitionMatrix ret{width*width, width};
+
+    // a: parent1/dad; b: parent2/mom;
+    // kronecker product is 'b-major'
+    for(int a = 0; a < width; ++a) {
+        const int ga = type_info_gt_table[color].indexes[a];
+        for(int b = 0; b < width; ++b) {
+            const int gb = type_info_gt_table[color].indexes[b];
+            // copy correct value from the full matrix to the subset matrix
+            const int x = a*width+b;
+            const int gx = ga*10+gb;
+            for(int y = 0; y < width; ++y) {
+                const int gy = type_info_gt_table[color].indexes[y];
+                // copy correct value from the full matrix to the subset matrix
+                ret(x,y) = full_matrix(gx,gy); 
+            }
+        }
+    }
+    return ret;
+}
+
+TransitionMatrix subset_mutation_matrix_meiosis_xlinked(const TransitionMatrix &full_matrix, size_t color) {
+    const auto &type_info_table = dng::pileup::AlleleDepths::type_info_table;
+    const auto &type_info_gt_table = dng::pileup::AlleleDepths::type_info_gt_table;
+
+    // a: parent1/dad; b: parent2/mom;
+    // kronecker product is 'b-major'
+    // a: haploid; b: diploid
+    const int widthA = type_info_table[color].width;                      
+    const int widthB = type_info_gt_table[color].width;
+
+	TransitionMatrix ret{widthA*widthB,widthB};
+
+    for(int a = 0; a < widthA; ++a) {
+        const int ga = type_info_table[color].indexes[a];
+        for(int b = 0; b < widthB; ++b) {
+            const int gb = type_info_gt_table[color].indexes[b];
+            // copy correct value from the full matrix to the subset matrix
+            const int x = a*widthB+b;
+            const int gx = ga*10+gb;
+            for(int y = 0; y < widthB; ++y) {
+                const int gy = type_info_gt_table[color].indexes[y];
+                // copy correct value from the full matrix to the subset matrix
+                ret(x,y) = full_matrix(gx,gy); 
+            }
+        }
+    }
+    return ret;
+}
+
+TransitionMatrix subset_mutation_matrix_meiosis_gamete(const TransitionMatrix &full_matrix, size_t color) {
+    const auto &type_info_table = dng::pileup::AlleleDepths::type_info_table;
+    const auto &type_info_gt_table = dng::pileup::AlleleDepths::type_info_gt_table;
+
+    const int widthP = type_info_gt_table[color].width;
+    const int widthC = type_info_table[color].width;
+
+	TransitionMatrix ret{widthP,widthC};
+
+    for(int x = 0; x < widthP; ++x) {
+        const int gx = type_info_gt_table[color].indexes[x];
+        for(int y = 0; y < widthC; ++y) {
+            const int gy = type_info_table[color].indexes[y];
+            // copy correct value from the full matrix to the subset matrix
+            ret(x,y) = full_matrix(gx,gy); 
+        }
+    }
+    return ret;
+}
+
+
+TransitionMatrix subset_mutation_matrix_mitosis_diploid(const TransitionMatrix &full_matrix, size_t color) {
+    const auto &type_info_gt_table = dng::pileup::AlleleDepths::type_info_gt_table;
+
+    const int width = type_info_gt_table[color].width;
+
+	TransitionMatrix ret{width,width};
+
+    for(int x = 0; x < width; ++x) {
+        const int gx = type_info_gt_table[color].indexes[x];
+        for(int y = 0; y < width; ++y) {
+            const int gy = type_info_gt_table[color].indexes[y];
+            // copy correct value from the full matrix to the subset matrix
+            ret(x,y) = full_matrix(gx,gy); 
+        }
+    }           
+    return ret;
+}
+
+TransitionMatrix subset_mutation_matrix_mitosis_haploid(const TransitionMatrix &full_matrix, size_t color) {
+    const auto &type_info_table = dng::pileup::AlleleDepths::type_info_table;
+
+    const int width = type_info_table[color].width;
+
+	TransitionMatrix ret{width,width};
+
+    for(int x = 0; x < width; ++x) {
+        const int gx = type_info_table[color].indexes[x];
+        for(int y = 0; y < width; ++y) {
+            const int gy = type_info_table[color].indexes[y];
+            // copy correct value from the full matrix to the subset matrix
+            ret(x,y) = full_matrix(gx,gy); 
+        }
+    }
+    return ret;
+}
+
+
 TransitionVector create_mutation_matrices_subset(const TransitionVector &full_matrices, size_t color) {
 
     auto &type_info_table = dng::pileup::AlleleDepths::type_info_table;
@@ -220,80 +333,16 @@ TransitionVector create_mutation_matrices_subset(const TransitionVector &full_ma
     for(size_t child = 0; child < full_matrices.size(); ++child) {
         if(full_matrices[child].rows() == 100 && full_matrices[child].cols() == 10) {
             // resize transition matrix to w*w,w
-            const int width = type_info_gt_table[color].width;
-            matrices[child].resize(width*width,width);
-            // a: parent1/dad; b: parent2/mom;
-            // kronecker product is 'b-major'
-            for(int a = 0; a < width; ++a) {
-                const int ga = type_info_gt_table[color].indexes[a];
-                for(int b = 0; b < width; ++b) {
-                    const int gb = type_info_gt_table[color].indexes[b];
-                    // copy correct value from the full matrix to the subset matrix
-                    const int x = a*width+b;
-                    const int gx = ga*10+gb;
-                    for(int y = 0; y < width; ++y) {
-                        const int gy = type_info_gt_table[color].indexes[y];
-                        // copy correct value from the full matrix to the subset matrix
-                        matrices[child](x,y) = full_matrices[child](gx,gy); 
-                    }
-                }
-            }
+            matrices[child] = subset_mutation_matrix_meiosis_autosomal(full_matrices[child], color);
         } else if(full_matrices[child].rows() == 40 && full_matrices[child].cols() == 10) {
             // FIXME: ASSUME x-linkage for now
-            // a: parent1/dad; b: parent2/mom;
-            // kronecker product is 'b-major'
-            // a: haploid; b: diploid
-            const int widthA = type_info_table[color].width;                      
-            const int widthB = type_info_gt_table[color].width;
-            matrices[child].resize(widthA*widthB,widthB);
-            for(int a = 0; a < widthA; ++a) {
-                const int ga = type_info_table[color].indexes[a];
-                for(int b = 0; b < widthB; ++b) {
-                    const int gb = type_info_gt_table[color].indexes[b];
-                    // copy correct value from the full matrix to the subset matrix
-                    const int x = a*widthB+b;
-                    const int gx = ga*10+gb;
-                    for(int y = 0; y < widthB; ++y) {
-                        const int gy = type_info_gt_table[color].indexes[y];
-                        // copy correct value from the full matrix to the subset matrix
-                        matrices[child](x,y) = full_matrices[child](gx,gy); 
-                    }
-                }
-            }
+            matrices[child] = subset_mutation_matrix_meiosis_xlinked(full_matrices[child], color);
         } else if(full_matrices[child].rows() == 10 && full_matrices[child].cols() == 10) {
-            const int width = type_info_gt_table[color].width;
-            matrices[child].resize(width,width);
-            for(int x = 0; x < width; ++x) {
-                const int gx = type_info_gt_table[color].indexes[x];
-                for(int y = 0; y < width; ++y) {
-                    const int gy = type_info_gt_table[color].indexes[y];
-                    // copy correct value from the full matrix to the subset matrix
-                    matrices[child](x,y) = full_matrices[child](gx,gy); 
-                }
-            }           
+            matrices[child] = subset_mutation_matrix_mitosis_diploid(full_matrices[child], color);
         } else if(full_matrices[child].rows() == 4 && full_matrices[child].cols() == 4) {
-            const int width = type_info_table[color].width;
-            matrices[child].resize(width,width);
-            for(int x = 0; x < width; ++x) {
-                const int gx = type_info_table[color].indexes[x];
-                for(int y = 0; y < width; ++y) {
-                    const int gy = type_info_table[color].indexes[y];
-                    // copy correct value from the full matrix to the subset matrix
-                    matrices[child](x,y) = full_matrices[child](gx,gy); 
-                }
-            }           
+            matrices[child] = subset_mutation_matrix_mitosis_haploid(full_matrices[child], color);
         } else if(full_matrices[child].rows() == 10 && full_matrices[child].cols() == 4) {
-            const int widthP = type_info_gt_table[color].width;
-            const int widthC = type_info_table[color].width;
-            matrices[child].resize(widthP,widthC);
-            for(int x = 0; x < widthP; ++x) {
-                const int gx = type_info_gt_table[color].indexes[x];
-                for(int y = 0; y < widthC; ++y) {
-                    const int gy = type_info_table[color].indexes[y];
-                    // copy correct value from the full matrix to the subset matrix
-                    matrices[child](x,y) = full_matrices[child](gx,gy); 
-                }
-            }
+        	matrices[child] = subset_mutation_matrix_meiosis_gamete(full_matrices[child], color);
         } else if(full_matrices[child].rows() == 0 && full_matrices[child].cols() == 0 ) {
             matrices[child] = {};
         } else {
