@@ -125,7 +125,7 @@ void FindMutations::SetupTransitionMatrix(){
             full_transition_matrices_[child] = mitosis_diploid_matrix(orig);
             nomut_transition_matrices_[child] = mitosis_diploid_matrix(orig, 0);
             onemut_transition_matrices_[child] = mitosis_diploid_matrix(orig, 1);
-            mean_matrices_[child] = mitosis_diploid_mean_matrix(orig);
+            mean_matrices_[child] = mitosis_diploid_matrix(orig, MUTATIONS_MEAN);
         }
 
         posmut_transition_matrices_[child] = full_transition_matrices_[child] -

@@ -168,7 +168,7 @@ double LogProbability::CalculateGenotypeLikelihoods(const pileup::AlleleDepths &
 
 // Construct the mutation matrices for each transition
 TransitionVector create_mutation_matrices(const RelationshipGraph &pedigree,
-    const std::array<double, 4> &nuc_freq) {
+    const std::array<double, 4> &nuc_freq ) {
     TransitionVector matrices(pedigree.num_nodes());
  
     for(size_t child = 0; child < pedigree.num_nodes(); ++child) {

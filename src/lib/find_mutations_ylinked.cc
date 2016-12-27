@@ -124,7 +124,7 @@ void FindMutationsYLinked::SetupTransitionMatrix(){
             posmut_transition_matrices_[child] = full_transition_matrices_[child] -
                                                  nomut_transition_matrices_[child];
             onemut_transition_matrices_[child] = mitosis_haploid_matrix(orig, 1);
-            mean_matrices_[child] = mitosis_haploid_mean_matrix(orig);
+            mean_matrices_[child] = mitosis_haploid_matrix(orig, MUTATIONS_MEAN);
         }
     }
 
