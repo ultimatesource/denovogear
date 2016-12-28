@@ -153,10 +153,11 @@ BOOST_AUTO_TEST_CASE(test_mitosis_haploid_matrix) {
     boost_check_matrix(expected_matrix_negative_r, actual_negative);
     boost_check_matrix(expected_copy_unequal_mutation_matrix, actual_negative);
 
-    auto actual_neg_2 = mitosis_haploid_matrix(unequal_mutation_matrix, -2);
-    boost_check_matrix(expected_matrix_negative, actual_neg_2);
-    boost_check_matrix(expected_matrix_negative_r, actual_neg_2);
-    boost_check_matrix(expected_copy_unequal_mutation_matrix, actual_neg_2);
+    // -2 now signals mean matrix
+    // auto actual_neg_2 = mitosis_haploid_matrix(unequal_mutation_matrix, -2);
+    // boost_check_matrix(expected_matrix_negative, actual_neg_2);
+    // boost_check_matrix(expected_matrix_negative_r, actual_neg_2);
+    // boost_check_matrix(expected_copy_unequal_mutation_matrix, actual_neg_2);
 
     auto actual_zero = mitosis_haploid_matrix(unequal_mutation_matrix, 0);
     boost_check_matrix(expected_matrix_zero, actual_zero);

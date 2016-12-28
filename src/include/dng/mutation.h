@@ -141,14 +141,14 @@ inline TransitionMatrix meiosis_haploid_matrix(const MutationMatrix &m, int muty
     return ret; // 10 x 4
 }
 
-inline TransitionMatrix mitosis_matrix(const int ploidy, const MutationMatrix &m, const int mutype = MUTATIONS_ALL) {
-    assert(ploidy == 1 || ploidy == 2);
-    return (ploidy == 1) ? mitosis_haploid_matrix(m, mutype) : mitosis_diploid_matrix(m,mutype);    
+inline TransitionMatrix mitosis_matrix(const int parent_ploidy, const MutationMatrix &m, const int mutype = MUTATIONS_ALL) {
+    assert(parent_ploidy == 1 || parent_ploidy == 2);
+    return (parent_ploidy == 1) ? mitosis_haploid_matrix(m, mutype) : mitosis_diploid_matrix(m,mutype);    
 }
 
-inline TransitionMatrix gamete_matrix(const int ploidy, const MutationMatrix &m, const int mutype = MUTATIONS_ALL) {
-    assert(ploidy == 1 || ploidy == 2);
-    return (ploidy == 1) ? mitosis_haploid_matrix(m, mutype) : meiosis_haploid_matrix(m,mutype);
+inline TransitionMatrix gamete_matrix(const int parent_ploidy, const MutationMatrix &m, const int mutype = MUTATIONS_ALL) {
+    assert(parent_ploidy == 1 || parent_ploidy == 2);
+    return (parent_ploidy == 1) ? mitosis_haploid_matrix(m, mutype) : meiosis_haploid_matrix(m,mutype);
 }
 
 inline int number_of_parent_pairs(const int dad_ploidy, const int mom_ploidy) {

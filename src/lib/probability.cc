@@ -26,7 +26,7 @@
 using namespace dng;
 
 TransitionVector create_mutation_matrices(const RelationshipGraph &pedigree,
-        const std::array<double, 4> &nuc_freq);
+        const std::array<double, 4> &nuc_freq, const int mutype = MUTATIONS_ALL);
 
 TransitionVector create_mutation_matrices_subset(const TransitionVector &full_matrices, size_t color);
 
@@ -165,10 +165,9 @@ double LogProbability::CalculateGenotypeLikelihoods(const pileup::AlleleDepths &
     return scale;
 }
 
-
 // Construct the mutation matrices for each transition
 TransitionVector create_mutation_matrices(const RelationshipGraph &pedigree,
-    const std::array<double, 4> &nuc_freq ) {
+    const std::array<double, 4> &nuc_freq, const int mutype) {
     TransitionVector matrices(pedigree.num_nodes());
  
     for(size_t child = 0; child < pedigree.num_nodes(); ++child) {
@@ -176,30 +175,15 @@ TransitionVector create_mutation_matrices(const RelationshipGraph &pedigree,
         if(trans.type == RelationshipGraph::TransitionType::Trio) {
             assert(pedigree.ploidy(child) == 2);
             auto dad = f81::matrix(trans.length1, nuc_freq);
-            auto mom = f81::matrix(trans.length2, nuc_freq);            
-            if(pedigree.ploidy(trans.parent1) == 2 && pedigree.ploidy(trans.parent2) == 2) {
-                matrices[child] = meiosis_diploid_matrix(dad, mom);
-            } else if(pedigree.ploidy(trans.parent1) == 1 && pedigree.ploidy(trans.parent2) == 2) {
-                matrices[child] = meiosis_diploid_matrix_xlinked(dad, mom);
-            } else if(pedigree.ploidy(trans.parent1) == 2 && pedigree.ploidy(trans.parent2) == 1) {
-                assert(false); // not yet implemented
-            } else {
-                assert(pedigree.ploidy(trans.parent1) == 1);
-                assert(pedigree.ploidy(trans.parent2) == 1);
-                assert(false); // not yet implemented
-            }
+            auto mom = f81::matrix(trans.length2, nuc_freq);
+            matrices[child] = meiosis_matrix(pedigree.ploidy(trans.parent1), dad, pedigree.ploidy(trans.parent2), mom, mutype);
         } else if(trans.type == RelationshipGraph::TransitionType::Pair) {
             auto orig = f81::matrix(trans.length1, nuc_freq);
-            if(pedigree.ploidy(child) == 2) {
-                assert(pedigree.ploidy(trans.parent1) == 2);
-                matrices[child] = mitosis_diploid_matrix(orig);
-            } else if(pedigree.ploidy(trans.parent1) == 2) {
-                assert(pedigree.ploidy(child) == 1);
-                matrices[child] = meiosis_haploid_matrix(orig);
+            if(pedigree.ploidy(child) == 1) {
+            	matrices[child] = gamete_matrix(pedigree.ploidy(trans.parent1), orig, mutype);
             } else {
-                assert(pedigree.ploidy(child) == 1);
-                assert(pedigree.ploidy(trans.parent1) == 1);
-                matrices[child] = mitosis_haploid_matrix(orig);               
+	            assert(pedigree.ploidy(child) == 2);
+            	matrices[child] = mitosis_matrix(pedigree.ploidy(trans.parent1), orig, mutype);
             }
         } else {
             matrices[child] = {};
