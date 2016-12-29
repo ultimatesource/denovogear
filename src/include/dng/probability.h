@@ -25,6 +25,7 @@
 
 #include <dng/likelihood.h>
 #include <dng/relationship_graph.h>
+#include <dng/mutation.h>
 
 namespace dng {
 
@@ -50,23 +51,49 @@ public:
     stats_t operator()(const pileup::AlleleDepths &depths, const std::vector<size_t>& indexes);
 
 protected:
+    struct matrices_t {
+        TransitionVector full;
+        TransitionVector subsets[pileup::AlleleDepths::type_info_table_length];
+    };
+
+    matrices_t CreateMutationMatrices(const int mutype = MUTATIONS_ALL) const;
+
     double CalculateGenotypeLikelihoods(const pileup::AlleleDepths &depths, const std::vector<size_t>& indexes);
 
-    dng::RelationshipGraph pedigree_;
+    RelationshipGraph pedigree_;
     params_t params_;
-    dng::peel::workspace_t work_; // must be declared after pedigree_ (see constructor)
+    peel::workspace_t work_; // must be declared after pedigree_ (see constructor)
 
-    dng::TransitionVector full_transition_matrices_;
-    dng::TransitionVector transition_matrices_[dng::pileup::AlleleDepths::type_info_table_length];
+
+    matrices_t transition_matrices_;
+
     double prob_monomorphic_[4];
 
     // Model genotype likelihoods as a mixture of two dirichlet multinomials
     // TODO: control these with parameters
-    dng::genotype::DirichletMultinomialMixture genotype_likelihood_;
+    genotype::DirichletMultinomialMixture genotype_likelihood_;
 
-    dng::GenotypeArray diploid_prior_[5]; // Holds P(G | theta)
-    dng::GenotypeArray haploid_prior_[5]; // Holds P(G | theta)
+    GenotypeArray diploid_prior_[5]; // Holds P(G | theta)
+    GenotypeArray haploid_prior_[5]; // Holds P(G | theta)
 };
+
+TransitionVector create_mutation_matrices(const RelationshipGraph &pedigree,
+        const std::array<double, 4> &nuc_freq, const int mutype = MUTATIONS_ALL);
+
+TransitionVector create_mutation_matrices_subset(const TransitionVector &full_matrices, size_t color);
+
+inline
+LogProbability::matrices_t LogProbability::CreateMutationMatrices(const int mutype) const {
+    matrices_t ret;
+    // Construct the complete matrices
+    ret.full = create_mutation_matrices(pedigree_, params_.nuc_freq, mutype);
+
+    // Extract relevant subsets of matrices
+    for(size_t color = 0; color < dng::pileup::AlleleDepths::type_info_table_length; ++color) {
+        ret.subsets[color] = create_mutation_matrices_subset(ret.full, color);
+    }
+    return ret;
+}
 
 }; // namespace dng
 

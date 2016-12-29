@@ -25,11 +25,6 @@
 
 using namespace dng;
 
-TransitionVector create_mutation_matrices(const RelationshipGraph &pedigree,
-        const std::array<double, 4> &nuc_freq, const int mutype = MUTATIONS_ALL);
-
-TransitionVector create_mutation_matrices_subset(const TransitionVector &full_matrices, size_t color);
-
 // pedigree_ will be initialized before work_, so we can reference it.
 LogProbability::LogProbability(RelationshipGraph pedigree, params_t params) :
     pedigree_{std::move(pedigree)},
@@ -50,12 +45,7 @@ LogProbability::LogProbability(RelationshipGraph pedigree, params_t params) :
     }
 
     // Calculate mutation matrices
-    full_transition_matrices_ = create_mutation_matrices(pedigree_, params_.nuc_freq);
-
-    // Extract relevant subsets of matrices
-    for(size_t color = 0; color < dng::pileup::AlleleDepths::type_info_table_length; ++color) {
-        transition_matrices_[color] = create_mutation_matrices_subset(full_transition_matrices_, color);
-    }
+    transition_matrices_ = CreateMutationMatrices(MUTATIONS_ALL);
 
     // Precalculate monomorphic histories (first 4 colors)
     size_t num_libraries = work_.library_nodes.second - work_.library_nodes.first;
@@ -74,7 +64,7 @@ LogProbability::LogProbability(RelationshipGraph pedigree, params_t params) :
             auto pos = work_.library_nodes.first + u;
             work_.lower[pos] = genotype_likelihood_(depths, u, work_.ploidies[pos]).first;
         }
-        double logdata = pedigree_.PeelForwards(work_, transition_matrices_[color]);
+        double logdata = pedigree_.PeelForwards(work_, transition_matrices_.subsets[color]);
         prob_monomorphic_[color] = exp(logdata);
     }
 }
@@ -102,7 +92,7 @@ LogProbability::stats_t LogProbability::operator()(const std::vector<depth_t> &d
     // }
 
     // Calculate log P(Data ; model)
-    double logdata = pedigree_.PeelForwards(work_, full_transition_matrices_);
+    double logdata = pedigree_.PeelForwards(work_, transition_matrices_.full);
 
     return {logdata/M_LN10, scale/M_LN10};
 }
@@ -148,7 +138,7 @@ LogProbability::stats_t LogProbability::operator()(const pileup::AlleleDepths &d
         scale = CalculateGenotypeLikelihoods(depths, indexes);
 
          // Calculate log P(Data ; model)
-        logdata = pedigree_.PeelForwards(work_, transition_matrices_[color]);
+        logdata = pedigree_.PeelForwards(work_, transition_matrices_.subsets[color]);
     }
     return {logdata/M_LN10, scale/M_LN10};
 }
@@ -166,7 +156,7 @@ double LogProbability::CalculateGenotypeLikelihoods(const pileup::AlleleDepths &
 }
 
 // Construct the mutation matrices for each transition
-TransitionVector create_mutation_matrices(const RelationshipGraph &pedigree,
+TransitionVector dng::create_mutation_matrices(const RelationshipGraph &pedigree,
     const std::array<double, 4> &nuc_freq, const int mutype) {
     TransitionVector matrices(pedigree.num_nodes());
  
@@ -305,7 +295,7 @@ TransitionMatrix subset_mutation_matrix_mitosis_haploid(const TransitionMatrix &
 }
 
 
-TransitionVector create_mutation_matrices_subset(const TransitionVector &full_matrices, size_t color) {
+TransitionVector dng::create_mutation_matrices_subset(const TransitionVector &full_matrices, size_t color) {
 
     auto &type_info_table = dng::pileup::AlleleDepths::type_info_table;
     auto &type_info_gt_table = dng::pileup::AlleleDepths::type_info_gt_table;
