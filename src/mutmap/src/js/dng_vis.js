@@ -1,7 +1,7 @@
 //var d3 = require('d3');
-var vcfParser = require('./dng_vcf_parser');
-var pedParser = require('./ped_parser');
-var pedigr = require('./pedigr');
+//var vcfParser = require('./dng_vcf_parser');
+//var pedParser = require('./ped_parser');
+//var pedigr = require('./pedigr');
 
 //var pedigreeFileText;
 //var dngOutputFileText;

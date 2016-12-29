@@ -1,4 +1,4 @@
-(function() {
+var pedigr = (function() {
   "use strict";
 
   function PedigreeGraph() {
@@ -216,7 +216,7 @@
   };
 
 
-  module.exports = {
+  return {
     PedigreeGraph: PedigreeGraph,
     PersonBuilder: PersonBuilder,
     MarriageBuilder: MarriageBuilder

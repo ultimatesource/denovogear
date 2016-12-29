@@ -1,4 +1,4 @@
-(function() {
+var pedParser = (function() {
   "use strict";
 
   function parsePedigreeFile(fileText) {
@@ -69,5 +69,8 @@
     return "(" + row + ")";
   }
 
-  module.exports.parsePedigreeFile = parsePedigreeFile;
+  return {
+    parsePedigreeFile: parsePedigreeFile
+  }
+
 }());
