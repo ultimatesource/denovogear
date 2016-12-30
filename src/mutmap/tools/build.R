@@ -100,7 +100,7 @@ testServer <- function() {
     # initiated run the test function
     while(TRUE){
         con <- socketConnection(host="localhost", port = 6011, blocking=TRUE,
-                                server=TRUE, open="r+")
+                                server=TRUE, open="r+", timeout=0)
         data <- readLines(con, 1)
         print("Signal received")
 
