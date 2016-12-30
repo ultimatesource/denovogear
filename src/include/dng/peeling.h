@@ -29,7 +29,7 @@
 #include <boost/range/algorithm/fill_n.hpp>
 
 #include <dng/matrix.h>
-#include <dng/likelihood.h>
+#include <dng/genotyper.h>
 #include <dng/detail/unit_test.h>
 
 namespace dng {
@@ -108,26 +108,38 @@ struct workspace_t {
         } 
     }
 
-    template<typename T>
-    void SetLibraries(const T &range) {
-        assert(boost::size(range) == library_nodes.second - library_nodes.first);
-        boost::copy(range, lower.begin() + library_nodes.first);
-    }
+    // template<typename T>
+    // void SetLibraries(const T &range) {
+    //     assert(boost::size(range) == library_nodes.second - library_nodes.first);
+    //     boost::copy(range, lower.begin() + library_nodes.first);
+    // }
 
-    // Calculate genotype likelihoods and store in the lower library vector
-    double SetGenotypeLikelihood(
-            dng::genotype::DirichletMultinomialMixture &genotype_likelihood_,
-            const std::vector<depth_t> &depths, int ref_index) {
-
-        double scale = 0;
-        double temp;
+    inline
+    double SetGenotypeLikelihoods(const Genotyper &gt,
+        const RawDepths &depths, const int ref_index) {
+        double scale = 0.0, stemp;
         for(std::size_t u = 0; u < depths.size(); ++u) {
-            std::tie(lower[library_nodes.first + u], temp) =
-                    genotype_likelihood_(depths[u], ref_index);
-            scale += temp;
+            auto pos = library_nodes.first + u;
+            std::tie(lower[pos], stemp) =
+                gt(depths, u, ref_index, ploidies[pos]);
+            scale += stemp;
         }
         return scale;
     }
+
+    inline
+    double SetGenotypeLikelihoods(const Genotyper &gt,
+        const pileup::AlleleDepths &depths,const std::vector<size_t>& indexes) {
+        double scale=0.0, stemp;
+        for(std::size_t u = 0; u < indexes.size(); ++u) {
+            auto pos = library_nodes.first + u;
+            std::tie(lower[pos], stemp) =
+                gt(depths, indexes[u], ploidies[pos]);
+            scale += stemp;
+        }
+        return scale;
+}
+
 
 };
 

@@ -32,17 +32,33 @@ namespace dng {
 class CallMutations : public LogProbability {
 public:
 
+    struct stats_t {
+        float mup;
+        float lld;
+        float mux;
+
+        bool has_single_mut;
+        float mu1p;
+        std::string dnt;
+        std::string dnl;
+        int32_t dnq;
+        int32_t dnc;
+
+        IndividualVector posterior_probabilities;
+        IndividualVector genotype_likelihoods;
+        std::vector<float> node_mup;
+        std::vector<float> node_mu1p;
+    };
+
     CallMutations(double min_prob, const RelationshipGraph &graph,
             params_t params);
 
     ~CallMutations();
 
-    bool operator()(const std::vector<depth_t> &depths, int ref_index,
+    bool operator()(const RawDepths &depths, int ref_index,
                     stats_t *stats);
 protected:
     double min_prob_;
-
-    peel::workspace_t zero_work_
 
     matrices_t zero_mutation_matrices_;
     matrices_t one_mutation_matrices_;

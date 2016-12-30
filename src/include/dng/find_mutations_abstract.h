@@ -30,7 +30,7 @@
 #include <vector>
 
 #include <dng/relationship_graph.h>
-#include <dng/likelihood.h>
+#include <dng/genotyper.h>
 #include <dng/mutation_stats.h>
 
 

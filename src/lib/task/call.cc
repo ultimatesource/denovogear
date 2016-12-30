@@ -41,7 +41,6 @@
 #include <dng/fileio.h>
 #include <dng/pileup.h>
 #include <dng/read_group.h>
-#include <dng/likelihood.h>
 #include <dng/seq.h>
 #include <dng/utility.h>
 #include <dng/hts/bcf.h>
@@ -54,6 +53,7 @@
 #include <dng/find_mutations_ylinked.h>
 #include <dng/find_mutations_xlinked.h>
 #include <dng/find_mutations.h>
+#include <dng/call_mutations.h>
 
 
 #include "htslib/synced_bcf_reader.h"
@@ -243,7 +243,6 @@ int process_bam(task::Call::argument_type &arg) {
         rgs.ParseHeaderText(bamdata, arg.rgtag);
     }
 
-
     // Construct peeling algorithm from parameters and pedigree information
     InheritanceModel model = inheritance_model(arg.model);
 
@@ -313,6 +312,9 @@ int process_bam(task::Call::argument_type &arg) {
     }
 
 
+    CallMutations do_call(min_prob, relationship_graph, {arg.theta, freqs,
+            arg.ref_weight, arg.gamma[0], arg.gamma[1]});
+
     // Pileup data
     std::vector<depth_t> read_depths(rgs.libraries().size());
 
@@ -368,6 +370,9 @@ int process_bam(task::Call::argument_type &arg) {
 		if(!(*calculate)(read_depths, ref_index, &stats)) {
 			return;
 		}
+        CallMutations::stats_t do_stats;
+        do_call(read_depths, ref_index, &do_stats);
+        stats.mup = do_stats.mup;
 
 		// Determine what nucleotides show up and the order they will appear in the REF and ALT field
 		// TODO: write tests that make sure REF="N" is properly handled

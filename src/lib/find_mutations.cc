@@ -46,7 +46,7 @@ bool FindMutations::operator()(const std::vector<depth_t> &depths,
     //TODO(SW): Eventually, MutationStats this will replace all stats_t
     MutationStats mutation_stats(min_prob_);
 
-    double scale = work_full_.SetGenotypeLikelihood(genotype_likelihood_,
+    double scale = work_full_.SetGenotypeLikelihoods(genotype_likelihood_,
                                                     depths, ref_index);
 
     work_full_.SetFounders(genotype_prior_[ref_index]);

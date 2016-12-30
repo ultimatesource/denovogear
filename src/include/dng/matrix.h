@@ -38,6 +38,7 @@ struct depth_t {
     int32_t counts[4]{0,0,0,0};
 };
 
+typedef std::vector<depth_t> RawDepths;
 
 typedef Eigen::Array<double, Eigen::Dynamic, 1, 0, 10, 1> GenotypeArray;
 typedef std::vector<GenotypeArray, Eigen::aligned_allocator<GenotypeArray>>

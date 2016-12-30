@@ -23,7 +23,7 @@
 #include <array>
 #include <vector>
 
-#include <dng/likelihood.h>
+#include <dng/genotyper.h>
 #include <dng/relationship_graph.h>
 #include <dng/mutation.h>
 
@@ -36,8 +36,8 @@ public:
         std::array<double, 4> nuc_freq;
         double ref_weight;
 
-        dng::genotype::DirichletMultinomialMixture::params_t params_a;
-        dng::genotype::DirichletMultinomialMixture::params_t params_b;
+        Genotyper::params_t params_a;
+        Genotyper::params_t params_b;
     };
 
     struct stats_t {
@@ -58,8 +58,6 @@ protected:
 
     matrices_t CreateMutationMatrices(const int mutype = MUTATIONS_ALL) const;
 
-    double CalculateGenotypeLikelihoods(const pileup::AlleleDepths &depths, const std::vector<size_t>& indexes);
-
     RelationshipGraph pedigree_;
     params_t params_;
     peel::workspace_t work_; // must be declared after pedigree_ (see constructor)
@@ -69,9 +67,7 @@ protected:
 
     double prob_monomorphic_[4];
 
-    // Model genotype likelihoods as a mixture of two dirichlet multinomials
-    // TODO: control these with parameters
-    genotype::DirichletMultinomialMixture genotype_likelihood_;
+    Genotyper genotyper_;
 
     GenotypeArray diploid_prior_[5]; // Holds P(G | theta)
     GenotypeArray haploid_prior_[5]; // Holds P(G | theta)

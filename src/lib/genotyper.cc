@@ -18,7 +18,7 @@
  */
 
 
-#include <dng/likelihood.h>
+#include <dng/genotyper.h>
 
 //  The smallest positive value such that (1-phi)/phi + 1 != (1-phi)/phi
 #ifndef DNG_LIKLIHOOD_PHI_MIN
@@ -149,7 +149,8 @@ inline double log_sum_exact(double a, double b) {
 }
 
 std::pair<GenotypeArray, double> DirichletMultinomialMixture::operator()(
-        depth_t d, int ref_allele, int ploidy) const {
+        const RawDepths& depths, size_t pos, int ref_allele, int ploidy) const {
+    auto d = depths[pos];
 
     // how many genotypes will we calculate based on ploidy?
     const int sz = (ploidy==2) ? 10 : 4;

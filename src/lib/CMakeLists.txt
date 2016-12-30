@@ -4,7 +4,8 @@ add_library(libdng STATIC
   find_mutations_xlinked.cc
   find_mutations_ylinked.cc
   find_mutations.cc
-  likelihood.cc
+  call_mutations.cc
+  genotyper.cc
   probability.cc
   mutation_stats.cc
   mutation.cc

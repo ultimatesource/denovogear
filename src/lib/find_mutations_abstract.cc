@@ -84,17 +84,6 @@ void FindMutationsAbstract::Resize10To4(GenotypeArray &array){
 
 
 }
-void FindMutationsAbstract::Resize10To4(TransitionMatrix &matrix){
-    for (int x = 0; x < SIZE4; ++x) {
-        int gx = MAP_4_TO_10[x];
-        for (int y = 0; y < SIZE4; ++y) {
-            int gy = MAP_4_TO_10[y];
-            matrix(x, y) = matrix(gx, gy);
-        }
-    }
-    matrix = matrix.block<4, 4>(0, 0).eval();
-}
-
 
 bool FindMutationsAbstract::CalculateMutationProb(MutationStats &mutation_stats) {
 

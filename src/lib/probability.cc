@@ -29,7 +29,7 @@ using namespace dng;
 LogProbability::LogProbability(RelationshipGraph pedigree, params_t params) :
     pedigree_{std::move(pedigree)},
     params_(std::move(params)),
-    genotype_likelihood_{params.params_a, params.params_b},
+    genotyper_{params.params_a, params.params_b},
     work_{pedigree_.CreateWorkspace()} {
 
     using namespace dng;
@@ -59,11 +59,7 @@ LogProbability::LogProbability(RelationshipGraph pedigree, params_t params) :
         diploid_prior(0) = diploid_prior_[color](pileup::AlleleDepths::type_info_gt_table[color].indexes[0]);
         haploid_prior(0) = haploid_prior_[color](pileup::AlleleDepths::type_info_table[color].indexes[0]);
         work_.SetFounders(diploid_prior, haploid_prior);
-
-        for(std::size_t u = 0; u < num_libraries; ++u) {
-            auto pos = work_.library_nodes.first + u;
-            work_.lower[pos] = genotype_likelihood_(depths, u, work_.ploidies[pos]).first;
-        }
+        work_.SetGenotypeLikelihoods(genotyper_, depths, indexes);
         double logdata = pedigree_.PeelForwards(work_, transition_matrices_.subsets[color]);
         prob_monomorphic_[color] = exp(logdata);
     }
@@ -73,13 +69,7 @@ LogProbability::LogProbability(RelationshipGraph pedigree, params_t params) :
 LogProbability::stats_t LogProbability::operator()(const std::vector<depth_t> &depths,
                                int ref_index) {
     // calculate genotype likelihoods and store in the lower library vector
-    double scale = 0.0, stemp;
-    for(std::size_t u = 0; u < depths.size(); ++u) {
-        auto pos = work_.library_nodes.first + u;
-        std::tie(work_.lower[pos], stemp) =
-            genotype_likelihood_(depths[u], ref_index, work_.ploidies[pos]);
-        scale += stemp;
-    }
+    double scale = work_.SetGenotypeLikelihoods(genotyper_, depths, ref_index);
 
     // Set the prior probability of the founders given the reference
     work_.SetFounders(diploid_prior_[ref_index], haploid_prior_[ref_index]);
@@ -108,7 +98,7 @@ LogProbability::stats_t LogProbability::operator()(const pileup::AlleleDepths &d
     if(color < 4) {
         assert(depths.type_info().width == 1 && depths.type_gt_info().width == 1 && ref_index == color);
         // Calculate genotype likelihoods
-        scale = CalculateGenotypeLikelihoods(depths, indexes);
+        scale = work_.SetGenotypeLikelihoods(genotyper_, depths, indexes);
 
         // Multiply our pre-calculated peeling results with the genotype likelihoods
         logdata = prob_monomorphic_[color];
@@ -135,24 +125,12 @@ LogProbability::stats_t LogProbability::operator()(const pileup::AlleleDepths &d
         work_.SetFounders(diploid_prior, haploid_prior);
   
         // Calculate genotype likelihoods
-        scale = CalculateGenotypeLikelihoods(depths, indexes);
+        scale = work_.SetGenotypeLikelihoods(genotyper_, depths, indexes);
 
          // Calculate log P(Data ; model)
         logdata = pedigree_.PeelForwards(work_, transition_matrices_.subsets[color]);
     }
     return {logdata/M_LN10, scale/M_LN10};
-}
-
-
-double LogProbability::CalculateGenotypeLikelihoods(const pileup::AlleleDepths &depths,const std::vector<size_t>& indexes) {
-    double scale=0.0, stemp;
-    for(std::size_t u = 0; u < indexes.size(); ++u) {
-        auto pos = work_.library_nodes.first + u;
-        std::tie(work_.lower[pos], stemp) =
-            genotype_likelihood_(depths, indexes[u], work_.ploidies[pos]);
-        scale += stemp;
-    }
-    return scale;
 }
 
 // Construct the mutation matrices for each transition

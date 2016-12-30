@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015 Reed A. Cartwright
+ * Copyright (c) 2014-2016 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -17,8 +17,8 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 #pragma once
-#ifndef DNG_LIKELIHOOD_H
-#define DNG_LIKELIHOOD_H
+#ifndef DNG_GENOTYPER_H
+#define DNG_GENOTYPER_H
 
 #include <array>
 #include <cmath>
@@ -33,8 +33,6 @@
 
 namespace dng {
 
-constexpr int MAP_4_TO_10[4] = {0, 4, 7, 9};
-
 namespace genotype {
 
 namespace detail {
@@ -45,6 +43,7 @@ public:
 
     log_pochhammer(double a) {
         // store these values for later usage
+        assert(a > 0.0);
         a_ = a;
         ah_ = a - 0.5;
         loga_ = log(a);
@@ -54,10 +53,6 @@ public:
     }
 
     double operator()(int n) const {
-        assert(n >= 0);
-        if(n == 0) {
-            return 0.0;
-        }
         return lnpoch_pos(n);
     }
 private:
@@ -65,7 +60,7 @@ private:
     double a_, loga_, agh_, ah_, la_, logam1_;
 
     double lnpoch_pos(double n) const {
-        assert(n >= 1.0);
+        assert(n >= 0.0);
         // if n is small relative to a, we can use a Sterling-derived approximation
         if(n < a_*sqrt(DBL_EPSILON)) {
             return n*logam1_ + (n+ah_)*log1p(n/a_);
@@ -111,8 +106,8 @@ public:
     std::pair<GenotypeArray, double> operator()(
         const pileup::AlleleDepths& depths, size_t pos, int ploidy=2) const;
 
-    std::pair<GenotypeArray, double> operator()(depth_t d,
-            int ref_allele, int ploidy=2) const;
+    std::pair<GenotypeArray, double> operator()(
+        const RawDepths& depths, size_t pos, int ref_allele, int ploidy=2) const;
 
 protected:
 
@@ -136,6 +131,9 @@ protected:
 };
 
 } // namespace genotype
+
+using Genotyper = genotype::DirichletMultinomialMixture;
+
 } // namespace dng
 
 #endif // DNG_LIKELIHOOD_H
