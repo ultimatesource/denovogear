@@ -38,6 +38,593 @@
 
 using namespace dng::pileup;
 
+namespace dng { namespace pileup {
+AlleleDepths::match_labels_t AlleleDepths::MatchLabel;
+AlleleDepths::match_indexes_t AlleleDepths::MatchIndexes;
+}}
+
+void dng::io::Ad::Clear() {
+    contigs_.clear();
+    input_libraries_.clear();
+    output_libraries_.clear();
+    num_output_libraries_ = 0;
+    num_input_libraries_ = 0;
+    extra_headers_.clear();
+    contig_map_.clear();
+
+    if(format_ == Format::AD) {
+        id_.version = 0x0001;
+        id_.name = "AD";        
+    } else {
+        id_.version = 0x0001;
+        id_.name = "TAD";
+    }
+    id_.attributes.clear();
+    counter_ = 0;
+}
+
+std::string dng::io::Ad::HeaderString() const {    
+    // Write Header Line
+    std::ostringstream output;
+    // Write Contig Lines
+    for(auto && sq : contigs_) {
+        output << "@SQ\tSN:" << sq.name << "\tLN:" << sq.length;
+        for(auto && a : sq.attributes) {
+            output << '\t' << a;
+        }
+        output << '\n';
+    }
+
+    // Write Library Lines
+    for(auto && ad : output_libraries_) {
+        output << "@AD\tID:" << ad.name << "\tSM:" << ad.sample;
+        for(auto && a : ad.attributes) {
+            output << '\t' << a;
+        }
+        output << '\n';
+    }
+
+    // Write the rest of the tokens
+    for(auto it = extra_headers_.begin(); it != extra_headers_.end(); ++it) {
+        output << *it;
+        for(++it; it != extra_headers_.end() && *it != "\n"; ++it) {
+            output << '\t' << *it;
+        }
+        output << '\n';
+    }
+    return output.str();
+}
+
+
+template<typename It>
+void dng::io::Ad::ParseHeaderTokens(It it, It it_last) {
+    using namespace boost;
+    using namespace std;
+    using boost::algorithm::starts_with;
+    using boost::algorithm::iequals;
+    using boost::algorithm::to_upper;
+    namespace ss = boost::spirit::standard;
+    namespace qi = boost::spirit::qi;
+    using ss::space;
+    using qi::uint_;
+    using qi::lit;
+    using qi::phrase_parse;
+    qi::uint_parser<uint8_t> uint8_;
+
+    for(; it != it_last; ++it) {
+        if(*it == "@SQ") {
+            contig_t sq;
+            for(++it; it != it_last && *it != "\n"; ++it) {
+                if(starts_with(*it, "SN:")) {
+                    sq.name = it->substr(3);
+                } else if(starts_with(*it, "LN:")) {
+                    const char *first = it->c_str()+3;
+                    const char *last  = it->c_str()+it->length();
+
+                    if(!phrase_parse(first, last, uint_ , space, sq.length) || first != last) {
+                        throw runtime_error("ERROR: Unable to parse TAD header: Unable to parse sequence length from header attribute '" + *it + "'");
+                    }
+                } else {
+                    sq.attributes.push_back(std::move(*it));
+                }
+            }
+            contigs_.push_back(std::move(sq));
+        } else if(*it == "@AD") {
+            library_t ad;
+            for(++it; it != it_last && *it != "\n"; ++it) {       
+                if(starts_with(*it, "ID:")) {
+                    ad.name = it->substr(3);
+                } else if(starts_with(*it, "SM:")) {
+                    ad.sample = it->substr(3);
+                } else {
+                    ad.attributes.push_back(std::move(*it));
+                }
+            }
+            input_libraries_.push_back(std::move(ad));
+        } else if(*it == "@HD") {
+            // sequence dictionaries may contain HD tags, drop them
+            for(++it; it != it_last && *it != "\n"; ++it) {
+                /*noop*/;
+            }
+        } else if(*it == "@ID") {
+            throw runtime_error("ERROR: Unable to parse TAD header: @ID can only be specified once.");
+        } else if((*it)[0] == '@') {
+            // store all the information for this line into the extra_headers_ field
+            extra_headers_.push_back(std::move(*it));
+            for(++it; it != it_last; ++it) {
+                if(*it == "\n") {
+                    extra_headers_.push_back(std::move(*it));
+                    break;
+                }
+                extra_headers_.push_back(std::move(*it));
+            }
+        } else {
+            throw runtime_error("ERROR: Unable to parse TAD header: Something went wrong. "
+                "Expected the @TAG at the beginning of a header line but got '" + *it +"'.");            
+        }
+    }
+}
+
+void dng::io::Ad::AddHeaderLines(const std::string& lines) {
+    // Tokenize header
+    auto tokens = utility::make_tokenizer_dropempty(lines);
+    // Parse Tokens
+    ParseHeaderTokens(tokens.begin(), tokens.end());
+}
+
+int dng::io::Ad::ReadHeaderTad() {
+    using namespace boost;
+    using namespace std;
+    using boost::algorithm::starts_with;
+    using boost::algorithm::iequals;
+    using boost::algorithm::to_upper;
+    namespace ss = boost::spirit::standard;
+    namespace qi = boost::spirit::qi;
+    using ss::space;
+    using qi::uint_;
+    using qi::lit;
+    using qi::phrase_parse;
+    qi::uint_parser<uint8_t> uint8_;
+
+    // Construct the tokenizer
+    typedef tokenizer<char_separator<char>,
+            std::istreambuf_iterator<char>> tokenizer;
+    char_separator<char> sep("\t", "\n");
+    tokenizer tokens(istreambuf_range(stream_), sep);
+
+    // Error if the first character isn't '@'
+    if(stream_.peek() != '@') {
+        return 0;
+    }
+
+    // Store all the tokens in the header until we reach the first data line
+    vector<string> store;
+    for(auto tok = tokens.begin(); tok != tokens.end(); ++tok) {
+        store.push_back(std::move(*tok));
+        if(*tok == "\n") {
+            if(stream_.peek() != '@') {
+                break;
+            }
+        }
+    }
+
+    // Setup header information
+    auto it = store.begin();
+    if(it == store.end() || *it != "@ID") {
+        throw runtime_error("ERROR: Unable to parse TAD header: @ID missing from first line.");
+    }
+    // Parse @ID line which identifies the file format and version.
+    for(++it; it != store.end(); ++it) {
+        if(*it == "\n") {
+            ++it;
+            break;
+        } else if(starts_with(*it, "FF:")) {
+            id_.name = it->substr(3);
+            to_upper(id_.name);
+            if(id_.name != "TAD") {
+                throw runtime_error("ERROR: Unable to parse TAD header: Unknown file format '" + id_.name + "'");
+            }
+        } else if(starts_with(*it, "VN:")) {
+            const char *first = it->c_str()+3;
+            const char *last  = it->c_str()+it->length();
+            std:pair<uint8_t,uint8_t> bytes;
+            if(!phrase_parse(first, last, uint8_ >> ( '.' >> uint8_ || lit('\0')), space, bytes) || first != last) {
+                throw runtime_error("ERROR: Unable to parse TAD header: File format version information '" + *it + "' not major.minor.");
+            }
+            id_.version = ((uint16_t)bytes.first << 8) | bytes.second;
+        } else {
+            id_.attributes.push_back(std::move(*it));
+        }
+    }
+    ParseHeaderTokens(it, store.end());
+    return 1;
+}
+
+int dng::io::Ad::WriteHeaderTad() {
+    std::string header = HeaderString();
+    stream_ << "@ID\tFF:" << id_.name << "\tVN:" << (id_.version >> 8) << "." << (id_.version & 0xFF);
+    for(auto && a : id_.attributes) {
+        stream_ << '\t' << a;
+    }
+    stream_ << '\n';
+    stream_.write(header.data(), header.size());
+    return 1;
+}
+
+int dng::io::Ad::ReadTad(AlleleDepths *pline) {
+    using namespace std;
+    using namespace boost;
+    namespace ss = boost::spirit::standard;
+    namespace qi = boost::spirit::qi;
+    using ss::space;
+    using qi::uint_;
+    using qi::phrase_parse;
+
+    if(pline == nullptr) {
+        // discard this line
+        while(stream_ && stream_.get() != '\n') {
+            /*noop*/;
+        }
+        return 1;
+    }
+    // Construct the tokenizer
+    typedef tokenizer<char_separator<char>,
+            std::istreambuf_iterator<char>> tokenizer;
+    char_separator<char> sep("\t", "\n");
+    tokenizer tokens(istreambuf_range(stream_), sep);
+    vector<string> store;
+    auto it = tokens.begin();
+    for(; it != tokens.end() && *it == "\n"; ++it) {
+        /* skip empty lines */;
+    }
+    for(; it != tokens.end(); ++it) {
+        if(*it == "\n") {
+            break;
+        }
+        store.push_back(*it);
+    }
+    // end of file, so read nothing
+    if(store.empty()) {
+        return 0;
+    }
+    // check to make sure store has the proper size
+    if(store.size() != 3+num_input_libraries_) {
+        throw runtime_error("ERROR: Unable to parse TAD record: Expected " + utility::to_pretty(3+num_input_libraries_) 
+            + " columns. Found " + utility::to_pretty(store.size()) + " columns.");
+    }
+
+    // parse contig
+    auto mit = contig_map_.find(store[0]);
+    if(mit == contig_map_.end()) {
+        throw runtime_error("ERROR: Unable to parse TAD record: Contig Name '" + store[0] + "' is unknown.");
+    }
+    int contig_num = mit->second;
+    
+    // parse position
+    int position;
+    auto first = store[1].cbegin();
+    auto last  = store[1].cend();
+
+    if(!phrase_parse(first, last, uint_, space, position) || first != last) {
+        throw runtime_error("ERROR: Unable to parse TAD record: Unable to parse position '" + store[1] + "' as integer.");
+    }
+    pline->location(utility::make_location(contig_num,position-1));
+
+    // parse type and resize
+    int8_t ty = AlleleDepths::MatchLabel(store[2]);
+    if(ty == -1) {
+        throw runtime_error("ERROR: Unable to parse TAD record: Type '" + store[2] + "' is unknown.");        
+    }
+    pline->resize(ty,num_output_libraries_);
+
+    // parse data
+    vector<int> data;
+    bool success;
+    for(size_t i=3;i<store.size();++i) {
+        tie(data,success) = utility::parse_int_list(store[i]);
+        if(!success) {
+            throw runtime_error("ERROR: Unable to parse TAD record: unable to parse comma-separated depths '" + store[i] + "'.");
+        } else if(data.size() != pline->num_nucleotides()) {
+            throw runtime_error("ERROR: Unable to parse TAD record: incorrect number of depths parsed from '" + store[i]
+                + "'. Expected " + utility::to_pretty(pline->num_nucleotides())
+                + " columns. Found " + utility::to_pretty(data.size()));
+        }
+        for(size_t j=0;j<data.size();++j) {
+            (*pline)(i-3,j) = data[j];
+        }
+    }
+    return 1;
+}
+
+int dng::io::Ad::WriteTad(const AlleleDepths& line) {
+    using dng::utility::location_to_contig;
+    using dng::utility::location_to_position;
+    typedef AlleleDepths::size_type size_type;
+
+    if(line.data_size() == 0) {
+        return 0;
+    }
+
+    const location_t loc = line.location();
+    const size_type nlib = line.num_libraries();
+    const size_type nnuc = line.num_nucleotides();
+    auto contig_num = location_to_contig(loc);
+    if(contig_num >= contigs_.size()) {
+        return 0;
+    }
+
+    stream_ << contigs_[contig_num].name << '\t';
+    stream_ << location_to_position(loc)+1 << '\t';
+    stream_ << line.type_info().label_upper;
+    for(AlleleDepths::size_type y = 0; y != nlib; ++y) {
+        stream_  << '\t';
+        size_type x = 0;
+        for(; x != nnuc-1; ++x) {
+            stream_  << line(y,x) << ',';
+        }
+        stream_  << line(y,x);
+    }
+    stream_ << '\n';
+    return 1;
+}
+
+const char ad_header[9] = "\255AD\002\r\n\032\n";
+
+int dng::io::Ad::ReadHeaderAd() {
+    using namespace std;
+    using namespace boost;
+    // read beginning of header number
+    char buffer[8+2+4+8];
+    stream_.read(buffer, sizeof(buffer));
+    if(!stream_) {
+        throw runtime_error("ERROR: Unable to parse AD header: missing beginning values.");
+    }
+    // test magic
+    if(strncmp(&buffer[0], ad_header, 8) != 0) {
+        throw runtime_error("ERROR: Unable to parse AD header: identifying number (magic) not found.");
+    }
+    // test version
+    uint16_t version = 0;
+    memcpy(&version, &buffer[8], 2);
+    if(version != 0x0001) {
+        throw runtime_error("ERROR: Unable to parse AD header: unknown version " + to_string(version >> 8) + '.' + to_string(version & 0xFF) + '.');
+    }
+    id_.name = "AD";
+    id_.version = version;
+
+    // Read size of header
+    int32_t tad_sz = 0;
+    memcpy(&tad_sz, &buffer[10], 4);
+    // Read Header
+    std::string tad_header(tad_sz,'\0');
+    stream_.read(&tad_header[0], tad_sz);
+    if(!stream_) {
+        throw runtime_error("ERROR: Unable to parse AD header: TAD header block missing.");
+    }
+    // Shrink header in case it is null padded
+    auto pos = tad_header.find_first_of('\0');
+    if(pos != string::npos) {
+        tad_header.resize(pos);
+    }
+    
+    AddHeaderLines(tad_header); 
+    return 1;
+}
+
+int dng::io::Ad::WriteHeaderAd() {
+    auto header = HeaderString();
+    if(header.size() > INT_MAX) {
+        // Header is too big to write
+        return 0;
+    }
+    // Write out magic header
+    stream_.write(ad_header,8);
+    // Write out 2-bytes to represent file format version information in little-endian
+    stream_.write((const char*)&id_.version, 2);
+    // Write 4 bytes to represent header size in little-endian format
+    int32_t sz = header.size();
+    stream_.write((const char*)&sz, 4);
+    // Write out 8-bytes to represent future flags
+    uint64_t zero = 0;
+    stream_.write((const char*)&zero, 8);
+    // Write the header
+    stream_.write(header.data(), sz);
+    return 1;
+}
+
+int dng::io::Ad::ReadAd(AlleleDepths *pline) {
+    namespace varint = dng::detail::varint;
+
+    // read location and type
+    auto result = varint::get(stream_.rdbuf());
+    if(!result.second) {
+        return 0;
+    }
+    location_t loc = (result.first >> 7);
+    int8_t rec_type = result.first & 0x7F;
+    if(utility::location_to_contig(loc) > 0) {
+        // absolute positioning
+        loc -= (1LL << 32);
+        // read reference information into buffer
+        for(size_t i=0;i<num_input_libraries_;++i) {
+            result = varint::get(stream_.rdbuf());
+            if(!result.second) {
+                return 0;
+            }          
+            last_data_[i] = result.first;
+        }
+    } else {
+        // relative positioning
+        loc += last_location_ + 1;
+        // read reference information into buffer
+        for(size_t i=0;i<num_input_libraries_;++i) {
+            auto zzresult = varint::get_zig_zag(stream_.rdbuf());
+            if(!zzresult.second) {
+                return 0;
+            }          
+            last_data_[i] += zzresult.first;
+        }
+    }
+    last_location_ = loc;
+
+    if(pline == nullptr) {
+        int width = AlleleDepths::type_info_table[rec_type].width;
+        for(size_t i=num_input_libraries_; i < num_input_libraries_*width; ++i) {
+            result = varint::get(stream_.rdbuf());
+            if(!result.second) {
+                return 0;
+            }
+        }
+        return 1;
+    }
+    pline->location(loc);
+    pline->resize(rec_type,num_output_libraries_);
+
+    // Reference depths
+    for(size_t i=0;i<num_input_libraries_;++i) {
+        size_t pos = indexes_[i];
+        if(pos != -1) {
+            (*pline)(pos,0) = last_data_[i];
+        }
+    }
+    // Alternate depths
+    for(size_t j=1;j< pline->num_nucleotides();++j) {
+        for(size_t i=0; i < num_input_libraries_; ++i) {
+            result = varint::get(stream_.rdbuf());
+            if(!result.second) {
+                return 0;
+            }
+            size_t pos = indexes_[i];
+            if(pos != -1) {
+                (*pline)(pos,j) = result.first;
+            }
+        }
+    }
+    return 1;
+}
+
+int dng::io::Ad::WriteAd(const AlleleDepths& line) {
+    static_assert(sizeof(AlleleDepths::type_info_table) / sizeof(AlleleDepths::type_info_t) == 128,
+        "AlleleDepths::type_info_table does not have 128 elements.");
+    static_assert(sizeof(location_t) == 8, "location_t is not a 64-bit value.");
+
+    using dng::utility::location_to_contig;
+    using dng::utility::location_to_position;
+    typedef AlleleDepths::size_type size_type;
+
+    const size_type nlib = line.num_libraries();
+    if(line.data_size() == 0) {
+        return 0;
+    }
+    location_t loc = line.location();
+    // The Ad format only holds up to 2^25-2 contigs 
+    if(location_to_contig(loc) > 0x01FFFFFE) {
+        return 0;
+    }
+
+    if(counter_ == 0 || location_to_contig(loc) != location_to_contig(last_location_)) {
+        // use absolute positioning
+        // Adjust the contig number by 1
+        last_location_ = loc;
+        loc += (1LL << 32);
+    } else {
+        // Make sure we are sorted here
+        assert(loc > last_location_);
+        location_t diff = loc - last_location_ - 1;
+        last_location_ = loc;
+        loc = diff;
+        assert(location_to_contig(loc) == 0);
+    }
+    // set counter
+    counter_ += 1;
+
+    // Fetch color and check if it is non-negative
+    int8_t color = line.color();
+    assert(color >= 0);
+    uint64_t u = (loc << 7) | color;
+    // write out contig, position, and location
+    namespace varint = dng::detail::varint;
+    if(!varint::put(stream_.rdbuf(), u)) {
+        return 0;
+    }
+    // write out data
+    if(location_to_contig(loc) == 0) {
+        // when using relative positioning output reference depths relative to previous
+        for(size_type i = 0; i < num_output_libraries_; ++i) {
+            int64_t n = line(i,0)-last_data_[i];
+            if(!varint::put_zig_zag(stream_.rdbuf(),n)) {
+                return 0;
+            }
+        }
+    } else {
+        // when using absolute positioning output reference depths normally
+        for(size_type i = 0; i < num_output_libraries_; ++i) {
+            if(!varint::put(stream_.rdbuf(),line(i,0))) {
+                return 0;
+            }
+        }
+    }
+    // output all non-reference depths normally
+    for(size_t j=1;j<line.num_nucleotides();++j) {
+        for(size_t i=0; i < line.num_libraries(); ++i) {
+            if(!varint::put(stream_.rdbuf(),line(i,j))) {
+                return 0;
+            }
+        }
+    }
+    // Save reference depths
+    for(size_type i = 0; i < num_output_libraries_; ++i) {
+        last_data_[i] = line(i,0);
+    }
+
+    return 1;
+}
+
+constexpr int MAX_VARINT_SIZE = 10;
+std::pair<uint64_t,bool> dng::detail::varint::get_fallback(bytebuf_t *in, uint64_t result) {
+    assert(in != nullptr);
+    assert((result & 0x80) == 0x80);
+    assert((result & 0xFF) == result);
+    for(int i=1;i<MAX_VARINT_SIZE;i++) {
+        // remove the most recent MSB
+        result -= (0x80LL << (7*i-7));
+        // grab a character
+        bytebuf_t::int_type n = in->sbumpc();
+        // if you have reached the end of stream, return error
+        if(bytebuf_t::traits_type::eq_int_type(n, bytebuf_t::traits_type::eof())) {
+            return {0,false};
+        }
+        // Convert back to a char and save in a 64-bit num.
+        uint64_t u = static_cast<uint8_t>(bytebuf_t::traits_type::to_char_type(n));
+        // shift these bits and add them to result
+        result += (u << (7*i));
+        // if MSB is not set, return the result
+        if(!(u & 0x80)) {
+            return {result,true};
+        }
+    }
+    // if you have read more bytes than expected, return error
+    return {0,false};
+}
+
+bool dng::detail::varint::put(bytebuf_t *out, uint64_t u) {
+    assert(out != nullptr);
+    while(u >= 0x80) {
+        uint8_t b = static_cast<uint8_t>(u | 0x80);
+        bytebuf_t::int_type n = out->sputc(b);
+        if(bytebuf_t::traits_type::eq_int_type(n, bytebuf_t::traits_type::eof())) {
+            return false;
+        }
+        u >>= 7;
+    }
+    uint8_t b = static_cast<uint8_t>(u);
+    bytebuf_t::int_type n = out->sputc(b);
+    if(bytebuf_t::traits_type::eq_int_type(n, bytebuf_t::traits_type::eof())) {
+        return false;
+    }
+    return true;
+}
+
 const AlleleDepths::type_info_t
     AlleleDepths::type_info_table[128] = {
     {0,   1, "A",     "a",     0, {0,3,2,1}},
@@ -301,581 +888,3 @@ const AlleleDepths::type_info_gt_t
     {126, 10, {3,9,2,6,5,0,8,7,4,1}},
     {127, 10, {3,9,2,8,7,1,6,5,4,0}}
 };
-
-namespace dng { namespace pileup {
-AlleleDepths::match_labels_t AlleleDepths::MatchLabel;
-AlleleDepths::match_indexes_t AlleleDepths::MatchIndexes;
-}}
-
-void dng::io::Ad::Clear() {
-    contigs_.clear();
-    libraries_.clear();
-    extra_headers_.clear();
-    contig_map_.clear();
-
-    if(format_ == Format::AD) {
-        id_.version = 0x0001;
-        id_.name = "AD";        
-    } else {
-        id_.version = 0x0001;
-        id_.name = "TAD";
-    }
-    id_.attributes.clear();
-    counter_ = 0;
-}
-
-std::string dng::io::Ad::HeaderString() const {    
-    // Write Header Line
-    std::ostringstream output;
-    // Write Contig Lines
-    for(auto && sq : contigs_) {
-        output << "@SQ\tSN:" << sq.name << "\tLN:" << sq.length;
-        for(auto && a : sq.attributes) {
-            output << '\t' << a;
-        }
-        output << '\n';
-    }
-
-    // Write Library Lines
-    for(auto && ad : libraries_) {
-        output << "@AD\tID:" << ad.name << "\tSM:" << ad.sample;
-        for(auto && a : ad.attributes) {
-            output << '\t' << a;
-        }
-        output << '\n';
-    }
-
-    // Write the rest of the tokens
-    for(auto it = extra_headers_.begin(); it != extra_headers_.end(); ++it) {
-        output << *it;
-        for(++it; it != extra_headers_.end() && *it != "\n"; ++it) {
-            output << '\t' << *it;
-        }
-        output << '\n';
-    }
-    return output.str();
-}
-
-
-template<typename It>
-void dng::io::Ad::ParseHeaderTokens(It it, It it_last) {
-    using namespace boost;
-    using namespace std;
-    using boost::algorithm::starts_with;
-    using boost::algorithm::iequals;
-    using boost::algorithm::to_upper;
-    namespace ss = boost::spirit::standard;
-    namespace qi = boost::spirit::qi;
-    using ss::space;
-    using qi::uint_;
-    using qi::lit;
-    using qi::phrase_parse;
-    qi::uint_parser<uint8_t> uint8_;
-
-    for(; it != it_last; ++it) {
-        if(*it == "@SQ") {
-            contig_t sq;
-            for(++it; it != it_last && *it != "\n"; ++it) {
-                if(starts_with(*it, "SN:")) {
-                    sq.name = it->substr(3);
-                } else if(starts_with(*it, "LN:")) {
-                    const char *first = it->c_str()+3;
-                    const char *last  = it->c_str()+it->length();
-
-                    if(!phrase_parse(first, last, uint_ , space, sq.length) || first != last) {
-                        throw runtime_error("ERROR: Unable to parse TAD header: Unable to parse sequence length from header attribute '" + *it + "'");
-                    }
-                } else {
-                    sq.attributes.push_back(std::move(*it));
-                }
-            }
-            contigs_.push_back(std::move(sq));
-        } else if(*it == "@AD") {
-            library_t ad;
-            for(++it; it != it_last && *it != "\n"; ++it) {       
-                if(starts_with(*it, "ID:")) {
-                    ad.name = it->substr(3);
-                } else if(starts_with(*it, "SM:")) {
-                    ad.sample = it->substr(3);
-                } else {
-                    ad.attributes.push_back(std::move(*it));
-                }
-            }
-            libraries_.push_back(std::move(ad));
-        } else if(*it == "@HD") {
-            // sequence dictionaries may contain HD tags, drop them
-            for(++it; it != it_last && *it != "\n"; ++it) {
-                /*noop*/;
-            }
-        } else if(*it == "@ID") {
-            throw runtime_error("ERROR: Unable to parse TAD header: @ID can only be specified once.");
-        } else if((*it)[0] == '@') {
-            // store all the information for this line into the extra_headers_ field
-            extra_headers_.push_back(std::move(*it));
-            for(++it; it != it_last; ++it) {
-                if(*it == "\n") {
-                    extra_headers_.push_back(std::move(*it));
-                    break;
-                }
-                extra_headers_.push_back(std::move(*it));
-            }
-        } else {
-            throw runtime_error("ERROR: Unable to parse TAD header: Something went wrong. "
-                "Expected the @TAG at the beginning of a header line but got '" + *it +"'.");            
-        }
-    }
-}
-
-void dng::io::Ad::AddHeaderLines(const std::string& lines) {
-    // Tokenize header
-    auto tokens = utility::make_tokenizer_dropempty(lines);
-    // Parse Tokens
-    ParseHeaderTokens(tokens.begin(), tokens.end());
-}
-
-int dng::io::Ad::ReadHeaderTad() {
-    using namespace boost;
-    using namespace std;
-    using boost::algorithm::starts_with;
-    using boost::algorithm::iequals;
-    using boost::algorithm::to_upper;
-    namespace ss = boost::spirit::standard;
-    namespace qi = boost::spirit::qi;
-    using ss::space;
-    using qi::uint_;
-    using qi::lit;
-    using qi::phrase_parse;
-    qi::uint_parser<uint8_t> uint8_;
-
-    // Construct the tokenizer
-    typedef tokenizer<char_separator<char>,
-            std::istreambuf_iterator<char>> tokenizer;
-    char_separator<char> sep("\t", "\n");
-    tokenizer tokens(istreambuf_range(stream_), sep);
-
-    // Error if the first character isn't '@'
-    if(stream_.peek() != '@') {
-        return 0;
-    }
-
-    // Store all the tokens in the header until we reach the first data line
-    vector<string> store;
-    for(auto tok = tokens.begin(); tok != tokens.end(); ++tok) {
-        store.push_back(std::move(*tok));
-        if(*tok == "\n") {
-            if(stream_.peek() != '@') {
-                break;
-            }
-        }
-    }
-
-    // Setup header information
-    auto it = store.begin();
-    if(it == store.end() || *it != "@ID") {
-        throw runtime_error("ERROR: Unable to parse TAD header: @ID missing from first line.");
-    }
-    // Parse @ID line which identifies the file format and version.
-    for(++it; it != store.end(); ++it) {
-        if(*it == "\n") {
-            ++it;
-            break;
-        } else if(starts_with(*it, "FF:")) {
-            id_.name = it->substr(3);
-            to_upper(id_.name);
-            if(id_.name != "TAD") {
-                throw runtime_error("ERROR: Unable to parse TAD header: Unknown file format '" + id_.name + "'");
-            }
-        } else if(starts_with(*it, "VN:")) {
-            const char *first = it->c_str()+3;
-            const char *last  = it->c_str()+it->length();
-            std:pair<uint8_t,uint8_t> bytes;
-            if(!phrase_parse(first, last, uint8_ >> ( '.' >> uint8_ || lit('\0')), space, bytes) || first != last) {
-                throw runtime_error("ERROR: Unable to parse TAD header: File format version information '" + *it + "' not major.minor.");
-            }
-            id_.version = ((uint16_t)bytes.first << 8) | bytes.second;
-        } else {
-            id_.attributes.push_back(std::move(*it));
-        }
-    }
-    ParseHeaderTokens(it, store.end());
-    return 1;
-}
-
-int dng::io::Ad::WriteHeaderTad() {
-    std::string header = HeaderString();
-    stream_ << "@ID\tFF:" << id_.name << "\tVN:" << (id_.version >> 8) << "." << (id_.version & 0xFF);
-    for(auto && a : id_.attributes) {
-        stream_ << '\t' << a;
-    }
-    stream_ << '\n';
-    stream_.write(header.data(), header.size());
-    return 1;
-}
-
-int dng::io::Ad::ReadTad(AlleleDepths *pline) {
-    using namespace std;
-    using namespace boost;
-    namespace ss = boost::spirit::standard;
-    namespace qi = boost::spirit::qi;
-    using ss::space;
-    using qi::uint_;
-    using qi::phrase_parse;
-
-    if(pline == nullptr) {
-        // discard this line
-        while(stream_ && stream_.get() != '\n') {
-            /*noop*/;
-        }
-        return 1;
-    }
-    // Construct the tokenizer
-    typedef tokenizer<char_separator<char>,
-            std::istreambuf_iterator<char>> tokenizer;
-    char_separator<char> sep("\t", "\n");
-    tokenizer tokens(istreambuf_range(stream_), sep);
-    vector<string> store;
-    auto it = tokens.begin();
-    for(; it != tokens.end() && *it == "\n"; ++it) {
-        /* skip empty lines */;
-    }
-    for(; it != tokens.end(); ++it) {
-        if(*it == "\n") {
-            break;
-        }
-        store.push_back(*it);
-    }
-    // end of file, so read nothing
-    if(store.empty()) {
-        return 0;
-    }
-    // check to make sure store has the proper size
-    if(store.size() != 3+num_libraries_) {
-        throw runtime_error("ERROR: Unable to parse TAD record: Expected " + utility::to_pretty(3+num_libraries_) 
-            + " columns. Found " + utility::to_pretty(store.size()) + " columns.");
-    }
-
-    // parse contig
-    auto mit = contig_map_.find(store[0]);
-    if(mit == contig_map_.end()) {
-        throw runtime_error("ERROR: Unable to parse TAD record: Contig Name '" + store[0] + "' is unknown.");
-    }
-    int contig_num = mit->second;
-    
-    // parse position
-    int position;
-    auto first = store[1].cbegin();
-    auto last  = store[1].cend();
-
-    if(!phrase_parse(first, last, uint_, space, position) || first != last) {
-        throw runtime_error("ERROR: Unable to parse TAD record: Unable to parse position '" + store[1] + "' as integer.");
-    }
-    pline->location(utility::make_location(contig_num,position-1));
-
-    // parse type and resize
-    int8_t ty = AlleleDepths::MatchLabel(store[2]);
-    if(ty == -1) {
-        throw runtime_error("ERROR: Unable to parse TAD record: Type '" + store[2] + "' is unknown.");        
-    }
-    pline->resize(ty,num_libraries_);
-
-    // parse data
-    vector<int> data;
-    bool success;
-    for(size_t i=3;i<store.size();++i) {
-        tie(data,success) = utility::parse_int_list(store[i]);
-        if(!success) {
-            throw runtime_error("ERROR: Unable to parse TAD record: unable to parse comma-separated depths '" + store[i] + "'.");
-        } else if(data.size() != pline->num_nucleotides()) {
-            throw runtime_error("ERROR: Unable to parse TAD record: incorrect number of depths parsed from '" + store[i]
-                + "'. Expected " + utility::to_pretty(pline->num_nucleotides())
-                + " columns. Found " + utility::to_pretty(data.size()));
-        }
-        for(size_t j=0;j<data.size();++j) {
-            (*pline)(i-3,j) = data[j];
-        }
-    }
-    return 1;
-}
-
-int dng::io::Ad::WriteTad(const AlleleDepths& line) {
-    using dng::utility::location_to_contig;
-    using dng::utility::location_to_position;
-    typedef AlleleDepths::size_type size_type;
-
-    if(line.data_size() == 0) {
-        return 0;
-    }
-
-    const location_t loc = line.location();
-    const size_type nlib = line.num_libraries();
-    const size_type nnuc = line.num_nucleotides();
-    auto contig_num = location_to_contig(loc);
-    if(contig_num >= contigs_.size()) {
-        return 0;
-    }
-
-    stream_ << contigs_[contig_num].name << '\t';
-    stream_ << location_to_position(loc)+1 << '\t';
-    stream_ << line.type_info().label_upper;
-    for(AlleleDepths::size_type y = 0; y != nlib; ++y) {
-        stream_  << '\t';
-        size_type x = 0;
-        for(; x != nnuc-1; ++x) {
-            stream_  << line(y,x) << ',';
-        }
-        stream_  << line(y,x);
-    }
-    stream_ << '\n';
-    return 1;
-}
-
-const char ad_header[9] = "\255AD\002\r\n\032\n";
-
-int dng::io::Ad::ReadHeaderAd() {
-    using namespace std;
-    using namespace boost;
-    // read beginning of header number
-    char buffer[8+2+4+8];
-    stream_.read(buffer, sizeof(buffer));
-    if(!stream_) {
-        throw runtime_error("ERROR: Unable to parse AD header: missing beginning values.");
-    }
-    // test magic
-    if(strncmp(&buffer[0], ad_header, 8) != 0) {
-        throw runtime_error("ERROR: Unable to parse AD header: identifying number (magic) not found.");
-    }
-    // test version
-    uint16_t version = 0;
-    memcpy(&version, &buffer[8], 2);
-    if(version != 0x0001) {
-        throw runtime_error("ERROR: Unable to parse AD header: unknown version " + to_string(version >> 8) + '.' + to_string(version & 0xFF) + '.');
-    }
-    id_.name = "AD";
-    id_.version = version;
-
-    // Read size of header
-    int32_t tad_sz = 0;
-    memcpy(&tad_sz, &buffer[10], 4);
-    // Read Header
-    std::string tad_header(tad_sz,'\0');
-    stream_.read(&tad_header[0], tad_sz);
-    if(!stream_) {
-        throw runtime_error("ERROR: Unable to parse AD header: TAD header block missing.");
-    }
-    // Shrink header in case it is null padded
-    auto pos = tad_header.find_first_of('\0');
-    if(pos != string::npos) {
-        tad_header.resize(pos);
-    }
-    
-    AddHeaderLines(tad_header); 
-    return 1;
-}
-
-int dng::io::Ad::WriteHeaderAd() {
-    auto header = HeaderString();
-    if(header.size() > INT_MAX) {
-        // Header is too big to write
-        return 0;
-    }
-    // Write out magic header
-    stream_.write(ad_header,8);
-    // Write out 2-bytes to represent file format version information in little-endian
-    stream_.write((const char*)&id_.version, 2);
-    // Write 4 bytes to represent header size in little-endian format
-    int32_t sz = header.size();
-    stream_.write((const char*)&sz, 4);
-    // Write out 8-bytes to represent future flags
-    uint64_t zero = 0;
-    stream_.write((const char*)&zero, 8);
-    // Write the header
-    stream_.write(header.data(), sz);
-    return 1;
-}
-
-int dng::io::Ad::ReadAd(AlleleDepths *pline) {
-    namespace varint = dng::detail::varint;
-
-    // read location and type
-    auto result = varint::get(stream_.rdbuf());
-    if(!result.second) {
-        return 0;
-    }
-    location_t loc = (result.first >> 7);
-    int8_t rec_type = result.first & 0x7F;
-    if(utility::location_to_contig(loc) > 0) {
-        // absolute positioning
-        loc -= (1LL << 32);
-        // read reference information into buffer
-        for(size_t i=0;i<num_libraries_;++i) {
-            result = varint::get(stream_.rdbuf());
-            if(!result.second) {
-                return 0;
-            }          
-            last_data_[i] = result.first;
-        }
-    } else {
-        // relative positioning
-        loc += last_location_ + 1;
-        // read reference information into buffer
-        for(size_t i=0;i<num_libraries_;++i) {
-            auto zzresult = varint::get_zig_zag(stream_.rdbuf());
-            if(!zzresult.second) {
-                return 0;
-            }          
-            last_data_[i] += zzresult.first;
-        }
-    }
-    last_location_ = loc;
-
-    if(pline == nullptr) {
-        int width = AlleleDepths::type_info_table[rec_type].width;
-        for(size_t i=num_libraries_; i < num_libraries_*width; ++i) {
-            result = varint::get(stream_.rdbuf());
-            if(!result.second) {
-                return 0;
-            }
-        }
-        return 1;
-    }
-    pline->location(loc);
-    pline->resize(rec_type,num_libraries_);
-
-    // Reference depths
-    for(size_t i=0;i<num_libraries_;++i) {
-        (*pline)(i,0) = last_data_[i];
-    }
-    // Alternate depths
-    for(size_t j=1;j< pline->num_nucleotides();++j) {
-        for(size_t i=0; i < num_libraries_; ++i) {
-            result = varint::get(stream_.rdbuf());
-            if(!result.second) {
-                return 0;
-            }
-            (*pline)(i,j) = result.first;
-        }
-    }
-    return 1;
-}
-
-int dng::io::Ad::WriteAd(const AlleleDepths& line) {
-    static_assert(sizeof(AlleleDepths::type_info_table) / sizeof(AlleleDepths::type_info_t) == 128,
-        "AlleleDepths::type_info_table does not have 128 elements.");
-    static_assert(sizeof(location_t) == 8, "location_t is not a 64-bit value.");
-
-    using dng::utility::location_to_contig;
-    using dng::utility::location_to_position;
-    typedef AlleleDepths::size_type size_type;
-
-    const size_type nlib = line.num_libraries();
-    if(line.data_size() == 0) {
-        return 0;
-    }
-    location_t loc = line.location();
-    // The Ad format only holds up to 2^25-2 contigs 
-    if(location_to_contig(loc) > 0x01FFFFFE) {
-        return 0;
-    }
-
-    if(counter_ == 0 || location_to_contig(loc) != location_to_contig(last_location_)) {
-        // use absolute positioning
-        // Adjust the contig number by 1
-        last_location_ = loc;
-        loc += (1LL << 32);
-    } else {
-        // Make sure we are sorted here
-        assert(loc > last_location_);
-        location_t diff = loc - last_location_ - 1;
-        last_location_ = loc;
-        loc = diff;
-        assert(location_to_contig(loc) == 0);
-    }
-    // set counter
-    counter_ += 1;
-
-    // Fetch color and check if it is non-negative
-    int8_t color = line.color();
-    assert(color >= 0);
-    uint64_t u = (loc << 7) | color;
-    // write out contig, position, and location
-    namespace varint = dng::detail::varint;
-    if(!varint::put(stream_.rdbuf(), u)) {
-        return 0;
-    }
-    // write out data
-    if(location_to_contig(loc) == 0) {
-        // when using relative positioning output reference depths relative to previous
-        for(size_type i = 0; i < num_libraries_; ++i) {
-            int64_t n = line(i,0)-last_data_[i];
-            if(!varint::put_zig_zag(stream_.rdbuf(),n)) {
-                return 0;
-            }
-        }
-    } else {
-        // when using absolute positioning output reference depths normally
-        for(size_type i = 0; i < num_libraries_; ++i) {
-            if(!varint::put(stream_.rdbuf(),line(i,0))) {
-                return 0;
-            }
-        }
-    }
-    // output all non-reference depths normally
-    for(size_t j=1;j<line.num_nucleotides();++j) {
-        for(size_t i=0; i < line.num_libraries(); ++i) {
-            if(!varint::put(stream_.rdbuf(),line(i,j))) {
-                return 0;
-            }
-        }
-    }
-    // Save reference depths
-    for(size_type i = 0; i < num_libraries_; ++i) {
-        last_data_[i] = line(i,0);
-    }
-
-    return 1;
-}
-
-constexpr int MAX_VARINT_SIZE = 10;
-std::pair<uint64_t,bool> dng::detail::varint::get_fallback(bytebuf_t *in, uint64_t result) {
-    assert(in != nullptr);
-    assert((result & 0x80) == 0x80);
-    assert((result & 0xFF) == result);
-    for(int i=1;i<MAX_VARINT_SIZE;i++) {
-        // remove the most recent MSB
-        result -= (0x80LL << (7*i-7));
-        // grab a character
-        bytebuf_t::int_type n = in->sbumpc();
-        // if you have reached the end of stream, return error
-        if(bytebuf_t::traits_type::eq_int_type(n, bytebuf_t::traits_type::eof())) {
-            return {0,false};
-        }
-        // Convert back to a char and save in a 64-bit num.
-        uint64_t u = static_cast<uint8_t>(bytebuf_t::traits_type::to_char_type(n));
-        // shift these bits and add them to result
-        result += (u << (7*i));
-        // if MSB is not set, return the result
-        if(!(u & 0x80)) {
-            return {result,true};
-        }
-    }
-    // if you have read more bytes than expected, return error
-    return {0,false};
-}
-
-bool dng::detail::varint::put(bytebuf_t *out, uint64_t u) {
-    assert(out != nullptr);
-    while(u >= 0x80) {
-        uint8_t b = static_cast<uint8_t>(u | 0x80);
-        bytebuf_t::int_type n = out->sputc(b);
-        if(bytebuf_t::traits_type::eq_int_type(n, bytebuf_t::traits_type::eof())) {
-            return false;
-        }
-        u >>= 7;
-    }
-    uint8_t b = static_cast<uint8_t>(u);
-    bytebuf_t::int_type n = out->sputc(b);
-    if(bytebuf_t::traits_type::eq_int_type(n, bytebuf_t::traits_type::eof())) {
-        return false;
-    }
-    return true;
-}

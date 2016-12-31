@@ -93,7 +93,7 @@ struct RandomFamily {
 };
 
 void copy_family_to_workspace(dng::peel::workspace_t &workspace,
-		dng::TransitionVector &full_matrix, int total_family_size,
+		dng::TransitionMatrixVector &full_matrix, int total_family_size,
 		const std::vector<dng::GenotypeArray> &lower,
 		const std::vector<dng::GenotypeArray> &upper,
 		const std::vector<dng::TransitionMatrix> &trans_mat) {
@@ -112,7 +112,7 @@ struct RandomWorkspace {
 	std::string fixture;
 
 	dng::peel::workspace_t workspace;
-	dng::TransitionVector full_matrix;
+	dng::TransitionMatrixVector full_matrix;
 
 	RandomWorkspace(std::string s = "RandomWorkspace") : fixture(s) {
 		BOOST_TEST_MESSAGE("set up fixture:  " << s);

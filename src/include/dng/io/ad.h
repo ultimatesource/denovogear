@@ -24,6 +24,7 @@
 #include <string>
 #include <utility>
 #include <unordered_map>
+#include <numeric>
 
 #include <boost/filesystem.hpp>
 #include <boost/algorithm/string/predicate.hpp>
@@ -100,11 +101,11 @@ public:
     }
 
     const std::vector<library_t>& libraries() const {
-        return libraries_;
+        return output_libraries_;
     }
 
     const library_t& library(std::vector<library_t>::size_type pos) const {
-        return libraries_[pos];
+        return output_libraries_[pos];
     }
 
     std::vector<contig_t>::size_type
@@ -117,11 +118,16 @@ public:
 
     std::vector<contig_t>::size_type
     AddLibrary(std::string name, std::string sample, std::string attributes = {} ) {
-        std::vector<contig_t>::size_type pos = contigs_.size();
-        libraries_.emplace_back(name, sample, attributes);
-        num_libraries_ = libraries_.size();
-        last_data_.assign(num_libraries_, 0);
-        return pos;
+        input_libraries_.emplace_back(name, sample, attributes);
+        output_libraries_ = input_libraries_;
+
+        num_input_libraries_ = input_libraries_.size();
+        num_output_libraries_ = output_libraries_.size();
+
+        last_data_.assign(num_input_libraries_, 0);
+        indexes_.resize(num_input_libraries_);
+        std::iota(indexes_.begin(),indexes_.end(),0);
+        return num_input_libraries_-1;
     }
 
     Format format() const { return format_; }
@@ -159,8 +165,12 @@ private:
     // Header Information
     format_t id_;
     std::vector<contig_t> contigs_;
-    std::vector<library_t> libraries_;
-    std::size_t num_libraries_{0};
+    std::vector<library_t> input_libraries_;
+    std::vector<library_t> output_libraries_;
+    std::size_t num_input_libraries_{0};
+    std::size_t num_output_libraries_{0};
+
+    std::vector<size_t> indexes_;
 
     std::vector<std::string> extra_headers_;
 
@@ -206,9 +216,14 @@ int Ad::ReadHeader() {
         contig_map_.emplace(contigs_[i].name,i);
     }
     // Save the number of libraries
-    num_libraries_ = libraries_.size();
+    output_libraries_ = input_libraries_;
+    num_input_libraries_ = input_libraries_.size();
+    num_output_libraries_ = output_libraries_.size();
     last_location_ = 0;
-    last_data_.assign(num_libraries_,0);
+    last_data_.assign(num_input_libraries_,0);
+    indexes_.resize(num_input_libraries_);
+    std::iota(indexes_.begin(),indexes_.end(),0);
+
     return result;
 }
 
@@ -232,8 +247,10 @@ void Ad::CopyHeader(const Ad& ad) {
     Clear();
 
     contigs_ = ad.contigs_;
-    libraries_ = ad.libraries_;
-    num_libraries_ = ad.num_libraries_;
+    input_libraries_ = ad.input_libraries_;
+    output_libraries_ = ad.output_libraries_;
+    num_input_libraries_ = ad.num_input_libraries_;
+    num_output_libraries_ = ad.num_output_libraries_;
     contig_map_ = ad.contig_map_;
     extra_headers_ = ad.extra_headers_;
 }
