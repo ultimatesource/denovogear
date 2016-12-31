@@ -245,7 +245,7 @@ int process_bam(task::Call::argument_type &arg) {
     // Construct peeling algorithm from parameters and pedigree information
     InheritanceModel model = inheritance_model(arg.model);
 
-    dng::RelationshipGraph relationship_graph;
+    RelationshipGraph relationship_graph;
     if (!relationship_graph.Construct(ped, rgs, model,
                                       arg.mu, arg.mu_somatic, arg.mu_library)) {
         throw std::runtime_error("Unable to construct peeler for pedigree; "
@@ -254,15 +254,13 @@ int process_bam(task::Call::argument_type &arg) {
     // quality thresholds
     int min_qual = arg.min_basequal;
     double min_prob = arg.min_prob;
-    // FindMutations calculate ( min_prob, relationship_graph,
-    // 		{ arg.theta, freqs, arg.ref_weight, arg.gamma[0], arg.gamma[1] } );
 
     // Write VCF output header
     auto out_file = vcf_get_output_mode(arg);
     hts::bcf::File vcfout(out_file.first.c_str(), out_file.second.c_str());
     vcf_add_header_text(vcfout, arg);
 
-    // User the header from the first file to determine the contigs and samples
+    // User the header from the first file to determine the contigs
     const bam_hdr_t *h = bamdata[0].header();
     for(auto && contig : hts::extra::parse_contigs(h)) {
     	vcfout.AddContig(contig.first.c_str(), contig.second); // Add contigs to header
@@ -271,45 +269,6 @@ int process_bam(task::Call::argument_type &arg) {
     for(auto && line : relationship_graph.BCFHeaderLines()) {
     	vcfout.AddHeaderMetadata(line.c_str()); // Add pedigree information
     }
-
-
-    FindMutationsAbstract *calculate;
-    FindMutationsAbstract::params_t find_mutation_params {arg.theta, freqs,
-            arg.ref_weight, arg.gamma[0], arg.gamma[1]};
-
-    switch (model) {
-        case InheritanceModel::Autosomal:
-            calculate = new FindMutations(min_prob, relationship_graph,
-                                          find_mutation_params);
-            break;
-        case InheritanceModel::YLinked:
-            std::cerr << "Warning! Y Linked model are not fully implemented yet. Many stats are still missing."
-                    << std::endl;
-            //TODO(SW): HACK!! Remove libraries to keep the count simple (0->Lib)
-            rgs.KeepTheseOnly(relationship_graph.KeepLibraryIndex());
-
-            calculate = new FindMutationsYLinked(min_prob, relationship_graph,
-                                                 find_mutation_params);
-            throw std::runtime_error("Y Linked are not implemented for sequence data yet. "
-                                "Many things will break at this stage!\nExit!!");
-            break;
-        case InheritanceModel::XLinked:
-
-            rgs.KeepTheseOnly(relationship_graph.KeepLibraryIndex());
-            calculate = new FindMutationsXLinked(min_prob, relationship_graph,
-                                                 find_mutation_params);
-
-
-            throw std::runtime_error("X Linked are not implemented yet."
-                    "Many things will break at this stage!!\nExit!");
-            break;
-
-        default:
-            auto message = "Other inheritance model are not implemented yet!\nExit!";
-            throw std::runtime_error(message);
-            break;
-    }
-
 
     CallMutations do_call(min_prob, relationship_graph, {arg.theta, freqs,
             arg.ref_weight, arg.gamma[0], arg.gamma[1]});
@@ -334,7 +293,7 @@ int process_bam(task::Call::argument_type &arg) {
     const size_t library_start = relationship_graph.library_nodes().first;
     const int min_basequal = arg.min_basequal;
     auto filter_read = [min_basequal](
-    dng::BamPileup::data_type::value_type::const_reference r) -> bool {
+    BamPileup::data_type::value_type::const_reference r) -> bool {
         return (r.is_missing
         || r.base_qual() < min_basequal
         || seq::base_index(r.base()) >= 4);

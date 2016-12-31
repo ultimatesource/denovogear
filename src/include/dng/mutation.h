@@ -117,9 +117,9 @@ inline TransitionMatrix mitosis_diploid_matrix(const MutationMatrix &m, const in
         for(int j = 0; j < 16; ++j) {
             int k = folded_diploid_genotypes[j];
             if(mutype == MUTATIONS_MEAN) {
-                ret(i, k) += kronecker_product(m, m, h, j) * mitotic_diploid_mutation_counts[h][j];
+                ret(i, k) += kronecker_product_coef(m, m, h, j) * mitotic_diploid_mutation_counts[h][j];
             } else if( mutype == MUTATIONS_ALL || mutype == mitotic_diploid_mutation_counts[h][j] ) {
-                ret(i,k) += kronecker_product(m, m, h, j);
+                ret(i,k) += kronecker_product_coef(m, m, h, j);
             } else {
                 ret(i,k) += 0.0;
             }

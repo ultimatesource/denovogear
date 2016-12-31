@@ -64,6 +64,10 @@ public:
         bcf_clear(base());
     }
 
+    // Turn these off until we figure out how to use bcf_copy
+    BareVariant& operator=(const BareVariant&) = delete;
+    Variant(const BareVariant&) = delete;
+
     // Getters
     int32_t target_id() const { return rid; }
     int32_t position() const { return pos; }

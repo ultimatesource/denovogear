@@ -76,7 +76,7 @@ constexpr int unfolded_diploid_genotypes_upper[10] = {0, 5, 10, 15, 1, 2, 3, 6, 
 constexpr int unfolded_diploid_genotypes_lower[10] = {0, 5, 10, 15, 4, 8, 12, 9, 13, 14};
 
 template<typename A, typename B>
-inline auto kronecker_product(const A &a, const B &b, std::size_t i,
+inline auto kronecker_product_coef(const A &a, const B &b, std::size_t i,
                               std::size_t j) -> decltype(a(0, 0)*b(0, 0)) {
     assert(i < a.rows()*b.rows() && j < a.cols()*b.cols());
     return a(i / b.rows(), j / b.cols()) * b(i % b.rows(), j % b.cols());
