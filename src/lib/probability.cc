@@ -25,12 +25,12 @@
 
 using namespace dng;
 
-// pedigree_ will be initialized before work_, so we can reference it.
-LogProbability::LogProbability(RelationshipGraph pedigree, params_t params) :
-    pedigree_{std::move(pedigree)},
+// graph_ will be initialized before work_, so we can reference it.
+LogProbability::LogProbability(RelationshipGraph graph, params_t params) :
+    graph_{std::move(graph)},
     params_(std::move(params)),
     genotyper_{params.params_a, params.params_b},
-    work_{pedigree_.CreateWorkspace()} {
+    work_{graph_.CreateWorkspace()} {
 
     using namespace dng;
 
@@ -60,13 +60,13 @@ LogProbability::LogProbability(RelationshipGraph pedigree, params_t params) :
         haploid_prior(0) = haploid_prior_[color](pileup::AlleleDepths::type_info_table[color].indexes[0]);
         work_.SetFounders(diploid_prior, haploid_prior);
         work_.SetGenotypeLikelihoods(genotyper_, depths, indexes);
-        double logdata = pedigree_.PeelForwards(work_, transition_matrices_.subsets[color]);
+        double logdata = graph_.PeelForwards(work_, transition_matrices_.subsets[color]);
         prob_monomorphic_[color] = exp(logdata);
     }
 }
 
 // returns 'log10 P(Data ; model)-log10 scale' and log10 scaling.
-LogProbability::stats_t LogProbability::operator()(const std::vector<depth_t> &depths,
+LogProbability::value_t LogProbability::operator()(const std::vector<depth_t> &depths,
                                int ref_index) {
     // calculate genotype likelihoods and store in the lower library vector
     double scale = work_.SetGenotypeLikelihoods(genotyper_, depths, ref_index);
@@ -82,14 +82,14 @@ LogProbability::stats_t LogProbability::operator()(const std::vector<depth_t> &d
     // }
 
     // Calculate log P(Data ; model)
-    double logdata = pedigree_.PeelForwards(work_, transition_matrices_.full);
+    double logdata = graph_.PeelForwards(work_, transition_matrices_.full);
 
     return {logdata/M_LN10, scale/M_LN10};
 }
 
 // Calculate the probability of a depths object considering only indexes
 // TODO: make indexes a property of the pedigree
-LogProbability::stats_t LogProbability::operator()(const pileup::AlleleDepths &depths, const std::vector<size_t>& indexes) {
+LogProbability::value_t LogProbability::operator()(const pileup::AlleleDepths &depths, const std::vector<size_t>& indexes) {
     int ref_index = depths.type_info().reference;
     int color = depths.color();
 
@@ -128,30 +128,30 @@ LogProbability::stats_t LogProbability::operator()(const pileup::AlleleDepths &d
         scale = work_.SetGenotypeLikelihoods(genotyper_, depths, indexes);
 
          // Calculate log P(Data ; model)
-        logdata = pedigree_.PeelForwards(work_, transition_matrices_.subsets[color]);
+        logdata = graph_.PeelForwards(work_, transition_matrices_.subsets[color]);
     }
     return {logdata/M_LN10, scale/M_LN10};
 }
 
 // Construct the mutation matrices for each transition
-TransitionVector dng::create_mutation_matrices(const RelationshipGraph &pedigree,
+TransitionMatrixVector dng::create_mutation_matrices(const RelationshipGraph &graph,
     const std::array<double, 4> &nuc_freq, const int mutype) {
-    TransitionVector matrices(pedigree.num_nodes());
+    TransitionMatrixVector matrices(graph.num_nodes());
  
-    for(size_t child = 0; child < pedigree.num_nodes(); ++child) {
-        auto trans = pedigree.transition(child);
+    for(size_t child = 0; child < graph.num_nodes(); ++child) {
+        auto trans = graph.transition(child);
         if(trans.type == RelationshipGraph::TransitionType::Trio) {
-            assert(pedigree.ploidy(child) == 2);
+            assert(graph.ploidy(child) == 2);
             auto dad = f81::matrix(trans.length1, nuc_freq);
             auto mom = f81::matrix(trans.length2, nuc_freq);
-            matrices[child] = meiosis_matrix(pedigree.ploidy(trans.parent1), dad, pedigree.ploidy(trans.parent2), mom, mutype);
+            matrices[child] = meiosis_matrix(graph.ploidy(trans.parent1), dad, graph.ploidy(trans.parent2), mom, mutype);
         } else if(trans.type == RelationshipGraph::TransitionType::Pair) {
             auto orig = f81::matrix(trans.length1, nuc_freq);
-            if(pedigree.ploidy(child) == 1) {
-            	matrices[child] = gamete_matrix(pedigree.ploidy(trans.parent1), orig, mutype);
+            if(graph.ploidy(child) == 1) {
+            	matrices[child] = gamete_matrix(graph.ploidy(trans.parent1), orig, mutype);
             } else {
-	            assert(pedigree.ploidy(child) == 2);
-            	matrices[child] = mitosis_matrix(pedigree.ploidy(trans.parent1), orig, mutype);
+	            assert(graph.ploidy(child) == 2);
+            	matrices[child] = mitosis_matrix(graph.ploidy(trans.parent1), orig, mutype);
             }
         } else {
             matrices[child] = {};
@@ -273,13 +273,13 @@ TransitionMatrix subset_mutation_matrix_mitosis_haploid(const TransitionMatrix &
 }
 
 
-TransitionVector dng::create_mutation_matrices_subset(const TransitionVector &full_matrices, size_t color) {
+TransitionMatrixVector dng::create_mutation_matrices_subset(const TransitionMatrixVector &full_matrices, size_t color) {
 
     auto &type_info_table = dng::pileup::AlleleDepths::type_info_table;
     auto &type_info_gt_table = dng::pileup::AlleleDepths::type_info_gt_table;
 
     // Create out output vector
-    TransitionVector matrices(full_matrices.size());
+    TransitionMatrixVector matrices(full_matrices.size());
 
     // enumerate over all matrices
     for(size_t child = 0; child < full_matrices.size(); ++child) {

@@ -68,7 +68,7 @@ void MutationStats::SetPosteriorProbabilities(
 
 
 void MutationStats::CalculateExpectedMutation(dng::peel::workspace_t &work_full,
-                                              dng::TransitionVector &mean_matrices){
+                                              dng::TransitionMatrixVector &mean_matrices){
     mux_ = 0.0;
     for(size_t i = work_full.founder_nodes.second; i < work_full.num_nodes; ++i) {
         mux_ += (work_full.super[i] * (mean_matrices[i] *
@@ -78,7 +78,7 @@ void MutationStats::CalculateExpectedMutation(dng::peel::workspace_t &work_full,
 };
 
 void MutationStats::CalculateNodeMutation(dng::peel::workspace_t &work_full,
-                                          dng::TransitionVector &posmut_transition_matrices) {
+                                          dng::TransitionMatrixVector &posmut_transition_matrices) {
     std::vector<double> event (work_full.num_nodes, 0.0);
     for (size_t i = work_full.founder_nodes.second; i < work_full.num_nodes; ++i) {
         event[i] = (work_full.super[i] * (posmut_transition_matrices[i] *
@@ -92,7 +92,7 @@ void MutationStats::CalculateNodeMutation(dng::peel::workspace_t &work_full,
 }
 
 void MutationStats::CalculateDenovoMutation(dng::peel::workspace_t &work_nomut,
-                                            dng::TransitionVector &onemut_transition_matrices,
+                                            dng::TransitionMatrixVector &onemut_transition_matrices,
                                             const dng::RelationshipGraph &pedigree) {
     std::vector<double> event (work_nomut.num_nodes, 0.0);
     double total = 0.0, max_coeff = -1.0;
@@ -128,7 +128,7 @@ void MutationStats::CalculateDenovoMutation(dng::peel::workspace_t &work_nomut,
 
 #if CALCULATE_ENTROPY == 1
 void MutationStats::CalculateEntropy(dng::peel::workspace_t &work_nomut,
-                                     dng::TransitionVector &onemut_transition_matrices,
+                                     dng::TransitionMatrixVector &onemut_transition_matrices,
                                      std::array<double, 5> max_entropies,
                                      std::size_t ref_index) {
 

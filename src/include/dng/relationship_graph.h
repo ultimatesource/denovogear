@@ -82,7 +82,7 @@ public:
             double mu, double mu_somatic, double mu_library);
 
     double PeelForwards(peel::workspace_t &work,
-                        const TransitionVector &mat) const {
+                        const TransitionMatrixVector &mat) const {
         if(work.dirty_lower) {
             work.CleanupFast();
         }
@@ -103,7 +103,7 @@ public:
     }
 
     double PeelBackwards(peel::workspace_t &work,
-                         const TransitionVector &mat) const {
+                         const TransitionMatrixVector &mat) const {
         double ret = 0.0;
         // Divide by the log-likelihood
         for(auto r : roots_) {

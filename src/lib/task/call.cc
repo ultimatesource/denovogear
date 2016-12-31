@@ -121,7 +121,6 @@ void vcf_add_header_text(hts::bcf::File &vcfout, task::Call::argument_type &arg)
     vcfout.AddHeaderMetadata("##INFO=<ID=DNT,Number=1,Type=String,Description=\"De novo type\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=DNL,Number=1,Type=String,Description=\"De novo location\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=DNQ,Number=1,Type=Integer,Description=\"Phread-scaled de novo quality\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=DNC,Number=1,Type=Integer,Description=\"De novo location certainty\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=DP,Number=1,Type=Integer,Description=\"Total depth\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=AD,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=ADF,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed (forward strand)\">");
@@ -328,7 +327,7 @@ int process_bam(task::Call::argument_type &arg) {
     auto record = vcfout.InitVariant();
 
     // Calculated stats
-    FindMutations::stats_t stats;
+    CallMutations::stats_t stats;
 
     // Parameters used by site calculation anon function
     const size_t num_nodes = relationship_graph.num_nodes();
@@ -367,12 +366,9 @@ int process_bam(task::Call::argument_type &arg) {
                 read_depths[rgs.library_from_id(u)].counts[ base ] += 1;
 			}
 		}
-		if(!(*calculate)(read_depths, ref_index, &stats)) {
+		if(!do_call(read_depths, ref_index, &stats)) {
 			return;
 		}
-        CallMutations::stats_t do_stats;
-        do_call(read_depths, ref_index, &do_stats);
-        stats.mup = do_stats.mup;
 
 		// Determine what nucleotides show up and the order they will appear in the REF and ALT field
 		// TODO: write tests that make sure REF="N" is properly handled
@@ -480,8 +476,7 @@ int process_bam(task::Call::argument_type &arg) {
 
 		// Sample Likelihoods
 		std::vector<float> gl_scores(num_nodes * gt_count, hts::bcf::float_missing);
-		for(size_t i = library_start, k = library_start * gt_count; i < num_nodes;
-				++i) {
+		for(size_t i = 0, k = library_start * gt_count; i < stats.genotype_likelihoods.size(); ++i) {
 			for(int j = 0; j < gt_count; ++j) {
 				int n = genotype_index[j];
 				gl_scores[k++] = (n == -1) ? hts::bcf::float_missing :
@@ -566,32 +561,38 @@ int process_bam(task::Call::argument_type &arg) {
 		double rp_info = dng::stats::ad_two_sample_test(pos_ref, pos_alt);
 		double bq_info = dng::stats::ad_two_sample_test(base_ref, base_alt);
 
-		record.info("MUP", stats.mup);
-		record.info("LLD", stats.lld);
+		record.info("MUP", static_cast<float>(stats.mup));
+		record.info("LLD", static_cast<float>(stats.lld));
 		record.info("LLS", static_cast<float>(stats.lld-log_null));
-		record.info("MUX", stats.mux);
-		record.info("MU1P", stats.mu1p);
+		record.info("MUX", static_cast<float>(stats.mux));
+		record.info("MU1P", static_cast<float>(stats.mu1p));
 
 
 		record.sample_genotypes(best_genotypes);
 		record.samples("GQ", genotype_qualities);
 		record.samples("GP", gp_scores);
+
+        std::vector<float> float_vector;
+        float_vector.assign(stats.node_mup.begin(), stats.node_mup.end());
+        
+        record.samples("MUP", float_vector);
+
+        if((stats.mu1p / stats.mup) >= min_prob) {
+            record.info("DNT", stats.dnt);
+            record.info("DNL", stats.dnl);
+            record.info("DNQ", stats.dnq);
+
+            float_vector.assign(stats.node_mu1p.begin(), stats.node_mu1p.end());
+            record.samples("MU1P", float_vector);
+        }
+
 		record.samples("GL", gl_scores);
 		record.samples("DP", dp_counts);
 		record.samples("AD", ad_counts);
 		record.samples("ADF", adf_counts);
 		record.samples("ADR", adr_counts);
 
-		record.samples("MUP", stats.node_mup);
 
-		if(stats.has_single_mut) {
-			record.info("DNT", stats.dnt);
-			record.info("DNL", stats.dnl);
-			record.info("DNQ", stats.dnq);
-			record.info("DNC", stats.dnc);
-
-			record.samples("MU1P", stats.node_mu1p);
-		}
 
 		record.info("DP", dp_info);
 		record.info("AD", ad_info);
@@ -811,7 +812,6 @@ int variant_call(task::Call::argument_type &arg,  hts::bcf::File &vcfout, const 
             record.info("DNT", stats.dnt);
             record.info("DNL", stats.dnl);
             record.info("DNQ", stats.dnq);
-            record.info("DNC", stats.dnc);
 
             record.samples("MU1P", stats.node_mu1p);
         }

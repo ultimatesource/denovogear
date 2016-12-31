@@ -68,8 +68,8 @@ public:
         int32_t dnq;
         int32_t dnc;
 
-        IndividualVector posterior_probabilities;
-        IndividualVector genotype_likelihoods;
+        GenotypeArrayVector posterior_probabilities;
+        GenotypeArrayVector genotype_likelihoods;
         std::vector<float> node_mup;
         std::vector<float> node_mu1p;
     };
@@ -106,11 +106,11 @@ protected:
     dng::peel::workspace_t work_nomut_;
 
     dng::GenotypeArray genotype_prior_[5]; // Holds P(G | theta)
-    dng::TransitionVector full_transition_matrices_;
-    dng::TransitionVector nomut_transition_matrices_;
-    dng::TransitionVector posmut_transition_matrices_;
-    dng::TransitionVector onemut_transition_matrices_;
-    dng::TransitionVector mean_matrices_;
+    dng::TransitionMatrixVector full_transition_matrices_;
+    dng::TransitionMatrixVector nomut_transition_matrices_;
+    dng::TransitionMatrixVector posmut_transition_matrices_;
+    dng::TransitionMatrixVector onemut_transition_matrices_;
+    dng::TransitionMatrixVector mean_matrices_;
 
     std::vector<int> keep_library_index_;
 

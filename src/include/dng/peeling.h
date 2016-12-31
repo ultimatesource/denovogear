@@ -45,14 +45,14 @@ enum Type {
 } // namespace dng::peel::op
 
 struct workspace_t {
-    IndividualVector upper; // Holds P(~Descendent_Data & G=g)
-    IndividualVector lower; // Holds P( Descendent_Data | G=g)
-    ParentVector super; // Holds P(~Descendent_Data & G=g) for parent nodes
+    GenotypeArrayVector upper; // Holds P(~Descendent_Data & G=g)
+    GenotypeArrayVector lower; // Holds P( Descendent_Data | G=g)
+    ParentArrayVector super; // Holds P(~Descendent_Data & G=g) for parent nodes
 
     bool dirty_lower = false;
     double forward_result;
     // Temporary data used by some peeling ops
-    PairedGenotypeArray paired_buffer;
+    TemporaryMatrix temp_buffer;
 
     // Information about the pedigree
     std::size_t num_nodes = 0;
@@ -70,7 +70,7 @@ struct workspace_t {
         upper.resize(num_nodes);
         super.resize(num_nodes);
         lower.assign(num_nodes, DNG_INDIVIDUAL_BUFFER_ONES);
-        paired_buffer.resize(100, 1);
+        temp_buffer.resize(100, 1);
         dirty_lower = false;
     }
 
@@ -147,39 +147,39 @@ typedef std::vector<std::size_t> family_members_t;
 
 // Basic peeling operations
 void up(workspace_t &work, const family_members_t &family,
-        const TransitionVector &mat);
+        const TransitionMatrixVector &mat);
 void down(workspace_t &work, const family_members_t &family,
-          const TransitionVector &mat);
+          const TransitionMatrixVector &mat);
 void to_father(workspace_t &work, const family_members_t &family,
-               const TransitionVector &mat);
+               const TransitionMatrixVector &mat);
 void to_mother(workspace_t &work, const family_members_t &family,
-               const TransitionVector &mat);
+               const TransitionMatrixVector &mat);
 void to_child(workspace_t &work, const family_members_t &family,
-              const TransitionVector &mat);
+              const TransitionMatrixVector &mat);
 
 // Fast versions that can be used on "dirty" workspaces
 void up_fast(workspace_t &work, const family_members_t &family,
-             const TransitionVector &mat);
+             const TransitionMatrixVector &mat);
 void down_fast(workspace_t &work, const family_members_t &family,
-               const TransitionVector &mat);
+               const TransitionMatrixVector &mat);
 void to_father_fast(workspace_t &work, const family_members_t &family,
-                    const TransitionVector &mat);
+                    const TransitionMatrixVector &mat);
 void to_mother_fast(workspace_t &work, const family_members_t &family,
-                    const TransitionVector &mat);
+                    const TransitionMatrixVector &mat);
 void to_child_fast(workspace_t &work, const family_members_t &family,
-                   const TransitionVector &mat);
+                   const TransitionMatrixVector &mat);
 
 // Reverse versions that can be used for backwards algorithms
 void up_reverse(workspace_t &work, const family_members_t &family,
-                const TransitionVector &mat);
+                const TransitionMatrixVector &mat);
 void down_reverse(workspace_t &work, const family_members_t &family,
-                  const TransitionVector &mat);
+                  const TransitionMatrixVector &mat);
 void to_father_reverse(workspace_t &work, const family_members_t &family,
-                       const TransitionVector &mat);
+                       const TransitionMatrixVector &mat);
 void to_mother_reverse(workspace_t &work, const family_members_t &family,
-                       const TransitionVector &mat);
+                       const TransitionMatrixVector &mat);
 void to_child_reverse(workspace_t &work, const family_members_t &family,
-                      const TransitionVector &mat);
+                      const TransitionMatrixVector &mat);
 
 typedef decltype(&down) function_t;
 

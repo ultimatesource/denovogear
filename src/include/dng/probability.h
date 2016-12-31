@@ -40,27 +40,27 @@ public:
         Genotyper::params_t params_b;
     };
 
-    struct stats_t {
+    struct value_t {
         double log_data;
         double log_scale;        
     };
 
-    LogProbability(RelationshipGraph pedigree, params_t params);
+    LogProbability(RelationshipGraph graph, params_t params);
 
-    stats_t operator()(const std::vector<depth_t> &depths, int ref_index);
-    stats_t operator()(const pileup::AlleleDepths &depths, const std::vector<size_t>& indexes);
+    value_t operator()(const std::vector<depth_t> &depths, int ref_index);
+    value_t operator()(const pileup::AlleleDepths &depths, const std::vector<size_t>& indexes);
 
 protected:
     struct matrices_t {
-        TransitionVector full;
-        TransitionVector subsets[pileup::AlleleDepths::type_info_table_length];
+        TransitionMatrixVector full;
+        TransitionMatrixVector subsets[pileup::AlleleDepths::type_info_table_length];
     };
 
     matrices_t CreateMutationMatrices(const int mutype = MUTATIONS_ALL) const;
 
-    RelationshipGraph pedigree_;
+    RelationshipGraph graph_;
     params_t params_;
-    peel::workspace_t work_; // must be declared after pedigree_ (see constructor)
+    peel::workspace_t work_; // must be declared after graph_ (see constructor)
 
 
     matrices_t transition_matrices_;
@@ -73,16 +73,16 @@ protected:
     GenotypeArray haploid_prior_[5]; // Holds P(G | theta)
 };
 
-TransitionVector create_mutation_matrices(const RelationshipGraph &pedigree,
+TransitionMatrixVector create_mutation_matrices(const RelationshipGraph &pedigree,
         const std::array<double, 4> &nuc_freq, const int mutype = MUTATIONS_ALL);
 
-TransitionVector create_mutation_matrices_subset(const TransitionVector &full_matrices, size_t color);
+TransitionMatrixVector create_mutation_matrices_subset(const TransitionMatrixVector &full_matrices, size_t color);
 
 inline
 LogProbability::matrices_t LogProbability::CreateMutationMatrices(const int mutype) const {
     matrices_t ret;
     // Construct the complete matrices
-    ret.full = create_mutation_matrices(pedigree_, params_.nuc_freq, mutype);
+    ret.full = create_mutation_matrices(graph_, params_.nuc_freq, mutype);
 
     // Extract relevant subsets of matrices
     for(size_t color = 0; color < dng::pileup::AlleleDepths::type_info_table_length; ++color) {

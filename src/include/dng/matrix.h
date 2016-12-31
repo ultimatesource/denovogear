@@ -42,19 +42,19 @@ typedef std::vector<depth_t> RawDepths;
 
 typedef Eigen::Array<double, Eigen::Dynamic, 1, 0, 10, 1> GenotypeArray;
 typedef std::vector<GenotypeArray, Eigen::aligned_allocator<GenotypeArray>>
-        IndividualVector;
+        GenotypeArrayVector;
 
 #define DNG_INDIVIDUAL_BUFFER_MIN DBL_MIN
-#define DNG_INDIVIDUAL_BUFFER_ONES IndividualVector::value_type::Ones(10)
-#define DNG_INDIVIDUAL_BUFFER_ZEROS IndividualVector::value_type::Zero(10)
+#define DNG_INDIVIDUAL_BUFFER_ONES GenotypeArrayVector::value_type::Ones(10)
+#define DNG_INDIVIDUAL_BUFFER_ZEROS GenotypeArrayVector::value_type::Zero(10)
 
 typedef Eigen::MatrixXd TransitionMatrix; // element (i,j) is the P(j|i)
-typedef std::vector<TransitionMatrix> TransitionVector;
+typedef std::vector<TransitionMatrix> TransitionMatrixVector;
 
-typedef Eigen::ArrayXXd PairedGenotypeArray;
+typedef Eigen::ArrayXXd TemporaryMatrix;
 
 typedef Eigen::ArrayXd ParentArray;
-typedef std::vector<ParentArray> ParentVector;
+typedef std::vector<ParentArray> ParentArrayVector;
 
 typedef Eigen::Matrix4d MutationMatrix;
 
@@ -68,6 +68,7 @@ constexpr int folded_diploid_genotypes_matrix[4][4] = {
     {4, 1, 7, 8},
     {5, 7, 2, 9},
     {6, 8, 9, 3}};
+
 constexpr int folded_diploid_genotypes[16] = {0, 4, 5, 6, 4, 1, 7, 8, 5, 7, 2, 9, 6, 8, 9, 3};
 
 // converts from a folded genotype to an unfolded genotype

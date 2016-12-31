@@ -33,27 +33,24 @@ class CallMutations : public LogProbability {
 public:
 
     struct stats_t {
-        float mup;
-        float lld;
-        float mux;
+        double mup;
+        double lld;
+        double mux;
 
-        bool has_single_mut;
-        float mu1p;
+        double mu1p;
         std::string dnt;
         std::string dnl;
         int32_t dnq;
         int32_t dnc;
 
-        IndividualVector posterior_probabilities;
-        IndividualVector genotype_likelihoods;
-        std::vector<float> node_mup;
-        std::vector<float> node_mu1p;
+        GenotypeArrayVector posterior_probabilities;
+        GenotypeArrayVector genotype_likelihoods;
+        std::vector<double> node_mup;
+        std::vector<double> node_mu1p;
     };
 
     CallMutations(double min_prob, const RelationshipGraph &graph,
             params_t params);
-
-    ~CallMutations();
 
     bool operator()(const RawDepths &depths, int ref_index,
                     stats_t *stats);

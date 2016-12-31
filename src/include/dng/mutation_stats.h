@@ -50,13 +50,13 @@ public:
 
 
 	void CalculateExpectedMutation(dng::peel::workspace_t &work_full,
-			dng::TransitionVector &mean_matrices);
+			dng::TransitionMatrixVector &mean_matrices);
 
 	void CalculateNodeMutation(dng::peel::workspace_t &work_full,
-			dng::TransitionVector &posmut_transition_matrices);
+			dng::TransitionMatrixVector &posmut_transition_matrices);
 
 	void CalculateDenovoMutation(dng::peel::workspace_t &work_nomut,
-			dng::TransitionVector &onemut_transition_matrices,
+			dng::TransitionMatrixVector &onemut_transition_matrices,
 			const dng::RelationshipGraph &pedigree);
 
 
@@ -84,8 +84,8 @@ public:
 	int32_t dnq_;
 	int32_t dnc_;
 
-	dng::IndividualVector posterior_probabilities_;
-	dng::IndividualVector genotype_likelihoods_;
+	dng::GenotypeArrayVector posterior_probabilities_;
+	dng::GenotypeArrayVector genotype_likelihoods_;
 	std::vector<float> node_mup_;
 	std::vector<float> node_mu1p_;
 
@@ -111,7 +111,7 @@ private:
 #if CALCULATE_ENTROPY == 1
 public:
 	void CalculateEntropy(dng::peel::workspace_t &work_nomut,
-			dng::TransitionVector &onemut_transition_matrices,
+			dng::TransitionMatrixVector &onemut_transition_matrices,
 			std::array<double, 5> max_entropies, std::size_t ref_index);
 #endif
 
