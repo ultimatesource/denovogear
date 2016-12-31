@@ -383,7 +383,7 @@ void dng::io::Ad::ParseHeaderTokens(It it, It it_last) {
                     const char *last  = it->c_str()+it->length();
 
                     if(!phrase_parse(first, last, uint_ , space, sq.length) || first != last) {
-                        throw(runtime_error("Unable to parse TAD header: Unable to parse sequence length from header attribute '" + *it + "'"));
+                        throw runtime_error("ERROR: Unable to parse TAD header: Unable to parse sequence length from header attribute '" + *it + "'");
                     }
                 } else {
                     sq.attributes.push_back(std::move(*it));
@@ -408,7 +408,7 @@ void dng::io::Ad::ParseHeaderTokens(It it, It it_last) {
                 /*noop*/;
             }
         } else if(*it == "@ID") {
-            throw(runtime_error("Unable to parse TAD header: @ID can only be specified once."));
+            throw runtime_error("ERROR: Unable to parse TAD header: @ID can only be specified once.");
         } else if((*it)[0] == '@') {
             // store all the information for this line into the extra_headers_ field
             extra_headers_.push_back(std::move(*it));
@@ -420,8 +420,8 @@ void dng::io::Ad::ParseHeaderTokens(It it, It it_last) {
                 extra_headers_.push_back(std::move(*it));
             }
         } else {
-            throw(runtime_error("Unable to parse TAD header: Something went wrong. "
-                "Expected the @TAG at the beginning of a header line but got '" + *it +"'."));            
+            throw runtime_error("ERROR: Unable to parse TAD header: Something went wrong. "
+                "Expected the @TAG at the beginning of a header line but got '" + *it +"'.");            
         }
     }
 }
@@ -472,7 +472,7 @@ int dng::io::Ad::ReadHeaderTad() {
     // Setup header information
     auto it = store.begin();
     if(it == store.end() || *it != "@ID") {
-        throw(runtime_error("Unable to parse TAD header: @ID missing from first line."));
+        throw runtime_error("ERROR: Unable to parse TAD header: @ID missing from first line.");
     }
     // Parse @ID line which identifies the file format and version.
     for(++it; it != store.end(); ++it) {
@@ -483,14 +483,14 @@ int dng::io::Ad::ReadHeaderTad() {
             id_.name = it->substr(3);
             to_upper(id_.name);
             if(id_.name != "TAD") {
-                throw(runtime_error("Unable to parse TAD header: Unknown file format '" + id_.name + "'"));
+                throw runtime_error("ERROR: Unable to parse TAD header: Unknown file format '" + id_.name + "'");
             }
         } else if(starts_with(*it, "VN:")) {
             const char *first = it->c_str()+3;
             const char *last  = it->c_str()+it->length();
             std:pair<uint8_t,uint8_t> bytes;
             if(!phrase_parse(first, last, uint8_ >> ( '.' >> uint8_ || lit('\0')), space, bytes) || first != last) {
-                throw(runtime_error("Unable to parse TAD header: File format version information '" + *it + "' not major.minor."));
+                throw runtime_error("ERROR: Unable to parse TAD header: File format version information '" + *it + "' not major.minor.");
             }
             id_.version = ((uint16_t)bytes.first << 8) | bytes.second;
         } else {
@@ -550,14 +550,14 @@ int dng::io::Ad::ReadTad(AlleleDepths *pline) {
     }
     // check to make sure store has the proper size
     if(store.size() != 3+num_libraries_) {
-        throw(runtime_error("Unable to parse TAD record: Expected " + utility::to_pretty(3+num_libraries_) 
-            + " columns. Found " + utility::to_pretty(store.size()) + " columns."));
+        throw runtime_error("ERROR: Unable to parse TAD record: Expected " + utility::to_pretty(3+num_libraries_) 
+            + " columns. Found " + utility::to_pretty(store.size()) + " columns.");
     }
 
     // parse contig
     auto mit = contig_map_.find(store[0]);
     if(mit == contig_map_.end()) {
-        throw(runtime_error("Unable to parse TAD record: Contig Name '" + store[0] + "' is unknown."));
+        throw runtime_error("ERROR: Unable to parse TAD record: Contig Name '" + store[0] + "' is unknown.");
     }
     int contig_num = mit->second;
     
@@ -567,14 +567,14 @@ int dng::io::Ad::ReadTad(AlleleDepths *pline) {
     auto last  = store[1].cend();
 
     if(!phrase_parse(first, last, uint_, space, position) || first != last) {
-        throw(runtime_error("Unable to parse TAD record: Unable to parse position '" + store[1] + "' as integer."));
+        throw runtime_error("ERROR: Unable to parse TAD record: Unable to parse position '" + store[1] + "' as integer.");
     }
     pline->location(utility::make_location(contig_num,position-1));
 
     // parse type and resize
     int8_t ty = AlleleDepths::MatchLabel(store[2]);
     if(ty == -1) {
-        throw(runtime_error("Unable to parse TAD record: Type '" + store[2] + "' is unknown."));        
+        throw runtime_error("ERROR: Unable to parse TAD record: Type '" + store[2] + "' is unknown.");        
     }
     pline->resize(ty,num_libraries_);
 
@@ -584,11 +584,11 @@ int dng::io::Ad::ReadTad(AlleleDepths *pline) {
     for(size_t i=3;i<store.size();++i) {
         tie(data,success) = utility::parse_int_list(store[i]);
         if(!success) {
-            throw(runtime_error("Unable to parse TAD record: unable to parse comma-separated depths '" + store[i] + "'."));
+            throw runtime_error("ERROR: Unable to parse TAD record: unable to parse comma-separated depths '" + store[i] + "'.");
         } else if(data.size() != pline->num_nucleotides()) {
-            throw(runtime_error("Unable to parse TAD record: incorrect number of depths parsed from '" + store[i]
+            throw runtime_error("ERROR: Unable to parse TAD record: incorrect number of depths parsed from '" + store[i]
                 + "'. Expected " + utility::to_pretty(pline->num_nucleotides())
-                + " columns. Found " + utility::to_pretty(data.size())));
+                + " columns. Found " + utility::to_pretty(data.size()));
         }
         for(size_t j=0;j<data.size();++j) {
             (*pline)(i-3,j) = data[j];
@@ -638,17 +638,17 @@ int dng::io::Ad::ReadHeaderAd() {
     char buffer[8+2+4+8];
     stream_.read(buffer, sizeof(buffer));
     if(!stream_) {
-        throw(runtime_error("Unable to parse AD header: missing beginning values."));
+        throw runtime_error("ERROR: Unable to parse AD header: missing beginning values.");
     }
     // test magic
     if(strncmp(&buffer[0], ad_header, 8) != 0) {
-        throw(runtime_error("Unable to parse AD header: identifying number (magic) not found."));
+        throw runtime_error("ERROR: Unable to parse AD header: identifying number (magic) not found.");
     }
     // test version
     uint16_t version = 0;
     memcpy(&version, &buffer[8], 2);
     if(version != 0x0001) {
-        throw(runtime_error("Unable to parse AD header: unknown version " + to_string(version >> 8) + '.' + to_string(version & 0xFF) + '.'));
+        throw runtime_error("ERROR: Unable to parse AD header: unknown version " + to_string(version >> 8) + '.' + to_string(version & 0xFF) + '.');
     }
     id_.name = "AD";
     id_.version = version;
@@ -660,7 +660,7 @@ int dng::io::Ad::ReadHeaderAd() {
     std::string tad_header(tad_sz,'\0');
     stream_.read(&tad_header[0], tad_sz);
     if(!stream_) {
-        throw(runtime_error("Unable to parse AD header: TAD header block missing."));
+        throw runtime_error("ERROR: Unable to parse AD header: TAD header block missing.");
     }
     // Shrink header in case it is null padded
     auto pos = tad_header.find_first_of('\0');
