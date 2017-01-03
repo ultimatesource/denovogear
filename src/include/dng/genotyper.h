@@ -107,7 +107,7 @@ public:
         const pileup::AlleleDepths& depths, size_t pos, int ploidy=2) const;
 
     std::pair<GenotypeArray, double> operator()(
-        const RawDepths& depths, size_t pos, int ref_allele, int ploidy=2) const;
+        const pileup::RawDepths& depths, size_t pos, int ref_allele, int ploidy=2) const;
 
 protected:
 

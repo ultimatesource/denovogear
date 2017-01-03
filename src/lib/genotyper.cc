@@ -149,7 +149,7 @@ inline double log_sum_exact(double a, double b) {
 }
 
 std::pair<GenotypeArray, double> DirichletMultinomialMixture::operator()(
-        const RawDepths& depths, size_t pos, int ref_allele, int ploidy) const {
+        const pileup::RawDepths& depths, size_t pos, int ref_allele, int ploidy) const {
     auto d = depths[pos];
 
     // how many genotypes will we calculate based on ploidy?

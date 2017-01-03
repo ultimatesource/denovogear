@@ -40,7 +40,7 @@ FindMutationsYLinked::FindMutationsYLinked(double min_prob,
 }
 
 // Returns true if a mutation was found and the record was modified
-bool FindMutationsYLinked::operator()(const std::vector<depth_t> &depths,
+bool FindMutationsYLinked::operator()(const pileup::RawDepths &depths,
                                int ref_index, stats_t *stats) {
     using namespace hts::bcf;
     using dng::utility::lphred;

@@ -41,7 +41,7 @@ public:
 
     ~FindMutations();
 
-    bool operator()(const std::vector<depth_t> &depths, int ref_index,
+    bool operator()(const pileup::RawDepths &depths, int ref_index,
                     stats_t *stats);
 
 

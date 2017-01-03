@@ -28,9 +28,7 @@ using namespace dng;
 using namespace dng::detail::graph;
 
 void parse_pedigree_table(Graph &pedigree_graph, const dng::io::Pedigree &pedigree);
-void add_libraries_from_readgroups(Graph &pedigree_graph, const ReadGroups &rgs);
-void connect_somatic_to_libraries(Graph &pedigree_graph, const ReadGroups &rgs,
-    vertex_t first_somatic, vertex_t last_somatic);
+void add_libraries_to_graph(Graph &pedigree_graph, const LibraryVector &libs);
 void update_edge_lengths(Graph &pedigree_graph,
         double mu_meiotic, double mu_somatic, double mu_library);
 void simplify_pedigree(Graph &pedigree_graph);
@@ -89,13 +87,13 @@ RULES FOR LINKING READ GROUPS TO PEOPLE.
 */
 
 bool dng::RelationshipGraph::Construct(const io::Pedigree& pedigree,
-        dng::ReadGroups& rgs, double mu, double mu_somatic, double mu_library) {
-    return Construct(pedigree, rgs, InheritanceModel::Autosomal, mu,
+        const LibraryVector& libs, double mu, double mu_somatic, double mu_library) {
+    return Construct(pedigree, libs, InheritanceModel::Autosomal, mu,
                      mu_somatic, mu_library);
 }
 
 bool dng::RelationshipGraph::Construct(const io::Pedigree& pedigree,
-        dng::ReadGroups& rgs, InheritanceModel model,
+        const LibraryVector& libs, InheritanceModel model,
         double mu, double mu_somatic, double mu_library) {
 
     using namespace std;
@@ -125,8 +123,7 @@ bool dng::RelationshipGraph::Construct(const io::Pedigree& pedigree,
 
     // Connect somatic to libraries
     first_library_ = num_vertices(pedigree_graph);
-    add_libraries_from_readgroups(pedigree_graph, rgs);
-    connect_somatic_to_libraries(pedigree_graph, rgs, first_somatic_, first_library_);
+    add_libraries_to_graph(pedigree_graph, libs);
 
     num_nodes_ = num_vertices(pedigree_graph);
 
@@ -566,34 +563,20 @@ void prefix_vertex_labels(Graph &pedigree_graph) {
     }
 }
 
-void add_libraries_from_readgroups(
-        Graph &pedigree_graph, const dng::ReadGroups &rgs) {
-    // Add library nodes to graph
-    for (auto &&a : rgs.libraries()) {
-        vertex_t v = add_vertex({a,VertexType::Library}, pedigree_graph);
-    }
-}
-
-void connect_somatic_to_libraries(Graph &pedigree_graph, const ReadGroups &rgs,
-    vertex_t first_somatic, vertex_t last_somatic) {
-
+void add_libraries_to_graph(Graph &pedigree_graph, const LibraryVector &libs) {
     auto sexes  = get(boost::vertex_sex, pedigree_graph);
     auto labels = get(boost::vertex_label, pedigree_graph);
 
-    for (vertex_t v = first_somatic; v < last_somatic; ++v) {
-        if (labels[v].empty()) {
-            continue;
-        }
-
-        //using orders from vcf files rgs
-        auto r = rgs.data().get<rg::sm>().equal_range( labels[v].c_str());
-
-        for (; r.first != r.second; ++r.first) {
-            vertex_t w = last_somatic + rg::index(rgs.libraries(), r.first->library);
-            sexes[w] = sexes[v];
-            if (!edge(v, w, pedigree_graph).second) {
-                add_edge(v, w, {EdgeType::Library, 1.0f}, pedigree_graph);
+    // Add library nodes to graph
+    for (auto &&a : libs) {
+        vertex_t v = add_vertex({a.name,VertexType::Library}, pedigree_graph);
+        for (vertex_t u = first_somatic; u < last_somatic; ++u) {
+            if(labels[u].empty() || labels[u] != libs.sample) {
+                continue;
             }
+            add_edge(u, v, {EdgeType::Library, 1.0f}, pedigree_graph);
+            sexes[v] = sexes[u];
+            break;
         }
     }
 }

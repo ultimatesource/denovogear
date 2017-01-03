@@ -178,7 +178,7 @@ int process_bam(LogLike::argument_type &arg) {
         { arg.theta, freqs, arg.ref_weight, arg.gamma[0], arg.gamma[1] } );
 
     // Pileup data
-    std::vector<depth_t> read_depths(rgs.libraries().size());
+    pileup::RawDepths read_depths(rgs.libraries().size());
 
     const size_t num_nodes = pedigree.num_nodes();
     const size_t library_start = pedigree.library_nodes().first;
@@ -265,6 +265,7 @@ int process_ad(LogLike::argument_type &arg) {
     if(input.ReadHeader() == 0) {
         throw std::runtime_error("Argument Error: unable to read header from '" + input.path() + "'.");
     }
+
     // Construct ReadGroups
     ReadGroups rgs;
     rgs.ParseLibraries(input.libraries());

@@ -53,7 +53,7 @@ CallMutations::CallMutations(double min_prob, const RelationshipGraph &graph, pa
 }
 
 // Returns true if a mutation was found and the record was modified
-bool CallMutations::operator()(const RawDepths &depths,
+bool CallMutations::operator()(const pileup::RawDepths &depths,
         int ref_index, stats_t *stats) {
     // Genotype Likelihoods
     double scale = work_.SetGenotypeLikelihoods(genotyper_, depths, ref_index);

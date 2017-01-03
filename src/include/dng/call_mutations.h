@@ -24,6 +24,7 @@
 #define DNG_CALL_MUTATIONS_H
 
 #include <dng/probability.h>
+#include <dng/depths.h>
 
 #include <dng/detail/unit_test.h>
 
@@ -52,7 +53,7 @@ public:
     CallMutations(double min_prob, const RelationshipGraph &graph,
             params_t params);
 
-    bool operator()(const RawDepths &depths, int ref_index,
+    bool operator()(const pileup::RawDepths &depths, int ref_index,
                     stats_t *stats);
 protected:
     double min_prob_;

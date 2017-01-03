@@ -66,7 +66,7 @@ LogProbability::LogProbability(RelationshipGraph graph, params_t params) :
 }
 
 // returns 'log10 P(Data ; model)-log10 scale' and log10 scaling.
-LogProbability::value_t LogProbability::operator()(const std::vector<depth_t> &depths,
+LogProbability::value_t LogProbability::operator()(const pileup::RawDepths &depths,
                                int ref_index) {
     // calculate genotype likelihoods and store in the lower library vector
     double scale = work_.SetGenotypeLikelihoods(genotyper_, depths, ref_index);

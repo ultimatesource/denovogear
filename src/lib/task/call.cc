@@ -274,7 +274,7 @@ int process_bam(task::Call::argument_type &arg) {
             arg.ref_weight, arg.gamma[0], arg.gamma[1]});
 
     // Pileup data
-    std::vector<depth_t> read_depths(rgs.libraries().size());
+    pileup::RawDepths read_depths(rgs.libraries().size());
 
     // Finish Header
     for(auto && str : relationship_graph.labels()) {
@@ -588,7 +588,7 @@ int variant_call(task::Call::argument_type &arg,  hts::bcf::File &vcfout, const 
         { arg.theta, freqs, arg.ref_weight, arg.gamma[0], arg.gamma[1] } );
 
 
-    std::vector<depth_t> read_depths(rgs.libraries().size()); // Pileup data
+    pileup::RawDepths read_depths(rgs.libraries().size()); // Pileup data
     auto record = vcfout.InitVariant();
     const size_t num_nodes = relationship_graph.num_nodes();
     const size_t library_start = relationship_graph.library_nodes().first;

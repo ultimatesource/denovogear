@@ -45,7 +45,7 @@ FindMutationsXLinked::FindMutationsXLinked(double min_prob,
 }
 
 // Returns true if a mutation was found and the record was modified
-bool FindMutationsXLinked::operator()(const std::vector<depth_t> &depths,
+bool FindMutationsXLinked::operator()(const pileup::RawDepths &depths,
                                int ref_index, stats_t *stats) {
     //PR_NOTE(SW): Implement this at next PR
     return false;

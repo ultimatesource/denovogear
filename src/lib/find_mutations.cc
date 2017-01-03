@@ -38,7 +38,7 @@ FindMutations::FindMutations(double min_prob, const RelationshipGraph &graph,
 }
 
 // Returns true if a mutation was found and the record was modified
-bool FindMutations::operator()(const std::vector<depth_t> &depths,
+bool FindMutations::operator()(const pileup::RawDepths &depths,
         int ref_index, stats_t *stats) {
 //    PR_NOTE(SW): Next version will be pass MutationStats instead of stats_t
 

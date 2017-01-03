@@ -32,6 +32,12 @@
 namespace dng {
 namespace pileup {
 
+struct depth_t {
+    int32_t counts[4]{0,0,0,0};
+};
+
+using RawDepths = std::vector<depth_t>;
+
 class AlleleDepths {
 public:
     // information used to decode/encode AlleleDepths types

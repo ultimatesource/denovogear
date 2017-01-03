@@ -35,6 +35,21 @@ namespace dng { namespace io {
 struct unittest_dng_io_ad {
     static int get_version_number(const dng::io::Ad &a) { return a.id_.version; }
     static std::string get_format_string(const dng::io::Ad &a) { return a.id_.name; }
+    static const std::vector<std::string>& get_contig_attributes(const dng::io::Ad &a) {
+        return a.contig_attributes_;
+    }
+    static const std::vector<std::string>& get_input_library_attributes(const dng::io::Ad &a) {
+        return a.input_library_attributes_;
+    }
+    static const std::vector<std::string>& get_output_library_attributes(const dng::io::Ad &a) {
+        return a.output_library_attributes_;
+    }
+    static const std::vector<library_t>& get_input_libraries(const dng::io::Ad &a) {
+        return a.input_libraries_;
+    }
+    static const std::vector<library_t>& get_output_libraries(const dng::io::Ad &a) {
+        return a.output_libraries_;
+    }
 };
 }}
 using dng::io::unittest_dng_io_ad;
@@ -244,11 +259,11 @@ BOOST_AUTO_TEST_CASE(test_varint_zigzag) {
 bool ad_write(std::vector<AlleleDepths> lines, std::vector<uint8_t> match) {
     std::stringstream buffer;
     Ad adfile("ad:", std::ios_base::out);
-    adfile.AddContig("seq1",100);
-    adfile.AddContig("seq2",1000, "");
-    adfile.AddContig("seq3",10000, "M5:aaaaaaaa");
-    adfile.AddLibrary("A","A");
-    adfile.AddLibrary("B","B");
+    adfile.AddHeaderContig("seq1",100);
+    adfile.AddHeaderContig("seq2",1000, "");
+    adfile.AddHeaderContig("seq3",10000, "M5:aaaaaaaa");
+    adfile.AddHeaderLibrary("A","A");
+    adfile.AddHeaderLibrary("B","B");
     adfile.Attach(buffer.rdbuf());
     for(auto line : lines) {
         if(adfile.Write(line) != 1) {
@@ -305,11 +320,11 @@ BOOST_AUTO_TEST_CASE(test_ad_write_and_read) {
     Ad adfile("ad:", std::ios_base::out | std::ios_base::in);
     adfile.Attach(buffer.rdbuf());
 
-    adfile.AddContig("scaffold_1",1000);
-    adfile.AddContig("scaffold_2",10000, "");
-    adfile.AddContig("scaffold_3",100000, "M5:aaaaaaaa");
-    adfile.AddLibrary("A","A");
-    adfile.AddLibrary("B","B");
+    adfile.AddHeaderContig("scaffold_1",1000);
+    adfile.AddHeaderContig("scaffold_2",10000, "");
+    adfile.AddHeaderContig("scaffold_3",100000, "M5:aaaaaaaa");
+    adfile.AddHeaderLibrary("A","AAA");
+    adfile.AddHeaderLibrary("B","BBB");
 
     std::vector<AlleleDepths> outdepths, indepths;
     int x=0;
@@ -355,8 +370,8 @@ BOOST_AUTO_TEST_CASE(test_ad_write_and_read) {
     BOOST_CHECK(adfile.libraries().size() == 2);
     BOOST_CHECK(adfile.library(0).name == "A");
     BOOST_CHECK(adfile.library(1).name == "B");
-    BOOST_CHECK(adfile.library(0).sample == "A");
-    BOOST_CHECK(adfile.library(1).sample == "B");
+    BOOST_CHECK(adfile.library(0).sample == "AAA");
+    BOOST_CHECK(adfile.library(1).sample == "BBB");
 
     AlleleDepths input;
     while(adfile.Read(&input)) {
@@ -373,6 +388,82 @@ BOOST_AUTO_TEST_CASE(test_ad_write_and_read) {
 }
 
 /*****************************************************************************
+ Test the subsetting of an ad file
+ *****************************************************************************/
+BOOST_AUTO_TEST_CASE(test_ad_read_subset) {
+    std::stringstream buffer;
+    Ad adfile("ad:", std::ios_base::out | std::ios_base::in);
+    adfile.Attach(buffer.rdbuf());
+
+    adfile.AddHeaderContig("scaffold_1",1000);
+    adfile.AddHeaderContig("scaffold_2",10000, "");
+    adfile.AddHeaderContig("scaffold_3",100000, "M5:aaaaaaaa");
+    adfile.AddHeaderLibrary("A","AAA");
+    adfile.AddHeaderLibrary("B","BBB");
+
+    std::vector<AlleleDepths> outdepths, indepths;
+    int x=0;
+    for(int i=0;i<128;++i) {
+        AlleleDepths line;
+        line.resize(i,2);
+        line.location(0,10+(i+1));
+        for(auto && d : line.data()) {
+            d = x;
+            x += 31;
+        }
+        outdepths.push_back(std::move(line));
+    }
+    for(int i=0;i<128;++i) {
+        AlleleDepths line;
+        line.resize(i,2);
+        line.location(1,100+(i+1));
+        for(auto && d : line.data()) {
+            d = x;
+            x += 31;
+        }
+        outdepths.push_back(std::move(line));
+    }
+
+    adfile.WriteHeader();
+    for(auto && line : outdepths) {
+        adfile.Write(line);
+    }
+
+    adfile.ReadHeader();
+    const char *libs[] = {"B","C"};
+    adfile.SelectLibraries(libs);
+
+    BOOST_CHECK(unittest_dng_io_ad::get_input_libraries(adfile)[0].name == "A");
+    BOOST_CHECK(unittest_dng_io_ad::get_input_libraries(adfile)[1].name == "B");
+    BOOST_CHECK(unittest_dng_io_ad::get_input_libraries(adfile)[0].sample == "AAA");
+    BOOST_CHECK(unittest_dng_io_ad::get_input_libraries(adfile)[1].sample == "BBB");
+    BOOST_CHECK(unittest_dng_io_ad::get_input_library_attributes(adfile)[0] == "");
+    BOOST_CHECK(unittest_dng_io_ad::get_input_library_attributes(adfile)[1] == "");
+
+    BOOST_CHECK(adfile.libraries().size() == 1);
+    BOOST_CHECK(adfile.library(1).name == "B");
+    BOOST_CHECK(adfile.library(1).sample == "BBB");
+    BOOST_CHECK(unittest_dng_io_ad::get_output_library_attributes(adfile)[0] == "");
+
+    AlleleDepths input;
+    while(adfile.Read(&input)) {
+        indepths.push_back(input);
+    }
+    BOOST_CHECK(outdepths.size() == indepths.size());
+    for(int i=0;i<128;++i) {
+        const AlleleDepths &a = outdepths[i];
+        const AlleleDepths &b = indepths[i];
+        BOOST_CHECK(a.location() == b.location());
+        BOOST_CHECK(a.color() == b.color());
+        BOOST_CHECK(a.num_libraries() == 2 && b.num_libraries() == 1);
+
+        for(int x=0; x < b.num_nucleotides(); ++x) {
+            BOOST_CHECK(a(1,x) == b(0,x));
+        }
+    }
+}
+
+/*****************************************************************************
  Test the writing of a tad file
  *****************************************************************************/
 
@@ -381,11 +472,11 @@ bool tad_write(std::vector<AlleleDepths> lines, std::string text) {
     Ad adfile("tad:", std::ios_base::out);
     adfile.Attach(buffer.rdbuf());
 
-    adfile.AddContig("seq1",100);
-    adfile.AddContig("seq2",1000, "");
-    adfile.AddContig("seq3",10000, "M5:aaaaaaaa");
-    adfile.AddLibrary("A","A");
-    adfile.AddLibrary("B","B");
+    adfile.AddHeaderContig("seq1",100);
+    adfile.AddHeaderContig("seq2",1000, "");
+    adfile.AddHeaderContig("seq3",10000, "M5:aaaaaaaa");
+    adfile.AddHeaderLibrary("A","A");
+    adfile.AddHeaderLibrary("B","B");
 
     for(auto line : lines) {
         if(adfile.Write(line) != 1) {
@@ -422,8 +513,8 @@ const char tad_test1[] =
     "@SQ\tSN:scaffold_1\tLN:100\n"
     "@SQ\tSN:scaffold_2\tLN:200\tM5:aaaaaaaa\n"
     "@SQ\tSN:scaffold_3\tLN:300\tM5:aaaaaaab\tUR:blah\n"
-    "@AD\tID:A\tSM:A\n"
-    "@AD\tID:B\tSM:B\tLB:B\tRG:B\n"
+    "@AD\tID:A\tSM:AAA\n"
+    "@AD\tID:B\tSM:BBB\tLB:B\tRG:B1\tRG:B2\n"
     "@CO\tThis is a comment that is ignored\n"
     "\n"
     "scaffold_1\t1\tA\t10\t9\n"
@@ -453,9 +544,19 @@ BOOST_AUTO_TEST_CASE(test_tad_read) {
     BOOST_CHECK(adfile.contig(0).length == 100);
     BOOST_CHECK(adfile.contig(1).length == 200);
     BOOST_CHECK(adfile.contig(2).length == 300);
-    BOOST_CHECK(adfile.contig(0).attributes.empty());
-    BOOST_CHECK(adfile.contig(1).attributes == S({"M5:aaaaaaaa"}));
-    BOOST_CHECK(adfile.contig(2).attributes == S({"M5:aaaaaaab","UR:blah"}));
+    BOOST_CHECK(unittest_dng_io_ad::get_contig_attributes(adfile)[0] == "");
+    BOOST_CHECK(unittest_dng_io_ad::get_contig_attributes(adfile)[1] == "M5:aaaaaaaa");
+    BOOST_CHECK(unittest_dng_io_ad::get_contig_attributes(adfile)[2] == "M5:aaaaaaab\tUR:blah");
+
+    BOOST_CHECK(adfile.libraries().size() == 2);
+    BOOST_CHECK(adfile.library(0).name == "A");
+    BOOST_CHECK(adfile.library(1).name == "B");
+    BOOST_CHECK(adfile.library(0).sample == "AAA");
+    BOOST_CHECK(adfile.library(1).sample == "BBB");
+    BOOST_CHECK(unittest_dng_io_ad::get_input_library_attributes(adfile)[0] == "");
+    BOOST_CHECK(unittest_dng_io_ad::get_input_library_attributes(adfile)[1] == "LB:B\tRG:B1\tRG:B2");
+    BOOST_CHECK(unittest_dng_io_ad::get_output_library_attributes(adfile)[0] == "");
+    BOOST_CHECK(unittest_dng_io_ad::get_output_library_attributes(adfile)[1] == "LB:B\tRG:B1\tRG:B2");
 
     AlleleDepths depths;
     adfile.Read(&depths);
@@ -528,4 +629,68 @@ BOOST_AUTO_TEST_CASE(test_tad_read_and_write) {
     BOOST_CHECK(string_equal(buffer_out.str(), tad_test2));
 }
 
+const char tad_test3[] = 
+    "@ID\tFF:TAD\tVN:0.1\n"
+    "@SQ\tSN:scaffold_1\tLN:100\n"
+    "@SQ\tSN:scaffold_2\tLN:200\tM5:aaaaaaaa\n"
+    "@SQ\tSN:scaffold_3\tLN:300\tM5:aaaaaaab\tUR:blah\n"
+    "@AD\tID:A\tSM:AAA\n"
+    "@AD\tID:B\tSM:BBB\tLB:B\tRG:B\n"
+    "@CO\tThis is a comment that is ignored\n"
+    "\n"
+    "scaffold_1\t1\tA\t10\t9\n"
+    "scaffold_1\t2\tC\t8\t7\n"
+    "scaffold_1\t3\tGC\t6,0\t0,2\n"
+    "scaffold_2\t1\tT\t4\t0\n"
+    "scaffold_3\t1\tntgca\t0,0,0,1\t4,0,0,0\n"
+;
 
+BOOST_AUTO_TEST_CASE(test_tad_read_subset) {
+    std::stringstream buffer(tad_test3);
+    Ad adfile("tad:", std::ios_base::in);
+    adfile.Attach(buffer.rdbuf());
+    adfile.ReadHeader();
+    const char *libs[] = {"B","C"};
+    adfile.SelectLibraries(libs);
+
+    typedef std::vector<int> V;
+    typedef std::vector<std::string> S;
+
+    BOOST_CHECK(unittest_dng_io_ad::get_input_libraries(adfile)[0].name == "A");
+    BOOST_CHECK(unittest_dng_io_ad::get_input_libraries(adfile)[1].name == "B");
+    BOOST_CHECK(unittest_dng_io_ad::get_input_libraries(adfile)[0].sample == "AAA");
+    BOOST_CHECK(unittest_dng_io_ad::get_input_libraries(adfile)[1].sample == "BBB");
+    BOOST_CHECK(unittest_dng_io_ad::get_input_library_attributes(adfile)[0] == "");
+    BOOST_CHECK(unittest_dng_io_ad::get_input_library_attributes(adfile)[1] == "LB:B\tRG:B");
+
+    BOOST_CHECK(adfile.libraries().size() == 1);
+    BOOST_CHECK(adfile.library(1).name == "B");
+    BOOST_CHECK(adfile.library(1).sample == "BBB");
+    BOOST_CHECK(unittest_dng_io_ad::get_output_library_attributes(adfile)[0] == "LB:B\tRG:B");
+
+    AlleleDepths depths;
+    adfile.Read(&depths);
+    BOOST_CHECK(depths.location() == make_location(0,0));
+    BOOST_CHECK(depths.color() == 0);
+    BOOST_CHECK(depths.data() == V({9}));
+
+    adfile.Read(&depths);
+    BOOST_CHECK(depths.location() == make_location(0,1));
+    BOOST_CHECK(depths.color() == 1);
+    BOOST_CHECK(depths.data() == V({7}));
+
+    adfile.Read(&depths);
+    BOOST_CHECK(depths.location() == make_location(0,2));
+    BOOST_CHECK(depths.color() == 11);
+    BOOST_CHECK(depths.data() == V({0,2}));
+
+    adfile.Read(&depths);
+    BOOST_CHECK(depths.location() == make_location(1,0));
+    BOOST_CHECK(depths.color() == 3);
+    BOOST_CHECK(depths.data() == V({0}));    
+
+    adfile.Read(&depths);
+    BOOST_CHECK(depths.location() == make_location(2,0));
+    BOOST_CHECK(depths.color() == 127);
+    BOOST_CHECK(depths.data() == V({4,0,0,0}));
+}

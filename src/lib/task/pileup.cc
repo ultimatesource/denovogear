@@ -107,7 +107,7 @@ int process_bam(Pileup::argument_type &arg) {
     rgs.ParseHeaderText(bamdata, arg.rgtag);
 
     // Pileup data
-    std::vector<depth_t> read_depths(rgs.libraries().size());
+    dng::pileup::RawDepths read_depths(rgs.libraries().size());
 
     const int min_basequal = arg.min_basequal;
     auto filter_read = [min_basequal](
@@ -149,7 +149,7 @@ int process_bam(Pileup::argument_type &arg) {
             lib[2] = "RG:" + rg.id;
         }
         for(auto && l : libs) {
-            output.AddLibrary(std::move(l[0]), std::move(l[1]), std::move(l[2]));
+            output.AddHeaderLibrary(std::move(l[0]), std::move(l[1]), std::move(l[2]));
         }
     }
 

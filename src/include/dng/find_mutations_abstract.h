@@ -79,7 +79,7 @@ public:
 
     virtual ~FindMutationsAbstract();
 
-    virtual bool operator()(const std::vector<depth_t> &depths, int ref_index,
+    virtual bool operator()(const pileup::RawDepths &depths, int ref_index,
             stats_t *stats) = 0;
 
 

@@ -108,15 +108,9 @@ struct workspace_t {
         } 
     }
 
-    // template<typename T>
-    // void SetLibraries(const T &range) {
-    //     assert(boost::size(range) == library_nodes.second - library_nodes.first);
-    //     boost::copy(range, lower.begin() + library_nodes.first);
-    // }
-
     inline
     double SetGenotypeLikelihoods(const Genotyper &gt,
-        const RawDepths &depths, const int ref_index) {
+        const pileup::RawDepths &depths, const int ref_index) {
         double scale = 0.0, stemp;
         for(std::size_t u = 0; u < depths.size(); ++u) {
             auto pos = library_nodes.first + u;
@@ -129,12 +123,12 @@ struct workspace_t {
 
     inline
     double SetGenotypeLikelihoods(const Genotyper &gt,
-        const pileup::AlleleDepths &depths,const std::vector<size_t>& indexes) {
+        const pileup::AlleleDepths &depths) {
         double scale=0.0, stemp;
-        for(std::size_t u = 0; u < indexes.size(); ++u) {
+        for(std::size_t u = 0; u < depths.size(); ++u) {
             auto pos = library_nodes.first + u;
             std::tie(lower[pos], stemp) =
-                gt(depths, indexes[u], ploidies[pos]);
+                gt(depths, u, ploidies[pos]);
             scale += stemp;
         }
         return scale;
