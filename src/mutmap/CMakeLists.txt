@@ -21,6 +21,15 @@ if (Rscript_FOUND)
   
   configure_file("${CMAKE_CURRENT_SOURCE_DIR}/tools/build.R"
     "${CMAKE_CURRENT_BINARY_DIR}/build.R" @ONLY)
+
+  configure_file("${CMAKE_CURRENT_SOURCE_DIR}/tools/layout_and_template.R"
+    "${CMAKE_CURRENT_BINARY_DIR}/layout_and_template.R" @ONLY)
+
+  configure_file("${CMAKE_CURRENT_SOURCE_DIR}/tools/test_server.R"
+    "${CMAKE_CURRENT_BINARY_DIR}/test_server.R" @ONLY)
+
+  configure_file("${CMAKE_CURRENT_SOURCE_DIR}/tools/autotest.sh"
+    "${CMAKE_CURRENT_BINARY_DIR}/autotest.sh" @ONLY)
   
   configure_file("${CMAKE_CURRENT_SOURCE_DIR}/src/html/index.html"
     "${CMAKE_CURRENT_BINARY_DIR}/index.html" @ONLY)
@@ -28,8 +37,11 @@ if (Rscript_FOUND)
   install (DIRECTORY DESTINATION ${MUTMAP_DIR})
   
   install (PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/build.R"
-      DESTINATION ${CMAKE_INSTALL_LIBEXECDIR} RENAME dng-mutmap)
-  
+    DESTINATION ${CMAKE_INSTALL_LIBEXECDIR} RENAME dng-mutmap)
+
+  install (FILES "${CMAKE_CURRENT_BINARY_DIR}/layout_and_template.R"
+    DESTINATION ${MUTMAP_DIR})
+
   install (FILES ${BUNDLE_FILE} DESTINATION ${MUTMAP_DIR})
   
   install (FILES "${CMAKE_CURRENT_BINARY_DIR}/index.html"
