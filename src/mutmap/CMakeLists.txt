@@ -17,10 +17,7 @@ if (Rscript_FOUND)
       DEPENDS ${JS_FILES}
       )
   
-  add_custom_target(bundle ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/bundle.js)
-  
-  configure_file("${CMAKE_CURRENT_SOURCE_DIR}/mutmap.sh.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/mutmap.sh" @ONLY)
+  add_custom_target(bundle ALL DEPENDS ${BUNDLE_FILE})
   
   configure_file("${CMAKE_CURRENT_SOURCE_DIR}/tools/build.R"
     "${CMAKE_CURRENT_BINARY_DIR}/build.R" @ONLY)
@@ -30,14 +27,10 @@ if (Rscript_FOUND)
   
   install (DIRECTORY DESTINATION ${MUTMAP_DIR})
   
-  install (PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/mutmap.sh"
-    DESTINATION ${CMAKE_INSTALL_LIBEXECDIR} RENAME dng-mutmap)
+  install (PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/build.R"
+      DESTINATION ${CMAKE_INSTALL_LIBEXECDIR} RENAME dng-mutmap)
   
-  install (FILES "${CMAKE_CURRENT_BINARY_DIR}/build.R"
-    DESTINATION ${MUTMAP_DIR})
-  
-  install (FILES "${CMAKE_CURRENT_BINARY_DIR}/bundle.js"
-    DESTINATION ${MUTMAP_DIR})
+  install (FILES ${BUNDLE_FILE} DESTINATION ${MUTMAP_DIR})
   
   install (FILES "${CMAKE_CURRENT_BINARY_DIR}/index.html"
     DESTINATION ${MUTMAP_DIR})

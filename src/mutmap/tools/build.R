@@ -1,13 +1,10 @@
-#!/usr/bin/env Rscript
+#!@RSCRIPT_COMMAND@ --vanilla
 
 parseArguments <- function() {
 
     library(argparser, quietly=TRUE)
 
     argParser <- arg_parser("Visualization for DeNovoGear")
-    argParser <- add_argument(argParser, "sourceDirectory",
-                              help="Source directory for input files",
-                              type="character")
     argParser <- add_argument(argParser, "pedFilePath",
                               help="Path to pedigree file", type="character")
     argParser <- add_argument(argParser, "dngOutputFilePath",
@@ -115,7 +112,7 @@ testServer <- function() {
 
 main <- function() {
     argv <- parseArguments()
-    sourceDirectory <- argv$sourceDirectory
+    sourceDirectory <- file.path('@MUTMAP_DIR@')
     pedFilePath <- argv$pedFilePath
     dngOutputFilePath <- argv$dngOutputFilePath
     outputFilePath <- argv$outputFilePath
