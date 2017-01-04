@@ -41,10 +41,8 @@ function main() {
 
   function dngOverlay() {
     var vcfData = vcfParser.parseVCFText(dngOutputFileText);
-    //console.log(vcfData);
 
     var mutationLocation = vcfData.records[0].INFO.DNL;
-    console.log(mutationLocation);
     var owner = findOwnerNode(mutationLocation);
 
     if (owner !== undefined) {
@@ -86,7 +84,6 @@ function main() {
     gotLayoutData();
 
     function gotLayoutData(jsonData) {
-      //console.log(jsonData);
       //var layoutData = JSON.parse(jsonData);
 
       var pedigreeData = pedParser.parsePedigreeFile(pedigreeFileText);
@@ -253,11 +250,8 @@ function main() {
   }
 
   function processPedigree(data, pedigreeData) {
-    //console.log(pedigreeData);
 
     pedGraph = buildGraphFromPedigree(pedigreeData);
-
-    //console.log(pedGraph);
 
     var layout = data.layout;
     var nodes = [];
@@ -338,7 +332,6 @@ function main() {
   function findOwnerNode(sampleName) {
     var strippedName = getStrippedName(sampleName);
     for (var person of pedGraph.getPersons()) {
-      console.log(person.data.sampleIds);
       var sampleNode = findInTree(person.data.sampleIds, strippedName);
       if (sampleNode !== undefined) {
         return person;
