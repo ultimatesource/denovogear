@@ -45,7 +45,7 @@ FindMutationsAbstract::FindMutationsAbstract(double min_prob, const Relationship
     onemut_transition_matrices_.assign(work_full_.num_nodes, {});
     mean_matrices_.assign(work_full_.num_nodes, {});
 
-    keep_library_index_ = graph.KeepLibraryIndex();
+    //keep_library_index_ = graph.KeepLibraryIndex();
 }
 
 void FindMutationsAbstract::SetupPopulationPriorDiploid() {

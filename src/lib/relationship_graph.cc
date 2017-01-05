@@ -893,18 +893,6 @@ void dng::RelationshipGraph::ClearFamilyInfo(){
     transitions_.reserve(128);
 }
 
-void dng::RelationshipGraph::ExtractRequiredLibraries(
-        const Graph &pedigree_graph, const std::vector<size_t> &node_ids) {
-
-    int counter = 0;
-    for (int i = first_library_; i < node_ids.size(); ++i) {
-        if(node_ids[i]!= -1){
-            keep_library_index_.push_back(counter);
-        }
-        counter++;;
-    }
-}
-
 void dng::RelationshipGraph::PrintDebugEdges(const std::string &prefix,
                                              const Graph &pedigree_graph) {
 

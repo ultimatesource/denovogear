@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014,2015 Reed A. Cartwright
+ * Copyright (c) 2014,2015,2017 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -28,7 +28,6 @@
 #include <boost/range/algorithm/sort.hpp>
 #include <boost/range/algorithm/unique.hpp>
 #include <boost/range/algorithm_ext/erase.hpp>
-#include <boost/container/flat_set.hpp>
 
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/identity.hpp>
@@ -36,9 +35,10 @@
 #include <boost/multi_index/random_access_index.hpp>
 #include <boost/multi_index/member.hpp>
 
-#include <unordered_set>
+#include <map>
 
-#include <dng/io/ad.h>
+#include <dng/utility.h>
+#include <dng/library.h>
 
 namespace dng {
 
@@ -80,7 +80,7 @@ typedef boost::multi_index_container<rg_t, indexed_by<
 
 class ReadGroups {
 public:
-    typedef boost::container::flat_set<std::string> StrSet;
+    typedef utility::StringSet StrSet;
     typedef detail::rg_t ReadGroup;
     typedef detail::DataBase DataBase;
 
@@ -95,7 +95,7 @@ public:
     void ParseSamples(InFiles &range);
 
     // Parse Library information from an AD file
-    void ParseLibraries(const std::vector<io::Ad::library_t>& libs);
+    void ParseLibraries(const LibraryVector& libs);
 
     inline const StrSet &groups() const { return groups_; }
     inline const StrSet &libraries() const { return libraries_; }
@@ -116,6 +116,27 @@ public:
     }
     inline std::vector<std::size_t> library_from_index() const {
         return library_from_index_;
+    }
+
+    inline LibraryVector GetLibraries() const {
+        LibraryVector ret;
+        std::map<std::string,std::string> samples;
+        for(auto &&a : data_) {
+            samples[a.library] = a.sample;
+        }
+        for(auto &&a : samples) {
+            ret.push_back({a.first,a.second});
+        }
+        return ret;
+    }
+
+    template<typename Range>
+    void SelectLibraries(Range &range) {
+        StrSet temp = libraries_;
+        for(auto && a : range) {
+            temp.erase(a);
+        }
+        EraseLibraries(temp);
     }
 
     template<typename Range>
@@ -201,7 +222,7 @@ void ReadGroups::ParseSamples(InFile &file) {
 }
 
 inline
-void ReadGroups::ParseLibraries(const std::vector<io::Ad::library_t>& libs) {
+void ReadGroups::ParseLibraries(const LibraryVector& libs) {
     for(auto && a : libs) {
         data_.insert({a.name,a.name,a.sample});
     }

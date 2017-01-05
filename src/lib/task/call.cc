@@ -246,11 +246,13 @@ int process_bam(task::Call::argument_type &arg) {
     InheritanceModel model = inheritance_model(arg.model);
 
     RelationshipGraph relationship_graph;
-    if (!relationship_graph.Construct(ped, rgs, model,
+    if (!relationship_graph.Construct(ped, rgs.GetLibraries(), model,
                                       arg.mu, arg.mu_somatic, arg.mu_library)) {
         throw std::runtime_error("Unable to construct peeler for pedigree; "
                                  "possible non-zero-loop relationship_graph.");
     }
+    rgs.SelectLibraries(relationship_graph.library_names());
+
     // quality thresholds
     int min_qual = arg.min_basequal;
     double min_prob = arg.min_prob;
@@ -810,15 +812,17 @@ int process_ad(task::Call::argument_type &arg) {
 
     // Construct peeling algorithm from parameters and pedigree information
     InheritanceModel model = inheritance_model(arg.model);
-    dng::ReadGroups rgs;
-    rgs.ParseLibraries(input.libraries());
     dng::RelationshipGraph relationship_graph;
-    if (!relationship_graph.Construct(ped, rgs, model,
+    if (!relationship_graph.Construct(ped, input.libraries(), model,
                                       arg.mu, arg.mu_somatic, arg.mu_library)) {
         throw std::runtime_error("Error: Unable to construct peeler for pedigree; "
                                  "possible non-zero-loop relationship_graph.");
     }
+    // Select libraries in the input that are used in the pedigree
+    input.SelectLibraries(relationship_graph.library_names());
 
+    ReadGroups rgs;
+    rgs.ParseLibraries(input.libraries());
 
     // Begin writing VCF header
     auto out_file = vcf_get_output_mode(arg);
@@ -890,11 +894,12 @@ int process_bcf(task::Call::argument_type &arg) {
     dng::ReadGroups rgs;
     rgs.ParseSamples(bcfdata);
     dng::RelationshipGraph relationship_graph;
-    if (!relationship_graph.Construct(ped, rgs, model,
+    if (!relationship_graph.Construct(ped, rgs.GetLibraries(), model,
                                       arg.mu, arg.mu_somatic, arg.mu_library)) {
         throw std::runtime_error("Error: Unable to construct peeler for pedigree; "
                                  "possible non-zero-loop relationship_graph.");
     }
+    rgs.SelectLibraries(relationship_graph.library_names());
 
     const char *fname = bcfdata.name();
     dng::pileup::variant::VCFPileup vcfpileup{rec_reader, rgs.libraries()};

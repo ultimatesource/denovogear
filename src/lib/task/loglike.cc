@@ -147,7 +147,7 @@ int process_bam(LogLike::argument_type &arg) {
     for(auto && str : arg.input) {
         bamdata.emplace_back(str.c_str(), "r", arg.fasta.c_str(), arg.min_mapqual, arg.header.c_str());
         if(!bamdata.back().is_open()) {
-            throw std::runtime_error("unable to open input file '" + str + "'.");
+            throw std::runtime_error("Error: Unable to open input file '" + str + "'.");
         }
         // add regions
         if(!arg.region.empty()) {
@@ -160,28 +160,32 @@ int process_bam(LogLike::argument_type &arg) {
     // Construct peeling algorithm from parameters and pedigree information
     InheritanceModel model = inheritance_model(arg.model);
 
-    dng::RelationshipGraph pedigree;
-    if(!pedigree.Construct(ped, rgs, model, arg.mu, arg.mu_somatic, arg.mu_library)) {
-        throw std::runtime_error("Unable to construct peeler for pedigree; "
+
+    dng::RelationshipGraph graph;
+    if(!graph.Construct(ped, rgs.GetLibraries(), model, arg.mu, arg.mu_somatic, arg.mu_library)) {
+        throw std::runtime_error("Error: Unable to construct peeler for pedigree; "
                                  "possible non-zero-loop pedigree.");
     }
+    // Select libraries in the input that are used in the pedigree
+    rgs.SelectLibraries(graph.library_names());
+
     if(arg.gamma.size() < 2) {
-        throw std::runtime_error("Unable to construct genotype-likelihood model; "
+        throw std::runtime_error("Error: Unable to construct genotype-likelihood model; "
                                  "Gamma needs to be specified at least twice to change model from default.");
     }
 
-    for(auto && line : pedigree.BCFHeaderLines()) {
+    for(auto && line : graph.BCFHeaderLines()) {
         std:cout << line << "\n";
     }
 
-    LogProbability calculate (pedigree,
+    LogProbability calculate (graph,
         { arg.theta, freqs, arg.ref_weight, arg.gamma[0], arg.gamma[1] } );
 
     // Pileup data
     pileup::RawDepths read_depths(rgs.libraries().size());
 
-    const size_t num_nodes = pedigree.num_nodes();
-    const size_t library_start = pedigree.library_nodes().first;
+    const size_t num_nodes = graph.num_nodes();
+    const size_t library_start = graph.library_nodes().first;
     const int min_basequal = arg.min_basequal;
     auto filter_read = [min_basequal](
     dng::BamPileup::data_type::value_type::const_reference r) -> bool {
@@ -266,21 +270,19 @@ int process_ad(LogLike::argument_type &arg) {
         throw std::runtime_error("Argument Error: unable to read header from '" + input.path() + "'.");
     }
 
-
-
     // Construct peeling algorithm from parameters and pedigree information
     InheritanceModel model = inheritance_model(arg.model);
 
     RelationshipGraph graph;
     if(!graph.Construct(ped, input.libraries(), model, arg.mu, arg.mu_somatic, arg.mu_library)) {
-        throw runtime_error("Unable to construct peeler for pedigree; "
+        throw runtime_error("Error: Unable to construct peeler for pedigree; "
                             "possible non-zero-loop pedigree.");
     }
     // Select libraries in the input that are used in the pedigree
     input.SelectLibraries(graph.library_names());
 
     if(arg.gamma.size() < 2) {
-        throw runtime_error("Unable to construct genotype-likelihood model; "
+        throw runtime_error("Error: Unable to construct genotype-likelihood model; "
                             "Gamma needs to be specified at least twice to change model from default.");
     }
 

@@ -39,10 +39,16 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/tokenizer.hpp>
 
+#include <boost/container/flat_set.hpp>
+#include <boost/container/flat_map.hpp>
+
 #include <dng/detail/unit_test.h>
 
 namespace dng {
 namespace utility {
+
+using StringSet = boost::container::flat_set<std::string>;
+using StringMap = boost::container::flat_map<std::string, size_t>;
 
 template<typename E, typename = typename std::enable_if<std::is_enum<E>::value>::type>
 struct EnumFlags {

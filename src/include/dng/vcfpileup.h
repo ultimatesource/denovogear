@@ -39,8 +39,9 @@
 #include <dng/fileio.h>
 #include <dng/cigar.h>
 #include <dng/read_group.h>
+#include <dng/io/ad.h>
 
-#include "htslib/synced_bcf_reader.h"
+#include <htslib/synced_bcf_reader.h>
 
 #include <iostream>
 
