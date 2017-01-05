@@ -1,3 +1,8 @@
+// eslint exceptions
+//
+/* global vcf */
+/* exported vcfParser */
+
 var vcfParser = (function() {
   "use strict";
 
@@ -8,6 +13,6 @@ var vcfParser = (function() {
 
   return {
     parseVCFText: parseVCFText
-  }
+  };
 
 }());

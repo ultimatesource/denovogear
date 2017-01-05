@@ -1,14 +1,21 @@
+// eslint exceptions
+//
+/* global require */
+/* exported pedParser */
+
 var pedParser = (function() {
   "use strict";
 
   function parsePedigreeFile(fileText) {
 
-    var newickParser = require('biojs-io-newick');
+    var newickParser = require("biojs-io-newick");
 
     var entries = [];
 
-    var lines = fileText.split('\n');
-    for (var line of lines) {
+    var lines = fileText.split("\n");
+
+    for (var index = 0; index < lines.length; index++) {
+      var line = lines[index];
 
       if (line.length === 0) {
         continue;
@@ -37,10 +44,10 @@ var pedParser = (function() {
 
       var sex = Number(row[4]);
       if (sex === 1) {
-        entry.sex = 'male';
+        entry.sex = "male";
       }
       else if (sex === 2) {
-        entry.sex = 'female';
+        entry.sex = "female";
       }
       else {
         entry.sex = undefined;
@@ -71,6 +78,6 @@ var pedParser = (function() {
 
   return {
     parsePedigreeFile: parsePedigreeFile
-  }
+  };
 
 }());

@@ -1,7 +1,11 @@
+// eslint exceptions
+//
+/* exported pedigr */
+
 var pedigr = (function() {
   "use strict";
 
-  function PedigreeGraph() {
+  var PedigreeGraph = function() {
     this.persons = {};
     this.marriages = [];
     this.parentageLinks = {};
@@ -11,7 +15,7 @@ var pedigr = (function() {
     return this.persons[id];
   };
 
-  PedigreeGraph.prototype.getPersons = function(query) {
+  PedigreeGraph.prototype.getPersons = function() {
     var persons = [];
     for (var key in this.persons) {
       persons.push(this.persons[key]);
@@ -34,7 +38,7 @@ var pedigr = (function() {
     return graph;
   };
 
-  function Person(attr) {
+  var Person = function(attr) {
     this.id = attr.id;
     this.sex = attr.sex;
     //this.father = attr.father;
@@ -52,7 +56,7 @@ var pedigr = (function() {
     return this.parentageLink;
   };
 
-  function PersonBuilder(id) {
+  var PersonBuilder = function(id) {
     this._id = id;
     this._sex = undefined;
     //this._father = undefined;
@@ -66,7 +70,7 @@ var pedigr = (function() {
   PersonBuilder.prototype.sex = function(sex) {
     this._sex = sex;
     return this;
-  }
+  };
 
   PersonBuilder.prototype.parentageLink = function(parentageLink) {
     this._parentageLink = parentageLink;
@@ -117,13 +121,12 @@ var pedigr = (function() {
   }
 
   Marriage.prototype.addSpouse = function(spouse) {
-    if (spouse.sex === 'male') {
-      var link = MarriageLink.createMarriageLink(this, spouse);
+    var link = MarriageLink.createMarriageLink(this, spouse);
+    if (spouse.sex === "male") {
       this.fatherLink = link;
       spouse.marriageLink = link;
     }
     else {
-      var link = MarriageLink.createMarriageLink(this, spouse);
       this.motherLink =  link;
       spouse.marriageLink = link;
     }
@@ -152,7 +155,7 @@ var pedigr = (function() {
   };
 
   MarriageBuilder.prototype.spouse = function(spouse) {
-    if (spouse.sex === 'male') {
+    if (spouse.sex === "male") {
       this._father = spouse;
     }
     else {
@@ -190,7 +193,7 @@ var pedigr = (function() {
     marriage.addSpouse(this._mother);
     marriage.childLinks = [];
     return marriage;
-  }
+  };
 
   function MarriageLink(marriage, spouse) {
     this.marriage = marriage;

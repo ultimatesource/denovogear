@@ -1,3 +1,7 @@
+// eslint exceptions
+//
+/* exported utils */
+
 var utils = (function() {
   "use strict";
 

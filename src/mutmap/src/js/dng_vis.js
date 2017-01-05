@@ -1,20 +1,36 @@
+// eslint exceptions
+//
+/* global pedParser */
+/* global visuals */
+/* global vcfParser */
+/* global pedigr */
+/* global utils */
 
-main();
+/* global pedigreeFileText */
+/* global layoutData */
+/* global dngOutputFileText */
 
-function main() {
+(function() {
+  "use strict";
 
+  // The placeholder tags below will be replaced with the correct data objects
+  // by the build system. See mutmap/tools/layout_and_template.R
+  //
+  // provides pedigreeFileText
   /*PEDIGREE_FILE_TEXT_PLACEHOLDER*/
+  // provides layoutData
   /*LAYOUT_DATA_PLACEHOLDER*/
+  // provides dngOutputFileText
   /*DNG_VCF_DATA_PLACEHOLDER*/
 
-  var idText = d3.select('#id_display');
   var pedGraph = null;
-  var activeNode = null;
   
-  serverPedigreeAndLayout(function(nodes, links) {
-    dngOverlay()
-    visuals.doVisuals(nodes, links);
-  });
+  var pedigreeData = pedParser.parsePedigreeFile(pedigreeFileText);
+
+  var pedData = processPedigree(layoutData, pedigreeData);
+
+  dngOverlay();
+  visuals.doVisuals(pedData);
 
   function dngOverlay() {
     var vcfData = vcfParser.parseVCFText(dngOutputFileText);
@@ -29,7 +45,7 @@ function main() {
       };
       ownerParentageLink.setData(parentageLinkData);
 
-      for (var sampleName of vcfData.header.sampleNames) {
+      vcfData.header.sampleNames.forEach(function(sampleName) {
         var format = vcfData.records[0][sampleName];
 
         if (isPersonNode(sampleName)) {
@@ -41,26 +57,10 @@ function main() {
           var sampleNode = findMatchingSampleNode(sampleName);
           sampleNode.dngOutputData = format;
         }
-      }
+      });
     }
     else {
       alert("No mutation found!");
-    }
-  }
-
-  function serverPedigreeAndLayout(callback) {
-
-    gotLayoutData();
-
-    function gotLayoutData(jsonData) {
-
-      var pedigreeData = pedParser.parsePedigreeFile(pedigreeFileText);
-
-      var ret = processPedigree(layoutData, pedigreeData);
-      var nodes = ret.nodes;
-      var links = ret.links;
-
-      callback(nodes, links);
     }
   }
 
@@ -79,7 +79,7 @@ function main() {
         var id = row[colIdx];
 
         var node = {};
-        node.type = 'person';
+        node.type = "person";
         node.dataNode = pedGraph.getPerson(id);
         node.x = 80 * layout.pos[rowIdx][colIdx];
         node.y = 100 * rowIdx;
@@ -112,12 +112,12 @@ function main() {
 
         var children = getAllKids(data, nodes, node, spouseNode);
 
-        for (var childNode of children) {
+        children.forEach(function(childNode) {
           var childLink = createChildLink(childNode, marriageNode);
           var parentageLink = marriage.addChild(childNode.dataNode);
           childLink.dataLink = parentageLink;
           links.push(childLink);
-        }
+        });
 
       }
 
@@ -132,11 +132,11 @@ function main() {
   function buildGraphFromPedigree(pedigreeData) {
     var pedGraph = pedigr.PedigreeGraph.createGraph();
 
-    pedigreeData.forEach(function(person) {
+    pedigreeData.forEach(function(individual) {
       var person = pedigr.PersonBuilder
-        .createPersonBuilder(person.individualId)
-          .sex(person.sex)
-          .data({ sampleIds: person.sampleIds })
+        .createPersonBuilder(individual.individualId)
+          .sex(individual.sex)
+          .data({ sampleIds: individual.sampleIds })
           .build();
       pedGraph.addPerson(person);
     });
@@ -144,9 +144,13 @@ function main() {
     return pedGraph;
   }
 
+  // TODO this and findMatchingSampleNode have almost the same logic. Find a
+  // way to extract the duplication
   function findOwnerNode(sampleName) {
     var strippedName = getStrippedName(sampleName);
-    for (var person of pedGraph.getPersons()) {
+    var persons = pedGraph.getPersons();
+    for (var index = 0; index < persons.length; index++) {
+      var person = persons[index];
       var sampleNode = findInTree(person.data.sampleIds, strippedName);
       if (sampleNode !== undefined) {
         return person;
@@ -157,7 +161,9 @@ function main() {
 
   function findMatchingSampleNode(sampleName) {
     var strippedName = getStrippedName(sampleName);
-    for (var person of pedGraph.getPersons()) {
+    var persons = pedGraph.getPersons();
+    for (var index = 0; index < persons.length; index++) {
+      var person = persons[index];
       var sampleNode = findInTree(person.data.sampleIds, strippedName);
       if (sampleNode !== undefined) {
         return sampleNode;
@@ -177,7 +183,8 @@ function main() {
         return undefined;
       }
       else {
-        for (child of tree.children) {
+        for (var index = 0; index < tree.children.length; index++) {
+          var child = tree.children[index];
           var inChild = findInTree(child, sampleName);
           if (inChild !== undefined) {
             return inChild;
@@ -190,12 +197,12 @@ function main() {
   }
 
   function getStrippedName(sampleName) {
-    var stripped = sampleName.slice(3, sampleName.indexOf(':'));
+    var stripped = sampleName.slice(3, sampleName.indexOf(":"));
     return stripped;
   }
 
   function isPersonNode(sampleName) {
-    return sampleName.startsWith('GL-');
+    return sampleName.startsWith("GL-");
   }
 
   function getIdFromSampleName(sampleName) {
@@ -204,10 +211,6 @@ function main() {
 
   function oneToZeroBase(index) {
     return index - 1;
-  }
-
-  function newNode(id) {
-    return { id: id };
   }
 
   function createMarriageNode(spouseA, spouseB) {
@@ -221,7 +224,7 @@ function main() {
 
   function createMarriageLink(spouseNode, marriageNode) {
     var marriageLink = {};
-    marriageLink.type = 'spouse';
+    marriageLink.type = "spouse";
     marriageLink.source = spouseNode;
     marriageLink.target = marriageNode;
     return marriageLink;
@@ -229,7 +232,7 @@ function main() {
 
   function createChildLink(childNode, marriageNode) {
     var childLink = {};
-    childLink.type = 'child';
+    childLink.type = "child";
     childLink.source = childNode;
     childLink.target = marriageNode;
     return childLink;
@@ -238,7 +241,7 @@ function main() {
   function getAllKids(data, nodes, nodeA, nodeB) {
     var father;
     var mother;
-    if (nodeA.dataNode.sex === 'male') {
+    if (nodeA.dataNode.sex === "male") {
       father = nodeA;
       mother = nodeB;
     }
@@ -248,8 +251,8 @@ function main() {
     }
 
     var kids = [];
-    for (var node of nodes) {
-      if (node.type != 'marriage') {
+    nodes.forEach(function(node) {
+      if (node.type != "marriage") {
         if (data.pedigree.findex[oneToZeroBase(node.dataNode.id)] ===
               father.dataNode.id &&
             data.pedigree.mindex[oneToZeroBase(node.dataNode.id)] ===
@@ -257,8 +260,8 @@ function main() {
           kids.push(node);
         }
       }
-    }
+    });
 
     return kids;
   }
-}
+}());

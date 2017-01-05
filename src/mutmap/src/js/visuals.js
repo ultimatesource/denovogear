@@ -1,8 +1,19 @@
+// eslint exceptions
+//
+/* global d3 */
+/* global utils */
+/* exported visuals */
+
 var visuals = (function() {
   "use strict";
   
-  function doVisuals(nodes, links) {
+  function doVisuals(pedData) {
+
+    var nodes = pedData.nodes;
+    var links = pedData.links;
+
     var height = 500;
+    var activeNode = null;
 
     d3.select("svg").remove();
 
@@ -10,7 +21,7 @@ var visuals = (function() {
       .on("zoom", zoomed);
 
 
-    var chartWrapper= d3.select("#chart_wrapper")
+    var chartWrapper= d3.select("#chart_wrapper");
     var dim = chartWrapper.node().getBoundingClientRect();
 
     var svg = chartWrapper.append("svg")
@@ -33,7 +44,7 @@ var visuals = (function() {
     link.append("line")
       .attr("stroke-width", function(d) {
         if (linkHasData(d)) {
-            return 5;
+          return 5;
         }
         return 1;
       })
@@ -63,7 +74,7 @@ var visuals = (function() {
       });
 
     function linkHasData(d) {
-        return d.dataLink !== undefined && d.dataLink.data !== undefined;
+      return d.dataLink !== undefined && d.dataLink.data !== undefined;
     }
 
 
@@ -79,11 +90,11 @@ var visuals = (function() {
     node.append("path")
       .attr("d", d3.symbol()
         .type(function(d) {
-          if (d.type === 'person') {
-            if (d.dataNode.sex === 'male') {
+          if (d.type === "person") {
+            if (d.dataNode.sex === "male") {
               return d3.symbolSquare;
             }
-            else if (d.dataNode.sex === 'female') {
+            else if (d.dataNode.sex === "female") {
               return d3.symbolCircle;
             }
           }
@@ -93,8 +104,8 @@ var visuals = (function() {
         })
         .size(500))
       .attr("fill", fillColor)
-      .attr('opacity', function(d) {
-        if (d.type === 'marriage') {
+      .attr("opacity", function(d) {
+        if (d.type === "marriage") {
           return 0;
         }
         else {
@@ -107,13 +118,13 @@ var visuals = (function() {
       .attr("dx", 20)
       .attr("dy", ".35em")
       .text(function(d) { 
-        if (d.type !== 'marriage') {
-          return d.dataNode.id
+        if (d.type !== "marriage") {
+          return d.dataNode.id;
         }
       });
     
     node.attr("transform", function(d) {
-        return "translate(" + d.x + "," + d.y + ")";
+      return "translate(" + d.x + "," + d.y + ")";
     });
 
     function zoomed() {
@@ -121,28 +132,28 @@ var visuals = (function() {
     }
 
     function nodeClicked(d) {
-      if (d.type !== 'marriage') {
-        d3.select(activeNode).style('fill', fillColor);
+      if (d.type !== "marriage") {
+        d3.select(activeNode).style("fill", fillColor);
         activeNode = this;
-        d3.select(this).style('fill', 'DarkSeaGreen');
+        d3.select(this).style("fill", "DarkSeaGreen");
 
         if (d.dataNode.data.dngOutputData !== undefined) {
-          document.getElementById('id_display').value =
+          document.getElementById("id_display").value =
             d.dataNode.id;
         }
         else {
-          document.getElementById('id_display').value = "";
+          document.getElementById("id_display").value = "";
         }
 
       }
     }
 
     function fillColor(d) {
-      if (d.type === 'person') {
-        if (d.dataNode.sex === 'male') {
+      if (d.type === "person") {
+        if (d.dataNode.sex === "male") {
           return "SteelBlue";
         }
-        else if (d.dataNode.sex === 'female') {
+        else if (d.dataNode.sex === "female") {
           return "Tomato";
         }
       }
