@@ -50,8 +50,6 @@ LogProbability::LogProbability(RelationshipGraph graph, params_t params) :
     // Precalculate monomorphic histories (first 4 colors)
     size_t num_libraries = work_.library_nodes.second - work_.library_nodes.first;
     pileup::AlleleDepths depths{0,0,num_libraries,pileup::AlleleDepths::data_t(num_libraries, 0)};
-    std::vector<size_t> indexes(num_libraries,0);
-    std::iota(indexes.begin(),indexes.end(),0);
     for(int color=0; color<4;++color) {
         // setup monomorphic prior
         depths.color(color);
@@ -59,7 +57,7 @@ LogProbability::LogProbability(RelationshipGraph graph, params_t params) :
         diploid_prior(0) = diploid_prior_[color](pileup::AlleleDepths::type_info_gt_table[color].indexes[0]);
         haploid_prior(0) = haploid_prior_[color](pileup::AlleleDepths::type_info_table[color].indexes[0]);
         work_.SetFounders(diploid_prior, haploid_prior);
-        work_.SetGenotypeLikelihoods(genotyper_, depths, indexes);
+        work_.SetGenotypeLikelihoods(genotyper_, depths);
         double logdata = graph_.PeelForwards(work_, transition_matrices_.subsets[color]);
         prob_monomorphic_[color] = exp(logdata);
     }
@@ -89,7 +87,7 @@ LogProbability::value_t LogProbability::operator()(const pileup::RawDepths &dept
 
 // Calculate the probability of a depths object considering only indexes
 // TODO: make indexes a property of the pedigree
-LogProbability::value_t LogProbability::operator()(const pileup::AlleleDepths &depths, const std::vector<size_t>& indexes) {
+LogProbability::value_t LogProbability::operator()(const pileup::AlleleDepths &depths) {
     int ref_index = depths.type_info().reference;
     int color = depths.color();
 
@@ -98,7 +96,7 @@ LogProbability::value_t LogProbability::operator()(const pileup::AlleleDepths &d
     if(color < 4) {
         assert(depths.type_info().width == 1 && depths.type_gt_info().width == 1 && ref_index == color);
         // Calculate genotype likelihoods
-        scale = work_.SetGenotypeLikelihoods(genotyper_, depths, indexes);
+        scale = work_.SetGenotypeLikelihoods(genotyper_, depths);
 
         // Multiply our pre-calculated peeling results with the genotype likelihoods
         logdata = prob_monomorphic_[color];
@@ -125,7 +123,7 @@ LogProbability::value_t LogProbability::operator()(const pileup::AlleleDepths &d
         work_.SetFounders(diploid_prior, haploid_prior);
   
         // Calculate genotype likelihoods
-        scale = work_.SetGenotypeLikelihoods(genotyper_, depths, indexes);
+        scale = work_.SetGenotypeLikelihoods(genotyper_, depths);
 
          // Calculate log P(Data ; model)
         logdata = graph_.PeelForwards(work_, transition_matrices_.subsets[color]);

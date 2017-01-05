@@ -151,7 +151,7 @@ public:
     size_t num_nodes() const { return num_nodes_; }
     std::pair<size_t, size_t> library_nodes() const { return {first_library_, num_nodes_}; }
 
-    const std::vector<int> &KeepLibraryIndex() const {return keep_library_index_;}
+    const std::vector<std::string> &library_names() const { return library_names_; }
 
 protected:
     using Graph = dng::detail::graph::Graph;
@@ -185,10 +185,11 @@ protected:
     // The arguments to a peeling operation
     std::vector<peel::family_members_t> family_members_;
 
+    std::vector<std::string> library_names_;
+
     void ConstructPeelingMachine();
 
-    void UpdateLabelsNodeIds(const Graph &pedigree_graph, dng::ReadGroups &rgs,
-            std::vector<size_t> &node_ids);
+    std::vector<size_t> ConstructNodes(const Graph &pedigree_graph);
 
     void CreateFamiliesInfo(Graph &pedigree_graph,
             family_labels_t &family_labels, std::vector<vertex_t> &pivots);
@@ -197,19 +198,11 @@ protected:
             const std::vector<size_t> &node_ids, family_labels_t &family_labels,
             std::vector<vertex_t> &pivots);
 
-    void ExtractRequiredLibraries(const Graph &pedigree_graph,
-            const std::vector<size_t> &node_ids);
-
 private:
-    void EraseRemovedLibraries(dng::ReadGroups &rgs,
-                std::vector<size_t> &node_ids);
-
     void ClearFamilyInfo();
 
     void PrintDebugEdges(const std::string &prefix,
             const Graph &pedigree_graph);
-
-    std::vector<int> keep_library_index_;
 
     DNG_UNIT_TEST(test_pedigree_inspect);
     DNG_UNIT_TEST(test_parse_io_pedigree);

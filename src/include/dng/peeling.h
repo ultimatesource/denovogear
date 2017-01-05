@@ -125,7 +125,7 @@ struct workspace_t {
     double SetGenotypeLikelihoods(const Genotyper &gt,
         const pileup::AlleleDepths &depths) {
         double scale=0.0, stemp;
-        for(std::size_t u = 0; u < depths.size(); ++u) {
+        for(std::size_t u = 0; u < depths.num_libraries(); ++u) {
             auto pos = library_nodes.first + u;
             std::tie(lower[pos], stemp) =
                 gt(depths, u, ploidies[pos]);

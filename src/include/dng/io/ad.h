@@ -90,7 +90,7 @@ public:
         return contigs_[pos];
     }
 
-    const std::vector<library_t>& libraries() const {
+    const LibraryVector& libraries() const {
         return output_libraries_;
     }
 
@@ -149,8 +149,8 @@ private:
     std::vector<contig_t> contigs_;
     std::vector<std::string> contig_attributes_;
 
-    std::vector<library_t> input_libraries_;
-    std::vector<library_t> output_libraries_;
+    LibraryVector input_libraries_;
+    LibraryVector output_libraries_;
     std::vector<std::string> input_library_attributes_;
     std::vector<std::string> output_library_attributes_;
 

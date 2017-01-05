@@ -48,7 +48,7 @@ public:
     LogProbability(RelationshipGraph graph, params_t params);
 
     value_t operator()(const pileup::RawDepths &depths, int ref_index);
-    value_t operator()(const pileup::AlleleDepths &depths, const std::vector<size_t>& indexes);
+    value_t operator()(const pileup::AlleleDepths &depths);
 
 protected:
     struct matrices_t {

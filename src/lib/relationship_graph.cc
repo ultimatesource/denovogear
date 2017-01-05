@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 Reed A. Cartwright
+ * Copyright (c) 2014-2017 Reed A. Cartwright
  * Copyright (c) 2016 Steven H. Wu
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *           Steven H. Wu <stevenwu@asu.edu>
@@ -28,7 +28,7 @@ using namespace dng;
 using namespace dng::detail::graph;
 
 void parse_pedigree_table(Graph &pedigree_graph, const dng::io::Pedigree &pedigree);
-void add_libraries_to_graph(Graph &pedigree_graph, const LibraryVector &libs);
+std::vector<std::string> add_libraries_to_graph(Graph &pedigree_graph, const LibraryVector &libs);
 void update_edge_lengths(Graph &pedigree_graph,
         double mu_meiotic, double mu_somatic, double mu_library);
 void simplify_pedigree(Graph &pedigree_graph);
@@ -121,9 +121,10 @@ bool dng::RelationshipGraph::Construct(const io::Pedigree& pedigree,
     // Disconnect founders from DUMMY_INDEX
     clear_vertex(DUMMY_INDEX, pedigree_graph);
 
-    // Connect somatic to libraries
+    // Connect somatic to libraries and save the names of the libraries that
+    // were successfully connected.
     first_library_ = num_vertices(pedigree_graph);
-    add_libraries_to_graph(pedigree_graph, libs);
+    library_names_ = add_libraries_to_graph(pedigree_graph, libs);
 
     num_nodes_ = num_vertices(pedigree_graph);
 
@@ -139,8 +140,8 @@ bool dng::RelationshipGraph::Construct(const io::Pedigree& pedigree,
     // Apply prefixes to vertex labels to identify germline, somatic, and library nodes
     prefix_vertex_labels(pedigree_graph);
 
-    std::vector<size_t> node_ids;
-    UpdateLabelsNodeIds(pedigree_graph, rgs, node_ids);
+    // Convert vertices in the graph into nodes for peeling operations
+    std::vector<size_t> node_ids = ConstructNodes(pedigree_graph);
 
     family_labels_t family_labels; // (num_families);
     std::vector<vertex_t> pivots;  // (num_families, dummy_index);
@@ -563,22 +564,34 @@ void prefix_vertex_labels(Graph &pedigree_graph) {
     }
 }
 
-void add_libraries_to_graph(Graph &pedigree_graph, const LibraryVector &libs) {
+std::vector<std::string> add_libraries_to_graph(Graph &pedigree_graph, const LibraryVector &libs) {
     auto sexes  = get(boost::vertex_sex, pedigree_graph);
     auto labels = get(boost::vertex_label, pedigree_graph);
+    auto types  = get(boost::vertex_type, pedigree_graph);
+
+    std::vector<std::string> ret;
+
+    std::map<std::string, vertex_t> soma;
+    auto vertex_range = boost::make_iterator_range(vertices(pedigree_graph));
+    for(vertex_t v : vertex_range) {
+        if(types[v] == VertexType::Somatic && !labels[v].empty()) {
+            soma[labels[v]] = v;
+        }
+    }    
 
     // Add library nodes to graph
     for (auto &&a : libs) {
-        vertex_t v = add_vertex({a.name,VertexType::Library}, pedigree_graph);
-        for (vertex_t u = first_somatic; u < last_somatic; ++u) {
-            if(labels[u].empty() || labels[u] != libs.sample) {
-                continue;
-            }
-            add_edge(u, v, {EdgeType::Library, 1.0f}, pedigree_graph);
-            sexes[v] = sexes[u];
-            break;
+        auto it = soma.find(a.sample);
+        if(it == soma.end()) {
+            continue;
         }
+        vertex_t u = it->second;
+        vertex_t v = add_vertex({a.name, VertexType::Library}, pedigree_graph);
+        add_edge(u, v, {EdgeType::Library, 1.0f}, pedigree_graph);
+        sexes[v] = sexes[u];
+        ret.push_back(a.name);
     }
+    return ret;
 }
 
 void update_edge_lengths(Graph &pedigree_graph,
@@ -658,69 +671,47 @@ void simplify_pedigree(Graph &pedigree_graph) {
     }
 }
 
-void dng::RelationshipGraph::UpdateLabelsNodeIds(const Graph &pedigree_graph,
-        dng::ReadGroups &rgs, std::vector<size_t> &node_ids) {
+std::vector<size_t> dng::RelationshipGraph::ConstructNodes(const Graph &pedigree_graph) {
     // node_ids[vertex] will convert vertex_id to node position.
+    std::vector<size_t> node_ids(num_vertices(pedigree_graph), -1);
 
     labels_.clear();
     labels_.reserve(128);
     ploidies_.clear();
     ploidies_.reserve(128);
 
-    node_ids.assign(num_vertices(pedigree_graph), -1);
-
     auto labels = get(boost::vertex_label, pedigree_graph);
     auto ploidies = get(boost::vertex_ploidy, pedigree_graph);
 
-    std::size_t vid = 0;
     auto vertex_range = boost::make_iterator_range(vertices(pedigree_graph));
     for(vertex_t v : vertex_range) {
+        // Skip vertices with no edges
         if (out_degree(v, pedigree_graph) == 0) {
             continue;
         }
+        const auto vid = labels_.size();
+        node_ids[v] = vid;     
         if (!labels[v].empty()) {
             labels_.push_back(labels[v]);
         } else {
             labels_.push_back("unnamed_node_" + utility::to_pretty(vid));
         }
         ploidies_.push_back(ploidies[v]);
-        node_ids[v] = vid++;
     }
-    num_nodes_ = vid;
+    num_nodes_ = labels_.size();
 
-    // Update rgs so we know what libraries to filter out when building the vcf.
-    EraseRemovedLibraries(rgs, node_ids);
-
-    ExtractRequiredLibraries(pedigree_graph, node_ids);
-
-    auto update_position = [&node_ids, vid](size_t pos) -> size_t {
+    auto update_position = [&node_ids](size_t pos, size_t last) -> size_t {
         for (; pos < node_ids.size() && node_ids[pos] == -1; ++pos)
             /*noop*/;
-        return (pos < node_ids.size()) ? node_ids[pos] : vid;
+        return (pos < node_ids.size()) ? node_ids[pos] : last;
     };
 
-    first_founder_ = update_position(first_founder_);
-    first_nonfounder_ = update_position(first_nonfounder_);
-    first_somatic_ = update_position(first_somatic_);
-    first_library_ = update_position(first_library_);
-}
+    first_founder_ = update_position(first_founder_, num_nodes_);
+    first_nonfounder_ = update_position(first_nonfounder_, num_nodes_);
+    first_somatic_ = update_position(first_somatic_, num_nodes_);
+    first_library_ = update_position(first_library_, num_nodes_);
 
-void dng::RelationshipGraph::EraseRemovedLibraries(dng::ReadGroups &rgs,
-        std::vector<size_t> &node_ids) {
-
-    std::vector<std::string> bad_libraries;
-    std::size_t num_libraries = rgs.libraries().size();
-    bad_libraries.reserve(num_libraries);
-    auto it = rgs.libraries().begin();
-    for (size_t u = first_library_; u < node_ids.size(); ++u, ++it) {
-        if (node_ids[u] != -1) {
-            continue;
-        }
-
-        bad_libraries.push_back(*it);
-    }
-    rgs.EraseLibraries(bad_libraries);
-
+    return node_ids;
 }
 
 void dng::RelationshipGraph::CreateFamiliesInfo(Graph &pedigree_graph,
