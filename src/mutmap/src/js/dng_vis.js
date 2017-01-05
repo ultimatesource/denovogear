@@ -1,20 +1,3 @@
-//var d3 = require('d3');
-//var vcfParser = require('./dng_vcf_parser');
-//var pedParser = require('./ped_parser');
-//var pedigr = require('./pedigr');
-
-//var pedigreeFileText;
-//var dngOutputFileText;
-
-//TODO: clean this up
-//jQuery.get('example_pedigree.ped', function(pedData) {
-//    pedigreeFileText = pedData;
-//
-//    jQuery.get('example_output.vcf', function(outputData) {
-//      dngOutputFileText = outputData;
-//      main();
-//    });
-//});
 
 main();
 
@@ -23,12 +6,6 @@ function main() {
   /*PEDIGREE_FILE_TEXT_PLACEHOLDER*/
   /*LAYOUT_DATA_PLACEHOLDER*/
   /*DNG_VCF_DATA_PLACEHOLDER*/
-
-  //dngOutputData = dngOutputData.replace('\\\n', function() { return '\n'; });
-  //dngOutputData = dngOutputData.replace('\"', function() { return '"'; });
-
-  //d3.select('#pedigree_file_input').on('change', updatePedigreeFile);
-  //d3.select('#dng_output_file_input').on('change', updateDNGOutputFile);
 
   var idText = d3.select('#id_display');
   var pedGraph = null;
@@ -73,26 +50,15 @@ function main() {
 
   function serverPedigreeAndLayout(callback) {
 
-    //var pedigreeUploadData = { text: pedigreeFileText };
-    //jQuery.ajax('/pedigree_and_layout',
-    //  { 
-    //    type: 'POST',
-    //    data: JSON.stringify(pedigreeUploadData),
-    //    contentType: 'application/json',
-    //    success: gotLayoutData
-    //  });
     gotLayoutData();
 
     function gotLayoutData(jsonData) {
-      //var layoutData = JSON.parse(jsonData);
 
       var pedigreeData = pedParser.parsePedigreeFile(pedigreeFileText);
 
       var ret = processPedigree(layoutData, pedigreeData);
       var nodes = ret.nodes;
       var links = ret.links;
-
-      //doVisuals(nodes, links);
 
       callback(nodes, links);
     }
@@ -464,36 +430,4 @@ function main() {
       return b + ((a - b) / 2);
     }
   }
-
-  //function updatePedigreeFile() {
-  //  updateFile('pedigree_file_input', function(fileData) {
-  //    pedigreeFileText = fileData;
-  //    serverPedigreeAndLayout(function(nodes, links) {
-  //      doVisuals(nodes, links);
-  //    });
-  //  });
-  //}
-
-  //function updateDNGOutputFile() {
-  //  updateFile('dng_output_file_input', function(fileData) {
-  //    serverPedigreeAndLayout(function(nodes, links) {
-  //      dngOutputFileText = fileData;
-  //      dngOverlay();
-  //      doVisuals(nodes, links);
-  //    });
-  //  });
-  //}
-
-  //function updateFile(fileInputElementId, callback) {
-  //  var selectedFile = document.getElementById(fileInputElementId).files[0];
-
-  //  if (selectedFile !== undefined) {
-  //    var reader = new FileReader();
-
-  //    reader.onload = function(readerEvent) {
-  //      callback(reader.result);
-  //    };
-  //    reader.readAsText(selectedFile);
-  //  }
-  //}
 }
