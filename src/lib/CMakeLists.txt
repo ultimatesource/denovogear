@@ -1,5 +1,6 @@
 add_library(libdng STATIC
   ad.cc
+  bam.cc
   find_mutations_abstract.cc
   find_mutations_xlinked.cc
   find_mutations_ylinked.cc

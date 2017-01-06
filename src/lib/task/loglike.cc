@@ -299,7 +299,7 @@ int process_ad(LogLike::argument_type &arg) {
     // using a single thread to read data and process it
     if(arg.threads == 0) {
         pileup::AlleleDepths line;
-        line.data().reserve(4*input.libraries().size());
+        line.data().reserve(4*input.num_libraries());
         // read each line of data into line and process it
         while(input.Read(&line)) {
             auto loglike = calculate(line);

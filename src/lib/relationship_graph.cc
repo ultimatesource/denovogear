@@ -28,7 +28,7 @@ using namespace dng;
 using namespace dng::detail::graph;
 
 void parse_pedigree_table(Graph &pedigree_graph, const dng::io::Pedigree &pedigree);
-std::vector<std::string> add_libraries_to_graph(Graph &pedigree_graph, const LibraryVector &libs);
+std::vector<std::string> add_libraries_to_graph(Graph &pedigree_graph, const libraries_t &libs);
 void update_edge_lengths(Graph &pedigree_graph,
         double mu_meiotic, double mu_somatic, double mu_library);
 void simplify_pedigree(Graph &pedigree_graph);
@@ -87,13 +87,13 @@ RULES FOR LINKING READ GROUPS TO PEOPLE.
 */
 
 bool dng::RelationshipGraph::Construct(const io::Pedigree& pedigree,
-        const LibraryVector& libs, double mu, double mu_somatic, double mu_library) {
+        const libraries_t& libs, double mu, double mu_somatic, double mu_library) {
     return Construct(pedigree, libs, InheritanceModel::Autosomal, mu,
                      mu_somatic, mu_library);
 }
 
 bool dng::RelationshipGraph::Construct(const io::Pedigree& pedigree,
-        const LibraryVector& libs, InheritanceModel model,
+        const libraries_t& libs, InheritanceModel model,
         double mu, double mu_somatic, double mu_library) {
 
     using namespace std;
@@ -564,7 +564,7 @@ void prefix_vertex_labels(Graph &pedigree_graph) {
     }
 }
 
-std::vector<std::string> add_libraries_to_graph(Graph &pedigree_graph, const LibraryVector &libs) {
+std::vector<std::string> add_libraries_to_graph(Graph &pedigree_graph, const libraries_t &libs) {
     auto sexes  = get(boost::vertex_sex, pedigree_graph);
     auto labels = get(boost::vertex_label, pedigree_graph);
     auto types  = get(boost::vertex_type, pedigree_graph);
@@ -580,16 +580,16 @@ std::vector<std::string> add_libraries_to_graph(Graph &pedigree_graph, const Lib
     }    
 
     // Add library nodes to graph
-    for (auto &&a : libs) {
-        auto it = soma.find(a.sample);
+    for (size_t i = 0; i < libs.names.size(); ++i) {
+        auto it = soma.find(libs.samples[i]);
         if(it == soma.end()) {
             continue;
         }
         vertex_t u = it->second;
-        vertex_t v = add_vertex({a.name, VertexType::Library}, pedigree_graph);
+        vertex_t v = add_vertex({libs.names[i], VertexType::Library}, pedigree_graph);
         add_edge(u, v, {EdgeType::Library, 1.0f}, pedigree_graph);
         sexes[v] = sexes[u];
-        ret.push_back(a.name);
+        ret.push_back(libs.names[i]);
     }
     return ret;
 }

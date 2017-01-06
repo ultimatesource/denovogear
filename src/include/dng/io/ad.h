@@ -29,7 +29,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/range/functions.hpp>
-#include <boost/range/algorithm/find_if.hpp>
+#include <boost/range/algorithm/find.hpp>
 
 #include <dng/io/file.h>
 #include <dng/io/utility.h>
@@ -65,8 +65,6 @@ public:
         int length;
     };
 
-    using library_t = dng::library_t;
-
     explicit Ad(const std::string &filename, std::ios_base::openmode mode = std::ios_base::in) {
         Open(filename,mode);
     }
@@ -90,18 +88,17 @@ public:
         return contigs_[pos];
     }
 
-    const LibraryVector& libraries() const {
+    const libraries_t& libraries() const {
         return output_libraries_;
     }
-
-    const library_t& library(std::vector<library_t>::size_type pos) const {
-        return output_libraries_[pos];
+    size_t num_libraries() const {
+        return output_libraries_.names.size();
     }
 
-    std::vector<contig_t>::size_type
+    size_t
     AddHeaderContig(std::string name, int length, std::string attributes = {} );
 
-    std::vector<library_t>::size_type
+    size_t
     AddHeaderLibrary(std::string name, std::string sample, std::string attributes = {} );
 
     Format format() const { return format_; }
@@ -149,10 +146,12 @@ private:
     std::vector<contig_t> contigs_;
     std::vector<std::string> contig_attributes_;
 
-    LibraryVector input_libraries_;
-    LibraryVector output_libraries_;
-    std::vector<std::string> input_library_attributes_;
-    std::vector<std::string> output_library_attributes_;
+    struct ad_libraries_t : dng::libraries_t {
+        std::vector<std::string> attributes;
+    };
+
+    ad_libraries_t input_libraries_;
+    ad_libraries_t output_libraries_;
 
     std::vector<size_t> indexes_;
 
@@ -219,10 +218,8 @@ void Ad::CopyHeader(const Ad& ad) {
     contig_attributes_ = ad.contig_attributes_;
 
     input_libraries_ = ad.input_libraries_;
-    input_library_attributes_ = ad.input_library_attributes_;
 
     output_libraries_ = ad.output_libraries_;
-    output_library_attributes_ = ad.output_library_attributes_;
 
     contig_map_ = ad.contig_map_;
     extra_headers_ = ad.extra_headers_;
@@ -254,8 +251,7 @@ int Ad::Write(const AlleleDepths& line) {
     }
 }
 
-inline
-std::vector<Ad::contig_t>::size_type
+inline size_t
 Ad::AddHeaderContig(std::string name, int length, std::string attributes) {
     auto pos = contigs_.size();
     contigs_.push_back({name, length});
@@ -264,12 +260,12 @@ Ad::AddHeaderContig(std::string name, int length, std::string attributes) {
     return pos;
 }
 
-inline
-std::vector<Ad::library_t>::size_type
+inline size_t
 Ad::AddHeaderLibrary(std::string name, std::string sample, std::string attributes) {
-    auto pos = input_libraries_.size();
-    input_libraries_.push_back({name, sample});
-    input_library_attributes_.push_back(attributes);
+    auto pos = input_libraries_.names.size();
+    input_libraries_.names.push_back(std::move(name));
+    input_libraries_.samples.push_back(std::move(sample));
+    input_libraries_.attributes.push_back(std::move(attributes));
     ResetLibraries();
     return pos;
 }
@@ -277,35 +273,35 @@ Ad::AddHeaderLibrary(std::string name, std::string sample, std::string attribute
 inline
 void Ad::ResetLibraries() {
     output_libraries_ = input_libraries_;
-    output_library_attributes_ = input_library_attributes_;
 
-    indexes_.resize(input_libraries_.size());
+    indexes_.resize(input_libraries_.names.size());
     std::iota(indexes_.begin(),indexes_.end(),0);
 
-    last_data_.assign(output_libraries_.size(), 0);
+    last_data_.assign(output_libraries_.names.size(), 0);
     last_location_ = 0;
 }
 
 template<typename R>
 void Ad::SelectLibraries(R &range) {
     // Clear all output libraries
-    indexes_.assign(input_libraries_.size(),-1);
-    output_libraries_.clear();
-    output_library_attributes_.clear();
+    indexes_.assign(input_libraries_.names.size(),-1);
+    output_libraries_ = {};
 
     // For every library in range, try to find it in input_libraries_
     size_t k=0;
     for(auto it = boost::begin(range); it != boost::end(range); ++it) {
-        auto lit = boost::find_if(input_libraries_, [&it](const library_t& v) -> bool { return v.name == *it; });
-        if(lit != boost::end(input_libraries_)) {
-            output_libraries_.push_back(*lit);
-            auto pos = std::distance(boost::begin(input_libraries_),lit);
-            output_library_attributes_.push_back(input_library_attributes_[pos]);
-            indexes_[pos] = k++;
+        auto pos = boost::distance(boost::find<boost::return_begin_found>(input_libraries_.names, *it));
+        if(pos == input_libraries_.names.size()) {
+            continue;
         }
+        output_libraries_.names.push_back(input_libraries_.names[pos]);
+        output_libraries_.samples.push_back(input_libraries_.samples[pos]);
+        output_libraries_.attributes.push_back(input_libraries_.attributes[pos]);
+
+        indexes_[pos] = k++;
     }
 
-    last_data_.assign(output_libraries_.size(), 0);
+    last_data_.assign(output_libraries_.names.size(), 0);
     last_location_ = 0;
 }
 

@@ -21,10 +21,14 @@
 #ifndef DNG_POOL_H
 #define DNG_POOL_H
 
+#include <limits>
+#include <memory>
+
+#include <boost/version.hpp>
 #include <boost/intrusive/list.hpp>
 #include <boost/noncopyable.hpp>
 
-#if BOOST_VERSION < 105500
+#if defined(BOOST_VERSION) && BOOST_VERSION < 105500
 // boost::intrusive::is_safe_autounlink was first defined in version 1.55
 namespace boost {
 namespace intrusive {

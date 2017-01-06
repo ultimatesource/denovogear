@@ -160,8 +160,8 @@ public:
 	    // Since pedigree may have removed libraries, map libraries to positions
 	    std::vector<size_t> library_to_index;
 	    library_to_index.resize(libraries_.size());
-	    for(size_t u=0; u < input.libraries().size(); ++u) {
-	        size_t pos = rg::index(libraries_, input.library(u).name);
+	    for(size_t u=0; u < input.libraries().names.size(); ++u) {
+	        size_t pos = rg::index(libraries_, input.libraries().names[u]);
 	        if(pos == -1) {
 	            continue;
 	        }
@@ -169,7 +169,7 @@ public:
 	    }
 
 	    pileup::AlleleDepths line;
-	    line.data().reserve(input.libraries().size());
+	    line.data().reserve(input.libraries().names.size());
 	    const size_type n_libraries = libraries_.size();
 	    while(input.Read(&line)) {
 		    // read each line of data into line and process it

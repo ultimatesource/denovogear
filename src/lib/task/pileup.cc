@@ -299,7 +299,7 @@ int process_ad(Pileup::argument_type &arg) {
 
     
     AlleleDepths line;
-    line.data().reserve(4*input.libraries().size());
+    line.data().reserve(4*input.libraries().names.size());
     while(input.Read(&line)) {
         output.Write(line);
     }

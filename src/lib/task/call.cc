@@ -55,8 +55,9 @@
 #include <dng/find_mutations.h>
 #include <dng/call_mutations.h>
 
+#include <dng/io/bam.h>
 
-#include "htslib/synced_bcf_reader.h"
+#include <htslib/synced_bcf_reader.h>
 
 #include <htslib/faidx.h>
 #include <htslib/khash.h>
@@ -214,44 +215,41 @@ int process_bam(task::Call::argument_type &arg) {
     }
 
     // Fetch the selected regions
+    // TODO: convert io:at_slurp to support the syntax @EXT:FileName, where the extension is returned
+    // TODO: This will allow us to support @filename.bed
     io::at_slurp(arg.region); // replace arg.region with the contents of a file if needed
 
     // Open input files
-    dng::ReadGroups rgs;
-    std::vector<hts::bam::File> bamdata;
+    dng::io::BamPileup mpileup{arg.min_qlen};
     for(auto && str : arg.input) {
-        bamdata.emplace_back(str.c_str(), "r", arg.fasta.c_str(), arg.min_mapqual, arg.header.c_str());
-        if(!bamdata.back().is_open()) {
-            throw std::runtime_error("unable to open input file '" + str + "'.");
-         }
+        // TODO: We put all this logic here to simplify the BamPileup construction
+        // TODO: However it might make sense to incorporate it into BamPileup::AddFile
+        hts::bam::File input{str.c_str(), "r", arg.fasta.c_str(), arg.min_mapqual, arg.header.c_str()};
+        if(!input.is_open()) {
+            throw std::runtime_error("ERROR: unable to open input file '" + str + "'.");
+        }
         // add regions
         if(!arg.region.empty()) {
-			if(arg.region.find(".bed")!=std::string::npos){
-				for(auto && f : bamdata) {
-					auto r = regions::bam_parse_bed(arg.region, f);
-					f.regions(std::move(r));
-				}
-			} else {
-				for(auto && f : bamdata) {
-					auto r = regions::bam_parse_region(arg.region, f);
-					f.regions(std::move(r));
-				}
-			}
+            if(arg.region.find(".bed") != std::string::npos) {
+                input.regions(regions::bam_parse_bed(arg.region, input));
+            } else {
+                input.regions(regions::bam_parse_region(arg.region, input));
+            }
         }
-        // Add each genotype/sample column
-        rgs.ParseHeaderText(bamdata, arg.rgtag);
+        mpileup.AddFile(std::move(input));
     }
 
     // Construct peeling algorithm from parameters and pedigree information
     InheritanceModel model = inheritance_model(arg.model);
 
     RelationshipGraph relationship_graph;
-    if (!relationship_graph.Construct(ped, rgs.GetLibraries(), model,
+    if (!relationship_graph.Construct(ped, mpileup.libraries(), model,
                                       arg.mu, arg.mu_somatic, arg.mu_library)) {
         throw std::runtime_error("Unable to construct peeler for pedigree; "
                                  "possible non-zero-loop relationship_graph.");
     }
-    rgs.SelectLibraries(relationship_graph.library_names());
+
+    mpileup.SelectLibraries(relationship_graph.library_names());
 
     // quality thresholds
     int min_qual = arg.min_basequal;
@@ -301,7 +299,6 @@ int process_bam(task::Call::argument_type &arg) {
         || seq::base_index(r.base()) >= 4);
     };
 
-    dng::BamPileup mpileup{rgs.groups(), arg.min_qlen};
     mpileup(bamdata, [&](const dng::BamPileup::data_type & data, utility::location_t loc) {
     	// Calculate target position and fetch sequence name
         int contig = utility::location_to_contig(loc);

@@ -279,9 +279,6 @@ protected:
     bool has_regions_{false};
 };
 
-
-
-
 } // namespace bam
 
 } // namespace hts

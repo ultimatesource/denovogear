@@ -22,15 +22,14 @@
 #define DNG_LIBRARY_H
 
 #include <vector>
+#include <string>
 
 namespace dng {
 
-struct library_t {
-    std::string name;
-    std::string sample;
+struct libraries_t {
+    std::vector<std::string> names;
+    std::vector<std::string> samples;
 };
-
-using LibraryVector = std::vector<library_t>;
 
 };
 

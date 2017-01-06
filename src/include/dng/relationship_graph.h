@@ -74,11 +74,11 @@ public:
         double length2;
     };
 
-    bool Construct(const io::Pedigree& pedigree, const LibraryVector& libs,
+    bool Construct(const io::Pedigree& pedigree, const libraries_t& libs,
             InheritanceModel inheritance_model,
             double mu, double mu_somatic, double mu_library);
 
-    bool Construct(const io::Pedigree& pedigree, const LibraryVector& libs,
+    bool Construct(const io::Pedigree& pedigree, const libraries_t& libs,
             double mu, double mu_somatic, double mu_library);
 
     double PeelForwards(peel::workspace_t &work,

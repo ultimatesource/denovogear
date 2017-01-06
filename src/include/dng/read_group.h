@@ -95,7 +95,7 @@ public:
     void ParseSamples(InFiles &range);
 
     // Parse Library information from an AD file
-    void ParseLibraries(const LibraryVector& libs);
+    void ParseLibraries(const libraries_t& libs);
 
     inline const StrSet &groups() const { return groups_; }
     inline const StrSet &libraries() const { return libraries_; }
@@ -118,14 +118,15 @@ public:
         return library_from_index_;
     }
 
-    inline LibraryVector GetLibraries() const {
-        LibraryVector ret;
+    inline libraries_t GetLibraries() const {
+        libraries_t ret;
         std::map<std::string,std::string> samples;
         for(auto &&a : data_) {
             samples[a.library] = a.sample;
         }
         for(auto &&a : samples) {
-            ret.push_back({a.first,a.second});
+            ret.names.push_back(a.first);
+            ret.samples.push_back(a.second);
         }
         return ret;
     }
@@ -222,9 +223,9 @@ void ReadGroups::ParseSamples(InFile &file) {
 }
 
 inline
-void ReadGroups::ParseLibraries(const LibraryVector& libs) {
-    for(auto && a : libs) {
-        data_.insert({a.name,a.name,a.sample});
+void ReadGroups::ParseLibraries(const libraries_t& libs) {
+    for(size_t i=0; i < libs.names.size(); ++i) {
+        data_.insert({libs.names[i],libs.names[i],libs.samples[i]});
     }
     ReloadData();
 }

@@ -48,10 +48,8 @@ void dng::io::Ad::Clear() {
     contig_map_.clear();
     contig_attributes_.clear();
 
-    input_libraries_.clear();
-    input_library_attributes_.clear();
-    output_libraries_.clear();
-    output_library_attributes_.clear();
+    input_libraries_ = {};
+    output_libraries_ = {};
     
     indexes_.clear();
     extra_headers_.clear();
@@ -84,11 +82,11 @@ std::string dng::io::Ad::HeaderString() const {
     }
 
     // Write Library Lines
-    for(size_t i=0; i < output_libraries_.size(); ++i) {
-        auto ad = output_libraries_[i];
-        output << "@AD\tID:" << ad.name << "\tSM:" << ad.sample;
-        if(!output_library_attributes_[i].empty()) {
-            output << '\t' << output_library_attributes_[i];
+    for(size_t i=0; i < output_libraries_.names.size(); ++i) {
+        output << "@AD\tID:" << output_libraries_.names[i] <<
+                  "\tSM:" << output_libraries_.samples[i];
+        if(!output_libraries_.attributes[i].empty()) {
+            output << '\t' << output_libraries_.attributes[i];
         }
         output << '\n';
     }
@@ -144,13 +142,12 @@ void dng::io::Ad::ParseHeaderTokens(It it, It it_last) {
             contigs_.push_back(std::move(sq));
             contig_attributes_.push_back(std::move(attr));
         } else if(*it == "@AD") {
-            library_t ad;
-            std::string attr;            
+            std::string name, sample, attr;
             for(++it; it != it_last && *it != "\n"; ++it) {       
                 if(starts_with(*it, "ID:")) {
-                    ad.name = it->substr(3);
+                    name = it->substr(3);
                 } else if(starts_with(*it, "SM:")) {
-                    ad.sample = it->substr(3);
+                    sample = it->substr(3);
                 } else {
                     if(!attr.empty()) {
                         attr += '\t';
@@ -158,8 +155,9 @@ void dng::io::Ad::ParseHeaderTokens(It it, It it_last) {
                     attr += *it;
                 }
             }
-            input_libraries_.push_back(std::move(ad));
-            input_library_attributes_.push_back(std::move(attr));
+            input_libraries_.names.push_back(std::move(name));
+            input_libraries_.samples.push_back(std::move(sample));
+            input_libraries_.attributes.push_back(std::move(attr));
         } else if(*it == "@HD") {
             // sequence dictionaries may contain HD tags, drop them
             for(++it; it != it_last && *it != "\n"; ++it) {
@@ -308,8 +306,8 @@ int dng::io::Ad::ReadTad(AlleleDepths *pline) {
         return 0;
     }
     // check to make sure store has the proper size
-    if(store.size() != 3+input_libraries_.size()) {
-        throw runtime_error("ERROR: Unable to parse TAD record: Expected " + utility::to_pretty(3+input_libraries_.size()) 
+    if(store.size() != 3+input_libraries_.names.size()) {
+        throw runtime_error("ERROR: Unable to parse TAD record: Expected " + utility::to_pretty(3+input_libraries_.names.size()) 
             + " columns. Found " + utility::to_pretty(store.size()) + " columns.");
     }
 
@@ -335,7 +333,7 @@ int dng::io::Ad::ReadTad(AlleleDepths *pline) {
     if(ty == -1) {
         throw runtime_error("ERROR: Unable to parse TAD record: Type '" + store[2] + "' is unknown.");        
     }
-    pline->resize(ty,output_libraries_.size());
+    pline->resize(ty,output_libraries_.names.size());
 
     // parse data
     vector<int> data;
@@ -469,7 +467,7 @@ int dng::io::Ad::ReadAd(AlleleDepths *pline) {
         // absolute positioning
         loc -= (1LL << 32);
         // read reference information into buffer
-        for(size_t i=0;i<input_libraries_.size();++i) {
+        for(size_t i=0;i<input_libraries_.names.size();++i) {
             result = varint::get(stream_.rdbuf());
             if(!result.second) {
                 return 0;
@@ -480,7 +478,7 @@ int dng::io::Ad::ReadAd(AlleleDepths *pline) {
         // relative positioning
         loc += last_location_ + 1;
         // read reference information into buffer
-        for(size_t i=0;i<input_libraries_.size();++i) {
+        for(size_t i=0;i<input_libraries_.names.size();++i) {
             auto zzresult = varint::get_zig_zag(stream_.rdbuf());
             if(!zzresult.second) {
                 return 0;
@@ -492,7 +490,7 @@ int dng::io::Ad::ReadAd(AlleleDepths *pline) {
 
     if(pline == nullptr) {
         int width = AlleleDepths::type_info_table[rec_type].width;
-        for(size_t i=input_libraries_.size(); i < input_libraries_.size()*width; ++i) {
+        for(size_t i=input_libraries_.names.size(); i < input_libraries_.names.size()*width; ++i) {
             result = varint::get(stream_.rdbuf());
             if(!result.second) {
                 return 0;
@@ -501,10 +499,10 @@ int dng::io::Ad::ReadAd(AlleleDepths *pline) {
         return 1;
     }
     pline->location(loc);
-    pline->resize(rec_type,output_libraries_.size());
+    pline->resize(rec_type,output_libraries_.names.size());
 
     // Reference depths
-    for(size_t i=0;i<input_libraries_.size();++i) {
+    for(size_t i=0;i<input_libraries_.names.size();++i) {
         const size_t pos = indexes_[i];
         if(pos != -1) {
             (*pline)(pos,0) = last_data_[i];
@@ -512,7 +510,7 @@ int dng::io::Ad::ReadAd(AlleleDepths *pline) {
     }
     // Alternate depths
     for(size_t j=1;j< pline->num_nucleotides();++j) {
-        for(size_t i=0; i < input_libraries_.size(); ++i) {
+        for(size_t i=0; i < input_libraries_.names.size(); ++i) {
             result = varint::get(stream_.rdbuf());
             if(!result.second) {
                 return 0;
@@ -573,7 +571,7 @@ int dng::io::Ad::WriteAd(const AlleleDepths& line) {
     // write out data
     if(location_to_contig(loc) == 0) {
         // when using relative positioning output reference depths relative to previous
-        for(size_type i = 0; i < output_libraries_.size(); ++i) {
+        for(size_type i = 0; i < output_libraries_.names.size(); ++i) {
             int64_t n = line(i,0)-last_data_[i];
             if(!varint::put_zig_zag(stream_.rdbuf(),n)) {
                 return 0;
@@ -581,7 +579,7 @@ int dng::io::Ad::WriteAd(const AlleleDepths& line) {
         }
     } else {
         // when using absolute positioning output reference depths normally
-        for(size_type i = 0; i < output_libraries_.size(); ++i) {
+        for(size_type i = 0; i < output_libraries_.names.size(); ++i) {
             if(!varint::put(stream_.rdbuf(),line(i,0))) {
                 return 0;
             }
@@ -596,7 +594,7 @@ int dng::io::Ad::WriteAd(const AlleleDepths& line) {
         }
     }
     // Save reference depths
-    for(size_type i = 0; i < output_libraries_.size(); ++i) {
+    for(size_type i = 0; i < output_libraries_.names.size(); ++i) {
         last_data_[i] = line(i,0);
     }
 
