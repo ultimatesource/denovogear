@@ -23,14 +23,18 @@
   // provides dngOutputFileText
   /*DNG_VCF_DATA_PLACEHOLDER*/
 
-  var pedGraph = null;
   
   var pedigreeData = pedParser.parsePedigreeFile(pedigreeFileText);
 
-  var pedData = processPedigree(layoutData, pedigreeData);
+  var pedGraph = buildGraphFromPedigree(pedigreeData);
+
+  var kinshipPedigreeData = layoutData;
+  console.log(layoutData);
+
+  var graphData = processPedigree(kinshipPedigreeData);
 
   dngOverlay();
-  visuals.doVisuals(pedData);
+  visuals.doVisuals(graphData);
 
   function dngOverlay() {
     var vcfData = vcfParser.parseVCFText(dngOutputFileText);
@@ -64,11 +68,9 @@
     }
   }
 
-  function processPedigree(data, pedigreeData) {
+  function processPedigree(kinshipPedigreeData) {
 
-    pedGraph = buildGraphFromPedigree(pedigreeData);
-
-    var layout = data.layout;
+    var layout = kinshipPedigreeData.layout;
     var nodes = [];
     var links = [];
 
@@ -110,7 +112,8 @@
 
         pedGraph.addMarriage(marriage);
 
-        var children = getAllKids(data, nodes, node, spouseNode);
+        var children = getAllChildren(kinshipPedigreeData, nodes, node,
+                                      spouseNode);
 
         children.forEach(function(childNode) {
           var childLink = createChildLink(childNode, marriageNode);
@@ -238,7 +241,7 @@
     return childLink;
   }
 
-  function getAllKids(data, nodes, nodeA, nodeB) {
+  function getAllChildren(kinshipPedigreeData, nodes, nodeA, nodeB) {
     var father;
     var mother;
     if (nodeA.dataNode.sex === "male") {
@@ -250,18 +253,18 @@
       mother = nodeA;
     }
 
-    var kids = [];
+    var children = [];
     nodes.forEach(function(node) {
       if (node.type != "marriage") {
-        if (data.pedigree.findex[oneToZeroBase(node.dataNode.id)] ===
+        if (kinshipPedigreeData.pedigree.findex[oneToZeroBase(node.dataNode.id)] ===
               father.dataNode.id &&
-            data.pedigree.mindex[oneToZeroBase(node.dataNode.id)] ===
+            kinshipPedigreeData.pedigree.mindex[oneToZeroBase(node.dataNode.id)] ===
               mother.dataNode.id) {
-          kids.push(node);
+          children.push(node);
         }
       }
     });
 
-    return kids;
+    return children;
   }
 }());

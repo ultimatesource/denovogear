@@ -7,10 +7,10 @@
 var visuals = (function() {
   "use strict";
   
-  function doVisuals(pedData) {
+  function doVisuals(graphData) {
 
-    var nodes = pedData.nodes;
-    var links = pedData.links;
+    var nodes = graphData.nodes;
+    var links = graphData.links;
 
     var height = 500;
     var activeNode = null;
