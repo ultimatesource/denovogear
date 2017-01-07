@@ -540,30 +540,6 @@ void parse_pedigree_table(Graph &pedigree_graph, const dng::io::Pedigree &pedigr
     }
 }
 
-void prefix_vertex_labels(Graph &pedigree_graph) {
-    auto labels = get(boost::vertex_label, pedigree_graph);
-    auto types = get(boost::vertex_type, pedigree_graph);
-
-    auto vertex_range = boost::make_iterator_range(vertices(pedigree_graph));
-    for(vertex_t v : vertex_range) {
-        const char *ch = "";
-        switch(types[v]) {
-        case VertexType::Germline:
-            ch = "GL-";
-            break;
-        case VertexType::Somatic:
-            ch = "SM-";
-            break;
-        case VertexType::Library:
-            ch = "LB-";
-            break;
-        default:
-            break;
-        }
-        labels[v].insert(0,ch);
-    }
-}
-
 std::vector<std::string> add_libraries_to_graph(Graph &pedigree_graph, const libraries_t &libs) {
     auto sexes  = get(boost::vertex_sex, pedigree_graph);
     auto labels = get(boost::vertex_label, pedigree_graph);
@@ -588,7 +564,7 @@ std::vector<std::string> add_libraries_to_graph(Graph &pedigree_graph, const lib
         vertex_t u = it->second;
         std::string name = labels[u];
         if(libs.names[i] != labels[u]) {
-            name += "-";
+            name += DNG_LABEL_SEPARATOR;
             name += libs.names[i];
         }
         vertex_t v = add_vertex({name, VertexType::Library}, pedigree_graph);
@@ -623,6 +599,33 @@ void update_edge_lengths(Graph &pedigree_graph,
         }
     }
 }
+
+void prefix_vertex_labels(dng::detail::graph::Graph &pedigree_graph) {
+    using namespace dng::detail::graph;
+
+    auto labels = get(boost::vertex_label, pedigree_graph);
+    auto types = get(boost::vertex_type, pedigree_graph);
+
+    auto vertex_range = boost::make_iterator_range(vertices(pedigree_graph));
+    for(vertex_t v : vertex_range) {
+        const char *ch = "";
+        switch(types[v]) {
+        case VertexType::Germline:
+            ch = (DNG_LABEL_PREFIX_GERMLINE DNG_LABEL_SEPARATOR);
+            break;
+        case VertexType::Somatic:
+            ch = (DNG_LABEL_PREFIX_SOMATIC DNG_LABEL_SEPARATOR);
+            break;
+        case VertexType::Library:
+            ch = (DNG_LABEL_PREFIX_LIBRARY DNG_LABEL_SEPARATOR);
+            break;
+        default:
+            break;
+        }
+        labels[v].insert(0,ch);
+    }
+}
+
 
 void simplify_pedigree(Graph &pedigree_graph) {
     auto edge_types = get(boost::edge_type, pedigree_graph);

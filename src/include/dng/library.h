@@ -24,6 +24,8 @@
 #include <vector>
 #include <string>
 
+#include <dng/detail/graph.h>
+
 namespace dng {
 
 struct libraries_t {
@@ -31,6 +33,12 @@ struct libraries_t {
     std::vector<std::string> samples;
 };
 
-};
+#define DNG_LABEL_PREFIX_GERMLINE "GL"
+#define DNG_LABEL_PREFIX_SOMATIC  "SM"
+#define DNG_LABEL_PREFIX_LIBRARY  "LB"
+#define DNG_LABEL_SEPARATOR "/"
+#define DNG_LABEL_SEPARATOR_CHAR '/'
+
+}
 
 #endif // DNG_LIBRARY_H
