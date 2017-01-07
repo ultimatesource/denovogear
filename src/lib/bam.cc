@@ -168,6 +168,8 @@ template<typename It>
 void BamPileup::ParseHeaderTokens(It it, It it_last) {
     using boost::algorithm::starts_with;
 
+    bool needs_updating = false;
+
     std::string prefix = lbtag_ + ':';
     for(; it != it_last; ++it) {
         if(*it == "@RG") {
@@ -195,21 +197,24 @@ void BamPileup::ParseHeaderTokens(It it, It it_last) {
                 input_libraries_.names.push_back(std::move(name));
                 input_libraries_.samples.push_back(std::move(sample));
                 input_libraries_.read_groups.push_back(utility::StringSet{{id}});
+                needs_updating = true;
             } else {
                 if(input_libraries_.samples[pos] != sample) {
                     throw std::runtime_error("ERROR: Multiple sample names are defined for read groups with library " + prefix + name + ".");
                 }
-                input_libraries_.read_groups[pos].insert(id);
+                needs_updating |= input_libraries_.read_groups[pos].insert(id).second;
             }
         }
     }
-    ResetLibraries();   
+    if(needs_updating) {
+        ResetLibraries();
+    }
 }
 
 
 void BamPileup::ResetLibraries() {
     output_libraries_ = input_libraries_;
-
+    
     for(size_t i = 0; i < output_libraries_.read_groups.size(); ++i) {
         for(auto && a : output_libraries_.read_groups[i]) {
             read_group_to_libraries_.emplace(a,i);

@@ -219,7 +219,7 @@ int process_bam(task::Call::argument_type &arg) {
 
     // Open input files
     using BamPileup = dng::io::BamPileup;
-    BamPileup mpileup{arg.min_qlen};
+    BamPileup mpileup{arg.min_qlen, arg.rgtag};
     for(auto && str : arg.input) {
         // TODO: We put all this logic here to simplify the BamPileup construction
         // TODO: However it might make sense to incorporate it into BamPileup::AddFile

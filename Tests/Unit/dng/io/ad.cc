@@ -38,20 +38,15 @@ struct unittest_dng_io_ad {
     static const std::vector<std::string>& get_contig_attributes(const dng::io::Ad &a) {
         return a.contig_attributes_;
     }
-    static const std::vector<std::string>& get_input_library_attributes(const dng::io::Ad &a) {
-        return a.input_library_attributes_;
-    }
-    static const std::vector<std::string>& get_output_library_attributes(const dng::io::Ad &a) {
-        return a.output_library_attributes_;
-    }
-    static const std::vector<library_t>& get_input_libraries(const dng::io::Ad &a) {
+    static const Ad::ad_libraries_t& get_input_libraries(const dng::io::Ad &a) {
         return a.input_libraries_;
     }
-    static const std::vector<library_t>& get_output_libraries(const dng::io::Ad &a) {
+    static const Ad::ad_libraries_t& get_output_libraries(const dng::io::Ad &a) {
         return a.output_libraries_;
     }
 };
 }}
+
 using dng::io::unittest_dng_io_ad;
 
 // http://stackoverflow.com/a/673389
@@ -316,6 +311,9 @@ BOOST_AUTO_TEST_CASE(test_ad_write) {
  Test the writing and read of an ad file
  *****************************************************************************/
 BOOST_AUTO_TEST_CASE(test_ad_write_and_read) {
+    typedef std::vector<int> V;
+    typedef std::vector<std::string> S;
+
     std::stringstream buffer;
     Ad adfile("ad:", std::ios_base::out | std::ios_base::in);
     adfile.Attach(buffer.rdbuf());
@@ -367,11 +365,9 @@ BOOST_AUTO_TEST_CASE(test_ad_write_and_read) {
     BOOST_CHECK(adfile.contig(1).length == 10000);
     BOOST_CHECK(adfile.contig(2).length == 100000);
 
-    BOOST_CHECK(adfile.libraries().size() == 2);
-    BOOST_CHECK(adfile.library(0).name == "A");
-    BOOST_CHECK(adfile.library(1).name == "B");
-    BOOST_CHECK(adfile.library(0).sample == "AAA");
-    BOOST_CHECK(adfile.library(1).sample == "BBB");
+    BOOST_CHECK(adfile.num_libraries() == 2);
+    BOOST_CHECK((adfile.libraries().names == S{"A","B"}));
+    BOOST_CHECK((adfile.libraries().samples == S{"AAA","BBB"}));
 
     AlleleDepths input;
     while(adfile.Read(&input)) {
@@ -391,6 +387,9 @@ BOOST_AUTO_TEST_CASE(test_ad_write_and_read) {
  Test the subsetting of an ad file
  *****************************************************************************/
 BOOST_AUTO_TEST_CASE(test_ad_read_subset) {
+    typedef std::vector<int> V;
+    typedef std::vector<std::string> S;
+
     std::stringstream buffer;
     Ad adfile("ad:", std::ios_base::out | std::ios_base::in);
     adfile.Attach(buffer.rdbuf());
@@ -433,18 +432,15 @@ BOOST_AUTO_TEST_CASE(test_ad_read_subset) {
     const char *libs[] = {"B","C"};
     adfile.SelectLibraries(libs);
 
-    BOOST_CHECK(unittest_dng_io_ad::get_input_libraries(adfile)[0].name == "A");
-    BOOST_CHECK(unittest_dng_io_ad::get_input_libraries(adfile)[1].name == "B");
-    BOOST_CHECK(unittest_dng_io_ad::get_input_libraries(adfile)[0].sample == "AAA");
-    BOOST_CHECK(unittest_dng_io_ad::get_input_libraries(adfile)[1].sample == "BBB");
-    BOOST_CHECK(unittest_dng_io_ad::get_input_library_attributes(adfile)[0] == "");
-    BOOST_CHECK(unittest_dng_io_ad::get_input_library_attributes(adfile)[1] == "");
+    BOOST_CHECK((unittest_dng_io_ad::get_input_libraries(adfile).names == S{"A","B"}));
+    BOOST_CHECK((unittest_dng_io_ad::get_input_libraries(adfile).samples == S{"AAA","BBB"}));
+    BOOST_CHECK((unittest_dng_io_ad::get_input_libraries(adfile).attributes == S{"",""}));
 
-    BOOST_CHECK(adfile.libraries().size() == 1);
-    BOOST_CHECK(adfile.library(1).name == "B");
-    BOOST_CHECK(adfile.library(1).sample == "BBB");
-    BOOST_CHECK(unittest_dng_io_ad::get_output_library_attributes(adfile)[0] == "");
-
+    BOOST_CHECK(adfile.num_libraries() == 1);
+    BOOST_CHECK(adfile.libraries().names == S{"B"});
+    BOOST_CHECK(adfile.libraries().samples == S{"BBB"});
+    BOOST_CHECK(unittest_dng_io_ad::get_output_libraries(adfile).attributes == S{""});
+ 
     AlleleDepths input;
     while(adfile.Read(&input)) {
         indepths.push_back(input);
@@ -525,6 +521,9 @@ const char tad_test1[] =
 ;
 
 BOOST_AUTO_TEST_CASE(test_tad_read) {
+    typedef std::vector<int> V;
+    typedef std::vector<std::string> S;
+
     std::stringstream buffer(tad_test1);
     Ad adfile("tad:", std::ios_base::in);
     adfile.Attach(buffer.rdbuf());
@@ -532,7 +531,6 @@ BOOST_AUTO_TEST_CASE(test_tad_read) {
 
     typedef std::vector<int> V;
     typedef std::vector<std::string> S;
-
 
     BOOST_CHECK(unittest_dng_io_ad::get_version_number(adfile) == 0x0001);
     BOOST_CHECK(unittest_dng_io_ad::get_format_string(adfile) == "TAD");
@@ -548,15 +546,14 @@ BOOST_AUTO_TEST_CASE(test_tad_read) {
     BOOST_CHECK(unittest_dng_io_ad::get_contig_attributes(adfile)[1] == "M5:aaaaaaaa");
     BOOST_CHECK(unittest_dng_io_ad::get_contig_attributes(adfile)[2] == "M5:aaaaaaab\tUR:blah");
 
-    BOOST_CHECK(adfile.libraries().size() == 2);
-    BOOST_CHECK(adfile.library(0).name == "A");
-    BOOST_CHECK(adfile.library(1).name == "B");
-    BOOST_CHECK(adfile.library(0).sample == "AAA");
-    BOOST_CHECK(adfile.library(1).sample == "BBB");
-    BOOST_CHECK(unittest_dng_io_ad::get_input_library_attributes(adfile)[0] == "");
-    BOOST_CHECK(unittest_dng_io_ad::get_input_library_attributes(adfile)[1] == "LB:B\tRG:B1\tRG:B2");
-    BOOST_CHECK(unittest_dng_io_ad::get_output_library_attributes(adfile)[0] == "");
-    BOOST_CHECK(unittest_dng_io_ad::get_output_library_attributes(adfile)[1] == "LB:B\tRG:B1\tRG:B2");
+    BOOST_CHECK(adfile.num_libraries() == 2);
+    BOOST_CHECK((adfile.libraries().names == S{"A","B"}));
+    BOOST_CHECK((adfile.libraries().samples == S{"AAA","BBB"}));
+    BOOST_CHECK((unittest_dng_io_ad::get_output_libraries(adfile).attributes == S{"","LB:B\tRG:B1\tRG:B2"}));
+
+    BOOST_CHECK((unittest_dng_io_ad::get_input_libraries(adfile).names == S{"A","B"}));
+    BOOST_CHECK((unittest_dng_io_ad::get_input_libraries(adfile).samples == S{"AAA","BBB"}));
+    BOOST_CHECK((unittest_dng_io_ad::get_input_libraries(adfile).attributes == S{"","LB:B\tRG:B1\tRG:B2"}));
 
     AlleleDepths depths;
     adfile.Read(&depths);
@@ -646,6 +643,9 @@ const char tad_test3[] =
 ;
 
 BOOST_AUTO_TEST_CASE(test_tad_read_subset) {
+    typedef std::vector<int> V;
+    typedef std::vector<std::string> S;
+
     std::stringstream buffer(tad_test3);
     Ad adfile("tad:", std::ios_base::in);
     adfile.Attach(buffer.rdbuf());
@@ -656,17 +656,14 @@ BOOST_AUTO_TEST_CASE(test_tad_read_subset) {
     typedef std::vector<int> V;
     typedef std::vector<std::string> S;
 
-    BOOST_CHECK(unittest_dng_io_ad::get_input_libraries(adfile)[0].name == "A");
-    BOOST_CHECK(unittest_dng_io_ad::get_input_libraries(adfile)[1].name == "B");
-    BOOST_CHECK(unittest_dng_io_ad::get_input_libraries(adfile)[0].sample == "AAA");
-    BOOST_CHECK(unittest_dng_io_ad::get_input_libraries(adfile)[1].sample == "BBB");
-    BOOST_CHECK(unittest_dng_io_ad::get_input_library_attributes(adfile)[0] == "");
-    BOOST_CHECK(unittest_dng_io_ad::get_input_library_attributes(adfile)[1] == "LB:B\tRG:B");
+    BOOST_CHECK(adfile.num_libraries() == 1);
+    BOOST_CHECK(adfile.libraries().names == S{"B"});
+    BOOST_CHECK(adfile.libraries().samples == S{"BBB"});
+    BOOST_CHECK(unittest_dng_io_ad::get_output_libraries(adfile).attributes == S{"LB:B\tRG:B"});
 
-    BOOST_CHECK(adfile.libraries().size() == 1);
-    BOOST_CHECK(adfile.library(1).name == "B");
-    BOOST_CHECK(adfile.library(1).sample == "BBB");
-    BOOST_CHECK(unittest_dng_io_ad::get_output_library_attributes(adfile)[0] == "LB:B\tRG:B");
+    BOOST_CHECK((unittest_dng_io_ad::get_input_libraries(adfile).names == S{"A","B"}));
+    BOOST_CHECK((unittest_dng_io_ad::get_input_libraries(adfile).samples == S{"AAA","BBB"}));
+    BOOST_CHECK((unittest_dng_io_ad::get_input_libraries(adfile).attributes == S{"","LB:B\tRG:B"}));
 
     AlleleDepths depths;
     adfile.Read(&depths);
