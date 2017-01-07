@@ -39,12 +39,10 @@
 #include <dng/task/call.h>
 #include <dng/relationship_graph.h>
 #include <dng/fileio.h>
-#include <dng/pileup.h>
 #include <dng/read_group.h>
 #include <dng/seq.h>
 #include <dng/utility.h>
 #include <dng/hts/bcf.h>
-#include <dng/hts/extra.h>
 #include <dng/vcfpileup.h>
 #include <dng/mutation.h>
 #include <dng/stats.h>
@@ -220,7 +218,8 @@ int process_bam(task::Call::argument_type &arg) {
     io::at_slurp(arg.region); // replace arg.region with the contents of a file if needed
 
     // Open input files
-    dng::io::BamPileup mpileup{arg.min_qlen};
+    using BamPileup = dng::io::BamPileup;
+    BamPileup mpileup{arg.min_qlen};
     for(auto && str : arg.input) {
         // TODO: We put all this logic here to simplify the BamPileup construction
         // TODO: However it might make sense to incorporate it into BamPileup::AddFile
@@ -261,8 +260,7 @@ int process_bam(task::Call::argument_type &arg) {
     vcf_add_header_text(vcfout, arg);
 
     // User the header from the first file to determine the contigs
-    const bam_hdr_t *h = bamdata[0].header();
-    for(auto && contig : hts::extra::parse_contigs(h)) {
+    for(auto && contig : mpileup.contigs()) {
     	vcfout.AddContig(contig.first.c_str(), contig.second); // Add contigs to header
     }
 
@@ -274,7 +272,7 @@ int process_bam(task::Call::argument_type &arg) {
             arg.ref_weight, arg.gamma[0], arg.gamma[1]});
 
     // Pileup data
-    pileup::RawDepths read_depths(rgs.libraries().size());
+    pileup::RawDepths read_depths(mpileup.num_libraries());
 
     // Finish Header
     for(auto && str : relationship_graph.labels()) {
@@ -299,7 +297,9 @@ int process_bam(task::Call::argument_type &arg) {
         || seq::base_index(r.base()) >= 4);
     };
 
-    mpileup(bamdata, [&](const dng::BamPileup::data_type & data, utility::location_t loc) {
+    auto h = mpileup.header();
+
+    mpileup([&](const BamPileup::data_type & data, utility::location_t loc) {
     	// Calculate target position and fetch sequence name
         int contig = utility::location_to_contig(loc);
         int position = utility::location_to_position(loc);
@@ -319,9 +319,9 @@ int process_bam(task::Call::argument_type &arg) {
 					continue;
 				}
                 std::size_t base = seq::base_index(r.aln.seq_at(r.pos));
-                assert(read_depths[rgs.library_from_id(u)].counts[ base ] < 65535);
+                assert(read_depths[u].counts[ base ] < 65535);
 
-                read_depths[rgs.library_from_id(u)].counts[ base ] += 1;
+                read_depths[u].counts[ base ] += 1;
 			}
 		}
 		if(!do_call(read_depths, ref_index, &stats)) {
@@ -480,8 +480,7 @@ int process_bam(task::Call::argument_type &arg) {
 				if(filter_read(r)) {
 					continue;
 				}
-				std::size_t library_pos = (library_start + rgs.library_from_id(
-											   u)) * refalt_count;
+				std::size_t library_pos = (library_start + u) * refalt_count;
 				std::size_t base = seq::base_index(r.base());
 				std::size_t base_refalt = acgt_to_refalt_allele[base];
 				assert(base_refalt != -1);

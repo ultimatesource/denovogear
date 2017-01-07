@@ -30,8 +30,10 @@
 #include <dng/read_group.h>
 #include <dng/utility.h>
 #include <dng/regions.h>
+#include <dng/library.h>
 
 #include <dng/hts/bam.h>
+#include <dng/hts/extra.h>
 
 namespace dng {
 namespace io {
@@ -75,6 +77,8 @@ public:
 
     location_t next_loc() const { return next_loc_; }
 
+    const File& file() const { return in_; }
+
 private:
     utility::location_t next_loc_;
     File in_;
@@ -95,44 +99,82 @@ public:
     template<typename CallBack>
     void operator()(CallBack func);
 
-    BamPileup(int min_qlen = 0) : pool_{4048}, min_qlen_{min_qlen} { }
+    BamPileup(int min_qlen = 0, std::string lbtag = "LB") : pool_{4048}, min_qlen_{min_qlen},
+        lbtag_{std::move(lbtag)} {
+        if(lbtag_.empty()) {
+            lbtag_ = "LB";
+        }
+    }
 
     template<typename InFile>
-    void AddFile(InFile&& f) {
-        scanners_.emplace_back(std::forward<InFile>(f), min_qlen_);
-    }
+    void AddFile(InFile&& f);
 
     template<typename R>
     void SelectLibraries(R &range);
+
+    void ResetLibraries();
+
+    const libraries_t& libraries() const {
+        return output_libraries_;
+    }
+    size_t num_libraries() const {
+        return output_libraries_.names.size();
+    }
+
+    const bam_hdr_t * header() const {
+        return scanners_.front().file().header();
+    }
+
+    std::vector<std::pair<std::string, uint32_t>>
+    contigs() const {
+        return hts::extra::parse_contigs(header());
+    }
+
 
 protected:
     int Advance(data_type *data, utility::location_t *target_loc,
                 utility::location_t *fast_forward_loc);
 
-    template<typename STR>
-    std::size_t ReadGroupIndex(const STR &s) {
-        return rg::index(read_groups_, s);
-    }
-
 private:
+    void ParseHeader(const char* text);
+
+    template<typename It>
+    void ParseHeaderTokens(It it, It it_last);
+
+
     std::vector<detail::BamScan> scanners_;
 
     pool_type pool_;
 
-    utility::StrMap libraries_;
-
     int min_qlen_;
+
+    struct bam_libraries_t : dng::libraries_t {
+        std::vector<utility::StringSet> read_groups;
+    };
+
+    std::string lbtag_;
+
+    bam_libraries_t input_libraries_;
+    bam_libraries_t output_libraries_;
+
+    utility::StringMap read_group_to_libraries_;
 };
+
+template<typename InFile>
+void BamPileup::AddFile(InFile&& f) {
+    scanners_.emplace_back(std::forward<InFile>(f), min_qlen_);
+    const char * text = scanners_.back().file().header()->text;
+    ParseHeader(text);
+}
 
 template<typename CallBack>
 void BamPileup::operator()(CallBack call_back) {
     using namespace std;
-    using namespace fileio;
     using utility::make_location;
     using dng::regions::region_t;
 
     // data will hold our pileup information
-    data_type data(read_groups_.size());
+    data_type data(num_libraries());
     location_t current_loc = 0;
     location_t fast_forward_loc = 0;
 
@@ -144,7 +186,7 @@ void BamPileup::operator()(CallBack call_back) {
 
     // If the first file has parsed regions, use them.
     std::queue<region_t> region_queue;
-    for(auto && r : range.begin()->regions()) {
+    for(auto && r : scanners_.front().file().regions()) {
         // convert regions from bam format to dng format
         region_queue.emplace(r);
     }
@@ -177,6 +219,30 @@ void BamPileup::operator()(CallBack call_back) {
         // Execute callback function
         call_back(data, current_loc);
     }
+}
+
+template<typename R>
+void BamPileup::SelectLibraries(R &range) {
+    // Clear all output libraries
+    output_libraries_ = {};
+
+    // For every library in range, try to find it in input_libraries_
+    size_t k=0;
+    for(auto it = boost::begin(range); it != boost::end(range); ++it) {
+        auto pos = utility::find_position(input_libraries_.names, *it);
+        if(pos == input_libraries_.names.size()) {
+            // Do nothing if library was not found.
+            continue;
+        }
+        output_libraries_.names.push_back(input_libraries_.names[pos]);
+        output_libraries_.samples.push_back(input_libraries_.samples[pos]);
+        output_libraries_.read_groups.push_back(input_libraries_.read_groups[pos]);
+        for(auto && a : input_libraries_.read_groups[pos]) {
+            read_group_to_libraries_.emplace(a,k);
+        }
+        ++k;
+    }
+
 }
 
 } //namespace io

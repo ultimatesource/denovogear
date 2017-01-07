@@ -42,6 +42,11 @@
 #include <boost/container/flat_set.hpp>
 #include <boost/container/flat_map.hpp>
 
+#include <boost/range/iterator.hpp>
+#include <boost/range/distance.hpp>
+#include <boost/range/algorithm/find.hpp>
+#include <boost/range/as_literal.hpp>
+
 #include <dng/detail/unit_test.h>
 
 namespace dng {
@@ -261,7 +266,7 @@ std::string vcf_command_line_text(const char *arg, std::string val) {
 namespace detail {
     using token_function = boost::char_separator<char>;
     template<typename Range>
-    using char_tokenizer = boost::tokenizer<token_function, typename Range::const_iterator>;
+    using char_tokenizer = boost::tokenizer<token_function, typename boost::range_iterator<const Range>::type>;
 };
 
 template<typename Range>
@@ -269,7 +274,7 @@ inline
 detail::char_tokenizer<Range>
 make_tokenizer(const Range& text, const char *sep = "\t", const char *eol = "\n") {
     detail::token_function f(sep, eol, boost::keep_empty_tokens);
-    return {text,f};
+    return {boost::as_literal(text),f};
 }
 
 template<typename Range>
@@ -277,7 +282,13 @@ inline
 detail::char_tokenizer<Range>
 make_tokenizer_dropempty(const Range& text, const char *sep = "\t", const char *eol = "\n") {
     detail::token_function f(sep, eol, boost::drop_empty_tokens);
-    return {text,f};
+    return {boost::as_literal(text),f};
+}
+
+template<typename Range, typename Value>
+inline
+size_t find_position(const Range& r, const Value& v) {
+    return boost::distance(boost::find<boost::return_begin_found>(r, v));
 }
 
 } // namespace dng::utility

@@ -19,6 +19,7 @@
 
 #include <dng/io/bam.h>
 #include <dng/cigar.h>
+#include <dng/utility.h>
 
 #include <boost/range/begin.hpp>
 #include <boost/range/end.hpp>
@@ -26,6 +27,8 @@
 #include <boost/range/metafunctions.hpp>
 #include <boost/range/algorithm/lower_bound.hpp>
 #include <boost/range/algorithm/sort.hpp>
+
+#include <boost/algorithm/string/predicate.hpp>
 
 using namespace dng;
 using namespace dng::io;
@@ -75,12 +78,13 @@ int BamPileup::Advance(data_type *data, utility::location_t *target_loc,
                 new_reads.pop_front();
                 uint8_t *rg = p->aln.aux_get("RG");
                 std::size_t index = k;
-                if(!read_groups_.empty()) {
-                    index = ReadGroupIndex(reinterpret_cast<const char *>(rg + 1));
-                    if(index == -1) {
+                if(!read_group_to_libraries_.empty()) {
+                    auto it = read_group_to_libraries_.find(reinterpret_cast<const char *>(rg + 1));
+                    if(it == read_group_to_libraries_.end()) {
                         pool_.Free(p); // drop unknown RG's
                         continue;
                     }
+                    index = it->second;
                 }
                 // process cigar string
                 location_t q = cigar::target_to_query(*target_loc, p->beg, p->cigar);
@@ -91,6 +95,7 @@ int BamPileup::Advance(data_type *data, utility::location_t *target_loc,
                 (*data)[index].push_back(*p);
                 fast_forward = false;
             }
+            ++k;
         }
         *fast_forward_loc = next_loc;
     }
@@ -147,4 +152,67 @@ BamScan::operator()(utility::location_t target_loc, pool_type &pool) {
     list_type ret;
     ret.splice(ret.end(), buffer_, buffer_.begin(), --buffer_.end());
     return ret;
+}
+
+void BamPileup::ParseHeader(const char* text) {
+    if(text == nullptr) {
+        return;
+    }
+    // Tokenize header
+    auto tokens = utility::make_tokenizer_dropempty(text);
+    // Parse Tokens
+    ParseHeaderTokens(tokens.begin(), tokens.end());    
+}
+
+template<typename It>
+void BamPileup::ParseHeaderTokens(It it, It it_last) {
+    using boost::algorithm::starts_with;
+
+    std::string prefix = lbtag_ + ':';
+    for(; it != it_last; ++it) {
+        if(*it == "@RG") {
+            std::string name, id, sample;
+            for(++it; it != it_last && *it != "\n"; ++it) {
+                if(starts_with(*it, "ID:")) {
+                    id = it->substr(3);
+                } else if(starts_with(*it, prefix)) {
+                    name = it->substr(prefix.size());
+                } else if(starts_with(*it, "SM:")) {
+                    sample = it->substr(3);
+                }
+            }
+            if(id.empty()) {
+                throw std::runtime_error("ERROR: an @RG header line is missing an 'ID' tag.");
+            }
+            if(name.empty()) {
+                name = id;
+            }
+            if(sample.empty()) {
+                sample = name;
+            }
+            auto pos = utility::find_position(input_libraries_.names, name);
+            if(pos == input_libraries_.names.size()) {
+                input_libraries_.names.push_back(std::move(name));
+                input_libraries_.samples.push_back(std::move(sample));
+                input_libraries_.read_groups.push_back(utility::StringSet{{id}});
+            } else {
+                if(input_libraries_.samples[pos] != sample) {
+                    throw std::runtime_error("ERROR: Multiple sample names are defined for read groups with library " + prefix + name + ".");
+                }
+                input_libraries_.read_groups[pos].insert(id);
+            }
+        }
+    }
+    ResetLibraries();   
+}
+
+
+void BamPileup::ResetLibraries() {
+    output_libraries_ = input_libraries_;
+
+    for(size_t i = 0; i < output_libraries_.read_groups.size(); ++i) {
+        for(auto && a : output_libraries_.read_groups[i]) {
+            read_group_to_libraries_.emplace(a,i);
+        }
+    }
 }

@@ -586,7 +586,12 @@ std::vector<std::string> add_libraries_to_graph(Graph &pedigree_graph, const lib
             continue;
         }
         vertex_t u = it->second;
-        vertex_t v = add_vertex({libs.names[i], VertexType::Library}, pedigree_graph);
+        std::string name = labels[u];
+        if(libs.names[i] != labels[u]) {
+            name += "-";
+            name += libs.names[i];
+        }
+        vertex_t v = add_vertex({name, VertexType::Library}, pedigree_graph);
         add_edge(u, v, {EdgeType::Library, 1.0f}, pedigree_graph);
         sexes[v] = sexes[u];
         ret.push_back(libs.names[i]);

@@ -29,7 +29,6 @@
 #include <boost/filesystem.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/range/functions.hpp>
-#include <boost/range/algorithm/find.hpp>
 
 #include <dng/io/file.h>
 #include <dng/io/utility.h>
@@ -290,7 +289,7 @@ void Ad::SelectLibraries(R &range) {
     // For every library in range, try to find it in input_libraries_
     size_t k=0;
     for(auto it = boost::begin(range); it != boost::end(range); ++it) {
-        auto pos = boost::distance(boost::find<boost::return_begin_found>(input_libraries_.names, *it));
+        auto pos = utility::find_position(input_libraries_.names, *it);
         if(pos == input_libraries_.names.size()) {
             continue;
         }
