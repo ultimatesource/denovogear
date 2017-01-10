@@ -329,6 +329,7 @@ public:
     friend class Variant;
 };
 
+inline
 Variant::Variant(const File &file) : BareVariant(), hdr_{file.hdr_} {
     bcf_float_set_missing(qual);
 }
@@ -373,6 +374,11 @@ public:
         return bcf_sr_get_line(handle(), index);
     }
 
+    int SetSamples(const char* samples) {
+        assert(samples != nullptr);
+        return bcf_sr_set_samples(handle(), samples, 0);
+    }
+
     int num_readers() const {
         return handle()->nreaders;
     }    
@@ -392,6 +398,14 @@ public:
         assert(0 < index && index < handle()->nreaders);
         return bcf_sr_get_header(handle(), index);    
     }
+
+    const char * const * samples() const {
+        return handle()->samples;
+    }
+    int num_samples() const {
+        return handle()->n_smpl;
+    }
+
 
 private:
     std::unique_ptr<bcf_srs_t, void(*)(bcf_srs_t *)> handle_;

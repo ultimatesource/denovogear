@@ -851,7 +851,7 @@ int process_bcf(task::Call::argument_type &arg) {
 
     // Read input data
     if(arg.input.size() > 1) {
-    	throw std::runtime_error("Error: dng call can only handle one variant file at a time.");
+    	throw std::runtime_error("Error: dng call can only handle one BCF/VCF file at a time.");
     }
 
     using dng::io::BcfPileup;
@@ -870,36 +870,17 @@ int process_bcf(task::Call::argument_type &arg) {
 	// 	}
 	// }
 
-	// Initialize the record reader to iterate through the BCF/VCF input
-	// int ret = bcf_sr_add_reader(rec_reader, bcfdata.name());
-	// if(ret == 0) {
-	// 	int errnum = rec_reader->errnum;
-	// 	switch(errnum) {
-	// 	case not_bgzf:
-	// 		throw std::runtime_error("Input file type does not allow for region searchs. Exiting!");
-	// 		break;
-	// 	case idx_load_failed:
-	// 		throw std::runtime_error("Unable to load query region, no index. Exiting!");
-	// 		break;
-	// 	case file_type_error:
-	// 		throw std::runtime_error("Could not load filetype. Exiting!");
-	// 		break;
-	// 	default:
-	// 		throw std::runtime_error("Could not load input sequence file into htslib. Exiting!");
-	// 	};
-	// }
-
     // Construct peeling algorithm from parameters and pedigree information
     InheritanceModel model = inheritance_model(arg.model);
     //dng::ReadGroups rgs;
     //rgs.ParseSamples(bcfdata);
     dng::RelationshipGraph relationship_graph;
-    if (!relationship_graph.Construct(ped, rgs.GetLibraries(), model,
+    if (!relationship_graph.Construct(ped, mpileup.libraries(), model,
                                       arg.mu, arg.mu_somatic, arg.mu_library)) {
         throw std::runtime_error("Error: Unable to construct peeler for pedigree; "
                                  "possible non-zero-loop relationship_graph.");
     }
-    //rgs.SelectLibraries(relationship_graph.library_names());
+    mpileup.SelectLibraries(relationship_graph.library_names());
 
     // Begin writing VCF header
     auto out_file = vcf_get_output_mode(arg);

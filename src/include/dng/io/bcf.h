@@ -21,10 +21,13 @@
 #ifndef DNG_IO_BCF_H
 #define DNG_IO_BCF_H
 
+#include <cstring>
+
 #include <dng/hts/bcf.h>
 
 #include <dng/utility.h>
 #include <dng/depths.h>
+#include <dng/library.h>
 
 namespace dng {
 namespace io {
@@ -37,17 +40,17 @@ public:
 
     int AddFile(const char* filename);
 
-    // template<typename R>
-    // void SelectLibraries(R &range);
+    template<typename R>
+    void SelectLibraries(R &range);
 
     // void ResetLibraries();
 
-    // const libraries_t& libraries() const {
-    //     return output_libraries_;
-    // }
-    // size_t num_libraries() const {
-    //     return output_libraries_.names.size();
-    // }
+    const libraries_t& libraries() const {
+         return libraries_;
+    }
+    size_t num_libraries() const {
+         return libraries_.names.size();
+    }
 
     template<typename CallBack>
     void operator()(CallBack func);
@@ -58,6 +61,11 @@ public:
 
 private:
     hts::bcf::SyncedReader reader_;
+
+
+    void ParseSampleLabels();
+
+    dng::libraries_t libraries_;
 };
 
 template<typename CallBack>
@@ -128,12 +136,72 @@ void BcfPileup::operator()(CallBack call_back) {
     }
 }
 
+inline
 int BcfPileup::AddFile(const char* filename) {
     assert(filename != nullptr);
     assert(reader_.num_readers() == 0); // only support one input file
 
-    return reader_.AddReader(filename);
+    if(reader_.AddReader(filename) == 0) {
+        return 0;
+    }
+    ParseSampleLabels();
+
+    return 1;
 }
+
+
+// Parse PREFIX/SAMPLE/LIBRARY formatted labels
+inline
+void BcfPileup::ParseSampleLabels() {
+    libraries_.names.clear();
+    libraries_.samples.clear();
+
+    int num_samples = reader_.num_samples();
+    auto bcf_samples = reader_.samples();
+    std::string sample, library;
+    for(int i=0;i<num_samples;++i) {
+        sample = bcf_samples[i];
+        library.clear();
+
+        trim_label_prefix(sample);
+        size_t pos = sample.find(DNG_LABEL_SEPARATOR_CHAR);        
+        if(pos != std::string::npos) {
+            library = sample.substr(pos+1);
+            sample.erase(pos);
+        }
+        if(library.empty()) {
+            library = sample;
+        }
+        libraries_.names.push_back(library);
+        libraries_.samples.push_back(sample);
+    }
+}
+
+template<typename R>
+void BcfPileup::SelectLibraries(R &range) {
+    assert(libraries_.names.size() == libraries_.samples.size());
+    assert(libraries_.names.size() == reader_.num_samples());
+
+    // For every library in range, try to find it in input_libraries_
+    auto bcf_samples = reader_.samples();
+    std::string selector;
+    for(auto it = boost::begin(range); it != boost::end(range); ++it) {
+        auto pos = utility::find_position(libraries_.names, *it);
+        if(pos == libraries_.names.size()) {
+            // Do nothing if library was not found.
+            continue;
+        }
+        if(!selector.empty()) {
+            selector += ',';
+        }
+        selector += bcf_samples[pos];
+    }
+    if(reader_.SetSamples(selector.c_str()) == 0) {
+        return;
+    }
+    ParseSampleLabels();
+}
+
 
 } //namespace io
 } //namespace dng

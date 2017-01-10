@@ -24,6 +24,9 @@
 #include <vector>
 #include <string>
 
+#include <boost/algorithm/string/predicate.hpp>
+#include <boost/algorithm/string/erase.hpp>
+
 #include <dng/detail/graph.h>
 
 namespace dng {
@@ -38,6 +41,20 @@ struct libraries_t {
 #define DNG_LABEL_PREFIX_LIBRARY  "LB"
 #define DNG_LABEL_SEPARATOR "/"
 #define DNG_LABEL_SEPARATOR_CHAR '/'
+
+template<typename S>
+void trim_label_prefix(S &input) {
+    using boost::starts_with;
+    using boost::erase_head;
+
+	if(starts_with(input, (DNG_LABEL_PREFIX_GERMLINE DNG_LABEL_SEPARATOR))) {
+		erase_head(input, strlen((DNG_LABEL_PREFIX_GERMLINE DNG_LABEL_SEPARATOR)));
+	} else if(starts_with(input, (DNG_LABEL_PREFIX_SOMATIC DNG_LABEL_SEPARATOR))) {
+		erase_head(input, strlen((DNG_LABEL_PREFIX_SOMATIC DNG_LABEL_SEPARATOR)));
+	} else if(starts_with(input, (DNG_LABEL_PREFIX_LIBRARY DNG_LABEL_SEPARATOR))) {
+		erase_head(input, strlen((DNG_LABEL_PREFIX_LIBRARY DNG_LABEL_SEPARATOR)));
+	}
+}
 
 }
 
