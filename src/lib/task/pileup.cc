@@ -245,7 +245,7 @@ int process_bam(Pileup::argument_type &arg) {
             first_is_N = 64;
             ++first;
         }
-        string rng(first, last);
+        AlleleDepths::match_indexes_t::key_t rng(first, last);
         int color = AlleleDepths::MatchIndexes(rng)+first_is_N;
         assert(0 <= color && color < 128);
         line.location(loc);

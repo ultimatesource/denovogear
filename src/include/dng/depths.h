@@ -26,6 +26,7 @@
 #include <unordered_map>
 
 #include <boost/algorithm/string/case_conv.hpp>
+#include <boost/functional/hash.hpp>
 
 #include <dng/utility.h>
 
@@ -37,6 +38,16 @@ struct depth_t {
 };
 
 using RawDepths = std::vector<depth_t>;
+
+namespace detail {
+template <typename Container>
+struct container_hash {
+    std::size_t operator()(Container const& c) const {
+        return boost::hash_range(c.begin(), c.end());
+    }
+};    
+
+};
 
 class AlleleDepths {
 public:
@@ -69,10 +80,11 @@ public:
     static match_labels_t MatchLabel;
 
     struct match_indexes_t {
-        std::unordered_map<std::string,int> tree;
+        using key_t = std::vector<char>;
+        std::unordered_map<key_t,int, detail::container_hash<key_t>> tree;
         match_indexes_t();
 
-        int operator()(const std::string &rng) const;
+        int operator()(const key_t &rng) const;
     };
     static match_indexes_t MatchIndexes;
 
@@ -193,12 +205,12 @@ AlleleDepths::match_indexes_t::match_indexes_t() {
     // only add the first half of the table
     for(int i=0; i<type_info_table_length/2; ++i) {
         auto & slot = AlleleDepths::type_info_table[i];
-        tree.emplace(std::string(&slot.indexes[0], &slot.indexes[slot.width]), i);
+        tree.emplace(key_t(&slot.indexes[0], &slot.indexes[slot.width]), i);
     }    
 }
 
 inline
-int AlleleDepths::match_indexes_t::operator()(const std::string &rng) const {
+int AlleleDepths::match_indexes_t::operator()(const key_t &rng) const {
     auto it = tree.find(rng);
     return (it != tree.end()) ? it->second : -1;
 }

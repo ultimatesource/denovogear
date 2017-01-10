@@ -26,6 +26,7 @@
 #include <string>
 #include <set>
 #include <htslib/vcf.h>
+#include <htslib/synced_bcf_reader.h>
 
 extern "C" {
     // The htslib header does not match the library
@@ -328,9 +329,75 @@ public:
     friend class Variant;
 };
 
-inline Variant::Variant(const File &file) : BareVariant(), hdr_{file.hdr_} {
+Variant::Variant(const File &file) : BareVariant(), hdr_{file.hdr_} {
     bcf_float_set_missing(qual);
 }
+
+class SyncedReader {
+public:
+    enum struct Collapse {
+        None = COLLAPSE_NONE,
+        SNPs = COLLAPSE_SNPS,
+        Indels = COLLAPSE_INDELS,
+        Any = COLLAPSE_ANY,
+        Some = COLLAPSE_SOME,
+        Both = COLLAPSE_BOTH
+    };
+
+    SyncedReader(Collapse collapse = Collapse::None) : handle_{bcf_sr_init(), bcf_sr_destroy} {
+        handle()->collapse = static_cast<int>(collapse);
+    }
+
+    bcf_srs_t * handle() {
+        assert(handle_);
+        return handle_.get();
+    }
+    const bcf_srs_t * handle() const {
+        assert(handle_);
+        return handle_.get();
+    }
+
+    int AddReader(const char *filename) {
+        return bcf_sr_add_reader(handle(), filename);
+    }
+    void RemoveReader(int index) {
+        assert(0 < index && index < handle()->nreaders);
+        bcf_sr_remove_reader(handle(), index);
+    }
+
+    int NextLine() {
+        return bcf_sr_next_line(handle());
+    }
+    bcf1_t* GetLine(int index) {
+        assert(0 < index && index < handle()->nreaders);
+        return bcf_sr_get_line(handle(), index);
+    }
+
+    int num_readers() const {
+        return handle()->nreaders;
+    }    
+    bcf_sr_t* reader(int index) {
+        assert(0 < index && index < handle()->nreaders);
+        return bcf_sr_get_reader(handle(), index);    
+    }
+    const bcf_sr_t* reader(int index) const {
+        assert(0 < index && index < handle()->nreaders);
+        return bcf_sr_get_reader(handle(), index);    
+    }
+    bcf_hdr_t* header(int index) {
+        assert(0 < index && index < handle()->nreaders);
+        return bcf_sr_get_header(handle(), index);    
+    }
+    const bcf_hdr_t* header(int index) const {
+        assert(0 < index && index < handle()->nreaders);
+        return bcf_sr_get_header(handle(), index);    
+    }
+
+private:
+    std::unique_ptr<bcf_srs_t, void(*)(bcf_srs_t *)> handle_;
+};
+
+
 
 
 struct allele_t {

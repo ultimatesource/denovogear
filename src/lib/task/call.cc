@@ -42,8 +42,6 @@
 #include <dng/read_group.h>
 #include <dng/seq.h>
 #include <dng/utility.h>
-#include <dng/hts/bcf.h>
-#include <dng/vcfpileup.h>
 #include <dng/mutation.h>
 #include <dng/stats.h>
 #include <dng/io/utility.h>
@@ -54,8 +52,10 @@
 #include <dng/call_mutations.h>
 
 #include <dng/io/bam.h>
+#include <dng/io/bcf.h>
+#include <dng/io/ad.h>
 
-#include <htslib/synced_bcf_reader.h>
+#include <dng/vcfpileup.h>
 
 #include <htslib/faidx.h>
 #include <htslib/khash.h>
@@ -851,54 +851,55 @@ int process_bcf(task::Call::argument_type &arg) {
 
     // Read input data
     if(arg.input.size() > 1) {
-    	throw std::runtime_error("can only handle one variant file at a time.");
+    	throw std::runtime_error("Error: dng call can only handle one variant file at a time.");
     }
-    hts::bcf::File bcfdata(arg.input[0].c_str(), "r");
-    bcf_srs_t *rec_reader = bcf_sr_init();
+
+    using dng::io::BcfPileup;
+    BcfPileup mpileup;
+    if(mpileup.AddFile(arg.input[0].c_str()) == 0) {
+        int errnum = mpileup.reader().handle()->errnum;
+        throw std::runtime_error(std::string{"Error: "} + bcf_sr_strerror(errnum));
+    }
 
 	// Open region if specified
-	if(!arg.region.empty()) {
-		int is_file = (arg.region.find("bed") != std::string::npos)? 1 : 0;
-		int ret = bcf_sr_set_regions(rec_reader, arg.region.c_str(), is_file);
-		if(ret == -1) {
-			throw std::runtime_error("no records in the query region " + arg.region);
-		}
-	}
+	// if(!arg.region.empty()) {
+	// 	int is_file = (arg.region.find("bed") != std::string::npos)? 1 : 0;
+	// 	int ret = bcf_sr_set_regions(rec_reader, arg.region.c_str(), is_file);
+	// 	if(ret == -1) {
+	// 		throw std::runtime_error("no records in the query region " + arg.region);
+	// 	}
+	// }
 
 	// Initialize the record reader to iterate through the BCF/VCF input
-	int ret = bcf_sr_add_reader(rec_reader, bcfdata.name());
-	if(ret == 0) {
-		int errnum = rec_reader->errnum;
-		switch(errnum) {
-		case not_bgzf:
-			throw std::runtime_error("Input file type does not allow for region searchs. Exiting!");
-			break;
-		case idx_load_failed:
-			throw std::runtime_error("Unable to load query region, no index. Exiting!");
-			break;
-		case file_type_error:
-			throw std::runtime_error("Could not load filetype. Exiting!");
-			break;
-		default:
-			throw std::runtime_error("Could not load input sequence file into htslib. Exiting!");
-		};
-	}
-
+	// int ret = bcf_sr_add_reader(rec_reader, bcfdata.name());
+	// if(ret == 0) {
+	// 	int errnum = rec_reader->errnum;
+	// 	switch(errnum) {
+	// 	case not_bgzf:
+	// 		throw std::runtime_error("Input file type does not allow for region searchs. Exiting!");
+	// 		break;
+	// 	case idx_load_failed:
+	// 		throw std::runtime_error("Unable to load query region, no index. Exiting!");
+	// 		break;
+	// 	case file_type_error:
+	// 		throw std::runtime_error("Could not load filetype. Exiting!");
+	// 		break;
+	// 	default:
+	// 		throw std::runtime_error("Could not load input sequence file into htslib. Exiting!");
+	// 	};
+	// }
 
     // Construct peeling algorithm from parameters and pedigree information
     InheritanceModel model = inheritance_model(arg.model);
-    dng::ReadGroups rgs;
-    rgs.ParseSamples(bcfdata);
+    //dng::ReadGroups rgs;
+    //rgs.ParseSamples(bcfdata);
     dng::RelationshipGraph relationship_graph;
     if (!relationship_graph.Construct(ped, rgs.GetLibraries(), model,
                                       arg.mu, arg.mu_somatic, arg.mu_library)) {
         throw std::runtime_error("Error: Unable to construct peeler for pedigree; "
                                  "possible non-zero-loop relationship_graph.");
     }
-    rgs.SelectLibraries(relationship_graph.library_names());
-
-    const char *fname = bcfdata.name();
-    dng::pileup::variant::VCFPileup vcfpileup{rec_reader, rgs.libraries()};
+    //rgs.SelectLibraries(relationship_graph.library_names());
 
     // Begin writing VCF header
     auto out_file = vcf_get_output_mode(arg);
@@ -906,7 +907,7 @@ int process_bcf(task::Call::argument_type &arg) {
     vcf_add_header_text(vcfout, arg);
 
     // Read header from first file
-    const bcf_hdr_t *h = bcf_sr_get_header(rec_reader, 0);
+    const bcf_hdr_t *h = mpileup.reader().header(0); // TODO: fixthis
 
     for(auto && contig : hts::extra::extract_contigs(h)) {
         vcfout.AddHeaderMetadata(contig.c_str()); // Add contigs to header
@@ -920,6 +921,10 @@ int process_bcf(task::Call::argument_type &arg) {
     vcfout.WriteHeader();
 
     // run calculation based on the depths at each site.
-    return variant_call(arg, vcfout, fname, vcfpileup, relationship_graph, rgs);
+    mpileup([&](const BcfPileup::data_type & data) {
+
+    });
+
+    return EXIT_SUCCESS;
 }
 
