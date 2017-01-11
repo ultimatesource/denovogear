@@ -188,7 +188,23 @@ std::array<double, 4> parse_nuc_freqs(const std::string &str) {
                                  "Expected 4; found " + std::to_string(f.first.size()) + ".");
     }
     std::array<double,4> freqs;
-    std::copy(f.first.begin(), f.first.begin()+4, &freqs[0]);
+    std::copy(f.first.begin(), f.first.end(), &freqs[0]);
+
+    // Scale frequencies and makes sure they sum to 1.
+    double freqs_sum = 0.0;
+    for(int i=0;i<freqs.size();++i) {
+        if(freqs[i] < 0.0) {
+            throw std::runtime_error("Error: Nucleotide frequencies must be non-negative. "
+                "Parsing of '" + str + "' generated a frequency of " + std::to_string(freqs[i])
+                + " in position " + std::to_string(i) + "."
+                );
+        }
+        freqs_sum += freqs[i];
+    }
+    for(auto && a : freqs) {
+        a = a/freqs_sum;
+    }
+
     return freqs;
 }
 

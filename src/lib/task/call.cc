@@ -68,6 +68,8 @@ int process_bam(task::Call::argument_type &arg);
 int process_bcf(task::Call::argument_type &arg);
 int process_ad(task::Call::argument_type &arg);
 
+void add_stats_to_output(const CallMutations::stats_t& stats, hts::bcf::Variant *record);
+
 int variant_call(task::Call::argument_type &arg,  hts::bcf::File &vcfout, const char *fname,
 		 	 	 pileup::variant::VariantPileup &vp, dng::RelationshipGraph &relationship_graph, dng::ReadGroups &rgs);
 
@@ -198,20 +200,6 @@ int process_bam(task::Call::argument_type &arg) {
     // Parse Nucleotide Frequencies
     std::array<double, 4> freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
 
-    // Scale frequencies and makes sure they sum to 1.
-    for(int i=0;i<freqs.size();++i) {
-        if(freqs[i] < 0.0) {
-            throw std::runtime_error("Error: Nucleotide frequencies must be non-negative. "
-                "Parsing of '" + arg.nuc_freqs + "' generated a frequency of " + std::to_string(freqs[i])
-                + " in position " + std::to_string(i) + "."
-                );
-        }
-    }
-    double freqs_sum = freqs[0] + freqs[1] + freqs[2] + freqs[3];
-    for(int i=0;i<freqs.size();++i) {
-        freqs[i] = freqs[i]/freqs_sum;
-    }
-
     // Fetch the selected regions
     // TODO: convert io:at_slurp to support the syntax @EXT:FileName, where the extension is returned
     // TODO: This will allow us to support @filename.bed
@@ -297,7 +285,7 @@ int process_bam(task::Call::argument_type &arg) {
         || seq::base_index(r.base()) >= 4);
     };
 
-    auto h = mpileup.header();
+    auto h = mpileup.header(); // TODO: Fixme.
 
     mpileup([&](const BamPileup::data_type & data, utility::location_t loc) {
     	// Calculate target position and fetch sequence name
@@ -410,17 +398,13 @@ int process_bam(task::Call::argument_type &arg) {
 		}
 
 		// Calculate sample genotypes
-		std::vector<int32_t> best_genotypes(2 * num_nodes);
-		std::vector<int32_t> genotype_qualities(num_nodes);
 		int gt_count = refalt_count * (refalt_count + 1) / 2;
 		std::vector<float> gp_scores(num_nodes * gt_count);
 
 		for(size_t i = 0, k = 0; i < num_nodes; ++i) {
-			size_t pos;
-			double d = stats.posterior_probabilities[i].maxCoeff(&pos);
+			size_t pos = stats.best_genotypes[i];
 			best_genotypes[2 * i] = numeric_genotype[pos][0];
 			best_genotypes[2 * i + 1] = numeric_genotype[pos][1];
-			genotype_qualities[i] = lphred<int32_t>(1.0 - d, 255);
 			// If either of the alleles is missing set quality to 0
 			if(allele_is_missing({best_genotypes[2 * i]}) ||
 					allele_is_missing({best_genotypes[2 * i + 1]})) {
@@ -518,37 +502,10 @@ int process_bam(task::Call::argument_type &arg) {
 		double rp_info = dng::stats::ad_two_sample_test(pos_ref, pos_alt);
 		double bq_info = dng::stats::ad_two_sample_test(base_ref, base_alt);
 
-		record.info("MUP", static_cast<float>(stats.mup));
-		record.info("LLD", static_cast<float>(stats.lld));
-		record.info("LLS", static_cast<float>(stats.lld-log_null));
-		record.info("MUX", static_cast<float>(stats.mux));
-		record.info("MU1P", static_cast<float>(stats.mu1p));
-
-
-		record.sample_genotypes(best_genotypes);
-		record.samples("GQ", genotype_qualities);
-		record.samples("GP", gp_scores);
-
-        std::vector<float> float_vector;
-        float_vector.assign(stats.node_mup.begin(), stats.node_mup.end());
-        
-        record.samples("MUP", float_vector);
-
-        if((stats.mu1p / stats.mup) >= min_prob) {
-            record.info("DNT", stats.dnt);
-            record.info("DNL", stats.dnl);
-            record.info("DNQ", stats.dnq);
-
-            float_vector.assign(stats.node_mu1p.begin(), stats.node_mu1p.end());
-            record.samples("MU1P", float_vector);
-        }
-
-		record.samples("GL", gl_scores);
 		record.samples("DP", dp_counts);
 		record.samples("AD", ad_counts);
 		record.samples("ADF", adf_counts);
 		record.samples("ADR", adr_counts);
-
 
 
 		record.info("DP", dp_info);
@@ -633,11 +590,6 @@ int variant_call(task::Call::argument_type &arg,  hts::bcf::File &vcfout, const 
         		read_depths[sample_pos].counts[base_pos] = depth;
         	}
         }
-
-//             if(!(*calculate)(read_depths, ref_index, &stats)) {
-// //            if(!calculate->operator ()(read_depths, ref_index, &stats)) {
-//                 return;
-//             }
 
         size_t ref_index = seq::char_index(ref_base);
         if(!calculate(read_depths, ref_index, &stats)) {
@@ -842,12 +794,14 @@ int process_ad(task::Call::argument_type &arg) {
 	return variant_call(arg, vcfout, fname, tadpileup, relationship_graph, rgs);
 }
 
-
 // Process vcf, bcf input data
 int process_bcf(task::Call::argument_type &arg) {
 
 	// Parse the pedigree file
 	io::Pedigree ped = io::parse_pedigree(arg.ped);
+
+    // Parse Nucleotide Frequencies
+    auto freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
 
     // Read input data
     if(arg.input.size() > 1) {
@@ -872,8 +826,7 @@ int process_bcf(task::Call::argument_type &arg) {
 
     // Construct peeling algorithm from parameters and pedigree information
     InheritanceModel model = inheritance_model(arg.model);
-    //dng::ReadGroups rgs;
-    //rgs.ParseSamples(bcfdata);
+
     dng::RelationshipGraph relationship_graph;
     if (!relationship_graph.Construct(ped, mpileup.libraries(), model,
                                       arg.mu, arg.mu_somatic, arg.mu_library)) {
@@ -901,11 +854,56 @@ int process_bcf(task::Call::argument_type &arg) {
     }
     vcfout.WriteHeader();
 
+    double min_prob = arg.min_prob;
+    CallMutations do_call(min_prob, relationship_graph, {arg.theta, freqs,
+            arg.ref_weight, arg.gamma[0], arg.gamma[1]});
+
+    // Calculated stats
+    CallMutations::stats_t stats;
+
     // run calculation based on the depths at each site.
     mpileup([&](const BcfPileup::data_type & data) {
+        if(!do_call(data, &stats)) {
+            return;
+        }
+
+
 
     });
 
     return EXIT_SUCCESS;
 }
 
+void add_stats_to_output(const CallMutations::stats_t& stats, double min_prob, hts::bcf::Variant *record) {
+    assert(record != nullptr);
+
+    record.info("MUP", static_cast<float>(stats.mup));
+    record.info("LLD", static_cast<float>(stats.lld));
+    record.info("LLS", static_cast<float>(stats.lld-log_null));
+    record.info("MUX", static_cast<float>(stats.mux));
+    record.info("MU1P", static_cast<float>(stats.mu1p));
+
+    if((stats.mu1p / stats.mup) >= min_prob) {
+        // These statistics are only informative if there is a signal of 1 mutation.
+        record.info("DNT", stats.dnt);
+        record.info("DNL", stats.dnl);
+        record.info("DNQ", stats.dnq);
+    }
+
+    record.sample_genotypes(best_genotypes);
+    record.samples("GQ", genotype_qualities);
+    record.samples("GP", gp_scores);
+
+    std::vector<float> float_vector;
+    float_vector.assign(stats.node_mup.begin(), stats.node_mup.end());
+    
+    record.samples("MUP", float_vector);
+
+    if((stats.mu1p / stats.mup) >= min_prob) {
+
+        float_vector.assign(stats.node_mu1p.begin(), stats.node_mu1p.end());
+        record.samples("MU1P", float_vector);
+    }
+
+    record.samples("GL", gl_scores);
+}

@@ -41,11 +41,14 @@ public:
         double mu1p;
         std::string dnt;
         std::string dnl;
-        int32_t dnq;
-        int32_t dnc;
+        int dnq;
+
+        GenotypeArrayVector genotype_likelihoods;
 
         GenotypeArrayVector posterior_probabilities;
-        GenotypeArrayVector genotype_likelihoods;
+        std::vector<int> best_genotypes;
+        std::vector<int> genotype_qualities;
+
         std::vector<double> node_mup;
         std::vector<double> node_mu1p;
     };
@@ -55,7 +58,12 @@ public:
 
     bool operator()(const pileup::RawDepths &depths, int ref_index,
                     stats_t *stats);
+
+    bool operator()(const pileup::AlleleDepths &depths,
+                    stats_t *stats);
 protected:
+    bool Calculate(stats_t *stats);
+
     double min_prob_;
 
     matrices_t zero_mutation_matrices_;

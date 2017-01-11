@@ -61,6 +61,67 @@ bool CallMutations::operator()(const pileup::RawDepths &depths,
     // Set the prior probability of the founders given the reference
     work_.SetFounders(diploid_prior_[ref_index], haploid_prior_[ref_index]);
 
+    // Run
+    bool found = Calculate(stats);
+    if(found && stats != nullptr) {
+        stats->lld += scale/M_LN10;
+    }
+
+
+    typedef std::pair<int, int> key_t;
+    key_t total_depths[4] = {{0, 0}, {1, 0}, {2, 0}, {3, 0}};
+    int acgt_to_refalt_allele[5] = { -1, -1, -1, -1, -1}; // Maps allele to REF+ALT order
+    int refalt_to_acgt_allele[5] = { -1, -1, -1, -1, -1}; // Maps REF+ALT order to A,C,G,T,N order
+
+    int32_t dp_info = 0;
+    std::vector<int32_t> dp_counts(num_nodes, hts::bcf::int32_missing);
+    size_t dp_pos = library_start;
+    for(auto && a : read_depths) {
+        total_depths[0].second += a.counts[0];
+        total_depths[1].second += a.counts[1];
+        total_depths[2].second += a.counts[2];
+        total_depths[3].second += a.counts[3];
+        int32_t d = a.counts[0] + a.counts[1] + a.counts[2] + a.counts[3];
+        dp_info += d;
+        dp_counts[dp_pos++] = d;
+    }
+
+
+
+    return found;
+}
+
+bool CallMutations::operator()(const pileup::AlleleDepths &depths,
+                stats_t *stats) {
+
+    int ref_index = depths.type_info().reference;
+    size_t gt_width = depths.type_gt_info().width;
+    size_t width = depths.type_info().width;
+    // Set the prior probability of the founders given the reference
+    GenotypeArray diploid_prior(gt_width);
+    for(int i=0;i<gt_width;++i) {
+        diploid_prior(i) = diploid_prior_[ref_index](depths.type_gt_info().indexes[i]);
+    }
+    GenotypeArray haploid_prior(width);
+    for(int i=0;i<width;++i) {
+        haploid_prior(i) = diploid_prior_[ref_index](depths.type_info().indexes[i]);
+    }
+
+    // Set the prior probability of the founders given the reference
+    work_.SetFounders(diploid_prior_[ref_index], haploid_prior_[ref_index]);
+
+    // Genotype Likelihoods
+    double scale = work_.SetGenotypeLikelihoods(genotyper_, depths);
+
+    // Run
+    bool found = Calculate(stats);
+    if(found && stats != nullptr) {
+        stats->lld += scale/M_LN10;
+    }
+    return found;
+}
+
+bool CallMutations::Calculate(stats_t *stats) {
     // Now peel numerator
     double numerator = graph_.PeelForwards(work_, zero_mutation_matrices_.full);
 
@@ -76,7 +137,7 @@ bool CallMutations::operator()(const pileup::RawDepths &depths,
         return true;
     }
     stats->mup = mup;
-    stats->lld = (denominator+scale)/ M_LN10;
+    stats->lld = denominator/M_LN10;
 
     graph_.PeelBackwards(work_, transition_matrices_.full);
 
@@ -88,11 +149,19 @@ bool CallMutations::operator()(const pileup::RawDepths &depths,
         stats->genotype_likelihoods[u] = work_.lower[pos].log() / M_LN10;
     }
 
-    // Posterior Probabilities for all nodes
+    // Posterior probabilities and best genotypes for all nodes
     stats->posterior_probabilities.resize(work_.num_nodes);
+    stats->best_genotypes.resize(work_.num_nodes);
+    stats->genotype_qualities.resize(work_.num_nodes);
+
     for (size_t i = 0; i < work_.num_nodes; ++i) {
         stats->posterior_probabilities[i] = (work_.upper[i] * work_.lower[i]);
         stats->posterior_probabilities[i] /= stats->posterior_probabilities[i].sum();
+
+        size_t pos;
+        double d = stats.posterior_probabilities[i].maxCoeff(&pos);
+        stats->best_genotypes[i] = pos;
+        stats->genotype_qualities[i] = lphred<int>(1.0 - d, 255);
     }
 
     // Expected Number of Mutations
@@ -147,7 +216,7 @@ bool CallMutations::operator()(const pileup::RawDepths &depths,
     // total = P(1 mutation | D)/P(0 mutations | D)
     stats->mu1p = total*(1.0-mup);
 
-    stats->dnq = dng::utility::lphred<int32_t>(1.0 - (max_coeff / total), 255);
+    stats->dnq = dng::utility::lphred<int>(1.0 - (max_coeff / total), 255);
     stats->dnl = graph_.labels()[dn_location];
     if (graph_.transitions()[dn_location].type == dng::RelationshipGraph::TransitionType::Trio) {
         stats->dnt = &dng::meiotic_diploid_mutation_labels[dn_row][dn_col][0];
