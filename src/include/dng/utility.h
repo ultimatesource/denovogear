@@ -27,6 +27,7 @@
 #include <cstdint>
 #include <climits>
 #include <chrono>
+#include <limits>
 
 #include <boost/spirit/include/support_ascii.hpp>
 #include <boost/spirit/include/qi_real.hpp>
@@ -305,6 +306,13 @@ template<typename Range, typename Value>
 inline
 size_t find_position(const Range& r, const Value& v) {
     return boost::distance(boost::find<boost::return_begin_found>(r, v));
+}
+
+template<typename T>
+inline T set_high_bit(T x) {
+  T mask = 1;
+  mask <<= std::numeric_limits<typename std::make_signed<T>::type>::digits;
+  return x | mask;
 }
 
 } // namespace dng::utility

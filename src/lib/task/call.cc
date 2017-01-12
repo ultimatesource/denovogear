@@ -315,6 +315,7 @@ int process_bam(task::Call::argument_type &arg) {
 		if(!do_call(read_depths, ref_index, &stats)) {
 			return;
 		}
+        //(stats.mu1p / stats.mup) >= min_prob
 
 		// Determine what nucleotides show up and the order they will appear in the REF and ALT field
 		// TODO: write tests that make sure REF="N" is properly handled
@@ -401,30 +402,30 @@ int process_bam(task::Call::argument_type &arg) {
 		int gt_count = refalt_count * (refalt_count + 1) / 2;
 		std::vector<float> gp_scores(num_nodes * gt_count);
 
-		for(size_t i = 0, k = 0; i < num_nodes; ++i) {
-			size_t pos = stats.best_genotypes[i];
-			best_genotypes[2 * i] = numeric_genotype[pos][0];
-			best_genotypes[2 * i + 1] = numeric_genotype[pos][1];
-			// If either of the alleles is missing set quality to 0
-			if(allele_is_missing({best_genotypes[2 * i]}) ||
-					allele_is_missing({best_genotypes[2 * i + 1]})) {
-				genotype_qualities[i] = 0;
-			}
-			for(int j = 0; j < gt_count; ++j) {
-				int n = genotype_index[j];
-				gp_scores[k++] = (n == -1) ? 0.0 : stats.posterior_probabilities[i][n];
-			}
-		}
+		// for(size_t i = 0, k = 0; i < num_nodes; ++i) {
+		// 	size_t pos = stats.best_genotypes[i];
+		// 	best_genotypes[2 * i] = numeric_genotype[pos][0];
+		// 	best_genotypes[2 * i + 1] = numeric_genotype[pos][1];
+		// 	// If either of the alleles is missing set quality to 0
+		// 	if(allele_is_missing({best_genotypes[2 * i]}) ||
+		// 			allele_is_missing({best_genotypes[2 * i + 1]})) {
+		// 		genotype_qualities[i] = 0;
+		// 	}
+		// 	for(int j = 0; j < gt_count; ++j) {
+		// 		int n = genotype_index[j];
+		// 		gp_scores[k++] = (n == -1) ? 0.0 : stats.posterior_probabilities[i][n];
+		// 	}
+		// }
 
 		// Sample Likelihoods
-		std::vector<float> gl_scores(num_nodes * gt_count, hts::bcf::float_missing);
-		for(size_t i = 0, k = library_start * gt_count; i < stats.genotype_likelihoods.size(); ++i) {
-			for(int j = 0; j < gt_count; ++j) {
-				int n = genotype_index[j];
-				gl_scores[k++] = (n == -1) ? hts::bcf::float_missing :
-								 stats.genotype_likelihoods[i][n];
-			}
-		}
+		// std::vector<float> gl_scores(num_nodes * gt_count, hts::bcf::float_missing);
+		// for(size_t i = 0, k = library_start * gt_count; i < stats.genotype_likelihoods.size(); ++i) {
+		// 	for(int j = 0; j < gt_count; ++j) {
+		// 		int n = genotype_index[j];
+		// 		gl_scores[k++] = (n == -1) ? hts::bcf::float_missing :
+		// 						 stats.genotype_likelihoods[i][n];
+		// 	}
+		// }
 
 		// Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
 		std::vector<int32_t> ad_counts(num_nodes * refalt_count, hts::bcf::int32_missing);
@@ -874,36 +875,43 @@ int process_bcf(task::Call::argument_type &arg) {
     return EXIT_SUCCESS;
 }
 
-void add_stats_to_output(const CallMutations::stats_t& stats, double min_prob, hts::bcf::Variant *record) {
+void add_stats_to_output(const CallMutations::stats_t& stats, bool has_single_mut, size_t library_start, hts::bcf::Variant *record) {
     assert(record != nullptr);
 
-    record.info("MUP", static_cast<float>(stats.mup));
-    record.info("LLD", static_cast<float>(stats.lld));
-    record.info("LLS", static_cast<float>(stats.lld-log_null));
-    record.info("MUX", static_cast<float>(stats.mux));
-    record.info("MU1P", static_cast<float>(stats.mu1p));
+    record->info("MUP", static_cast<float>(stats.mup));
+    record->info("LLD", static_cast<float>(stats.lld));
+    //record->info("LLS", static_cast<float>(stats.lld-log_null));
+    record->info("MUX", static_cast<float>(stats.mux));
+    record->info("MU1P", static_cast<float>(stats.mu1p));
 
-    if((stats.mu1p / stats.mup) >= min_prob) {
+    if(has_single_mut) {
         // These statistics are only informative if there is a signal of 1 mutation.
-        record.info("DNT", stats.dnt);
-        record.info("DNL", stats.dnl);
-        record.info("DNQ", stats.dnq);
+        record->info("DNT", stats.dnt);
+        record->info("DNL", stats.dnl);
+        record->info("DNQ", stats.dnq);
     }
-
-    record.sample_genotypes(best_genotypes);
-    record.samples("GQ", genotype_qualities);
-    record.samples("GP", gp_scores);
 
     std::vector<float> float_vector;
+
+    //record->sample_genotypes(best_genotypes);
+    record->samples("GQ", stats.genotype_qualities);
+
+    //float_vector.assign(stats.posterior_probabilities.begin(), stats.posterior_probabilities.end());
+    //record->samples("GP", float_vector);
+
     float_vector.assign(stats.node_mup.begin(), stats.node_mup.end());
-    
-    record.samples("MUP", float_vector);
+    record->samples("MUP", float_vector);
 
-    if((stats.mu1p / stats.mup) >= min_prob) {
-
+    if(has_single_mut) {
         float_vector.assign(stats.node_mu1p.begin(), stats.node_mu1p.end());
-        record.samples("MU1P", float_vector);
+        record->samples("MU1P", float_vector);
     }
 
-    record.samples("GL", gl_scores);
+    // for(int i=0;i<library_start;++i) {
+    //     float_vector[i] = hts::bcf::float_missing;
+    // }
+    // for(int i=library_start;i<float_vector.size();++i) {
+    //     float_vector[i] = stats.
+    // }
+    // record->samples("GL", gl_scores);
 }

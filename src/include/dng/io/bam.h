@@ -120,6 +120,9 @@ public:
     size_t num_libraries() const {
         return output_libraries_.names.size();
     }
+    const utility::StringSet& read_groups(size_t index) const {
+        return output_libraries_.read_groups[index];
+    }
 
     const bam_hdr_t * header() const {
         return scanners_.front().file().header();

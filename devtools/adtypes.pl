@@ -19,6 +19,20 @@ sub next_permutation {
 	return @idx;
 }
 
+sub location_index {
+  my @v = @_;
+  my $r = shift(@v);
+  my $o = $r;
+  my $u = 2;
+  my @out = ($r);
+  while(defined(my $x = shift(@v))) {
+    push(@out, $x ^ $r);
+    $o += (($x ^ $r) << $u);
+    $u += 2;
+  }
+  return $o;
+}
+
 my @gt_list = (0, 4, 5, 6, 4, 1, 7, 8, 5, 7, 2, 9, 6, 8, 9, 3);
 sub gt10 {
 	my $k = shift;
@@ -32,9 +46,13 @@ sub gt10 {
 	return @r;
 }
 
+
 my @types = ();
 my @types4 = ();
 my @genotypes10 = ();
+my @indexes = (-1) x 256;
+my @rindexes  = ();
+
 for(my $k = 1;$k<=4;++$k) {
 	my @n = (0,1,2,3);
 	do {
@@ -43,6 +61,9 @@ for(my $k = 1;$k<=4;++$k) {
 		push(@types,[@front]);
 		push(@types4,[@n]);
 		push(@genotypes10,[gt10($k, @n)]);
+		my $x = location_index(@front);
+		$indexes[$x] = (@types-1);
+		push(@rindexes, $x);
 	} while(@n = next_permutation(@n))
 }
 
@@ -51,7 +72,7 @@ push(@types,@ntypes);
 
 my @strings = map { join("", @X[@{$_}]) } @types;
 
-my $command = shift || 'tsv';
+my $command = shift || 'cxx';
 
 if($command eq 'tsv' ) {
 	for(my $u=0;$u<@types;++$u) {
@@ -61,7 +82,8 @@ if($command eq 'tsv' ) {
 		my $list4 = join(",", @{$types4[$u % 64]});
 		my $num = @s;
 		my $lc = lc($strings[$u]);
-		say("$u\t$strings[$u]\t$lc\t$num\t$list4\t$list");
+		my $index = $rindexes[$u % 64];
+		say("$u\t$strings[$u]\t$lc\t$num\t$list4\t$list\t$index");
 	}
 } elsif($command eq 'cxx') {
 	for(my $u=0;$u<@types;++$u) {
@@ -93,7 +115,11 @@ if($command eq 'tsv' ) {
 
 		my $gt10 = join(",", @{$genotypes10[$u % 64]});
 		say("    {$id $num {$gt10}}$comma");
-	}	
+	}
+	say("");
+	for(my $u=0;$u<256;$u+=32) {
+		say("    ",join(",", map {sprintf("%2d",$_) } @indexes[$u..($u+31)]),",");
+	}
 } else {
 	say("Unknown command output format '$command'");
 }

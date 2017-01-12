@@ -70,6 +70,7 @@ public:
     static constexpr int type_info_table_length = 128;
     static const type_info_t type_info_table[128];
     static const type_info_gt_t type_info_gt_table[128];
+    static const char hash_to_color[256];
 
     struct match_labels_t {
         std::unordered_map<std::string,int> tree;
@@ -213,6 +214,42 @@ inline
 int AlleleDepths::match_indexes_t::operator()(const key_t &rng) const {
     auto it = tree.find(rng);
     return (it != tree.end()) ? it->second : -1;
+}
+
+inline
+uint8_t raw_counts_to_color(const depth_t& d) {
+    int rank = 0;
+    int zero = 0;
+    for(int i=0;i<4;++i) {
+        int r = 0;
+        // measure the rank of the allele by comparing it to all other alleles.
+        // r = 0 is the max, r = 3 is the min. Break ties by choosing the lower index.
+        // make sure comparison is unsigned so we can use the high bit to signal reference
+        for(int j=0;j<i;++j) {
+            r += ((unsigned)d.counts[j] >= (unsigned)d.counts[i]);
+        }
+        for(int j=i+1;j<4;++j) {
+            r += ((unsigned)d.counts[j] > (unsigned)d.counts[i]);
+        }
+        // rank holds the allele order in the lowest 8 bits.
+        rank |= (i << (2*r));
+        // zero keeps track of which alleles had a count of 0
+        zero |= (d.counts[i] != 0 ? 3 : 0) << (2*r);
+    }
+    // xor against the maximal value, and zero out any sizes that had zero depth
+    int ref = rank & 3;
+    int ret = ref | (ref << 2);
+    ret = ret | (ret << 4);
+    ret = ((ret ^ rank) & zero);
+
+    // restore the max reference
+    ret = ret | ref;
+
+    assert(0 <= ret && ret < 256);
+    char color = AlleleDepths::hash_to_color[ret];
+    assert(color != -1);
+
+    return color;
 }
 
 } // namespace pileup
