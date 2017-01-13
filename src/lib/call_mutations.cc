@@ -68,23 +68,23 @@ bool CallMutations::operator()(const pileup::RawDepths &depths,
     }
 
 
-    // typedef std::pair<int, int> key_t;
-    // key_t total_depths[4] = {{0, 0}, {1, 0}, {2, 0}, {3, 0}};
-    // int acgt_to_refalt_allele[5] = { -1, -1, -1, -1, -1}; // Maps allele to REF+ALT order
-    // int refalt_to_acgt_allele[5] = { -1, -1, -1, -1, -1}; // Maps REF+ALT order to A,C,G,T,N order
+    typedef std::pair<int, int> key_t;
+    key_t total_depths[4] = {{0, 0}, {1, 0}, {2, 0}, {3, 0}};
+    int acgt_to_refalt_allele[5] = { -1, -1, -1, -1, -1}; // Maps allele to REF+ALT order
+    int refalt_to_acgt_allele[5] = { -1, -1, -1, -1, -1}; // Maps REF+ALT order to A,C,G,T,N order
 
-    // int32_t dp_info = 0;
-    // std::vector<int32_t> dp_counts(num_nodes, hts::bcf::int32_missing);
-    // size_t dp_pos = library_start;
-    // for(auto && a : read_depths) {
-    //     total_depths[0].second += a.counts[0];
-    //     total_depths[1].second += a.counts[1];
-    //     total_depths[2].second += a.counts[2];
-    //     total_depths[3].second += a.counts[3];
-    //     int32_t d = a.counts[0] + a.counts[1] + a.counts[2] + a.counts[3];
-    //     dp_info += d;
-    //     dp_counts[dp_pos++] = d;
-    // }
+    int32_t dp_info = 0;
+    std::vector<int32_t> dp_counts(num_nodes, hts::bcf::int32_missing);
+    size_t dp_pos = library_start;
+    for(auto && a : read_depths) {
+        total_depths[0].second += a.counts[0];
+        total_depths[1].second += a.counts[1];
+        total_depths[2].second += a.counts[2];
+        total_depths[3].second += a.counts[3];
+        int32_t d = a.counts[0] + a.counts[1] + a.counts[2] + a.counts[3];
+        dp_info += d;
+        dp_counts[dp_pos++] = d;
+    }
 
 
 
@@ -213,7 +213,7 @@ bool CallMutations::Calculate(stats_t *stats) {
     for (size_t i = work_.founder_nodes.second; i < work_.num_nodes; ++i) {
         stats->node_mu1p[i] /= total;
     }
-    // total = P(1 mutation | D)/P(0 mutations | D)
+    // total = P(1 mutation | D)/P(0 mutations | D) due to backwards algorithm
     stats->mu1p = total*(1.0-mup);
 
     stats->dnq = dng::utility::lphred<int>(1.0 - (max_coeff / total), 255);

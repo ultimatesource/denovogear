@@ -260,7 +260,7 @@ int process_bam(task::Call::argument_type &arg) {
             arg.ref_weight, arg.gamma[0], arg.gamma[1]});
 
     // Pileup data
-    pileup::RawDepths read_depths(mpileup.num_libraries());
+     read_depths(mpileup.num_libraries());
 
     // Finish Header
     for(auto && str : relationship_graph.labels()) {
@@ -315,7 +315,7 @@ int process_bam(task::Call::argument_type &arg) {
 		if(!do_call(read_depths, ref_index, &stats)) {
 			return;
 		}
-        //(stats.mu1p / stats.mup) >= min_prob
+        bool has_single_mut = ((stats.mu1p / stats.mup) >= min_prob);
 
 		// Determine what nucleotides show up and the order they will appear in the REF and ALT field
 		// TODO: write tests that make sure REF="N" is properly handled
@@ -323,52 +323,11 @@ int process_bam(task::Call::argument_type &arg) {
 		//      (2) N in AD should always be 0
 
 		// Measure total depth and sort nucleotides in descending order
-		typedef std::pair<int, int> key_t;
-		key_t total_depths[4] = {{0, 0}, {1, 0}, {2, 0}, {3, 0}};
-		int acgt_to_refalt_allele[5] = { -1, -1, -1, -1, -1}; // Maps allele to REF+ALT order
-		int refalt_to_acgt_allele[5] = { -1, -1, -1, -1, -1}; // Maps REF+ALT order to A,C,G,T,N order
-
-		int32_t dp_info = 0;
-		std::vector<int32_t> dp_counts(num_nodes, hts::bcf::int32_missing);
-		size_t dp_pos = library_start;
-		for(auto && a : read_depths) {
-			total_depths[0].second += a.counts[0];
-			total_depths[1].second += a.counts[1];
-			total_depths[2].second += a.counts[2];
-			total_depths[3].second += a.counts[3];
-			int32_t d = a.counts[0] + a.counts[1] + a.counts[2] + a.counts[3];
-			dp_info += d;
-			dp_counts[dp_pos++] = d;
-		}
-		// calculate the log-likelihood of the null hypothesis that all reads come from binomial
-		double log_null = 0.0;
-		if(dp_info > 0.0) {
-			log_null = -dp_info*log10(dp_info);
-			for(int i=0;i<4;++i) {
-				if(total_depths[i].second > 0) {
-					log_null += total_depths[i].second*log10(total_depths[i].second);
-				}
-			}
-		}
-		sort(&total_depths[0], &total_depths[4], [](key_t a, key_t b) { return a.second > b.second; });
+        pileup::stats_t depth_stats;
+        pileup::calculate_stats(read_depths, ref_index, &depth_stats);
 
 		// Construct a string representation of REF+ALT by ignoring nucleotides with no coverage
-		std::string allele_order_str{seq::indexed_char(ref_index)};
-		acgt_to_refalt_allele[ref_index] = 0;
-		refalt_to_acgt_allele[0] = ref_index;
-		int allele_count = 0; // Measures how many alleles in total_depths are non zero
-		int refalt_count = 1; // Measures size of REF+ALT
-		for(; allele_count < 4
-				&& total_depths[allele_count].second > 0; allele_count++) {
-			if(total_depths[allele_count].first == ref_index) {
-				continue;
-			}
-			allele_order_str += std::string(",") + seq::indexed_char(
-									total_depths[allele_count].first);
-			acgt_to_refalt_allele[total_depths[allele_count].first] = refalt_count;
-			refalt_to_acgt_allele[refalt_count] = total_depths[allele_count].first;
-			++refalt_count;
-		}
+
 		// Update REF, ALT fields
 		record.alleles(allele_order_str);
 
@@ -640,7 +599,7 @@ int variant_call(task::Call::argument_type &arg,  hts::bcf::File &vcfout, const 
         }
 
         // Update REF, ALT fields
-        record.alleles(allele_order_str);
+
 
         // Construct numeric genotypes
         int numeric_genotype[10][2] = {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
@@ -875,35 +834,40 @@ int process_bcf(task::Call::argument_type &arg) {
     return EXIT_SUCCESS;
 }
 
-void add_stats_to_output(const CallMutations::stats_t& stats, bool has_single_mut, size_t library_start, hts::bcf::Variant *record) {
+void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup::stats_t& depth_stats,
+    bool has_single_mut, size_t library_start, hts::bcf::Variant *record) {
     assert(record != nullptr);
 
-    record->info("MUP", static_cast<float>(stats.mup));
-    record->info("LLD", static_cast<float>(stats.lld));
-    //record->info("LLS", static_cast<float>(stats.lld-log_null));
-    record->info("MUX", static_cast<float>(stats.mux));
-    record->info("MU1P", static_cast<float>(stats.mu1p));
+    record->alleles(AlleleDepths::type_info_table[depth_stats->color].label_htslib);
+
+    record->info("MUP", static_cast<float>(call_stats.mup));
+    record->info("LLD", static_cast<float>(call_stats.lld));
+    record->info("LLS", static_cast<float>(call_stats.lld-depth_stats.log_null));
+    record->info("MUX", static_cast<float>(call_stats.mux));
+    record->info("MU1P", static_cast<float>(call_stats.mu1p));
 
     if(has_single_mut) {
         // These statistics are only informative if there is a signal of 1 mutation.
-        record->info("DNT", stats.dnt);
-        record->info("DNL", stats.dnl);
-        record->info("DNQ", stats.dnq);
+        record->info("DNT", call_stats.dnt);
+        record->info("DNL", call_stats.dnl);
+        record->info("DNQ", call_stats.dnq);
     }
 
     std::vector<float> float_vector;
 
-    //record->sample_genotypes(best_genotypes);
-    record->samples("GQ", stats.genotype_qualities);
+    //bcf_int32_vector_end
 
-    //float_vector.assign(stats.posterior_probabilities.begin(), stats.posterior_probabilities.end());
+    //record->sample_genotypes(best_genotypes);
+    record->samples("GQ", call_stats.genotype_qualities);
+
+    //float_vector.assign(call_stats.posterior_probabilities.begin(), call_stats.posterior_probabilities.end());
     //record->samples("GP", float_vector);
 
-    float_vector.assign(stats.node_mup.begin(), stats.node_mup.end());
+    float_vector.assign(call_stats.node_mup.begin(), call_stats.node_mup.end());
     record->samples("MUP", float_vector);
 
     if(has_single_mut) {
-        float_vector.assign(stats.node_mu1p.begin(), stats.node_mu1p.end());
+        float_vector.assign(call_stats.node_mu1p.begin(), call_stats.node_mu1p.end());
         record->samples("MU1P", float_vector);
     }
 

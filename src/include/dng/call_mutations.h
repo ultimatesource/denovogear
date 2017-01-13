@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016 Steven H. Wu
- * Copyright (c) 2016 Reed A. Cartwright
+ * Copyright (c) 2016-2017 Reed A. Cartwright
  * Authors:  Steven H. Wu <stevenwu@asu.edu>
  *           Reed A. Cartwright <reed@cartwrig.ht>
  *

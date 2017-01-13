@@ -57,6 +57,7 @@ public:
         char width; // the number of nucleotides in the type
         char label_upper[6]; // upper_case text version of the type
         char label_lower[6]; // lower_case text version of the type
+        char label_htslib[10]; // String used for htslib's bcf_update_alleles_str
         char reference; // the value of the reference base
         char indexes[4]; // the value of the alleles. Only use .width many. 
     };
@@ -250,6 +251,54 @@ uint8_t raw_counts_to_color(const depth_t& d) {
     assert(color != -1);
 
     return color;
+}
+
+struct stats_t {
+    std::vector<int> node_dp;
+    depth_t total_depths;
+    int dp;
+    double log_null;
+    uint8_t color;
+};
+
+void calculate_stats(const RawDepths& d, int ref_index, stats_t *stats) {
+    assert(stats != nullptr);
+
+    // Measure the total depths, per-lib and overall
+    int dp = 0;
+    depth_t total;
+    stats->node_dp.clear();
+    for(auto && a : d) {
+        int n = 0;
+        for(int i=0;i<4;++i) {
+            total.counts[i] += a.counts[i];
+            n += a.counts[i];
+        }
+        dp += n;
+        stats->node_dp.push_back(n);
+    }
+    stats->total_depths = total;
+    stats->dp = dp;
+
+    // calculate the log-likelihood of the null hypothesis that all reads come from binomial
+    double log_null = 0.0;
+    if(dp > 0) {
+        log_null = -dp*log10(dp);
+        for(int i=0;i<4;++i) {
+            if(total.counts[i] > 0) {
+                log_null += total.counts[i]*log10(total.counts[i]);
+            }
+        }
+    }
+    stats->log_null = log_null;
+
+    int first_is_N = 0;
+    if(ref_index < 4) {
+        total.counts[ref_index] = utility::set_high_bit(total.counts[ref_index]);
+    } else {
+        first_is_N = 64;
+    }
+    stats->color = raw_counts_to_color(total)+first_is_N;
 }
 
 } // namespace pileup

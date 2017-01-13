@@ -71,6 +71,7 @@ my @ntypes = map { [4,@{$_}] } @types;
 push(@types,@ntypes);
 
 my @strings = map { join("", @X[@{$_}]) } @types;
+my @strings2 = map { join(",", @X[@{$_}]) } @types;
 
 my $command = shift || 'cxx';
 
@@ -96,10 +97,12 @@ if($command eq 'tsv' ) {
 		my $num = @s;
 		my $uc = $strings[$u];
 		my $lc = lc($uc);
+		my $vc = $strings2[$u];
 		my $comma = ($u < $#types) ? ',' : '';
 		my $id = sprintf("% -4s","$u,");
 		$uc = sprintf("% -8s","\"$uc\",");
 		$lc = sprintf("% -8s","\"$lc\",");
+		$lc = sprintf("% -12s","\"$vc\",");	
 		say("    {$id $num, $uc $lc $ref, {$list4}}$comma");
 	}
 	say("");
