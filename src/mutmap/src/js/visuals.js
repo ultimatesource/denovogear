@@ -21,7 +21,7 @@ var visuals = (function() {
       .on("zoom", zoomed);
 
 
-    var chartWrapper= d3.select("#chart_wrapper");
+    var chartWrapper = d3.select("#chart_wrapper");
     var dim = chartWrapper.node().getBoundingClientRect();
 
     var svg = chartWrapper.append("svg")
@@ -125,6 +125,16 @@ var visuals = (function() {
     
     node.attr("transform", function(d) {
       return "translate(" + d.x + "," + d.y + ")";
+    });
+
+    nodes.forEach(function(node) {
+      if (node.type == 'person') {
+        console.log(node);
+        var root = d3.hierarchy(node.dataNode.data.sampleIds);
+        var cluster = d3.cluster().size([100, 100]);
+        cluster(root);
+        console.log(root);
+      }
     });
 
     function zoomed() {
