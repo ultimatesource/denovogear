@@ -69,7 +69,10 @@ int process_bam(task::Call::argument_type &arg);
 int process_bcf(task::Call::argument_type &arg);
 int process_ad(task::Call::argument_type &arg);
 
-void add_stats_to_output(const CallMutations::stats_t& stats, hts::bcf::Variant *record);
+void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup::stats_t& depth_stats,
+    bool has_single_mut,
+    const peel::workspace_t &work,
+    hts::bcf::Variant *record);
 
 int variant_call(task::Call::argument_type &arg,  hts::bcf::File &vcfout, const char *fname,
 		 	 	 pileup::variant::VariantPileup &vp, dng::RelationshipGraph &relationship_graph, dng::ReadGroups &rgs);
@@ -275,9 +278,9 @@ int process_bam(task::Call::argument_type &arg) {
     // Calculated stats
     CallMutations::stats_t stats;
 
-    // Parameters used by site calculation anon function
+    // Parameters used by site calculation function
     const size_t num_nodes = relationship_graph.num_nodes();
-    const size_t library_start = work.library_nodes.first;
+    const size_t library_start = relationship_graph.library_nodes().first;
     const int min_basequal = arg.min_basequal;
     auto filter_read = [min_basequal](
     BamPileup::data_type::value_type::const_reference r) -> bool {
@@ -322,10 +325,12 @@ int process_bam(task::Call::argument_type &arg) {
         pileup::stats_t depth_stats;
         pileup::calculate_stats(read_depths, ref_index, &depth_stats);
 
+        add_stats_to_output(stats, depth_stats, has_single_mut, do_call.work(), &record);
+
         // Information about the site, based on depths
         const int color = depth_stats.color;
-        const auto & type_info_gt = dng::AlleleDepths::type_info_gt_table[color];
-        const auto & type_info = dng::AlleleDepths::type_info_table[color];
+        const auto & type_info_gt = dng::pileup::AlleleDepths::type_info_gt_table[color];
+        const auto & type_info = dng::pileup::AlleleDepths::type_info_table[color];
         const int refalt_count = type_info.width + (type_info.reference == 4);
 
 		// Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
@@ -791,8 +796,8 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
     const size_t num_nodes = work.num_nodes;
     const size_t num_libraries = work.library_nodes.second-work.library_nodes.first;
 
-    const auto & type_info_gt = dng::AlleleDepths::type_info_gt_table[color];
-    const auto & type_info = dng::AlleleDepths::type_info_table[color];
+    const auto & type_info_gt = dng::pileup::AlleleDepths::type_info_gt_table[color];
+    const auto & type_info = dng::pileup::AlleleDepths::type_info_table[color];
 
     record->alleles(type_info.label_htslib);
 
@@ -809,7 +814,7 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
         record->info("DNQ", call_stats.dnq);
     }
 
-    record->info("DP", depth.stats.dp);
+    record->info("DP", depth_stats.dp);
     //record->info("AD", ad_info);
 
     std::vector<float> float_vector;
@@ -823,13 +828,13 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
         if(work.ploidies[i] == 2) {
             size_t pos = utility::find_position(type_info_gt.indexes, best);
             assert(pos < type_info_gt.width);
-            int32_vector[2*i] = dng::AlleleDepths::encoded_alleles_diploid_unphased[pos][0];
-            int32_vector[2*i+1] = dng::AlleleDepths::encoded_alleles_diploid_unphased[pos][1];
+            int32_vector[2*i] = dng::pileup::AlleleDepths::encoded_alleles_diploid_unphased[pos][0];
+            int32_vector[2*i+1] = dng::pileup::AlleleDepths::encoded_alleles_diploid_unphased[pos][1];
         } else if(work.ploidies[i] == 1) {
             size_t pos = utility::find_position(type_info.indexes, best);
             assert(pos < type_info.width);
-            int32_vector[2*i] = dng::AlleleDepths::encoded_alleles_haploid[pos][0];
-            int32_vector[2*i+1] = dng::AlleleDepths::encoded_alleles_haploid[pos][1];
+            int32_vector[2*i] = dng::pileup::AlleleDepths::encoded_alleles_haploid[pos][0];
+            int32_vector[2*i+1] = dng::pileup::AlleleDepths::encoded_alleles_haploid[pos][1];
         } else {
             assert(0); // should not be reached, only ploidies of 1 and 2 are supported
         }
@@ -841,7 +846,7 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
     float_vector.assign(gt_count, hts::bcf::float_missing);
     for(size_t i=0,k=0;i<num_nodes;++i) {
         for(size_t j=0;j<type_info_gt.width;++j) {
-            float_vector[k++] = call_stats.posterior_probabilities[i][type_info_gt.indexes[j]]
+            float_vector[k++] = call_stats.posterior_probabilities[i][type_info_gt.indexes[j]];
         }
     }
     record->samples("GP", float_vector);
@@ -855,18 +860,18 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
     }
 
     float_vector.assign(gt_count, hts::bcf::float_missing);
-    for(size_t i=0,k=library_nodes.first*type_info_gt.width;i<num_libraries;++i) {
+    for(size_t i=0,k=work.library_nodes.first*type_info_gt.width;i<num_libraries;++i) {
         for(size_t j=0;j<type_info_gt.width;++j) {
-            float_vector[k++] = call_stats.genotype_likelihoods[i][type_info_gt.indexes[j]]
+            float_vector[k++] = call_stats.genotype_likelihoods[i][type_info_gt.indexes[j]];
         }
     }    
     record->samples("GL", float_vector);
 
     int32_vector.assign(num_nodes, hts::bcf::int32_missing);
-    for(size_t i=0,k=library_nodes.first;i<num_libraries;++i) {
+    for(size_t i=0,k=work.library_nodes.first;i<num_libraries;++i) {
         int32_vector[k++] = depth_stats.node_dp[i];
     }    
     record->samples("DP", int32_vector);
 
-    record->samples("AD", ad_counts);
+    //record->samples("AD", ad_counts);
 }

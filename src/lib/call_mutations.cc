@@ -67,27 +67,6 @@ bool CallMutations::operator()(const pileup::RawDepths &depths,
         stats->lld += scale/M_LN10;
     }
 
-
-    typedef std::pair<int, int> key_t;
-    key_t total_depths[4] = {{0, 0}, {1, 0}, {2, 0}, {3, 0}};
-    int acgt_to_refalt_allele[5] = { -1, -1, -1, -1, -1}; // Maps allele to REF+ALT order
-    int refalt_to_acgt_allele[5] = { -1, -1, -1, -1, -1}; // Maps REF+ALT order to A,C,G,T,N order
-
-    int32_t dp_info = 0;
-    std::vector<int32_t> dp_counts(num_nodes, hts::bcf::int32_missing);
-    size_t dp_pos = library_start;
-    for(auto && a : read_depths) {
-        total_depths[0].second += a.counts[0];
-        total_depths[1].second += a.counts[1];
-        total_depths[2].second += a.counts[2];
-        total_depths[3].second += a.counts[3];
-        int32_t d = a.counts[0] + a.counts[1] + a.counts[2] + a.counts[3];
-        dp_info += d;
-        dp_counts[dp_pos++] = d;
-    }
-
-
-
     return found;
 }
 

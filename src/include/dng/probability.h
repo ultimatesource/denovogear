@@ -50,6 +50,8 @@ public:
     value_t operator()(const pileup::RawDepths &depths, int ref_index);
     value_t operator()(const pileup::AlleleDepths &depths);
 
+    const peel::workspace_t& work() const { return work_; };
+
 protected:
     struct matrices_t {
         TransitionMatrixVector full;

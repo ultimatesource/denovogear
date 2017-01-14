@@ -263,6 +263,7 @@ struct stats_t {
     uint8_t color;
 };
 
+inline
 void calculate_stats(const RawDepths& d, int ref_index, stats_t *stats) {
     assert(stats != nullptr);
 
