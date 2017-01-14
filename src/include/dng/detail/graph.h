@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014,2016 Reed A. Cartwright
+ * Copyright (c) 2014,2016,2017 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
+
 #pragma once
 #ifndef DNG_DETAIL_GRAPH_H
 #define DNG_DETAIL_GRAPH_H

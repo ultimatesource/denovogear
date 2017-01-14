@@ -151,18 +151,18 @@ public:
                 string par_name = "unknown_dad_of_" + string_table[k][1];
                 string_table[k][2] = par_name;
                 ndad = string_table.size();
-                string_table.push_back({string_table[k][0], par_name,
+                string_table.push_back({{string_table[k][0], par_name,
                                         {}, {}, "male", {}
-                                       });
+                                       }});
                 child_names.emplace(par_name, ndad);
                 children.emplace_back();
             } else if(nmom == 0 && ndad != 0) {
                 string par_name = "unknown_mom_of_" + string_table[k][1];
                 string_table[k][3] = par_name;
                 nmom = string_table.size();
-                string_table.push_back({string_table[k][0], par_name,
+                string_table.push_back({{string_table[k][0], par_name,
                                         {}, {}, "female", {}
-                                       });
+                                       }});
                 child_names.emplace(par_name, nmom);
                 children.emplace_back();
             }

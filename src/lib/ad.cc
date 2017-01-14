@@ -247,7 +247,7 @@ int dng::io::Ad::ReadHeaderTad() {
         } else if(starts_with(*it, "VN:")) {
             const char *first = it->c_str()+3;
             const char *last  = it->c_str()+it->length();
-            std:pair<uint8_t,uint8_t> bytes;
+            pair<uint8_t,uint8_t> bytes;
             if(!phrase_parse(first, last, uint8_ >> ( '.' >> uint8_ || lit('\0')), space, bytes) || first != last) {
                 throw runtime_error("ERROR: Unable to parse TAD header: File format version information '" + *it + "' not major.minor.");
             }
@@ -535,7 +535,6 @@ int dng::io::Ad::WriteAd(const AlleleDepths& line) {
     using dng::utility::location_to_position;
     typedef AlleleDepths::size_type size_type;
 
-    const size_type nlib = line.num_libraries();
     if(line.data_size() == 0) {
         return 0;
     }

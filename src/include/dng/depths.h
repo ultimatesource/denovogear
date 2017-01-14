@@ -179,9 +179,9 @@ public:
 
 protected:
     location_t location_;
+    int color_;
     size_type num_libraries_;
     data_t data_;
-    int color_;
 };
 
 static_assert(sizeof(AlleleDepths::type_info_table) / sizeof(AlleleDepths::type_info_t) == AlleleDepths::type_info_table_length,
@@ -209,7 +209,7 @@ AlleleDepths::match_indexes_t::match_indexes_t() {
     // only add the first half of the table
     for(int i=0; i<type_info_table_length/2; ++i) {
         auto & slot = AlleleDepths::type_info_table[i];
-        tree.emplace(key_t(&slot.indexes[0], &slot.indexes[slot.width]), i);
+        tree.emplace(key_t(&slot.indexes[0], &slot.indexes[(int)slot.width]), i);
     }    
 }
 
