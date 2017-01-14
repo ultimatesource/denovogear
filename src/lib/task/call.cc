@@ -277,7 +277,7 @@ int process_bam(task::Call::argument_type &arg) {
 
     // Parameters used by site calculation anon function
     const size_t num_nodes = relationship_graph.num_nodes();
-    const size_t library_start = relationship_graph.library_nodes().first;
+    const size_t library_start = work.library_nodes.first;
     const int min_basequal = arg.min_basequal;
     auto filter_read = [min_basequal](
     BamPileup::data_type::value_type::const_reference r) -> bool {
@@ -307,7 +307,7 @@ int process_bam(task::Call::argument_type &arg) {
 				if(filter_read(r)) {
 					continue;
 				}
-                std::size_t base = seq::base_index(r.aln.seq_at(r.pos));
+                std::size_t base = seq::base_index(r.base());
                 assert(read_depths[u].counts[ base ] < 65535);
 
                 read_depths[u].counts[ base ] += 1;
@@ -316,21 +316,31 @@ int process_bam(task::Call::argument_type &arg) {
 		if(!do_call(read_depths, ref_index, &stats)) {
 			return;
 		}
-        bool has_single_mut = ((stats.mu1p / stats.mup) >= min_prob);
+        const bool has_single_mut = ((stats.mu1p / stats.mup) >= min_prob);
 
 		// Measure total depth and sort nucleotides in descending order
         pileup::stats_t depth_stats;
         pileup::calculate_stats(read_depths, ref_index, &depth_stats);
 
+        // Information about the site, based on depths
+        const int color = depth_stats.color;
+        const auto & type_info_gt = dng::AlleleDepths::type_info_gt_table[color];
+        const auto & type_info = dng::AlleleDepths::type_info_table[color];
+        const int refalt_count = type_info.width + (type_info.reference == 4);
+
 		// Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
-		std::vector<int32_t> ad_counts(num_nodes * refalt_count, hts::bcf::int32_missing);
-		std::vector<int32_t> ad_info(refalt_count, 0);
+		std::vector<int32_t> ad_counts(num_nodes*refalt_count, hts::bcf::int32_missing);
+		std::vector<int32_t> ad_info(type_info.width, 0);
+        size_t pos = library_start * refalt_count;
+
 		for(size_t u = 0; u < read_depths.size(); ++u) {
-			size_t library_pos = (library_start + u) * refalt_count;
-			for(size_t k = 0; k < refalt_count; ++k) {
-				size_t index = refalt_to_acgt_allele[k];
-				ad_counts[library_pos + k] = (index == 4) ? 0 : read_depths[u].counts[index];
-				ad_info[k] += (index == 4) ? 0 : read_depths[u].counts[index];
+            if(type_info.reference == 4) {
+                ad_counts[pos++] = 0;
+            }
+			for(size_t k = 0; k < type_info.width; ++k) {
+                int count = read_depths[u].counts[type_info.indexes[k]];
+                ad_counts[pos++] = count;
+				ad_info[k+(type_info.reference == 4)] += count;
 			}
 		}
 
@@ -341,30 +351,34 @@ int process_bam(task::Call::argument_type &arg) {
 		std::vector<int32_t> adr_info(refalt_count, 0);
 
 		std::vector<int> qual_ref, qual_alt, pos_ref, pos_alt, base_ref, base_alt;
-		qual_ref.reserve(data.size());
-		qual_alt.reserve(data.size());
-		pos_ref.reserve(data.size());
-		pos_alt.reserve(data.size());
-		base_ref.reserve(data.size());
-		base_alt.reserve(data.size());
+		qual_ref.reserve(depth_stats.dp);
+		qual_alt.reserve(depth_stats.dp);
+		pos_ref.reserve(depth_stats.dp);
+		pos_alt.reserve(depth_stats.dp);
+		base_ref.reserve(depth_stats.dp);
+		base_alt.reserve(depth_stats.dp);
 		double rms_mq = 0.0;
 
-		for(std::size_t u = library_start * refalt_count; u < num_nodes * refalt_count;
-				++u) {
+        // zero out the counts for libraries
+		for(size_t u = library_start * refalt_count; u < num_nodes * refalt_count; ++u) {
 			adf_counts[u] = 0;
 			adr_counts[u] = 0;
 		}
-		for(std::size_t u = 0; u < data.size(); ++u) {
-			std::size_t pos = (library_start + u) * refalt_count;
+
+        int acgt_to_refalt_allele[4] = {-1,-1,-1,-1};
+        for(int i=0;i<type_info.width;++i) {
+            acgt_to_refalt_allele[type_info.indexes[i]] = i + (type_info.reference == 4);
+        }
+
+		for(size_t u = 0; u < data.size(); ++u) {
+			const size_t pos = (library_start + u) * refalt_count;
 			for(auto && r : data[u]) {
 				if(filter_read(r)) {
 					continue;
 				}
-				std::size_t library_pos = (library_start + u) * refalt_count;
-				std::size_t base = seq::base_index(r.base());
-				std::size_t base_refalt = acgt_to_refalt_allele[base];
+				const size_t base_refalt = acgt_to_refalt_allele[seq::base_index(r.base())];
 				assert(base_refalt != -1);
-				std::size_t base_pos = library_pos + base_refalt;
+				const size_t base_pos = pos + base_refalt;
 				// Forward Depths, avoiding branching
 				adf_counts[base_pos]  += !r.aln.is_reversed();
 				adf_info[base_refalt] += !r.aln.is_reversed();
@@ -398,10 +412,11 @@ int process_bam(task::Call::argument_type &arg) {
 		double rp_info = dng::stats::ad_two_sample_test(pos_ref, pos_alt);
 		double bq_info = dng::stats::ad_two_sample_test(base_ref, base_alt);
 
-
+        record.samples("AD", ad_counts);
 		record.samples("ADF", adf_counts);
 		record.samples("ADR", adr_counts);
 
+        record.info("AD", ad_info);
 		record.info("ADF", adf_info);
 		record.info("ADR", adr_info);
 		record.info("MQ", static_cast<float>(rms_mq));
@@ -794,8 +809,8 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
         record->info("DNQ", call_stats.dnq);
     }
 
-    record->info("DP", dp_info);
-    record->info("AD", ad_info);
+    record->info("DP", depth.stats.dp);
+    //record->info("AD", ad_info);
 
     std::vector<float> float_vector;
     std::vector<int32_t> int32_vector;
@@ -838,6 +853,7 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
         float_vector.assign(call_stats.node_mu1p.begin(), call_stats.node_mu1p.end());
         record->samples("MU1P", float_vector);
     }
+
     float_vector.assign(gt_count, hts::bcf::float_missing);
     for(size_t i=0,k=library_nodes.first*type_info_gt.width;i<num_libraries;++i) {
         for(size_t j=0;j<type_info_gt.width;++j) {
@@ -846,7 +862,11 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
     }    
     record->samples("GL", float_vector);
 
-    record->samples("DP", dp_counts);
-    record->samples("AD", ad_counts);
+    int32_vector.assign(num_nodes, hts::bcf::int32_missing);
+    for(size_t i=0,k=library_nodes.first;i<num_libraries;++i) {
+        int32_vector[k++] = depth_stats.node_dp[i];
+    }    
+    record->samples("DP", int32_vector);
 
+    record->samples("AD", ad_counts);
 }
