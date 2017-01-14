@@ -72,6 +72,8 @@ public:
     static const type_info_t type_info_table[128];
     static const type_info_gt_t type_info_gt_table[128];
     static const char hash_to_color[256];
+    static const int encoded_alleles_diploid_unphased[10][2];
+    static const int encoded_alleles_haploid[4][2];
 
     struct match_labels_t {
         std::unordered_map<std::string,int> tree;

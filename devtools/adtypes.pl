@@ -102,8 +102,8 @@ if($command eq 'tsv' ) {
 		my $id = sprintf("% -4s","$u,");
 		$uc = sprintf("% -8s","\"$uc\",");
 		$lc = sprintf("% -8s","\"$lc\",");
-		$lc = sprintf("% -12s","\"$vc\",");	
-		say("    {$id $num, $uc $lc $ref, {$list4}}$comma");
+		$vc = sprintf("% -12s","\"$vc\",");	
+		say("    {$id $num, $uc $lc $vc $ref, {$list4}}$comma");
 	}
 	say("");
 	for(my $u=0;$u<@types;++$u) {

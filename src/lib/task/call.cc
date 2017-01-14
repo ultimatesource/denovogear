@@ -33,6 +33,7 @@
 
 #include <boost/range/algorithm/replace.hpp>
 #include <boost/range/algorithm/max_element.hpp>
+#include <boost/range/algorithm/fill.hpp>
 
 #include <boost/algorithm/string.hpp>
 
@@ -260,7 +261,7 @@ int process_bam(task::Call::argument_type &arg) {
             arg.ref_weight, arg.gamma[0], arg.gamma[1]});
 
     // Pileup data
-     read_depths(mpileup.num_libraries());
+    dng::pileup::RawDepths read_depths(mpileup.num_libraries());
 
     // Finish Header
     for(auto && str : relationship_graph.labels()) {
@@ -298,7 +299,7 @@ int process_bam(task::Call::argument_type &arg) {
         size_t ref_index = seq::char_index(ref_base);
 
 		// reset all depth counters
-		read_depths.assign(read_depths.size(), {});
+        boost::fill(read_depths, pileup::depth_t{});
 
 		// pileup on read counts
 		for(std::size_t u = 0; u < data.size(); ++u) {
@@ -317,74 +318,9 @@ int process_bam(task::Call::argument_type &arg) {
 		}
         bool has_single_mut = ((stats.mu1p / stats.mup) >= min_prob);
 
-		// Determine what nucleotides show up and the order they will appear in the REF and ALT field
-		// TODO: write tests that make sure REF="N" is properly handled
-		//      (1) N should be included in AD only if REF="N"
-		//      (2) N in AD should always be 0
-
 		// Measure total depth and sort nucleotides in descending order
         pileup::stats_t depth_stats;
         pileup::calculate_stats(read_depths, ref_index, &depth_stats);
-
-		// Construct a string representation of REF+ALT by ignoring nucleotides with no coverage
-
-		// Update REF, ALT fields
-		record.alleles(allele_order_str);
-
-		// Construct numeric genotypes
-		int numeric_genotype[10][2] = {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
-			{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}
-		};
-		for(int i = 0; i < 10; ++i) {
-			int n1 = acgt_to_refalt_allele[folded_diploid_nucleotides[i][0]];
-			int n2 = acgt_to_refalt_allele[folded_diploid_nucleotides[i][1]];
-			if(n1 > n2) {
-				numeric_genotype[i][0] = encode_allele_unphased(n2);
-				numeric_genotype[i][1] = encode_allele_unphased(n1);
-			} else {
-				numeric_genotype[i][0] = encode_allele_unphased(n1);
-				numeric_genotype[i][1] = encode_allele_unphased(n2);
-			}
-		}
-		// Link VCF genotypes to our order
-		int genotype_index[15];
-		for(int i = 0, k = 0; i < refalt_count; ++i) {
-			int n1 = refalt_to_acgt_allele[i];
-			for(int j = 0; j <= i; ++j, ++k) {
-				int n2 = refalt_to_acgt_allele[j];
-				genotype_index[k] = (n1 == 4 || n2 == 4) ?
-									-1 : folded_diploid_genotypes_matrix[n1][n2];
-			}
-		}
-
-		// Calculate sample genotypes
-		int gt_count = refalt_count * (refalt_count + 1) / 2;
-		std::vector<float> gp_scores(num_nodes * gt_count);
-
-		// for(size_t i = 0, k = 0; i < num_nodes; ++i) {
-		// 	size_t pos = stats.best_genotypes[i];
-		// 	best_genotypes[2 * i] = numeric_genotype[pos][0];
-		// 	best_genotypes[2 * i + 1] = numeric_genotype[pos][1];
-		// 	// If either of the alleles is missing set quality to 0
-		// 	if(allele_is_missing({best_genotypes[2 * i]}) ||
-		// 			allele_is_missing({best_genotypes[2 * i + 1]})) {
-		// 		genotype_qualities[i] = 0;
-		// 	}
-		// 	for(int j = 0; j < gt_count; ++j) {
-		// 		int n = genotype_index[j];
-		// 		gp_scores[k++] = (n == -1) ? 0.0 : stats.posterior_probabilities[i][n];
-		// 	}
-		// }
-
-		// Sample Likelihoods
-		// std::vector<float> gl_scores(num_nodes * gt_count, hts::bcf::float_missing);
-		// for(size_t i = 0, k = library_start * gt_count; i < stats.genotype_likelihoods.size(); ++i) {
-		// 	for(int j = 0; j < gt_count; ++j) {
-		// 		int n = genotype_index[j];
-		// 		gl_scores[k++] = (n == -1) ? hts::bcf::float_missing :
-		// 						 stats.genotype_likelihoods[i][n];
-		// 	}
-		// }
 
 		// Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
 		std::vector<int32_t> ad_counts(num_nodes * refalt_count, hts::bcf::int32_missing);
@@ -462,14 +398,10 @@ int process_bam(task::Call::argument_type &arg) {
 		double rp_info = dng::stats::ad_two_sample_test(pos_ref, pos_alt);
 		double bq_info = dng::stats::ad_two_sample_test(base_ref, base_alt);
 
-		record.samples("DP", dp_counts);
-		record.samples("AD", ad_counts);
+
 		record.samples("ADF", adf_counts);
 		record.samples("ADR", adr_counts);
 
-
-		record.info("DP", dp_info);
-		record.info("AD", ad_info);
 		record.info("ADF", adf_info);
 		record.info("ADR", adr_info);
 		record.info("MQ", static_cast<float>(rms_mq));
@@ -835,10 +767,19 @@ int process_bcf(task::Call::argument_type &arg) {
 }
 
 void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup::stats_t& depth_stats,
-    bool has_single_mut, size_t library_start, hts::bcf::Variant *record) {
+    bool has_single_mut,
+    const peel::workspace_t &work,
+    hts::bcf::Variant *record)
+{
     assert(record != nullptr);
+    const int color = depth_stats.color;
+    const size_t num_nodes = work.num_nodes;
+    const size_t num_libraries = work.library_nodes.second-work.library_nodes.first;
 
-    record->alleles(AlleleDepths::type_info_table[depth_stats->color].label_htslib);
+    const auto & type_info_gt = dng::AlleleDepths::type_info_gt_table[color];
+    const auto & type_info = dng::AlleleDepths::type_info_table[color];
+
+    record->alleles(type_info.label_htslib);
 
     record->info("MUP", static_cast<float>(call_stats.mup));
     record->info("LLD", static_cast<float>(call_stats.lld));
@@ -853,15 +794,42 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
         record->info("DNQ", call_stats.dnq);
     }
 
+    record->info("DP", dp_info);
+    record->info("AD", ad_info);
+
     std::vector<float> float_vector;
+    std::vector<int32_t> int32_vector;
 
-    //bcf_int32_vector_end
+    int32_vector.assign(2*num_nodes, hts::bcf::int32_missing);
 
-    //record->sample_genotypes(best_genotypes);
+    assert(call_stats.best_genotypes.size() == num_nodes);
+    for(size_t i=0;i<num_nodes;++i) {
+        auto best = call_stats.best_genotypes[i];
+        if(work.ploidies[i] == 2) {
+            size_t pos = utility::find_position(type_info_gt.indexes, best);
+            assert(pos < type_info_gt.width);
+            int32_vector[2*i] = dng::AlleleDepths::encoded_alleles_diploid_unphased[pos][0];
+            int32_vector[2*i+1] = dng::AlleleDepths::encoded_alleles_diploid_unphased[pos][1];
+        } else if(work.ploidies[i] == 1) {
+            size_t pos = utility::find_position(type_info.indexes, best);
+            assert(pos < type_info.width);
+            int32_vector[2*i] = dng::AlleleDepths::encoded_alleles_haploid[pos][0];
+            int32_vector[2*i+1] = dng::AlleleDepths::encoded_alleles_haploid[pos][1];
+        } else {
+            assert(0); // should not be reached, only ploidies of 1 and 2 are supported
+        }
+    }
+    record->sample_genotypes(int32_vector);
     record->samples("GQ", call_stats.genotype_qualities);
 
-    //float_vector.assign(call_stats.posterior_probabilities.begin(), call_stats.posterior_probabilities.end());
-    //record->samples("GP", float_vector);
+    const size_t gt_count = type_info_gt.width*num_nodes;
+    float_vector.assign(gt_count, hts::bcf::float_missing);
+    for(size_t i=0,k=0;i<num_nodes;++i) {
+        for(size_t j=0;j<type_info_gt.width;++j) {
+            float_vector[k++] = call_stats.posterior_probabilities[i][type_info_gt.indexes[j]]
+        }
+    }
+    record->samples("GP", float_vector);
 
     float_vector.assign(call_stats.node_mup.begin(), call_stats.node_mup.end());
     record->samples("MUP", float_vector);
@@ -870,12 +838,15 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
         float_vector.assign(call_stats.node_mu1p.begin(), call_stats.node_mu1p.end());
         record->samples("MU1P", float_vector);
     }
+    float_vector.assign(gt_count, hts::bcf::float_missing);
+    for(size_t i=0,k=library_nodes.first*type_info_gt.width;i<num_libraries;++i) {
+        for(size_t j=0;j<type_info_gt.width;++j) {
+            float_vector[k++] = call_stats.genotype_likelihoods[i][type_info_gt.indexes[j]]
+        }
+    }    
+    record->samples("GL", float_vector);
 
-    // for(int i=0;i<library_start;++i) {
-    //     float_vector[i] = hts::bcf::float_missing;
-    // }
-    // for(int i=library_start;i<float_vector.size();++i) {
-    //     float_vector[i] = stats.
-    // }
-    // record->samples("GL", gl_scores);
+    record->samples("DP", dp_counts);
+    record->samples("AD", ad_counts);
+
 }

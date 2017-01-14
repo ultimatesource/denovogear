@@ -42,9 +42,22 @@ const float float_missing = []() -> float {
     bcf_float_set_missing(a);
     return a;
 }();
-const int32_t int32_missing = bcf_int32_missing;
-const int16_t int16_missing = bcf_int16_missing;
-const int8_t int8_missing = bcf_int8_missing;
+const float float_vector_end = []() -> float {
+    // We use a lambda function so the result can be constant.
+    float a;
+    bcf_float_set_vector_end(a);
+    return a;
+}();
+
+constexpr int32_t int32_missing = bcf_int32_missing;
+constexpr int32_t int32_vector_end = bcf_int32_vector_end;
+
+constexpr int16_t int16_missing = bcf_int16_missing;
+constexpr int16_t int16_vector_end = bcf_int16_vector_end;
+
+constexpr int8_t int8_missing = bcf_int8_missing;
+constexpr int8_t int8_vector_end = bcf_int8_vector_end;
+
 const std::string str_missing = ".";
 
 typedef bcf1_t BareVariant;
@@ -411,42 +424,40 @@ private:
     std::unique_ptr<bcf_srs_t, void(*)(bcf_srs_t *)> handle_;
 };
 
-
-
-
+// Use a structure to have strongly-typed alleles
 struct allele_t {
-    operator int() {
+    constexpr operator int() const {
         return value;
     }
     int value;
 };
 
 // Wrappers for htslib "genotype" functions
-inline allele_t encode_allele_phased(int index) {
+constexpr inline allele_t encode_allele_phased(int index) {
     return {bcf_gt_phased(index)};
 }
 
-inline allele_t encode_allele_unphased(int index) {
+constexpr inline allele_t encode_allele_unphased(int index) {
     return {bcf_gt_unphased(index)};
 }
 
-inline constexpr allele_t encode_allele_missing() {
+constexpr inline allele_t encode_allele_missing() {
     return {bcf_gt_missing};
 }
 
-inline bool allele_is_missing(allele_t value) {
+constexpr inline bool allele_is_missing(allele_t value) {
     return bcf_gt_is_missing(value);
 }
 
-inline bool allele_is_phased(allele_t value) {
+constexpr inline bool allele_is_phased(allele_t value) {
     return bcf_gt_is_phased(value);
 }
 
-inline int decode_allele(allele_t value) {
+constexpr inline int decode_allele(allele_t value) {
     return bcf_gt_allele(value);
 }
 
-inline int genotype_from_alleles(int a, int b) {
+constexpr inline int genotype_from_alleles(int a, int b) {
     return bcf_alleles2gt(a, b);
 }
 
