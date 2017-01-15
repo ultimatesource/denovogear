@@ -74,6 +74,7 @@ public:
     static const char hash_to_color[256];
     static const int encoded_alleles_diploid_unphased[10][2];
     static const int encoded_alleles_haploid[4][2];
+    static constexpr uint8_t COLOR_FULL = 40;
 
     struct match_labels_t {
         std::unordered_map<std::string,int> tree;
@@ -257,7 +258,7 @@ uint8_t raw_counts_to_color(const depth_t& d) {
 
 struct stats_t {
     std::vector<int> node_dp;
-    depth_t total_depths;
+    std::vector<int> total_depths;
     int dp;
     double log_null;
     uint8_t color;
@@ -280,7 +281,7 @@ void calculate_stats(const RawDepths& d, int ref_index, stats_t *stats) {
         dp += n;
         stats->node_dp.push_back(n);
     }
-    stats->total_depths = total;
+    stats->total_depths.assign(std::begin(total.counts), std::end(total.counts));
     stats->dp = dp;
 
     // calculate the log-likelihood of the null hypothesis that all reads come from binomial
@@ -303,6 +304,44 @@ void calculate_stats(const RawDepths& d, int ref_index, stats_t *stats) {
     }
     stats->color = raw_counts_to_color(total)+first_is_N;
 }
+
+inline
+void calculate_stats(const AlleleDepths& d, stats_t *stats) {
+    assert(stats != nullptr);
+
+    // Copy color
+    stats->color = d.color();
+
+    // Measure the total depths, per-lib and overall
+    int dp = 0;
+    std::vector<int> total(d.num_nucleotides(), 0);
+
+    stats->node_dp.clear();
+    for(size_t lib=0; lib < d.num_libraries(); ++lib) {
+        int n = 0;
+        for(size_t j=0; j < d.num_nucleotides(); ++j) {
+            total[j] += d(lib,j);
+            n += d(lib,j);
+        }
+        dp += n;
+        stats->node_dp.push_back(n);
+    }
+    stats->total_depths = total;
+    stats->dp = dp;
+
+    // calculate the log-likelihood of the null hypothesis that all reads come from binomial
+    double log_null = 0.0;
+    if(dp > 0) {
+        log_null = -dp*log10(dp);
+        for(auto &&a : total) {
+            if(a > 0) {
+                log_null += a*log10(a);                
+            }
+        }
+    }
+    stats->log_null = log_null;
+}
+
 
 } // namespace pileup
 } // namespace dng

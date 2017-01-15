@@ -62,7 +62,7 @@ public:
     bool operator()(const pileup::AlleleDepths &depths,
                     stats_t *stats);
 protected:
-    bool Calculate(stats_t *stats);
+    bool Calculate(stats_t *stats, int color=pileup::AlleleDepths::COLOR_FULL);
 
     double min_prob_;
 

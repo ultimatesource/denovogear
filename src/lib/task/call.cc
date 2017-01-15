@@ -231,20 +231,15 @@ int process_bam(task::Call::argument_type &arg) {
     }
 
     // Construct peeling algorithm from parameters and pedigree information
-    InheritanceModel model = inheritance_model(arg.model);
-
     RelationshipGraph relationship_graph;
-    if (!relationship_graph.Construct(ped, mpileup.libraries(), model,
+    if (!relationship_graph.Construct(ped, mpileup.libraries(), inheritance_model(arg.model),
                                       arg.mu, arg.mu_somatic, arg.mu_library)) {
-        throw std::runtime_error("Unable to construct peeler for pedigree; "
+        throw std::runtime_error("ERROR: Unable to construct peeler for pedigree; "
                                  "possible non-zero-loop relationship_graph.");
     }
 
+    // Select libraries in the input that are used in the pedigree
     mpileup.SelectLibraries(relationship_graph.library_names());
-
-    // quality thresholds
-    int min_qual = arg.min_basequal;
-    double min_prob = arg.min_prob;
 
     // Write VCF output header
     auto out_file = vcf_get_output_mode(arg);
@@ -260,24 +255,26 @@ int process_bam(task::Call::argument_type &arg) {
     	vcfout.AddHeaderMetadata(line.c_str()); // Add pedigree information
     }
 
-    CallMutations do_call(min_prob, relationship_graph, {arg.theta, freqs,
-            arg.ref_weight, arg.gamma[0], arg.gamma[1]});
-
-    // Pileup data
-    dng::pileup::RawDepths read_depths(mpileup.num_libraries());
-
     // Finish Header
     for(auto && str : relationship_graph.labels()) {
-    	vcfout.AddSample(str.c_str()); // Create samples
+        vcfout.AddSample(str.c_str()); // Create samples
     }
     vcfout.WriteHeader();
 
     // Record for each output
     auto record = vcfout.InitVariant();
 
+    // Construct Calling Object
+    const double min_prob = arg.min_prob;
+    CallMutations do_call(min_prob, relationship_graph, {arg.theta, freqs,
+            arg.ref_weight, arg.gamma[0], arg.gamma[1]});
+
+    // Pileup data
+    dng::pileup::RawDepths read_depths(mpileup.num_libraries());
+
     // Calculated stats
     CallMutations::stats_t stats;
-
+  
     // Parameters used by site calculation function
     const size_t num_nodes = relationship_graph.num_nodes();
     const size_t library_start = relationship_graph.library_nodes().first;
@@ -653,43 +650,38 @@ int variant_call(task::Call::argument_type &arg,  hts::bcf::File &vcfout, const 
 }
 
 int process_ad(task::Call::argument_type &arg) {
-
 	// Parse the pedigree file
 	io::Pedigree ped = io::parse_pedigree(arg.ped);
+
+    // Parse Nucleotide Frequencies
+    std::array<double, 4> freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
+
+    //io::at_slurp(arg.region); // replace arg.region with the contents of a file if needed
 
     // Open input files
     if(arg.input.size() != 1) {
         throw std::runtime_error("Argument Error: can only process one ad/tad file at a time.");
     }
-
-    io::Ad input{arg.input[0], std::ios_base::in};
-    if(!input) {
-        throw std::runtime_error("Argument Error: unable to open input file '" + arg.input[0] + "'.");
-    }
-    if(input.ReadHeader() == 0) {
-        throw std::runtime_error("Argument Error: unable to read header from '" + input.path() + "'.");
-    }
+    using AdPileup = dng::io::AdPileup;
+    AdPileup mpileup{arg.input[0], std::ios_base::in};
 
     // Construct peeling algorithm from parameters and pedigree information
-    InheritanceModel model = inheritance_model(arg.model);
-    dng::RelationshipGraph relationship_graph;
-    if (!relationship_graph.Construct(ped, input.libraries(), model,
+    RelationshipGraph relationship_graph;
+    if (!relationship_graph.Construct(ped, mpileup.libraries(), inheritance_model(arg.model),
                                       arg.mu, arg.mu_somatic, arg.mu_library)) {
-        throw std::runtime_error("Error: Unable to construct peeler for pedigree; "
+        throw std::runtime_error("ERROR: Unable to construct peeler for pedigree; "
                                  "possible non-zero-loop relationship_graph.");
     }
-    // Select libraries in the input that are used in the pedigree
-    input.SelectLibraries(relationship_graph.library_names());
 
-    ReadGroups rgs;
-    rgs.ParseLibraries(input.libraries());
+    // Select libraries in the input that are used in the pedigree
+    mpileup.SelectLibraries(relationship_graph.library_names());
 
     // Begin writing VCF header
     auto out_file = vcf_get_output_mode(arg);
     hts::bcf::File vcfout(out_file.first.c_str(), out_file.second.c_str());
     vcf_add_header_text(vcfout, arg);
 
-    for(auto && contig : input.contigs()){
+    for(auto && contig : mpileup.contigs()){
         vcfout.AddContig(contig.name.c_str(), contig.length); // Add contigs to header
     }
     for(auto && line : relationship_graph.BCFHeaderLines()) {
@@ -700,10 +692,38 @@ int process_ad(task::Call::argument_type &arg) {
     }
     vcfout.WriteHeader();
 
+    // Record for each output
+    auto record = vcfout.InitVariant();
 
-    pileup::variant::TadPileup tadpileup(rgs.libraries());
-	const char *fname = arg.input[0].c_str();
-	return variant_call(arg, vcfout, fname, tadpileup, relationship_graph, rgs);
+    // Construct Calling Object
+    const double min_prob = arg.min_prob;
+    CallMutations do_call(min_prob, relationship_graph, {arg.theta, freqs,
+            arg.ref_weight, arg.gamma[0], arg.gamma[1]});
+
+
+    // Calculated stats
+    CallMutations::stats_t stats;
+  
+    // Parameters used by site calculation function
+    const size_t num_nodes = relationship_graph.num_nodes();
+    const size_t library_start = relationship_graph.library_nodes().first;
+
+    mpileup([&](const AdPileup::data_type & data) {
+        if(!do_call(data, &stats)) {
+            return;
+        }
+        const bool has_single_mut = ((stats.mu1p / stats.mup) >= min_prob);
+
+        // Measure total depth and sort nucleotides in descending order
+        pileup::stats_t depth_stats;
+        pileup::calculate_stats(data, &depth_stats);
+
+        add_stats_to_output(stats, depth_stats, has_single_mut, do_call.work(), &record);
+
+
+    });
+
+    return EXIT_SUCCESS;
 }
 
 // Process vcf, bcf input data

@@ -45,7 +45,8 @@ std::array<double,5> make_alphas(int reference, int genotype, double phi, double
     double m = 1.0 - 3.0 * e; // prob of a read that matches a homozygote
     double h = 1.0 - 2.0 * e; // prob of a read that matches a heterozygote
 
-    std::array<double,5> ret = {e,e,e,e,e};
+    std::array<double,5> ret{{e,e,e,e,e}};
+    
     int g1 = folded_diploid_nucleotides[genotype][0];
     int g2 = folded_diploid_nucleotides[genotype][1];
     if(g1 == g2) {

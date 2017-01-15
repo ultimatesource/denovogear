@@ -161,6 +161,53 @@ private:
     DNG_UNIT_TEST(unittest_dng_io_ad);
 };
 
+class AdPileup {
+public:
+    typedef Ad::AlleleDepths data_type;
+    typedef void (callback_type)(const data_type &, utility::location_t);
+
+    template<typename CallBack>
+    void operator()(CallBack func);
+
+    template<typename... Args>
+    AdPileup(Args&&... args) : file_{std::forward<Args>(args)...} {
+        if(!file_) {
+            throw std::runtime_error("Argument Error: unable to open input file '" + file_.path() + "'.");
+        }
+        if(file_.ReadHeader() == 0) {
+            throw std::runtime_error("Argument Error: unable to read header from '" + file_.path() + "'.");
+        }
+    }
+
+    template<typename R>
+    void SelectLibraries(R &range) { file_.SelectLibraries(range); }
+
+    void ResetLibraries() { file_.ResetLibraries(); }
+
+    const libraries_t& libraries() const {
+        return file_.libraries();
+    }
+    size_t num_libraries() const {
+        return file_.num_libraries();
+    }
+
+    const std::vector<Ad::contig_t>& contigs() const {
+        return file_.contigs();
+    }
+
+private:
+    Ad file_;
+};
+
+template<typename Callback>
+inline void AdPileup::operator()(Callback func) {
+    data_type line;
+    line.data().reserve(4*num_libraries());
+    while(file_.Read(&line)) {
+        func(line);
+    }
+}
+
 inline
 void Ad::Open(const std::string &filename, std::ios_base::openmode mode) {
     BinaryFile::Open(filename, mode);
