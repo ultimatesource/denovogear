@@ -17,7 +17,10 @@
         	"clang": {
 				"extra_flags": "-Wall -std=c++11 -Wno-pragma-once-outside-header",
             	"include_dirs": [
-                	"${project_folder}/../../src/include/"
+                	"${project_folder}/../../src/include/",
+                	"${project_folder}/src",
+                	"/usr/include/eigen3",
+                	"/usr/include/eigen3/unsupported"
             	]
             }
         }
@@ -26,7 +29,7 @@
 	[
 		{
 			"name": "DeNovoGear - all",
-			"cmd": ["/usr/bin/ninja", "-f", "build.ninja", "-v", "all"],
+			"cmd": ["/usr/bin/ninja", "-f", "build.ninja", "all"],
 			"working_dir": "${project_path}",
 			"file_regex": "^(..[^:]*):([0-9]+):?([0-9]+)?:? (.*)$"
 		},
