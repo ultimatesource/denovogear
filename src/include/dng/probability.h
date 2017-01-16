@@ -53,10 +53,8 @@ public:
     const peel::workspace_t& work() const { return work_; };
 
 protected:
-    struct matrices_t {
-        TransitionMatrixVector full;
-        TransitionMatrixVector subsets[pileup::AlleleDepths::type_info_table_length];
-    };
+    using matrices_t = std::array<TransitionMatrixVector, pileup::AlleleDepths::type_info_table_length+1>;
+    static constexpr int COLOR_FULL = pileup::AlleleDepths::type_info_table_length;
 
     matrices_t CreateMutationMatrices(const int mutype = MUTATIONS_ALL) const;
 
@@ -84,11 +82,11 @@ inline
 LogProbability::matrices_t LogProbability::CreateMutationMatrices(const int mutype) const {
     matrices_t ret;
     // Construct the complete matrices
-    ret.full = create_mutation_matrices(graph_, params_.nuc_freq, mutype);
+    ret[COLOR_FULL] = create_mutation_matrices(graph_, params_.nuc_freq, mutype);
 
     // Extract relevant subsets of matrices
     for(size_t color = 0; color < dng::pileup::AlleleDepths::type_info_table_length; ++color) {
-        ret.subsets[color] = create_mutation_matrices_subset(ret.full, color);
+        ret[color] = create_mutation_matrices_subset(ret[COLOR_FULL], color);
     }
     return ret;
 }

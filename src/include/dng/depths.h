@@ -74,8 +74,7 @@ public:
     static const char hash_to_color[256];
     static const int encoded_alleles_diploid_unphased[10][2];
     static const int encoded_alleles_haploid[4][2];
-    static constexpr uint8_t COLOR_FULL = 40;
-
+    
     struct match_labels_t {
         std::unordered_map<std::string,int> tree;
         match_labels_t();

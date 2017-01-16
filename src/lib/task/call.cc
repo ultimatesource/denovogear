@@ -71,6 +71,7 @@ int process_ad(task::Call::argument_type &arg);
 
 void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup::stats_t& depth_stats,
     bool has_single_mut,
+    bool full_genotypes,
     const peel::workspace_t &work,
     hts::bcf::Variant *record);
 
@@ -289,7 +290,7 @@ int process_bam(task::Call::argument_type &arg) {
     auto h = mpileup.header(); // TODO: Fixme.
 
     mpileup([&](const BamPileup::data_type & data, utility::location_t loc) {
-    	// Calculate target position and fetch sequence name
+        // Calculate target position and fetch sequence name
         int contig = utility::location_to_contig(loc);
         int position = utility::location_to_position(loc);
 
@@ -322,7 +323,7 @@ int process_bam(task::Call::argument_type &arg) {
         pileup::stats_t depth_stats;
         pileup::calculate_stats(read_depths, ref_index, &depth_stats);
 
-        add_stats_to_output(stats, depth_stats, has_single_mut, do_call.work(), &record);
+        add_stats_to_output(stats, depth_stats, has_single_mut, true, do_call.work(), &record);
 
         // Information about the site, based on depths
         const int color = depth_stats.color;
@@ -340,7 +341,7 @@ int process_bam(task::Call::argument_type &arg) {
                 ad_counts[pos++] = 0;
             }
 			for(size_t k = 0; k < type_info.width; ++k) {
-                int count = read_depths[u].counts[type_info.indexes[k]];
+                int count = read_depths[u].counts[(int)type_info.indexes[k]];
                 ad_counts[pos++] = count;
 				ad_info[k+(type_info.reference == 4)] += count;
 			}
@@ -369,7 +370,7 @@ int process_bam(task::Call::argument_type &arg) {
 
         int acgt_to_refalt_allele[4] = {-1,-1,-1,-1};
         for(int i=0;i<type_info.width;++i) {
-            acgt_to_refalt_allele[type_info.indexes[i]] = i + (type_info.reference == 4);
+            acgt_to_refalt_allele[(int)type_info.indexes[i]] = i + (type_info.reference == 4);
         }
 
 		for(size_t u = 0; u < data.size(); ++u) {
@@ -700,7 +701,6 @@ int process_ad(task::Call::argument_type &arg) {
     CallMutations do_call(min_prob, relationship_graph, {arg.theta, freqs,
             arg.ref_weight, arg.gamma[0], arg.gamma[1]});
 
-
     // Calculated stats
     CallMutations::stats_t stats;
   
@@ -718,8 +718,16 @@ int process_ad(task::Call::argument_type &arg) {
         pileup::stats_t depth_stats;
         pileup::calculate_stats(data, &depth_stats);
 
-        add_stats_to_output(stats, depth_stats, has_single_mut, do_call.work(), &record);
+        add_stats_to_output(stats, depth_stats, has_single_mut, false, do_call.work(), &record);
 
+        // Calculate target position and fetch sequence name
+        int contig = utility::location_to_contig(data.location());
+        int position = utility::location_to_position(data.location());
+
+        record.target(mpileup.contigs()[contig].name.c_str());
+        record.position(position);
+        vcfout.WriteRecord(record);
+        record.Clear();
 
     });
 
@@ -808,6 +816,7 @@ int process_bcf(task::Call::argument_type &arg) {
 
 void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup::stats_t& depth_stats,
     bool has_single_mut,
+    bool full_genotypes,
     const peel::workspace_t &work,
     hts::bcf::Variant *record)
 {
@@ -846,12 +855,12 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
     for(size_t i=0;i<num_nodes;++i) {
         auto best = call_stats.best_genotypes[i];
         if(work.ploidies[i] == 2) {
-            size_t pos = utility::find_position(type_info_gt.indexes, best);
+            size_t pos = full_genotypes ?  utility::find_position(type_info_gt.indexes, best) : best;
             assert(pos < type_info_gt.width);
             int32_vector[2*i] = dng::pileup::AlleleDepths::encoded_alleles_diploid_unphased[pos][0];
             int32_vector[2*i+1] = dng::pileup::AlleleDepths::encoded_alleles_diploid_unphased[pos][1];
         } else if(work.ploidies[i] == 1) {
-            size_t pos = utility::find_position(type_info.indexes, best);
+            size_t pos = full_genotypes ? utility::find_position(type_info.indexes, best) : best;
             assert(pos < type_info.width);
             int32_vector[2*i] = dng::pileup::AlleleDepths::encoded_alleles_haploid[pos][0];
             int32_vector[2*i+1] = dng::pileup::AlleleDepths::encoded_alleles_haploid[pos][1];
@@ -866,7 +875,8 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
     float_vector.assign(gt_count, hts::bcf::float_missing);
     for(size_t i=0,k=0;i<num_nodes;++i) {
         for(size_t j=0;j<type_info_gt.width;++j) {
-            float_vector[k++] = call_stats.posterior_probabilities[i][type_info_gt.indexes[j]];
+            size_t pos = full_genotypes ? type_info_gt.indexes[j] : j;
+            float_vector[k++] = call_stats.posterior_probabilities[i][pos];
         }
     }
     record->samples("GP", float_vector);
@@ -882,7 +892,8 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
     float_vector.assign(gt_count, hts::bcf::float_missing);
     for(size_t i=0,k=work.library_nodes.first*type_info_gt.width;i<num_libraries;++i) {
         for(size_t j=0;j<type_info_gt.width;++j) {
-            float_vector[k++] = call_stats.genotype_likelihoods[i][type_info_gt.indexes[j]];
+            size_t pos = full_genotypes ? type_info_gt.indexes[j] : j;
+            float_vector[k++] = call_stats.genotype_likelihoods[i][pos];
         }
     }    
     record->samples("GL", float_vector);

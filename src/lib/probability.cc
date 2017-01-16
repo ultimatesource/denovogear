@@ -29,14 +29,15 @@ using namespace dng;
 LogProbability::LogProbability(RelationshipGraph graph, params_t params) :
     graph_{std::move(graph)},
     params_(std::move(params)),
-    genotyper_{params.params_a, params.params_b},
-    work_{graph_.CreateWorkspace()} {
+    work_{graph_.CreateWorkspace()},
+    genotyper_{params.params_a, params.params_b}
+    {
 
     using namespace dng;
 
     // Use a parent-independent mutation model, which produces a beta-binomial
     for(int i=0; i < 5; i++) {
-        std::array<double, 4> weights = {0,0,0,0};
+        std::array<double, 4> weights = {{0,0,0,0}};
         if(i < 4) {
             weights[i] = params_.ref_weight;
         }
@@ -58,7 +59,7 @@ LogProbability::LogProbability(RelationshipGraph graph, params_t params) :
         haploid_prior(0) = haploid_prior_[color](pileup::AlleleDepths::type_info_table[color].indexes[0]);
         work_.SetFounders(diploid_prior, haploid_prior);
         work_.SetGenotypeLikelihoods(genotyper_, depths);
-        double logdata = graph_.PeelForwards(work_, transition_matrices_.subsets[color]);
+        double logdata = graph_.PeelForwards(work_, transition_matrices_[color]);
         prob_monomorphic_[color] = exp(logdata);
     }
 }
@@ -80,7 +81,7 @@ LogProbability::value_t LogProbability::operator()(const pileup::RawDepths &dept
     // }
 
     // Calculate log P(Data ; model)
-    double logdata = graph_.PeelForwards(work_, transition_matrices_.full);
+    double logdata = graph_.PeelForwards(work_, transition_matrices_[COLOR_FULL]);
 
     return {logdata/M_LN10, scale/M_LN10};
 }
@@ -126,7 +127,7 @@ LogProbability::value_t LogProbability::operator()(const pileup::AlleleDepths &d
         scale = work_.SetGenotypeLikelihoods(genotyper_, depths);
 
          // Calculate log P(Data ; model)
-        logdata = graph_.PeelForwards(work_, transition_matrices_.subsets[color]);
+        logdata = graph_.PeelForwards(work_, transition_matrices_[color]);
     }
     return {logdata/M_LN10, scale/M_LN10};
 }
@@ -272,9 +273,6 @@ TransitionMatrix subset_mutation_matrix_mitosis_haploid(const TransitionMatrix &
 
 
 TransitionMatrixVector dng::create_mutation_matrices_subset(const TransitionMatrixVector &full_matrices, size_t color) {
-
-    auto &type_info_table = dng::pileup::AlleleDepths::type_info_table;
-    auto &type_info_gt_table = dng::pileup::AlleleDepths::type_info_gt_table;
 
     // Create out output vector
     TransitionMatrixVector matrices(full_matrices.size());

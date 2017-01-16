@@ -222,9 +222,9 @@ std::array<double, 4> population_alphas(double theta,
     double nuc_sum = nuc_freq[0] + nuc_freq[1] + nuc_freq[2] + nuc_freq[3];
     theta = theta/nuc_sum;
 
-    return { theta*nuc_freq[0] + prior[0], theta*nuc_freq[1] + prior[1],
+    return {{theta*nuc_freq[0] + prior[0], theta*nuc_freq[1] + prior[1],
              theta*nuc_freq[2] + prior[2], theta*nuc_freq[3] + prior[3]
-    };
+    }};
 }
 
 inline dng::GenotypeArray population_prior_diploid(double theta,

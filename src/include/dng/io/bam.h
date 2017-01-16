@@ -80,8 +80,8 @@ public:
     const File& file() const { return in_; }
 
 private:
-    utility::location_t next_loc_;
     File in_;
+    utility::location_t next_loc_;
     list_type buffer_;
     int min_qlen_;
 };
