@@ -103,11 +103,6 @@ bool dng::RelationshipGraph::Construct(const io::Pedigree& pedigree,
     // Construct a boost::graph of the pedigree and somatic information
     Graph pedigree_graph;
 
-    auto edge_types = get(boost::edge_type, pedigree_graph);
-    auto lengths = get(boost::edge_length, pedigree_graph);
-    auto labels = get(boost::vertex_label, pedigree_graph);
-    auto sexes  = get(boost::vertex_sex, pedigree_graph);
-
     first_founder_ = 0;
     first_somatic_ = pedigree.member_count();
     parse_pedigree_table(pedigree_graph, pedigree);
@@ -786,8 +781,6 @@ void dng::RelationshipGraph::CreatePeelingOps(
 
     auto edge_types = get(boost::edge_type, pedigree_graph);
     auto lengths = get(boost::edge_length, pedigree_graph);
-    auto sexes  = get(boost::vertex_sex, pedigree_graph);
-    auto ploidies = get(boost::vertex_ploidy, pedigree_graph); 
 
     ClearFamilyInfo();
 
@@ -852,8 +845,7 @@ void dng::RelationshipGraph::CreatePeelingOps(
             auto &family_members = family_members_.back();
 
             while (pos != family_edges.end()) {
-                auto child_index = target(*pos, pedigree_graph);
-                vertex_t child = node_ids[target(*pos, pedigree_graph)];
+                size_t child = node_ids[target(*pos, pedigree_graph)];
                 transitions_[child] = {TransitionType::Trio, dad, mom, lengths[*pos], lengths[*(pos + 1)]};
                 family_members.push_back(child); // Child
 

@@ -175,7 +175,7 @@ int process_bam(LogLike::argument_type &arg) {
     }
 
     for(auto && line : graph.BCFHeaderLines()) {
-        std:cout << line << "\n";
+        std::cout << line << "\n";
     }
 
     LogProbability calculate (graph,
@@ -184,8 +184,6 @@ int process_bam(LogLike::argument_type &arg) {
     // Pileup data
     pileup::RawDepths read_depths(rgs.libraries().size());
 
-    const size_t num_nodes = graph.num_nodes();
-    const size_t library_start = graph.library_nodes().first;
     const int min_basequal = arg.min_basequal;
     auto filter_read = [min_basequal](
     dng::BamPileup::data_type::value_type::const_reference r) -> bool {
@@ -247,9 +245,6 @@ int process_ad(LogLike::argument_type &arg) {
 
     // Parse Nucleotide Frequencies
     array<double, 4> freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
-
-    // quality thresholds
-    int min_qual = arg.min_basequal;
 
     // Print header to output
     cout_add_header_text(arg);
