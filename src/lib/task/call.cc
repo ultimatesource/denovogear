@@ -72,6 +72,7 @@ int process_ad(task::Call::argument_type &arg);
 void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup::stats_t& depth_stats,
     bool has_single_mut,
     bool full_genotypes,
+    const RelationshipGraph &graph,
     const peel::workspace_t &work,
     hts::bcf::Variant *record);
 
@@ -323,7 +324,7 @@ int process_bam(task::Call::argument_type &arg) {
         pileup::stats_t depth_stats;
         pileup::calculate_stats(read_depths, ref_index, &depth_stats);
 
-        add_stats_to_output(stats, depth_stats, has_single_mut, true, do_call.work(), &record);
+        add_stats_to_output(stats, depth_stats, has_single_mut, true, relationship_graph, do_call.work(), &record);
 
         // Information about the site, based on depths
         const int color = depth_stats.color;
@@ -718,7 +719,32 @@ int process_ad(task::Call::argument_type &arg) {
         pileup::stats_t depth_stats;
         pileup::calculate_stats(data, &depth_stats);
 
-        add_stats_to_output(stats, depth_stats, has_single_mut, false, do_call.work(), &record);
+        add_stats_to_output(stats, depth_stats, has_single_mut, false, relationship_graph, do_call.work(), &record);
+
+        const int color = depth_stats.color;
+        const auto & type_info_gt = dng::pileup::AlleleDepths::type_info_gt_table[color];
+        const auto & type_info = dng::pileup::AlleleDepths::type_info_table[color];
+        const int refalt_count = type_info.width + (type_info.reference == 4);
+
+        // Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
+        std::vector<int32_t> ad_counts(num_nodes*refalt_count, hts::bcf::int32_missing);
+        std::vector<int32_t> ad_info(type_info.width, 0);
+        size_t pos = library_start * refalt_count;
+
+        for(size_t u = 0; u < data.num_libraries(); ++u) {
+            if(type_info.reference == 4) {
+                ad_counts[pos++] = 0;
+            }
+            for(size_t k = 0; k < data.num_nucleotides(); ++k) {
+                int count = data(u,k);
+                ad_counts[pos++] = count;
+                ad_info[k+(type_info.reference == 4)] += count;
+            }
+        }
+
+        record.samples("AD", ad_counts);
+
+        record.info("AD", ad_info);
 
         // Calculate target position and fetch sequence name
         int contig = utility::location_to_contig(data.location());
@@ -814,9 +840,12 @@ int process_bcf(task::Call::argument_type &arg) {
     return EXIT_SUCCESS;
 }
 
+std::string genotype_string(int gt, int ploidy, int color);
+
 void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup::stats_t& depth_stats,
     bool has_single_mut,
     bool full_genotypes,
+    const RelationshipGraph &graph,    
     const peel::workspace_t &work,
     hts::bcf::Variant *record)
 {
@@ -836,15 +865,56 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
     record->info("MUX", static_cast<float>(call_stats.mux));
     record->info("MU1P", static_cast<float>(call_stats.mu1p));
 
+    // Output statistics that are only informative if there is a signal of 1 mutation.
     if(has_single_mut) {
-        // These statistics are only informative if there is a signal of 1 mutation.
-        record->info("DNT", call_stats.dnt);
-        record->info("DNL", call_stats.dnl);
+        std::string dnt;
+        size_t pos = call_stats.dnl;
+        if(graph.transitions()[pos].type == dng::RelationshipGraph::TransitionType::Trio) {
+            size_t dad = graph.transition(pos).parent1;
+            size_t dad_ploidy = work.ploidies[dad];
+            size_t mom = graph.transition(pos).parent2;
+            size_t mom_ploidy = work.ploidies[mom];
+
+            size_t child = full_genotypes ?  utility::find_position(type_info_gt.indexes, call_stats.dnt_col) : call_stats.dnt_col;
+            if(full_genotypes) {
+                size_t width = (mom_ploidy == 2) ? 10 : 4;
+                dad = call_stats.dnt_row / width;
+                mom = call_stats.dnt_row % width;
+                if(dad_ploidy == 2) {
+                    dad = utility::find_position(type_info_gt.indexes, dad);
+                } else {
+                    dad = utility::find_position(type_info.indexes, dad);
+                }
+                if(mom_ploidy == 2) {
+                    mom = utility::find_position(type_info_gt.indexes, mom);
+                } else {
+                    mom = utility::find_position(type_info.indexes, mom);
+                }                
+            } else {
+                size_t width = (mom_ploidy == 2) ? type_info_gt.width : type_info.width;
+                dad = call_stats.dnt_row / width;
+                mom = call_stats.dnt_row % width;
+            }
+            dnt = genotype_string(dad, dad_ploidy, color);
+            dnt += 'x';
+            dnt += genotype_string(mom, mom_ploidy, color);
+            dnt += '>';
+            dnt += genotype_string(child, work.ploidies[pos], color);            
+        } else {
+            size_t par = graph.transition(pos).parent1;
+            size_t row = full_genotypes ?  utility::find_position(type_info_gt.indexes, call_stats.dnt_row) : call_stats.dnt_row;
+            size_t col = full_genotypes ?  utility::find_position(type_info_gt.indexes, call_stats.dnt_col) : call_stats.dnt_col;
+            dnt = genotype_string(row, work.ploidies[par], color);
+            dnt += '>';
+            dnt += genotype_string(col, work.ploidies[pos], color);
+        }
+        record->info("DNT", dnt);
+
+        record->info("DNL", graph.label(pos));
         record->info("DNQ", call_stats.dnq);
     }
 
     record->info("DP", depth_stats.dp);
-    //record->info("AD", ad_info);
 
     std::vector<float> float_vector;
     std::vector<int32_t> int32_vector;
@@ -903,6 +973,28 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
         int32_vector[k++] = depth_stats.node_dp[i];
     }    
     record->samples("DP", int32_vector);
+}
 
-    //record->samples("AD", ad_counts);
+std::string genotype_string(int gt, int ploidy, int color) {
+    using AlleleDepths = dng::pileup::AlleleDepths;
+    assert(0 <= color && color < AlleleDepths::type_info_table_length);
+    auto & type_info = AlleleDepths::type_info_table[color];
+    auto & type_info_gt = AlleleDepths::type_info_gt_table[color];
+
+    std::string out;
+    if(ploidy == 2) {
+        int a = AlleleDepths::alleles_diploid[gt][0] + (type_info.reference == 4);
+        int b = AlleleDepths::alleles_diploid[gt][1] + (type_info.reference == 4);
+        assert(0 <= a && a < strlen(type_info.label_upper));
+        assert(0 <= b && b < strlen(type_info.label_upper));
+        out += type_info.label_upper[a];
+        out += type_info.label_upper[b];
+    } else if(ploidy == 1) {
+        int a = gt + (type_info.reference == 4);
+        assert(0 <= a && a < strlen(type_info.label_upper));        
+        out += type_info.label_upper[a];
+    } else {
+        assert(0); // should not reach here
+    }
+    return out;
 }

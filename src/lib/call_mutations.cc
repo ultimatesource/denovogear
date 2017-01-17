@@ -195,11 +195,8 @@ bool CallMutations::Calculate(stats_t *stats, int color) {
     stats->mu1p = total*(1.0-mup);
 
     stats->dnq = dng::utility::lphred<int>(1.0 - (max_coeff / total), 255);
-    stats->dnl = graph_.labels()[dn_location];
-    if (graph_.transitions()[dn_location].type == dng::RelationshipGraph::TransitionType::Trio) {
-        stats->dnt = &dng::meiotic_diploid_mutation_labels[dn_row][dn_col][0];
-    } else {
-        stats->dnt = &dng::mitotic_diploid_mutation_labels[dn_row][dn_col][0];
-    }
+    stats->dnl = dn_location;
+    stats->dnt_row = dn_row;
+    stats->dnt_col = dn_col;
     return true;
 }

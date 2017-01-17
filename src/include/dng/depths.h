@@ -71,7 +71,10 @@ public:
     static constexpr int type_info_table_length = 128;
     static const type_info_t type_info_table[128];
     static const type_info_gt_t type_info_gt_table[128];
+
     static const char hash_to_color[256];
+
+    static const int alleles_diploid[10][2];
     static const int encoded_alleles_diploid_unphased[10][2];
     static const int encoded_alleles_haploid[4][2];
     

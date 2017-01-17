@@ -924,6 +924,13 @@ const char AlleleDepths::hash_to_color[256] = {
 
 using namespace hts::bcf;
 
+const int AlleleDepths::alleles_diploid[10][2] = {
+    {0,0},
+    {0,1}, {1,1},
+    {0,2}, {1,2}, {2,2},
+    {0,3}, {1,3}, {2,3}, {3,3}
+};
+
 const int AlleleDepths::encoded_alleles_diploid_unphased[10][2] = {
     {encode_allele_unphased(0),encode_allele_unphased(0)},
     {encode_allele_unphased(0),encode_allele_unphased(1)},
@@ -934,7 +941,7 @@ const int AlleleDepths::encoded_alleles_diploid_unphased[10][2] = {
     {encode_allele_unphased(0),encode_allele_unphased(3)},
     {encode_allele_unphased(1),encode_allele_unphased(3)},
     {encode_allele_unphased(2),encode_allele_unphased(3)},
-    {encode_allele_unphased(3),encode_allele_unphased(3)},
+    {encode_allele_unphased(3),encode_allele_unphased(3)}
 };
 
 const int AlleleDepths::encoded_alleles_haploid[4][2] = {

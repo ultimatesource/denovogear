@@ -39,8 +39,9 @@ public:
         double mux;
 
         double mu1p;
-        std::string dnt;
-        std::string dnl;
+        int dnt_row;
+        int dnt_col;
+        int dnl;
         int dnq;
 
         GenotypeArrayVector genotype_likelihoods;

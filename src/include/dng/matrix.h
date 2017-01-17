@@ -61,7 +61,8 @@ constexpr int folded_diploid_genotypes_matrix[4][4] = {
     {0, 4, 5, 6},
     {4, 1, 7, 8},
     {5, 7, 2, 9},
-    {6, 8, 9, 3}};
+    {6, 8, 9, 3}
+};
 
 constexpr int folded_diploid_genotypes[16] = {0, 4, 5, 6, 4, 1, 7, 8, 5, 7, 2, 9, 6, 8, 9, 3};
 

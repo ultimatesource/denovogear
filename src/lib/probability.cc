@@ -167,7 +167,7 @@ TransitionMatrix subset_mutation_matrix_meiosis_autosomal(const TransitionMatrix
 	TransitionMatrix ret{width*width, width};
 
     // a: parent1/dad; b: parent2/mom;
-    // kronecker product is 'b-major'
+    // kronecker product is 'a-major'
     for(int a = 0; a < width; ++a) {
         const int ga = type_info_gt_table[color].indexes[a];
         for(int b = 0; b < width; ++b) {
@@ -190,7 +190,7 @@ TransitionMatrix subset_mutation_matrix_meiosis_xlinked(const TransitionMatrix &
     const auto &type_info_gt_table = dng::pileup::AlleleDepths::type_info_gt_table;
 
     // a: parent1/dad; b: parent2/mom;
-    // kronecker product is 'b-major'
+    // kronecker product is 'a-major'
     // a: haploid; b: diploid
     const int widthA = type_info_table[color].width;                      
     const int widthB = type_info_gt_table[color].width;
