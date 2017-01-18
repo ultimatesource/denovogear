@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 Reed A. Cartwright
+ * Copyright (c) 2014-2017 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -75,6 +75,27 @@ private:
 };
 
 }
+
+constexpr int folded_diploid_nucleotides[10][2] = {
+    {0, 0},
+    {0, 1}, {1, 1},
+    {0, 2}, {1, 2}, {2, 2},
+    {0, 3}, {1, 3}, {2, 3}, {3, 3}
+};
+
+// converts from unfolded genotype [0-15] to a folded genotype [0-10]
+constexpr int folded_diploid_genotypes_matrix[4][4] = {
+    {0, 1, 3, 6},
+    {1, 2, 4, 7},
+    {3, 4, 5, 8},
+    {6, 7, 8, 9}
+};
+
+constexpr int folded_diploid_genotypes[16] = {0, 1, 3, 6, 1, 2, 4, 7, 3, 4, 5, 8, 6, 7, 8, 9};
+
+// converts from a folded genotype to an unfolded genotype
+constexpr int unfolded_diploid_genotypes_upper[10] = {0, 1, 5, 2, 6,10, 3, 7,11,15};
+constexpr int unfolded_diploid_genotypes_lower[10] = {0, 4, 5, 8, 9,10,12,13,14,15};
 
 class DirichletMultinomialMixture {
 public:

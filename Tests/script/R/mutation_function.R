@@ -54,13 +54,10 @@ mitotic_diploid_mutation_counts<- rbind(
     c(2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 1, 1, 0, 1),
     c(2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 1, 1, 1, 0) )
 
-# Homozgotes come first
+# Lower Triangle
 unfold_index = c()
 for(a in 0:3) {
-    unfold_index = c(unfold_index, 1+a*4+a)
-}
-for(a in 0:2) {
-    for(b in (a+1):3) {
+    for(b in 0:a) {
         unfold_index = c(unfold_index, 1+a*4+b)
     } 
 }

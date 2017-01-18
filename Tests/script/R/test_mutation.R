@@ -1,5 +1,5 @@
 source("mutation_function.R")
-options(digits=15)
+options(digits=17)
 
 ## Test F81
 mu6 <- 1e-6
@@ -18,7 +18,7 @@ f81_core( mu3, crazy_freq)
 catCppMatrix<-function(matrix, file=""){
     s<- paste("{",
         apply(matrix,1,function(y){
-            paste(y, sep="", collapse=", ") 
+            paste(sprintf("%0.17g",y), sep="", collapse=", ") 
         })
         ,"}", collapse=",\n", sep="")
     cat("{", paste(s, collapse="}, \n{"), "};\n\n", sep="", file=file )
@@ -27,7 +27,7 @@ catCppMatrix<-function(matrix, file=""){
 catEigenMatrix<-function(matrix, file=""){
     s<- paste(
             apply(matrix,1,function(y){
-                paste(y, sep="", collapse=", ") 
+                paste(sprintf("%0.17g",y), sep="", collapse=", ") 
             }), collapse=",\n", sep="")
     cat("<< ", paste(s, collapse=", \n{"), ";\n\n", sep="", file=file )
 }

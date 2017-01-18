@@ -155,6 +155,7 @@ std::pair<GenotypeArray, double> DirichletMultinomialMixture::operator()(
 
     // how many genotypes will we calculate based on ploidy?
     const int sz = (ploidy==2) ? 10 : 4;
+    const int step = (ploidy==2) ? 1 : 5;
     
     // Our return variable
     GenotypeArray log_ret{sz};
@@ -175,29 +176,29 @@ std::pair<GenotypeArray, double> DirichletMultinomialMixture::operator()(
         if(count < cache_.size()) {
             // If count is reasonable, use cached constants
             const auto &cache = cache_[count][ref_allele][nucleotide];
-            for(int genotype = 0; genotype < sz; ++genotype) {
-                temp[genotype] += cache[0][genotype];
+            for(int genotype = 0,u=0; genotype < sz; genotype += step) {
+                temp[u++] += cache[0][genotype];
             }
-            for(int genotype = 0; genotype < sz; ++genotype) {
-                temp[10+genotype] += cache[1][genotype];
+            for(int genotype = 0,u=10; genotype < sz; genotype += step) {
+                temp[u++] += cache[1][genotype];
             }
         } else if(nucleotide < 4) {
             // If count is big, use our model functor
             const auto &model = models_[ref_allele][nucleotide];
-            for(int genotype = 0; genotype < sz; ++genotype) {
-                temp[genotype] += model[0][genotype](count);
+            for(int genotype = 0,u=0; genotype < sz; genotype += step) {
+                temp[u++] += model[0][genotype](count);
             }
-            for(int genotype = 0; genotype < sz; ++genotype) {
-                temp[10+genotype] += model[1][genotype](count);
+            for(int genotype = 0,u=10; genotype < sz; genotype += step) {
+                temp[u++] += model[1][genotype](count);
             }
         } else {
             // If nucleotide == 4, we have to use a subtraction
             const auto &model = models_[ref_allele][nucleotide];
-            for(int genotype = 0; genotype < sz; ++genotype) {
-                temp[genotype] -= model[0][genotype](count);
+            for(int genotype = 0,u=0; genotype < sz; genotype += step) {
+                temp[u++] -= model[0][genotype](count);
             }
-            for(int genotype = 0; genotype < sz; ++genotype) {
-                temp[10+genotype] -= model[1][genotype](count);
+            for(int genotype = 0,u=10; genotype < sz; genotype += step) {
+                temp[u++] -= model[1][genotype](count);
             }
         }
     }

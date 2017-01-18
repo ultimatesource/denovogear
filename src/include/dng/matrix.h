@@ -52,24 +52,6 @@ typedef std::vector<ParentArray> ParentArrayVector;
 
 typedef Eigen::Matrix4d MutationMatrix;
 
-constexpr int folded_diploid_nucleotides[10][2] = {{0, 0}, {1, 1}, {2, 2}, {3, 3},
-    {0, 1}, {0, 2}, {0, 3}, {1, 2}, {1, 3}, {2, 3}
-};
-
-// converts from unfolded genotype [0-15] to a folded genotype [0-10]
-constexpr int folded_diploid_genotypes_matrix[4][4] = {
-    {0, 4, 5, 6},
-    {4, 1, 7, 8},
-    {5, 7, 2, 9},
-    {6, 8, 9, 3}
-};
-
-constexpr int folded_diploid_genotypes[16] = {0, 4, 5, 6, 4, 1, 7, 8, 5, 7, 2, 9, 6, 8, 9, 3};
-
-// converts from a folded genotype to an unfolded genotype
-constexpr int unfolded_diploid_genotypes_upper[10] = {0, 5, 10, 15, 1, 2, 3, 6, 7, 11};
-constexpr int unfolded_diploid_genotypes_lower[10] = {0, 5, 10, 15, 4, 8, 12, 9, 13, 14};
-
 template<typename A, typename B>
 inline auto kronecker_product_coef(const A &a, const B &b, std::size_t i,
                               std::size_t j) -> decltype(a(0, 0)*b(0, 0)) {

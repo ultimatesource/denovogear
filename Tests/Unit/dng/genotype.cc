@@ -1,6 +1,6 @@
-#define BOOST_TEST_MODULE dng
+#define BOOST_TEST_MODULE dng::genotype
 
-#include <dng/matrix.h>
+#include <dng/genotyper.h>
 
 #include <boost/test/included/unit_test.hpp>
 #include <boost/test/data/test_case.hpp>
@@ -9,6 +9,7 @@
 namespace data = boost::unit_test::data;
 
 using namespace dng;
+using namespace dng::genotype;
 
 BOOST_DATA_TEST_CASE(test_diploid_nucleotides, data::xrange(4) * data::xrange(4), a, b)
 {

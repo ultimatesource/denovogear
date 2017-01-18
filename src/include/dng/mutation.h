@@ -25,7 +25,7 @@
 #include <cassert>
 #include <array>
 #include <iostream>
-#include <dng/matrix.h>
+#include <dng/genotyper.h>
 
 namespace dng {
 
@@ -113,9 +113,9 @@ inline TransitionMatrix mitosis_haploid_matrix(const MutationMatrix &m, const in
 inline TransitionMatrix mitosis_diploid_matrix(const MutationMatrix &m, const int mutype = MUTATIONS_ALL) {
     TransitionMatrix ret = TransitionMatrix::Zero(10, 10);
     for(int i = 0; i < 10; ++i) {
-        int h = unfolded_diploid_genotypes_upper[i];
+        int h = genotype::unfolded_diploid_genotypes_upper[i];
         for(int j = 0; j < 16; ++j) {
-            int k = folded_diploid_genotypes[j];
+            int k = genotype::folded_diploid_genotypes[j];
             if(mutype == MUTATIONS_MEAN) {
                 ret(i, k) += kronecker_product_coef(m, m, h, j) * mitotic_diploid_mutation_counts[h][j];
             } else if( mutype == MUTATIONS_ALL || mutype == mitotic_diploid_mutation_counts[h][j] ) {
@@ -132,8 +132,8 @@ inline TransitionMatrix meiosis_haploid_matrix(const MutationMatrix &m, int muty
     TransitionMatrix ret{10, 4};
     auto mm = mitosis_haploid_matrix(m, mutype);
     for(int i = 0; i < 10; ++i) {
-        int a = folded_diploid_nucleotides[i][0];
-        int b = folded_diploid_nucleotides[i][1];
+        int a = genotype::folded_diploid_nucleotides[i][0];
+        int b = genotype::folded_diploid_nucleotides[i][1];
         for(int j = 0; j < 4; ++j) {
             ret(i, j) = 0.5 * (mm(a, j) + mm(b, j));
         }
@@ -189,7 +189,7 @@ inline TransitionMatrix meiosis_matrix(const int dad_ploidy, const MutationMatri
     TransitionMatrix ret = TransitionMatrix::Zero(temp.rows(), 10);
     for(int i = 0; i < temp.rows(); ++i) {
         for(int j = 0; j < temp.cols(); ++j) {
-            int k = folded_diploid_genotypes[j];
+            int k = genotype::folded_diploid_genotypes[j];
             ret(i, k) += temp(i, j);
         }
     }
@@ -235,8 +235,8 @@ inline dng::GenotypeArray population_prior_diploid(double theta,
     double alpha_sum = alpha[0] + alpha[1] + alpha[2] + alpha[3];
     dng::GenotypeArray ret{10};
     for(int i=0;i<10;++i) {
-        int n1 = folded_diploid_nucleotides[i][0];
-        int n2 = folded_diploid_nucleotides[i][1];
+        int n1 = genotype::folded_diploid_nucleotides[i][0];
+        int n2 = genotype::folded_diploid_nucleotides[i][1];
         if(n1 == n2) {
             ret(i) = alpha[n1]*(1.0 + alpha[n1]) / alpha_sum / (1.0 + alpha_sum);
         } else {

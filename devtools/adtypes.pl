@@ -33,7 +33,7 @@ sub location_index {
   return $o;
 }
 
-my @gt_list = (0, 4, 5, 6, 4, 1, 7, 8, 5, 7, 2, 9, 6, 8, 9, 3);
+my @gt_list = (0, 1, 3, 6, 1, 2, 4, 7, 3, 4, 5, 8, 6, 7, 8, 9);
 sub gt10 {
 	my $k = shift;
 	my @s = @_;

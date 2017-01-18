@@ -38,10 +38,10 @@ endmacro()
 ###############################################################################
 # Add Unit tests based on CXX namespaces
 
-AddUnitTest(dng)
 AddUnitTest(dng::io::ad)
 AddUnitTest(dng::find_mutations_ylinked) 
 AddUnitTest(dng::find_mutations)
+AddUnitTest(dng::genotype)
 AddUnitTest(dng::multithread)
 AddUnitTest(dng::mutation_stats)
 AddUnitTest(dng::mutation)

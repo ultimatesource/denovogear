@@ -557,8 +557,8 @@ int variant_call(task::Call::argument_type &arg,  hts::bcf::File &vcfout, const 
             {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}
         };
         for(int i = 0; i < 10; ++i) {
-            int n1 = acgt_to_refalt_allele[folded_diploid_nucleotides[i][0]];
-            int n2 = acgt_to_refalt_allele[folded_diploid_nucleotides[i][1]];
+            int n1 = acgt_to_refalt_allele[genotype::folded_diploid_nucleotides[i][0]];
+            int n2 = acgt_to_refalt_allele[genotype::folded_diploid_nucleotides[i][1]];
             if(n1 > n2) {
                 numeric_genotype[i][0] = encode_allele_unphased(n2);
                 numeric_genotype[i][1] = encode_allele_unphased(n1);
@@ -574,7 +574,7 @@ int variant_call(task::Call::argument_type &arg,  hts::bcf::File &vcfout, const 
             for(int j = 0; j <= i; ++j, ++k) {
                 int n2 = refalt_to_acgt_allele[j];
                 genotype_index[k] = (n1 == 4 || n2 == 4) ?
-                                    -1 : folded_diploid_genotypes_matrix[n1][n2];
+                                    -1 : genotype::folded_diploid_genotypes_matrix[n1][n2];
             }
         }
 
