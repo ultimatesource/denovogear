@@ -44,6 +44,8 @@ public:
         int dnl;
         int dnq;
 
+        int color;
+
         GenotypeArrayVector genotype_likelihoods;
 
         GenotypeArrayVector posterior_probabilities;
