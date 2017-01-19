@@ -81,7 +81,7 @@ LogProbability::value_t LogProbability::operator()(const pileup::RawDepths &dept
     // }
 
     // Calculate log P(Data ; model)
-    double logdata = graph_.PeelForwards(work_, transition_matrices_[COLOR_FULL]);
+    double logdata = graph_.PeelForwards(work_, transition_matrices_[COLOR_ACGT]);
 
     return {logdata/M_LN10, scale/M_LN10};
 }

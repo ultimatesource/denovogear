@@ -61,7 +61,7 @@ bool CallMutations::operator()(const pileup::RawDepths &depths,
     work_.SetFounders(diploid_prior_[ref_index], haploid_prior_[ref_index]);
 
     // Run
-    bool found = Calculate(stats, COLOR_FULL);
+    bool found = Calculate(stats, COLOR_ACGT);
     if(found && stats != nullptr) {
         stats->lld += scale/M_LN10;
     }
