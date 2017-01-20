@@ -32,7 +32,7 @@ var visuals = (function() {
       .append("g");
 
       
-    var link = container
+    var visualLinks = container
       .append("g")
         .attr("class", "links")
       .selectAll("line")
@@ -41,16 +41,16 @@ var visuals = (function() {
       .append("g")
         .attr("class", "link");
 
-    link.append("line")
+    visualLinks.append("line")
       .attr("stroke-width", function(d) {
         if (linkHasData(d)) {
-          return 5;
+          //return 5;
         }
         return 1;
       })
       .attr("stroke", function(d) {
         if (linkHasData(d)) {
-          return "green";
+          //return "green";
         }
 
         return "#999";
@@ -60,7 +60,7 @@ var visuals = (function() {
       .attr("x2", function(d) { return d.target.x; })
       .attr("y2", function(d) { return d.target.y; });
 
-    link.append("text")
+    visualLinks.append("text")
       .attr("dx", function(d) {
         return utils.halfwayBetween(d.source.x, d.target.x) - 45;
       })
@@ -69,7 +69,7 @@ var visuals = (function() {
       })
       .text(function(d) {
         if (linkHasData(d)) {
-          return d.dataLink.data.mutation;
+          //return d.dataLink.data.mutation;
         }
       });
 
@@ -78,7 +78,7 @@ var visuals = (function() {
     }
 
 
-    var node = container
+    var visualNodes = container
       .append("g")
         .attr("class", "nodes")
       .selectAll(".node")
@@ -87,7 +87,7 @@ var visuals = (function() {
       .append("g")
         .attr("class", "node");
 
-    node.append("path")
+    visualNodes.append("path")
       .attr("d", d3.symbol()
         .type(function(d) {
           if (d.type === "person") {
@@ -114,7 +114,7 @@ var visuals = (function() {
       })
       .on("click", nodeClicked);
 
-    node.append("text")
+    visualNodes.append("text")
       .attr("dx", 20)
       .attr("dy", ".35em")
       .text(function(d) { 
@@ -122,18 +122,32 @@ var visuals = (function() {
           return d.dataNode.id;
         }
       });
-    
-    node.attr("transform", function(d) {
+
+    visualNodes.attr("transform", function(d) {
       return "translate(" + d.x + "," + d.y + ")";
     });
 
+    // Create sample ID tree diagram for each node
     nodes.forEach(function(node) {
       if (node.type == 'person') {
-        console.log(node);
         var root = d3.hierarchy(node.dataNode.data.sampleIds);
         var cluster = d3.cluster().size([100, 100]);
         cluster(root);
-        console.log(root);
+        //console.log(node);
+        node.tree = root;
+
+        var className = "sampleTree" + String(node.dataNode.id);
+        var nodeClass = "sampleTreeNode" + String(node.dataNode.id);
+        console.log(root.descendants());
+        var sampleTreeNodes = svg.append("g")
+            .attr("class", className)
+            .data(root.descendants())
+          .enter().append("circle")
+            .attr("cx", function(d) { return d.x; })
+            .attr("cy", function(d) { return d.y; })
+            .attr("r", 5)
+            .attr("class", nodeClass);
+        //console.log(className);
       }
     });
 
