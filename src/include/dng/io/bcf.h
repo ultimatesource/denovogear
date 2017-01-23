@@ -34,7 +34,7 @@ namespace io {
 
 class BcfPileup {
 public:
-    using data_type = dng::pileup::AlleleDepths;
+    using data_type = bcf1_t *;
 
     typedef void (callback_type)(const data_type &, utility::location_t);
 
@@ -75,12 +75,6 @@ void BcfPileup::operator()(CallBack call_back) {
     using utility::location_t;
     using pileup::AlleleDepths;
 
-    int num_samples = bcf_hdr_nsamples(reader_.header(0));
-
-    data_type line(0,0,num_samples);
-    std::string alleles;
-    alleles.reserve(5);
-
     while(reader_.NextLine()) {
         bcf1_t *rec = reader_.GetLine(0);
         if(rec == nullptr) {
@@ -94,45 +88,45 @@ void BcfPileup::operator()(CallBack call_back) {
         }
 
         // Construct location
-        line.location(utility::make_location(rec->rid, rec->pos));
+        auto location = utility::make_location(rec->rid, rec->pos);
 
         // REF+ALT in the order they appear in the record
-        bcf_unpack(rec, BCF_UN_STR);
-        alleles.clear();
-        int num_alleles = rec->n_allele;
-        for(int a = 0; a < num_alleles; ++a) {
-            alleles += rec->d.allele[a];
-        }
-        line.resize(AlleleDepths::MatchLabel(alleles));
+        // bcf_unpack(rec, BCF_UN_STR);
+        // alleles.clear();
+        // int num_alleles = rec->n_allele;
+        // for(int a = 0; a < num_alleles; ++a) {
+        //     alleles += rec->d.allele[a];
+        // }
+        // line.resize(AlleleDepths::MatchLabel(alleles));
 
-        // Read all the Allele Depths for every sample into ad array
-        int *ad = nullptr;
-        int n_ad = 0;
-        int n_ad_array = 0;
-        n_ad = bcf_get_format_int32(reader_.header(0), rec, "AD", &ad, &n_ad_array);
-        if(n_ad < 0) {
-            // AD tag is missing, so we do nothing at this time
-            // TODO: support using calculated genotype likelihoods
-            continue;
-        }
-        if(line.num_nucleotides() == num_alleles) {
-            assert(n_ad == line.data_size());
-            for(int i=0,k=0;i<num_samples;++i) {
-                for(int a=0;a<num_alleles;++a) {
-                    line(i,a) = ad[k++];
-                }
-            }           
-        } else {
-            assert(n_ad-num_samples == line.data_size());
-            for(int i=0,k=0;i<num_samples;++i) {
-                k++; // skip reference AD since it is N
-                for(int a=1;a<num_alleles;++a) {
-                    line(i,a-1) = ad[k++];
-                }
-            }
-        }
+        // // Read all the Allele Depths for every sample into ad array
+        // int *ad = nullptr;
+        // int n_ad = 0;
+        // int n_ad_array = 0;
+        // n_ad = bcf_get_format_int32(reader_.header(0), rec, "AD", &ad, &n_ad_array);
+        // if(n_ad < 0) {
+        //     // AD tag is missing, so we do nothing at this time
+        //     // TODO: support using calculated genotype likelihoods
+        //     continue;
+        // }
+        // if(line.num_nucleotides() == num_alleles) {
+        //     assert(n_ad == line.data_size());
+        //     for(int i=0,k=0;i<num_samples;++i) {
+        //         for(int a=0;a<num_alleles;++a) {
+        //             line(i,a) = ad[k++];
+        //         }
+        //     }           
+        // } else {
+        //     assert(n_ad-num_samples == line.data_size());
+        //     for(int i=0,k=0;i<num_samples;++i) {
+        //         k++; // skip reference AD since it is N
+        //         for(int a=1;a<num_alleles;++a) {
+        //             line(i,a-1) = ad[k++];
+        //         }
+        //     }
+        // }
         // execute func
-        call_back(line);
+        call_back(rec, location);
     }
 }
 
