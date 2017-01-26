@@ -31,7 +31,32 @@ var visuals = (function() {
     var container = svg.call(zoom)
       .append("g");
 
-      
+
+    // TODO: there's got to be a way to do this declaratively with d3...
+    nodes.forEach(function(node) {
+      if (node.type == 'person') {
+        var sampleTree = createSampleTree().node(node);
+
+        sampleTree(container);
+
+        node.tree = sampleTree.sampleTreeSelection();
+        node.tree.attr("visibility", "hidden");
+      }
+    });
+
+    d3.select("#sample_tree_toggle").on("click", function() {
+      nodes.forEach(function(node) {
+        if (node.type === 'person') {
+          if (node.tree.attr("visibility") === "visible") {
+            node.tree.attr("visibility", "hidden");
+          }
+          else {
+            node.tree.attr("visibility", "visible");
+          }
+        }
+      });
+    });
+
     var visualLinks = container
       .append("g")
         .attr("class", "links")
@@ -44,13 +69,13 @@ var visuals = (function() {
     visualLinks.append("line")
       .attr("stroke-width", function(d) {
         if (linkHasData(d)) {
-          //return 5;
+          return 5;
         }
         return 1;
       })
       .attr("stroke", function(d) {
         if (linkHasData(d)) {
-          //return "green";
+          return "green";
         }
 
         return "#999";
@@ -69,7 +94,7 @@ var visuals = (function() {
       })
       .text(function(d) {
         if (linkHasData(d)) {
-          //return d.dataLink.data.mutation;
+          return d.dataLink.data.mutation;
         }
       });
 
@@ -104,12 +129,12 @@ var visuals = (function() {
         })
         .size(500))
       .attr("fill", fillColor)
-      .attr("opacity", function(d) {
+      .attr("visibility", function(d) {
         if (d.type === "marriage") {
-          return 0;
+          return "hidden";
         }
         else {
-          return 1;
+          return "visible";
         }
       })
       .on("click", nodeClicked);
@@ -124,33 +149,8 @@ var visuals = (function() {
       });
 
     visualNodes.attr("transform", function(d) {
-      return "translate(" + d.x + "," + d.y + ")";
+      return svgTranslateString(d.x, d.y);
     });
-
-    // Create sample ID tree diagram for each node
-    nodes.forEach(function(node) {
-      if (node.type == 'person') {
-        var root = d3.hierarchy(node.dataNode.data.sampleIds);
-        var cluster = d3.cluster().size([100, 100]);
-        cluster(root);
-        //console.log(node);
-        node.tree = root;
-
-        var className = "sampleTree" + String(node.dataNode.id);
-        var nodeClass = "sampleTreeNode" + String(node.dataNode.id);
-        console.log(root.descendants());
-        var sampleTreeNodes = svg.append("g")
-            .attr("class", className)
-            .data(root.descendants())
-          .enter().append("circle")
-            .attr("cx", function(d) { return d.x; })
-            .attr("cy", function(d) { return d.y; })
-            .attr("r", 5)
-            .attr("class", nodeClass);
-        //console.log(className);
-      }
-    });
-
     function zoomed() {
       container.attr("transform", d3.event.transform);
     }
@@ -187,6 +187,78 @@ var visuals = (function() {
     }
   }
 
+  function svgTranslateString(x, y) {
+    return "translate(" + x + "," + y + ")";
+  }
+
   return { doVisuals: doVisuals };
+
+  function createSampleTree() {
+
+    var node;
+    var sampleTree;
+
+    function my(selection) {
+
+        var root = d3.hierarchy(node.dataNode.data.sampleIds);
+        var treeWidth = 160;
+        var treeHeight = 50;
+        var cluster = d3.cluster().size([treeWidth, treeHeight]);
+        cluster(root);
+
+        var rootNode = root.descendants()[0];
+
+        sampleTree = selection.append("g")
+            .attr("class", "sampleTree")
+            .attr("transform", function(d) {
+              // center the tree with the tree's root node overlapping the
+              // current node
+              return svgTranslateString(node.x - rootNode.x,
+                                        node.y - rootNode.y);
+            })
+
+        var sampleTreeLinks = sampleTree.selectAll("sampleTreeLink")
+            .data(root.descendants().slice(1))
+          .enter().append("g")
+            .attr("class", "sampleTreeLink")
+          .append("line")
+            .attr("stroke", "#999")
+            .attr("x1", function(d) { return d.x; })
+            .attr("y1", function(d) { return d.y; })
+            .attr("x2", function(d) { return d.parent.x; })
+            .attr("y2", function(d) { return d.parent.y; });
+
+        var sampleTreeNodes = sampleTree.selectAll("sampleTreeNode")
+            .data(root.descendants().slice(1))
+          .enter().append("g")
+            .attr("class", "sampleTreeNode")
+            .attr("transform", function(d) {
+              return svgTranslateString(d.x, d.y);
+            });
+          
+        sampleTreeNodes.append("circle")
+            .attr("r", 5)
+            .attr("fill", "green");
+
+        sampleTreeNodes.append("text")
+            .attr("dx", 10)
+            .attr("dy", ".35em")
+            .text(function(d) {
+              return d.data.name;
+            });
+    }
+
+    my.node = function(value) {
+      if (!arguments.length) return node;
+      node = value;
+      return my;
+    };
+
+    my.sampleTreeSelection = function() {
+      return sampleTree;
+    };
+
+    return my;
+  }
 
 }());

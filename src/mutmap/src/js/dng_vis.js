@@ -83,8 +83,8 @@
         var node = {};
         node.type = "person";
         node.dataNode = pedGraph.getPerson(id);
-        node.x = 80 * layout.pos[rowIdx][colIdx];
-        node.y = 100 * rowIdx;
+        node.x = 120 * layout.pos[rowIdx][colIdx];
+        node.y = 120 * rowIdx;
 
         // TODO: such a hack. remove
         node.rowIdx = rowIdx;
