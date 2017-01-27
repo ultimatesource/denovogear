@@ -29,7 +29,6 @@
   var pedGraph = buildGraphFromPedigree(pedigreeData);
 
   var kinshipPedigreeData = layoutData;
-  console.log(layoutData);
 
   var graphData = processPedigree(kinshipPedigreeData);
 
@@ -115,11 +114,44 @@
         var children = getAllChildren(kinshipPedigreeData, nodes, node,
                                       spouseNode);
 
+        var encountered = [];
+
         children.forEach(function(childNode) {
-          var childLink = createChildLink(childNode, marriageNode);
-          var parentageLink = marriage.addChild(childNode.dataNode);
-          childLink.dataLink = parentageLink;
-          links.push(childLink);
+          var index = encountered.findIndex(function(element) {
+            return element.dataNode === childNode.dataNode;
+          });
+
+          if (index === -1) {
+            // TODO: this is duplicated below. fix it
+            var childLink = createChildLink(childNode, marriageNode);
+            var parentageLink = marriage.addChild(childNode.dataNode);
+            childLink.dataLink = parentageLink;
+            links.push(childLink);
+            encountered.push(childNode);
+          }
+          else {
+            var oldOne = encountered[index];
+            var distanceOldOneToParents = distanceBetweenNodes(oldOne,
+              marriageNode);
+            var distanceCurrentToParents = distanceBetweenNodes(childNode,
+              marriageNode);
+            
+            if (distanceOldOneToParents > distanceCurrentToParents) {
+              var index = links.findIndex(function(element) {
+                return element.type === "child" &&
+                  element.source.dataNode === childNode.dataNode;
+              });
+              links.splice(index, 1);
+
+              var childLink = createChildLink(childNode, marriageNode);
+              var parentageLink = marriage.addChild(childNode.dataNode);
+              childLink.dataLink = parentageLink;
+              links.push(childLink);
+            }
+
+            var duplicateLink = createDuplicateLink(childNode, oldOne);
+            links.push(duplicateLink);
+          }
         });
 
       }
@@ -241,6 +273,14 @@
     return childLink;
   }
 
+  function createDuplicateLink(nodeA, nodeB) {
+    var dupLink = {};
+    dupLink.type = "duplicate";
+    dupLink.source = nodeA;
+    dupLink.target = nodeB;
+    return dupLink;
+  }
+
   function getAllChildren(kinshipPedigreeData, nodes, nodeA, nodeB) {
     var father;
     var mother;
@@ -267,4 +307,9 @@
 
     return children;
   }
+
+  function distanceBetweenNodes(nodeA, nodeB) {
+    return utils.distanceBetweenPoints(nodeA.x, nodeA.y, nodeB.x, nodeB.y);
+  }
+  
 }());

@@ -61,29 +61,49 @@ var visuals = (function() {
       .append("g")
         .attr("class", "links")
       .selectAll("line")
-      .data(links)
-      .enter()
-      .append("g")
+        .data(links)
+      .enter().append("g")
         .attr("class", "link");
 
-    visualLinks.append("line")
-      .attr("stroke-width", function(d) {
-        if (linkHasData(d)) {
-          return 5;
-        }
-        return 1;
-      })
-      .attr("stroke", function(d) {
-        if (linkHasData(d)) {
-          return "green";
-        }
+    visualLinks.append("path")
+        .attr("d", function(d) {
+          if (d.type == "child" || d.type == "spouse") {
+            return "M" + d.source.x + "," + d.source.y +
+              "L" + d.target.x + "," + d.target.y;
+          }
+          else {
+            var controlX = utils.halfwayBetween(d.source.x, d.target.x);
+            // TODO: parameterize the control point Y value by the distance
+            // between the nodes, rather than hard coding
+            var controlY = d.source.y - 100;
+            return "M" + d.source.x + "," + d.source.y
+              + "Q" + controlX + "," + controlY + ","
+              + d.target.x + "," + d.target.y;
+          }
+        })
+        .attr("fill", "transparent")
+        .attr("stroke-width", function(d) {
+          if (linkHasData(d)) {
+            return 5;
+          }
+          return 1;
+        })
+        .attr("stroke", function(d) {
+          if (linkHasData(d)) {
+            return "green";
+          }
 
-        return "#999";
-      })
-      .attr("x1", function(d) { return d.source.x; })
-      .attr("y1", function(d) { return d.source.y; })
-      .attr("x2", function(d) { return d.target.x; })
-      .attr("y2", function(d) { return d.target.y; });
+          return "#999";
+        })
+        .attr("stroke-dasharray", function(d) {
+          if (d.type == "duplicate") {
+            return "5, 5";
+          }
+        })
+        .attr("x1", function(d) { return d.source.x; })
+        .attr("y1", function(d) { return d.source.y; })
+        .attr("x2", function(d) { return d.target.x; })
+        .attr("y2", function(d) { return d.target.y; });
 
     visualLinks.append("text")
       .attr("dx", function(d) {
