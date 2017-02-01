@@ -31,30 +31,22 @@ var visuals = (function() {
     var container = svg.call(zoom)
       .append("g");
 
-
-    // TODO: there's got to be a way to do this declaratively with d3...
-    nodes.forEach(function(node) {
-      if (node.type == 'person') {
-        var sampleTree = createSampleTree().node(node);
-
-        sampleTree(container);
-
-        node.tree = sampleTree.sampleTreeSelection();
-        node.tree.attr("visibility", "hidden");
-      }
-    });
+    var treesHidden = true;
 
     d3.select("#sample_tree_toggle").on("click", function() {
-      nodes.forEach(function(node) {
-        if (node.type === 'person') {
-          if (node.tree.attr("visibility") === "visible") {
-            node.tree.attr("visibility", "hidden");
-          }
-          else {
-            node.tree.attr("visibility", "visible");
-          }
-        }
-      });
+      d3.selectAll(".sampleTree")
+          .attr("visibility", function(d) {
+            var ret;
+
+            if (treesHidden) {
+              return "visible";
+            }
+            else {
+              return "hidden";
+            }
+          });
+
+      treesHidden = !treesHidden;
     });
 
     var visualLinks = container
@@ -131,6 +123,25 @@ var visuals = (function() {
       .enter()
       .append("g")
         .attr("class", "node");
+
+
+    var tree = createSampleTree();
+
+    visualNodes.selectAll(".yolo")
+        .data(function(d) {
+          if (d.type == "person") {
+            return [d];
+          }
+          else {
+            return [null];
+          }
+        })
+      .enter().each(function(d) {
+        if (d) {
+          var selection = d3.select(this);
+          tree.node(d)(selection);
+        }
+      });
 
     visualNodes.append("path")
       .attr("d", d3.symbol()
@@ -233,9 +244,9 @@ var visuals = (function() {
             .attr("transform", function(d) {
               // center the tree with the tree's root node overlapping the
               // current node
-              return svgTranslateString(node.x - rootNode.x,
-                                        node.y - rootNode.y);
+              return svgTranslateString(-rootNode.x, -rootNode.y);
             })
+            .attr("visibility", "hidden");
 
         var sampleTreeLinks = sampleTree.selectAll("sampleTreeLink")
             .data(root.descendants().slice(1))
