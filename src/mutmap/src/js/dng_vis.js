@@ -28,6 +28,8 @@
 
   var pedGraph = buildGraphFromPedigree(pedigreeData);
 
+  console.log(pedGraph);
+
   var kinshipPedigreeData = layoutData;
 
   var graphData = processPedigree(kinshipPedigreeData);

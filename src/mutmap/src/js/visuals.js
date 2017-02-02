@@ -15,6 +15,8 @@ var visuals = (function() {
     var height = 500;
     var activeNode = null;
 
+    var format = d3.format(",.6e");
+
     d3.select("svg").remove();
 
     var zoom = d3.zoom()
@@ -32,16 +34,23 @@ var visuals = (function() {
       .append("g");
 
     var treesHidden = true;
-
     d3.select("#sample_tree_toggle").on("click", function() {
+      var buttonSelection = d3.select(this);
+
       d3.selectAll(".sampleTree")
           .attr("visibility", function(d) {
             var ret;
 
             if (treesHidden) {
+              buttonSelection
+                  .attr("class", "btn btn-danger")
+                  .text("Hide Trees");
               return "visible";
             }
             else {
+              buttonSelection
+                  .attr("class", "btn btn-success")
+                  .text("Show Trees");
               return "hidden";
             }
           });
@@ -171,8 +180,8 @@ var visuals = (function() {
       .on("click", nodeClicked);
 
     visualNodes.append("text")
-      .attr("dx", 20)
-      .attr("dy", ".35em")
+      .attr("dx", 15)
+      .attr("dy", 15)
       .text(function(d) { 
         if (d.type !== "marriage") {
           return d.dataNode.id;
@@ -192,14 +201,24 @@ var visuals = (function() {
         activeNode = this;
         d3.select(this).style("fill", "DarkSeaGreen");
 
+        var dngData = null;
+
         if (d.dataNode.data.dngOutputData !== undefined) {
-          document.getElementById("id_display").value =
-            d.dataNode.id;
+          dngData = d.dataNode.data.dngOutputData;
         }
         else {
-          document.getElementById("id_display").value = "";
+          // TODO: should probably be some sort of search for the correct
+          // child, rather than assuming it's the first one.
+          dngData = d.dataNode.data.sampleIds.children[0].dngOutputData;
         }
 
+        d3.select("#id_display").attr("value", d.dataNode.id);
+        d3.select("#gt_display").attr("value", dngData.GT);
+        d3.select("#gq_display").attr("value", dngData.GQ);
+        d3.select("#gp_display").attr("value", dngData.GP);
+        d3.select("#dp_display").attr("value", dngData.DP);
+        d3.select("#mup_display").attr("value", format(dngData.MUP));
+        d3.select("#mu1p_display").attr("value", format(dngData.MU1P));
       }
     }
 
