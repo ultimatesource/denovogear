@@ -37,6 +37,10 @@
   dngOverlay();
   visuals.doVisuals(graphData);
 
+  window.addEventListener("resize", function() {
+    visuals.doVisuals(graphData);
+  });
+
   function dngOverlay() {
     var vcfData = vcfParser.parseVCFText(dngOutputFileText);
 

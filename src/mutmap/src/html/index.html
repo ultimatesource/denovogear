@@ -19,14 +19,23 @@
   font: 10px sans-serif;
 }
 
+html,body {
+  height: 100%;
+}
+
+.full-height {
+  height: 100%;
+}
+
+
 </style>
 
 </head>
 <body>
 
-<div class='container'>
-  <div class='row'>
-    <div id='chart_wrapper' class='col-xs-8 panel panel-default'></div>
+<div class='container full-height'>
+  <div class='row full-height'>
+    <div id='chart_wrapper' class='col-xs-8 panel panel-default full-height'></div>
     <div id='details_wrapper' class='col-xs-4 panel panel-default'>
       <div>ID:</div>
       <input id="id_display" type="text" class="form-control" placeholder="ID">

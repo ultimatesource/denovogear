@@ -12,7 +12,6 @@ var visuals = (function() {
     var nodes = graphData.nodes;
     var links = graphData.links;
 
-    var height = 500;
     var activeNode = null;
 
     var format = d3.format(",.6e");
@@ -22,12 +21,14 @@ var visuals = (function() {
     var zoom = d3.zoom()
       .on("zoom", zoomed);
 
-
     var chartWrapper = d3.select("#chart_wrapper");
-    var dim = chartWrapper.node().getBoundingClientRect();
 
-    var svg = chartWrapper.append("svg")
-        .attr("width", dim.width)
+    var svg = chartWrapper.append("svg");
+    var width = $("svg").parent().width();
+    var height = $("svg").parent().height();
+
+    svg
+        .attr("width", width)
         .attr("height", height);
 
     var container = svg.call(zoom)
