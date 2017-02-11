@@ -25,13 +25,8 @@
 
   
   var pedigreeData = pedParser.parsePedigreeFile(pedigreeFileText);
-
   var pedGraph = buildGraphFromPedigree(pedigreeData);
-
-  console.log(pedGraph);
-
   var kinshipPedigreeData = layoutData;
-
   var graphData = processPedigree(kinshipPedigreeData);
 
   dngOverlay();
@@ -69,11 +64,12 @@
       });
     }
     else {
-      alert("No mutation found!");
+      console.log("No mutation found!");
     }
   }
 
   function processPedigree(kinshipPedigreeData) {
+
 
     var layout = kinshipPedigreeData.layout;
     var nodes = [];
@@ -87,7 +83,8 @@
 
         var node = {};
         node.type = "person";
-        node.dataNode = pedGraph.getPerson(id);
+        node.dataNode =
+          pedGraph.getPerson(pedigreeData[oneToZeroBase(id)].individualId);
         node.x = 120 * layout.pos[rowIdx][colIdx];
         node.y = 120 * rowIdx;
 
@@ -188,11 +185,12 @@
   // TODO this and findMatchingSampleNode have almost the same logic. Find a
   // way to extract the duplication
   function findOwnerNode(sampleName) {
-    var strippedName = getStrippedName(sampleName);
+    //var strippedName = getStrippedName(sampleName);
     var persons = pedGraph.getPersons();
     for (var index = 0; index < persons.length; index++) {
       var person = persons[index];
-      var sampleNode = findInTree(person.data.sampleIds, strippedName);
+      //var sampleNode = findInTree(person.data.sampleIds, strippedName);
+      var sampleNode = findInTree(person.data.sampleIds, sampleName);
       if (sampleNode !== undefined) {
         return person;
       }
@@ -215,7 +213,9 @@
 
   function findInTree(tree, sampleName) {
 
-    if (tree.name === sampleName) {
+    // TODO: This seems very likely to break in the future. Need to find a
+    // robust way of matching up sample names and libraries.
+    if (tree.name != "" && sampleName.includes(tree.name)) {
       return tree;
     }
 
@@ -302,16 +302,26 @@
     var children = [];
     nodes.forEach(function(node) {
       if (node.type != "marriage") {
-        if (kinshipPedigreeData.pedigree.findex[oneToZeroBase(node.dataNode.id)] ===
-              father.dataNode.id &&
-            kinshipPedigreeData.pedigree.mindex[oneToZeroBase(node.dataNode.id)] ===
-              mother.dataNode.id) {
+
+        var pedigree = kinshipPedigreeData.pedigree;
+        var index = oneToZeroBase(findIndexFromId(node.dataNode.id));
+
+        if (pedigree.findex[index] === findIndexFromId(father.dataNode.id) &&
+            pedigree.mindex[index] === findIndexFromId(mother.dataNode.id)) {
           children.push(node);
         }
       }
     });
 
     return children;
+  }
+
+  function findIndexFromId(id) {
+    for (var i = 0; i < pedigreeData.length; i++) {
+      if (pedigreeData[i].individualId == id) {
+        return i+1;
+      }
+    }
   }
 
   function distanceBetweenNodes(nodeA, nodeB) {

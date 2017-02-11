@@ -5,8 +5,10 @@ source(file.path('layout_and_template.R'))
 # designed to be run from within the build/src/mutmap directory
 test <- function() {
     sourceDirectory <- file.path('.')
-    pedFilePath <- file.path('..', '..', 'testdata', 'relationship_graph',
-                             'relationship_graph.ped')
+    pedFilePath <- file.path('..', '..', 'testdata', 'human_trio',
+                             'trio.ped')
+    #pedFilePath <- file.path('..', '..', 'testdata', 'relationship_graph',
+    #                         'relationship_graph.ped')
     dngOutputFilePath <- file.path('..', '..', 'dng_test_output.vcf')
     outputFilePath <- file.path('mutmap.html')
 

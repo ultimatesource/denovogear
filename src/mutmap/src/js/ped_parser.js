@@ -24,18 +24,18 @@ var pedParser = (function() {
       var row = line.split("\t");
       var entry = {};
       entry.familyId = Number(row[0]);
-      entry.individualId = Number(row[1]);
+      entry.individualId = String(row[1]);
 
-      var fatherId = Number(row[2]);
-      if (fatherId === 0) {
+      var fatherId = String(row[2]);
+      if (fatherId === "0") {
         entry.fatherId = undefined;
       }
       else {
         entry.fatherId = fatherId;
       }
 
-      var motherId = Number(row[3]);
-      if (motherId === 0) {
+      var motherId = String(row[3]);
+      if (motherId === "0") {
         entry.motherId = undefined;
       }
       else {

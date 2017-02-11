@@ -12,6 +12,9 @@ var pedigr = (function() {
   };
 
   PedigreeGraph.prototype.getPerson = function(id) {
+    if (!this.persons[id]) {
+      throw "getPerson: id " + id + " not found";
+    }
     return this.persons[id];
   };
 
@@ -53,6 +56,9 @@ var pedigr = (function() {
   };
 
   Person.prototype.getParentageLink = function() {
+    if (!this.parentageLink) {
+      throw "getParentageLink: no parentage link exists";
+    }
     return this.parentageLink;
   };
 

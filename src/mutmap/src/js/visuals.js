@@ -210,6 +210,7 @@ var visuals = (function() {
         else {
           // TODO: should probably be some sort of search for the correct
           // child, rather than assuming it's the first one.
+          console.log(d.dataNode);
           dngData = d.dataNode.data.sampleIds.children[0].dngOutputData;
         }
 
