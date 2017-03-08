@@ -39,6 +39,7 @@
   function dngOverlay() {
     var vcfData = vcfParser.parseVCFText(dngOutputFileText);
 
+    console.log(vcfData);
     var mutationLocation = vcfData.records[0].INFO.DNL;
     var owner = findOwnerNode(mutationLocation);
 

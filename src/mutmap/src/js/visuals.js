@@ -210,8 +210,13 @@ var visuals = (function() {
         else {
           // TODO: should probably be some sort of search for the correct
           // child, rather than assuming it's the first one.
-          console.log(d.dataNode);
-          dngData = d.dataNode.data.sampleIds.children[0].dngOutputData;
+          //console.log(d.dataNode);
+          if (d.dataNode.data.sampleIds.children[0]) {
+            dngData = d.dataNode.data.sampleIds.children[0].dngOutputData;
+          }
+          else {
+            dngData = d.dataNode.data.sampleIds.dngOutputData;
+          }
         }
 
         d3.select("#id_display").attr("value", d.dataNode.id);
