@@ -6,26 +6,56 @@
 
 var visuals = (function() {
   "use strict";
+
+  var store = Redux.createStore(reducer);
+  store.subscribe(stateChanged);
+
+  var StateRecord = Immutable.Record({
+    activeNodeSelection: null,
+    activeNode: null,
+    showSampleTrees: false
+  });
+  var initialState = new StateRecord();
   
-  function doVisuals(graphData) {
+  var format = d3.format(",.6e");
+ 
+
+  function doVisuals(graphData, vcfData) {
 
     var nodes = graphData.nodes;
     var links = graphData.links;
-
-    var activeNode = null;
-
-    var format = d3.format(",.6e");
 
     d3.select("svg").remove();
 
     var zoom = d3.zoom()
       .on("zoom", zoomed);
 
+    var browserWrapper = d3.select('#browser_wrapper');
+
+    var minPos = d3.min(vcfData.records, function(d) {
+      return d.POS;
+    });
+    var maxPos = d3.max(vcfData.records, function(d) {
+      return d.POS;
+    });
+    var metadata = {
+      minPos: minPos,
+      maxPos: maxPos
+    };
+
+    var browser = genomeBrowserView.createGenomeBrowser()
+      .vcfData(vcfData)
+      .metadata(metadata);
+
+    browser(browserWrapper);
+
     var chartWrapper = d3.select("#chart_wrapper");
 
     var svg = chartWrapper.append("svg");
     var width = $("svg").parent().width();
     var height = $("svg").parent().height();
+
+    console.log(width, height);
 
     svg
         .attr("width", width)
@@ -34,29 +64,11 @@ var visuals = (function() {
     var container = svg.call(zoom)
       .append("g");
 
-    var treesHidden = true;
     d3.select("#sample_tree_toggle").on("click", function() {
-      var buttonSelection = d3.select(this);
-
-      d3.selectAll(".sampleTree")
-          .attr("visibility", function(d) {
-            var ret;
-
-            if (treesHidden) {
-              buttonSelection
-                  .attr("class", "btn btn-danger")
-                  .text("Hide Trees");
-              return "visible";
-            }
-            else {
-              buttonSelection
-                  .attr("class", "btn btn-success")
-                  .text("Show Trees");
-              return "hidden";
-            }
-          });
-
-      treesHidden = !treesHidden;
+      var action = {
+        type: "TOGGLE_SAMPLE_TREES"
+      };
+      store.dispatch(action);
     });
 
     var visualLinks = container
@@ -124,7 +136,6 @@ var visuals = (function() {
       return d.dataLink !== undefined && d.dataLink.data !== undefined;
     }
 
-
     var visualNodes = container
       .append("g")
         .attr("class", "nodes")
@@ -134,8 +145,7 @@ var visuals = (function() {
       .append("g")
         .attr("class", "node");
 
-
-    var tree = createSampleTree();
+    var tree = sampleTreeView.createSampleTree();
 
     visualNodes.selectAll(".yolo")
         .data(function(d) {
@@ -153,7 +163,8 @@ var visuals = (function() {
         }
       });
 
-    visualNodes.append("path")
+    var nodeSymbols = visualNodes.append("path")
+      .attr("class", "nodeSymbol")
       .attr("d", d3.symbol()
         .type(function(d) {
           if (d.type === "person") {
@@ -169,7 +180,7 @@ var visuals = (function() {
           }
         })
         .size(500))
-      .attr("fill", fillColor)
+      .style("fill", fillColor)
       .attr("visibility", function(d) {
         if (d.type === "marriage") {
           return "hidden";
@@ -195,127 +206,113 @@ var visuals = (function() {
     function zoomed() {
       container.attr("transform", d3.event.transform);
     }
+  }
 
-    function nodeClicked(d) {
-      if (d.type !== "marriage") {
-        d3.select(activeNode).style("fill", fillColor);
-        activeNode = this;
-        d3.select(this).style("fill", "DarkSeaGreen");
-
-        var dngData = null;
-
-        if (d.dataNode.data.dngOutputData !== undefined) {
-          dngData = d.dataNode.data.dngOutputData;
-        }
-        else {
-          // TODO: should probably be some sort of search for the correct
-          // child, rather than assuming it's the first one.
-          //console.log(d.dataNode);
-          if (d.dataNode.data.sampleIds.children[0]) {
-            dngData = d.dataNode.data.sampleIds.children[0].dngOutputData;
-          }
-          else {
-            dngData = d.dataNode.data.sampleIds.dngOutputData;
-          }
-        }
-
-        d3.select("#id_display").attr("value", d.dataNode.id);
-        d3.select("#gt_display").attr("value", dngData.GT);
-        d3.select("#gq_display").attr("value", dngData.GQ);
-        d3.select("#gp_display").attr("value", dngData.GP);
-        d3.select("#dp_display").attr("value", dngData.DP);
-        d3.select("#mup_display").attr("value", format(dngData.MUP));
-        d3.select("#mu1p_display").attr("value", format(dngData.MU1P));
-      }
+  function nodeClicked(d) {
+    if (d.type !== "marriage") {
+      var action = {
+        "type": "NODE_CLICKED",
+        "selection": this,
+        "node": d
+      };
+      store.dispatch(action);
     }
+  }
 
-    function fillColor(d) {
-      if (d.type === "person") {
-        if (d.dataNode.sex === "male") {
-          return "SteelBlue";
-        }
-        else if (d.dataNode.sex === "female") {
-          return "Tomato";
-        }
+  function reducer(state = initialState, action) {
+    switch(action.type) {
+      case "NODE_CLICKED":
+        return state
+          .set('activeNodeSelection', action.selection)
+          .set('activeNode', action.node);
+      case "TOGGLE_SAMPLE_TREES":
+        return state.set('showSampleTrees', !state.showSampleTrees);
+      default:
+        console.log("Invalid action");
+    }
+  }
+
+  function stateChanged() {
+
+    var state = store.getState();
+
+    if (state.activeNode) {
+      d3.selectAll(".nodeSymbol").style("fill", fillColor);
+      d3.select(state.activeNodeSelection).style("fill", "DarkSeaGreen");
+
+      var dngData = null;
+
+      var d = state.activeNode;
+      if (d.dataNode.data.dngOutputData !== undefined) {
+        dngData = d.dataNode.data.dngOutputData;
       }
       else {
-        return "black";
+        // TODO: should probably be some sort of search for the correct
+        // child, rather than assuming it's the first one.
+        //console.log(d.dataNode);
+        if (d.dataNode.data.sampleIds.children[0]) {
+          dngData = d.dataNode.data.sampleIds.children[0].dngOutputData;
+        }
+        else {
+          dngData = d.dataNode.data.sampleIds.dngOutputData;
+        }
       }
+
+      d3.select("#id_display").attr("value", d.dataNode.id);
+      d3.select("#gt_display").attr("value", dngData.GT);
+      d3.select("#gq_display").attr("value", dngData.GQ);
+      d3.select("#gp_display").attr("value", dngData.GP);
+      d3.select("#dp_display").attr("value", dngData.DP);
+      d3.select("#mup_display").attr("value", format(dngData.MUP));
+      d3.select("#mu1p_display").attr("value", format(dngData.MU1P));
     }
+
+    d3.selectAll(".sampleTree").attr("visibility", function(d) {
+      if (state.showSampleTrees) {
+        return "visible";
+      }
+      else {
+        return "hidden";
+      }
+    });
+
+    d3.select("#sample_tree_toggle")
+      .attr("class", function(d) {
+        if (state.showSampleTrees) {
+          return "btn btn-danger";
+        }
+        else {
+          return "btn btn-success";
+        }
+      })
+      .text(function(d) {
+        if (state.showSampleTrees) {
+          return "Hide Trees";
+        }
+        else {
+          return "Show Trees";
+        }
+      });;
   }
 
   function svgTranslateString(x, y) {
     return "translate(" + x + "," + y + ")";
   }
 
-  return { doVisuals: doVisuals };
-
-  function createSampleTree() {
-
-    var node;
-    var sampleTree;
-
-    function my(selection) {
-
-        var root = d3.hierarchy(node.dataNode.data.sampleIds);
-        var treeWidth = 160;
-        var treeHeight = 50;
-        var cluster = d3.cluster().size([treeWidth, treeHeight]);
-        cluster(root);
-
-        var rootNode = root.descendants()[0];
-
-        sampleTree = selection.append("g")
-            .attr("class", "sampleTree")
-            .attr("transform", function(d) {
-              // center the tree with the tree's root node overlapping the
-              // current node
-              return svgTranslateString(-rootNode.x, -rootNode.y);
-            })
-            .attr("visibility", "hidden");
-
-        var sampleTreeLinks = sampleTree.selectAll("sampleTreeLink")
-            .data(root.descendants().slice(1))
-          .enter().append("g")
-            .attr("class", "sampleTreeLink")
-          .append("line")
-            .attr("stroke", "#999")
-            .attr("x1", function(d) { return d.x; })
-            .attr("y1", function(d) { return d.y; })
-            .attr("x2", function(d) { return d.parent.x; })
-            .attr("y2", function(d) { return d.parent.y; });
-
-        var sampleTreeNodes = sampleTree.selectAll("sampleTreeNode")
-            .data(root.descendants().slice(1))
-          .enter().append("g")
-            .attr("class", "sampleTreeNode")
-            .attr("transform", function(d) {
-              return svgTranslateString(d.x, d.y);
-            });
-          
-        sampleTreeNodes.append("circle")
-            .attr("r", 5)
-            .attr("fill", "green");
-
-        sampleTreeNodes.append("text")
-            .attr("dx", 10)
-            .attr("dy", ".35em")
-            .text(function(d) {
-              return d.data.name;
-            });
+  function fillColor(d) {
+    if (d.type === "person") {
+      if (d.dataNode.sex === "male") {
+        return "SteelBlue";
+      }
+      else if (d.dataNode.sex === "female") {
+        return "Tomato";
+      }
     }
-
-    my.node = function(value) {
-      if (!arguments.length) return node;
-      node = value;
-      return my;
-    };
-
-    my.sampleTreeSelection = function() {
-      return sampleTree;
-    };
-
-    return my;
+    else {
+      return "black";
+    }
   }
+
+  return { doVisuals: doVisuals };
 
 }());

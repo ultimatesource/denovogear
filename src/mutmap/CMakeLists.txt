@@ -9,8 +9,9 @@ if (Rscript_FOUND)
   
   # Note: order is important for dependencies here
   set(JS_FILES ${JS_DIR}/utils.js ${JS_DIR}/dng_vcf_parser.js
-      ${JS_DIR}/ped_parser.js ${JS_DIR}/pedigr.js ${JS_DIR}/visuals.js
-      ${JS_DIR}/dng_vis.js)
+      ${JS_DIR}/ped_parser.js ${JS_DIR}/pedigr.js
+      ${JS_DIR}/genome_browser_view.js ${JS_DIR}/sample_tree_view.js
+      ${JS_DIR}/visuals.js ${JS_DIR}/dng_vis.js)
   
   add_custom_command(
       OUTPUT ${BUNDLE_FILE}

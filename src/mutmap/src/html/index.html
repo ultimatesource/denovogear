@@ -34,7 +34,10 @@ html,body {
 <body>
 
 <div class='container full-height'>
-  <div class='row full-height'>
+  <div class='row'>
+    <div id='browser_wrapper'></div>
+  </div>
+  <div class='row'>
     <div id='chart_wrapper' class='col-xs-8 panel panel-default full-height'></div>
     <div id='details_wrapper' class='col-xs-4 panel panel-default'>
       <div>ID:</div>
@@ -69,6 +72,8 @@ html,body {
 <!--<script src="https://cdn.rawgit.com/hammerlab/vcf.js/7ee03fefd387ff3520a6a4f88385105a7252aa25/vcf.js"></script>-->
 <script src="https://rawgit.com/anderspitman/vcf.js/add-contig-header/vcf.js"></script>
 <script src="https://cdn.rawgit.com/daviddao/biojs-io-newick/4b0988cbd169b8b44b2a81959a69ca1686b05bff/build/biojs-io-newick.min.js"></script>
+<script src="https://unpkg.com/redux@3.6.0/dist/redux.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/immutable/3.8.1/immutable.min.js"></script>
 
 <script>
 <!--BUNDLE_JS_PLACEHOLDER-->

@@ -21,9 +21,14 @@ var utils = (function() {
     return c;
   }
 
+  function svgTranslateString(x, y) {
+    return "translate(" + x + "," + y + ")";
+  }
+
   return {
     halfwayBetween: halfwayBetween,
-    distanceBetweenPoints: distanceBetweenPoints
+    distanceBetweenPoints: distanceBetweenPoints,
+    svgTranslateString: svgTranslateString
   };
 
 }());

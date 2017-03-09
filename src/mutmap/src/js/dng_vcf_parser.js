@@ -8,6 +8,7 @@ var vcfParser = (function() {
 
   function parseVCFText(text) {
     var parsed = vcf.parser()(text);
+    parsed.header.contig[0].length = +parsed.header.contig[0].length;
     return parsed;
   }
 

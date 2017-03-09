@@ -29,15 +29,15 @@
   var kinshipPedigreeData = layoutData;
   var graphData = processPedigree(kinshipPedigreeData);
 
+  var vcfData = vcfParser.parseVCFText(dngOutputFileText);
   dngOverlay();
-  visuals.doVisuals(graphData);
+  visuals.doVisuals(graphData, vcfData);
 
   window.addEventListener("resize", function() {
     visuals.doVisuals(graphData);
   });
 
   function dngOverlay() {
-    var vcfData = vcfParser.parseVCFText(dngOutputFileText);
 
     console.log(vcfData);
     var mutationLocation = vcfData.records[0].INFO.DNL;
