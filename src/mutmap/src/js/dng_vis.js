@@ -10,7 +10,7 @@
 /* global layoutData */
 /* global dngOutputFileText */
 
-(function() {
+(function($, d3, store) {
   "use strict";
 
   // The placeholder tags below will be replaced with the correct data objects
@@ -31,10 +31,10 @@
 
   var vcfData = vcfParser.parseVCFText(dngOutputFileText);
   dngOverlay();
-  visuals.doVisuals(graphData, vcfData);
+  visuals.render(graphData, vcfData);
 
   window.addEventListener("resize", function() {
-    visuals.doVisuals(graphData);
+    visuals.render(graphData, vcfData);
   });
 
   function dngOverlay() {
@@ -328,5 +328,5 @@
   function distanceBetweenNodes(nodeA, nodeB) {
     return utils.distanceBetweenPoints(nodeA.x, nodeA.y, nodeB.x, nodeB.y);
   }
-  
-}());
+ 
+}($, d3, store));

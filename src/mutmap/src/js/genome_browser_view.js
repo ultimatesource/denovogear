@@ -2,6 +2,7 @@ var genomeBrowserView = (function($, d3) {
 
   var vcfData;
   var metadata;
+  var store;
 
   function createGenomeBrowser() {
 
@@ -55,9 +56,12 @@ var genomeBrowserView = (function($, d3) {
           .attr("class", "mutation")
           .attr("x", function(d) { return xScale(d.POS); })
           .attr("y", 0)
-          .attr("width", 5)
+          .attr("width", 10)
           .attr("height", 100)
-          .style("fill", "tomato");
+          .style("fill", "tomato")
+          .on("click", function(d) {
+            mutationClicked(d);
+          });
     }
 
     my.vcfData = function(value) {
@@ -71,6 +75,20 @@ var genomeBrowserView = (function($, d3) {
       metadata = value;
       return my;
     };
+
+    my.store = function(value) {
+      if (!arguments.length) return store;
+      store = value
+      return my;
+    };
+
+    function mutationClicked(d) {
+      var action = {
+        type: "MUTATION_CLICKED",
+        mutation: d
+      };
+      store.dispatch(action);
+    }
 
     return my;
   }

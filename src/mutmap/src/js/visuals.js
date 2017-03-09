@@ -4,28 +4,20 @@
 /* global utils */
 /* exported visuals */
 
-var visuals = (function() {
+var visuals = (function($, d3, store) {
   "use strict";
 
-  var store = Redux.createStore(reducer);
-  store.subscribe(stateChanged);
-
-  var StateRecord = Immutable.Record({
-    activeNodeSelection: null,
-    activeNode: null,
-    showSampleTrees: false
-  });
-  var initialState = new StateRecord();
-  
   var format = d3.format(",.6e");
+
+  store.subscribe(stateChanged);
  
 
-  function doVisuals(graphData, vcfData) {
+  function render(graphData, vcfData) {
 
     var nodes = graphData.nodes;
     var links = graphData.links;
 
-    d3.select("svg").remove();
+    d3.selectAll("svg").remove();
 
     var zoom = d3.zoom()
       .on("zoom", zoomed);
@@ -44,6 +36,7 @@ var visuals = (function() {
     };
 
     var browser = genomeBrowserView.createGenomeBrowser()
+      .store(store)
       .vcfData(vcfData)
       .metadata(metadata);
 
@@ -219,19 +212,6 @@ var visuals = (function() {
     }
   }
 
-  function reducer(state = initialState, action) {
-    switch(action.type) {
-      case "NODE_CLICKED":
-        return state
-          .set('activeNodeSelection', action.selection)
-          .set('activeNode', action.node);
-      case "TOGGLE_SAMPLE_TREES":
-        return state.set('showSampleTrees', !state.showSampleTrees);
-      default:
-        console.log("Invalid action");
-    }
-  }
-
   function stateChanged() {
 
     var state = store.getState();
@@ -313,6 +293,6 @@ var visuals = (function() {
     }
   }
 
-  return { doVisuals: doVisuals };
+  return { render: render };
 
-}());
+}($, d3, store));
