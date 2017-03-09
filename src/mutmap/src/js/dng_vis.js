@@ -1,7 +1,7 @@
 // eslint exceptions
 //
 /* global pedParser */
-/* global visuals */
+/* global pedigreeView*/
 /* global vcfParser */
 /* global pedigr */
 /* global utils */
@@ -10,7 +10,7 @@
 /* global layoutData */
 /* global dngOutputFileText */
 
-(function($, d3, store) {
+(function($, d3, Immutable, store) {
   "use strict";
 
   // The placeholder tags below will be replaced with the correct data objects
@@ -28,30 +28,54 @@
   var pedGraph = buildGraphFromPedigree(pedigreeData);
   var kinshipPedigreeData = layoutData;
   var graphData = processPedigree(kinshipPedigreeData);
-
   var vcfData = vcfParser.parseVCFText(dngOutputFileText);
-  dngOverlay();
-  visuals.render(graphData, vcfData);
+  var immutableVcfData = Immutable.fromJS(vcfData);
+
+  // Create browser view
+  var browserWrapper = d3.select('#browser_wrapper');
+  var minPos = d3.min(vcfData.records, function(d) {
+    return d.POS;
+  });
+  var maxPos = d3.max(vcfData.records, function(d) {
+    return d.POS;
+  });
+  var metadata = {
+    minPos: minPos,
+    maxPos: maxPos
+  };
+  var browser = genomeBrowserView.createGenomeBrowser()
+    .vcfData(vcfData)
+    .metadata(metadata);
+  browser(browserWrapper);
+
+  // Create pedigree view
+  dngOverlay(vcfData.header, vcfData.records[2]);
+  pedigreeView.render(graphData, vcfData);
 
   window.addEventListener("resize", function() {
-    visuals.render(graphData, vcfData);
+    pedigreeView.render(graphData, vcfData);
   });
 
-  function dngOverlay() {
+  store.subscribe(function() {
+    var state = store.getState();
+    dngOverlay(vcfData.header, vcfData.records[state.mutationRecordIndex]);
+    pedigreeView.render(graphData, vcfData);
+  });
 
-    console.log(vcfData);
-    var mutationLocation = vcfData.records[0].INFO.DNL;
+  function dngOverlay(header, record) {
+
+    var mutationLocation = record.INFO.DNL;
     var owner = findOwnerNode(mutationLocation);
 
     if (owner !== undefined) {
       var ownerParentageLink = owner.getParentageLink();
       var parentageLinkData = {
-        mutation: vcfData.records[0].INFO.DNT
+        mutation: record.INFO.DNT
       };
       ownerParentageLink.setData(parentageLinkData);
 
-      vcfData.header.sampleNames.forEach(function(sampleName) {
-        var format = vcfData.records[0][sampleName];
+      header.sampleNames.forEach(function(sampleName) {
+        var format = record[sampleName];
 
         if (isPersonNode(sampleName)) {
           var id = getIdFromSampleName(sampleName);
@@ -329,4 +353,4 @@
     return utils.distanceBetweenPoints(nodeA.x, nodeA.y, nodeB.x, nodeB.y);
   }
  
-}($, d3, store));
+}($, d3, Immutable, store));

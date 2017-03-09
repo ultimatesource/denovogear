@@ -2,7 +2,6 @@ var genomeBrowserView = (function($, d3) {
 
   var vcfData;
   var metadata;
-  var store;
 
   function createGenomeBrowser() {
 
@@ -59,8 +58,9 @@ var genomeBrowserView = (function($, d3) {
           .attr("width", 10)
           .attr("height", 100)
           .style("fill", "tomato")
-          .on("click", function(d) {
-            mutationClicked(d);
+          .on("click", function(d, i) {
+            console.log(i);
+            mutationClicked(d, i);
           });
     }
 
@@ -76,16 +76,11 @@ var genomeBrowserView = (function($, d3) {
       return my;
     };
 
-    my.store = function(value) {
-      if (!arguments.length) return store;
-      store = value
-      return my;
-    };
-
-    function mutationClicked(d) {
+    function mutationClicked(d, i) {
       var action = {
         type: "MUTATION_CLICKED",
-        mutation: d
+        mutationRecord: d,
+        mutationRecordIndex: i
       };
       store.dispatch(action);
     }
@@ -97,4 +92,4 @@ var genomeBrowserView = (function($, d3) {
     createGenomeBrowser: createGenomeBrowser
   };
 
-}($, d3));
+}($, d3, store));

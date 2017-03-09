@@ -12,7 +12,7 @@ if (Rscript_FOUND)
       ${JS_DIR}/dng_vcf_parser.js
       ${JS_DIR}/ped_parser.js ${JS_DIR}/pedigr.js
       ${JS_DIR}/genome_browser_view.js ${JS_DIR}/sample_tree_view.js
-      ${JS_DIR}/visuals.js ${JS_DIR}/dng_vis.js)
+      ${JS_DIR}/pedigree_view.js ${JS_DIR}/dng_vis.js)
   
   add_custom_command(
       OUTPUT ${BUNDLE_FILE}

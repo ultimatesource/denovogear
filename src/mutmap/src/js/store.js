@@ -5,7 +5,8 @@ var store = (function() {
   var StateRecord = Immutable.Record({
     activeNodeSelection: null,
     activeNode: null,
-    showSampleTrees: false
+    showSampleTrees: false,
+    mutationRecordIndex: 0
   });
   var initialState = new StateRecord();
  
@@ -19,8 +20,7 @@ var store = (function() {
         return state.set('showSampleTrees', !state.showSampleTrees);
       case "MUTATION_CLICKED":
         console.log(action);
-        //return state.set();
-        return state;
+        return state.set('mutationRecordIndex', action.mutationRecordIndex);
       default:
         console.log("Invalid action");
         return state;

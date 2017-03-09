@@ -2,9 +2,9 @@
 //
 /* global d3 */
 /* global utils */
-/* exported visuals */
+/* exported pedigreeView */
 
-var visuals = (function($, d3, store) {
+var pedigreeView = (function($, d3, store) {
   "use strict";
 
   var format = d3.format(",.6e");
@@ -17,34 +17,15 @@ var visuals = (function($, d3, store) {
     var nodes = graphData.nodes;
     var links = graphData.links;
 
-    d3.selectAll("svg").remove();
+    d3.select(".pedigreeSvg").remove();
 
     var zoom = d3.zoom()
       .on("zoom", zoomed);
 
-    var browserWrapper = d3.select('#browser_wrapper');
-
-    var minPos = d3.min(vcfData.records, function(d) {
-      return d.POS;
-    });
-    var maxPos = d3.max(vcfData.records, function(d) {
-      return d.POS;
-    });
-    var metadata = {
-      minPos: minPos,
-      maxPos: maxPos
-    };
-
-    var browser = genomeBrowserView.createGenomeBrowser()
-      .store(store)
-      .vcfData(vcfData)
-      .metadata(metadata);
-
-    browser(browserWrapper);
-
     var chartWrapper = d3.select("#chart_wrapper");
 
-    var svg = chartWrapper.append("svg");
+    var svg = chartWrapper.append("svg")
+        .attr("class", "pedigreeSvg");
     var width = $("svg").parent().width();
     var height = $("svg").parent().height();
 
