@@ -48,18 +48,21 @@
     .metadata(metadata);
   browser(browserWrapper);
 
+  var pedView = new pedigreeView.PedigreeView(graphData, vcfData);
+
   // Create pedigree view
-  dngOverlay(vcfData.header, vcfData.records[2]);
-  pedigreeView.render(graphData, vcfData);
+  dngOverlay(vcfData.header, vcfData.records[0]);
+  pedView.create();
+  pedView.update(graphData, vcfData);
 
   window.addEventListener("resize", function() {
-    pedigreeView.render(graphData, vcfData);
+    pedView.update();
   });
 
   store.subscribe(function() {
     var state = store.getState();
     dngOverlay(vcfData.header, vcfData.records[state.mutationRecordIndex]);
-    pedigreeView.render(graphData, vcfData);
+    pedView.update();
   });
 
   function dngOverlay(header, record) {

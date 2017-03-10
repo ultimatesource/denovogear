@@ -9,11 +9,6 @@
 
 <style>
 
-.links line {
-  //stroke: #999;
-  stroke-opacity: 0.6;
-}
-
 .node text {
   pointer-events: none;
   font: 10px sans-serif;
@@ -27,6 +22,9 @@ html,body {
   height: 100%;
 }
 
+.pedigree-row {
+  height: 500px;
+}
 
 </style>
 
@@ -37,8 +35,8 @@ html,body {
   <div class='row'>
     <div id='browser_wrapper'></div>
   </div>
-  <div class='row'>
-    <div id='chart_wrapper' class='col-xs-8 panel panel-default full-height'>
+  <div class='row pedigree-row'>
+    <div id='pedigree_wrapper' class='col-xs-8 panel panel-default full-height'>
     </div>
     <div id='details_wrapper' class='col-xs-4 panel panel-default'>
       <div>ID:</div>
