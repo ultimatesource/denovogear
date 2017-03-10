@@ -1,7 +1,7 @@
 // eslint exceptions
 //
 /* global pedParser */
-/* global pedigreeView*/
+/* global PedigreeView*/
 /* global vcfParser */
 /* global pedigr */
 /* global utils */
@@ -10,7 +10,7 @@
 /* global layoutData */
 /* global dngOutputFileText */
 
-(function($, d3, Immutable, store) {
+(function($, d3, store) {
   "use strict";
 
   // The placeholder tags below will be replaced with the correct data objects
@@ -29,7 +29,6 @@
   var kinshipPedigreeData = layoutData;
   var graphData = processPedigree(kinshipPedigreeData);
   var vcfData = vcfParser.parseVCFText(dngOutputFileText);
-  var immutableVcfData = Immutable.fromJS(vcfData);
 
   // Create browser view
   var browserWrapper = d3.select('#browser_wrapper');
@@ -48,12 +47,15 @@
     .metadata(metadata);
   browser(browserWrapper);
 
-  var pedView = new pedigreeView.PedigreeView(graphData, vcfData);
+
+  dngOverlay(vcfData.header, vcfData.records[0]);
 
   // Create pedigree view
-  dngOverlay(vcfData.header, vcfData.records[0]);
-  pedView.create();
-  pedView.update(graphData, vcfData);
+  var pedView = new PedigreeView(d3.select("#pedigree_wrapper"), graphData);
+  pedView.update();
+
+  // Create stats view
+  var statsView = new StatsView(d3.select("#stats_wrapper"));
 
   window.addEventListener("resize", function() {
     pedView.update();
@@ -356,4 +358,4 @@
     return utils.distanceBetweenPoints(nodeA.x, nodeA.y, nodeB.x, nodeB.y);
   }
  
-}($, d3, Immutable, store));
+}($, d3, store));

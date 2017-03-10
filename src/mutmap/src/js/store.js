@@ -1,4 +1,5 @@
-var store = (function() {
+var store = (function(Immutable) {
+  "use strict";
   
   var theStore = Redux.createStore(reducer);
 
@@ -19,13 +20,12 @@ var store = (function() {
       case "TOGGLE_SAMPLE_TREES":
         return state.set('showSampleTrees', !state.showSampleTrees);
       case "MUTATION_CLICKED":
-        console.log(action);
         return state.set('mutationRecordIndex', action.mutationRecordIndex);
       default:
-        console.log("Invalid action");
+        console.log("Unknown action:", action);
         return state;
     }
   }
 
   return theStore;
-}());
+}(Immutable));

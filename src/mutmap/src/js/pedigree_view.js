@@ -2,35 +2,29 @@
 //
 /* global d3 */
 /* global utils */
-/* exported pedigreeView */
+/* exported PedigreeView */
 
-var pedigreeView = (function($, d3, store) {
+var PedigreeView = (function($, d3, store) {
   "use strict";
-
-  var format = d3.format(",.6e");
 
   store.subscribe(stateChanged);
 
-  var PedigreeView = function(graphData) {
+  d3.select("#sample_tree_toggle").on("click", function() {
+    var action = {
+      type: "TOGGLE_SAMPLE_TREES"
+    };
+    store.dispatch(action);
+  });
+
+  var PedigreeView = function(selection, graphData) {
+
     this.nodes = graphData.nodes;
     this.links = graphData.links;
-  };
-
-  PedigreeView.prototype.create = function() {
-
-    d3.select("#sample_tree_toggle").on("click", function() {
-      var action = {
-        type: "TOGGLE_SAMPLE_TREES"
-      };
-      store.dispatch(action);
-    });
 
     var zoom = d3.zoom()
       .on("zoom", this.zoomed.bind(this));
 
-    var chartWrapper = d3.select("#pedigree_wrapper");
-
-    var svg = chartWrapper.append("svg").attr("class", "pedigree-svg");
+    var svg = selection.append("svg").attr("class", "pedigree-svg");
     var width = $(".pedigree-svg").parent().width();
     var height = $(".pedigree-svg").parent().height();
 
@@ -216,6 +210,20 @@ var pedigreeView = (function($, d3, store) {
     }
   }
 
+  function fillColor(d) {
+    if (d.type === "person") {
+      if (d.dataNode.sex === "male") {
+        return "SteelBlue";
+      }
+      else if (d.dataNode.sex === "female") {
+        return "Tomato";
+      }
+    }
+    else {
+      return "black";
+    }
+  }
+
   function stateChanged() {
 
     var state = store.getState();
@@ -223,31 +231,6 @@ var pedigreeView = (function($, d3, store) {
     if (state.activeNode) {
       d3.selectAll(".nodeSymbol").style("fill", fillColor);
       d3.select(state.activeNodeSelection).style("fill", "DarkSeaGreen");
-
-      var dngData = null;
-
-      var d = state.activeNode;
-      if (d.dataNode.data.dngOutputData !== undefined) {
-        dngData = d.dataNode.data.dngOutputData;
-      }
-      else {
-        // TODO: should probably be some sort of search for the correct
-        // child, rather than assuming it's the first one.
-        if (d.dataNode.data.sampleIds.children[0]) {
-          dngData = d.dataNode.data.sampleIds.children[0].dngOutputData;
-        }
-        else {
-          dngData = d.dataNode.data.sampleIds.dngOutputData;
-        }
-      }
-
-      d3.select("#id_display").attr("value", d.dataNode.id);
-      d3.select("#gt_display").attr("value", dngData.GT);
-      d3.select("#gq_display").attr("value", dngData.GQ);
-      d3.select("#gp_display").attr("value", dngData.GP);
-      d3.select("#dp_display").attr("value", dngData.DP);
-      d3.select("#mup_display").attr("value", format(dngData.MUP));
-      d3.select("#mu1p_display").attr("value", format(dngData.MU1P));
     }
 
     d3.selectAll(".sampleTree").attr("visibility", function(d) {
@@ -278,20 +261,7 @@ var pedigreeView = (function($, d3, store) {
       });;
   }
 
-  function fillColor(d) {
-    if (d.type === "person") {
-      if (d.dataNode.sex === "male") {
-        return "SteelBlue";
-      }
-      else if (d.dataNode.sex === "female") {
-        return "Tomato";
-      }
-    }
-    else {
-      return "black";
-    }
-  }
 
-  return { PedigreeView: PedigreeView };
+  return PedigreeView;
 
 }($, d3, store));

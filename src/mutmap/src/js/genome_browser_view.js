@@ -1,4 +1,5 @@
 var genomeBrowserView = (function($, d3) {
+  "use strict";
 
   var vcfData;
   var metadata;
@@ -8,7 +9,6 @@ var genomeBrowserView = (function($, d3) {
     function my(selection) {
 
       var contigLength = vcfData.header.contig[0].length;
-      console.log(contigLength);
 
       var svg = selection.append("svg")
           .attr("class", "browserSvg");
@@ -58,10 +58,7 @@ var genomeBrowserView = (function($, d3) {
           .attr("width", 10)
           .attr("height", 100)
           .style("fill", "tomato")
-          .on("click", function(d, i) {
-            console.log(i);
-            mutationClicked(d, i);
-          });
+          .on("click", function(d, i) { mutationClicked(d, i); });
     }
 
     my.vcfData = function(value) {
