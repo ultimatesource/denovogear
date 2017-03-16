@@ -11,9 +11,9 @@ var genomeBrowserView = (function($, d3) {
       var contigLength = vcfData.header.contig[0].length;
 
       var svg = selection.append("svg")
-          .attr("class", "browserSvg");
-      var width = $(".browserSvg").parent().width();
-      var height = $(".browserSvg").parent().height();
+          .attr("class", "browser-svg");
+      var width = $(".browser-svg").parent().width();
+      var height = $(".browser-svg").parent().height();
 
       svg.attr("width", width).attr("height", height);
       

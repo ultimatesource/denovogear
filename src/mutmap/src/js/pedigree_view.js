@@ -15,6 +15,7 @@ var PedigreeView = (function($, d3, store) {
     this._graphData = graphData;
     this._parentElement = parentElement;
     this._create();
+    this.update();
   };
 
   PedigreeView.prototype._create = function() {
@@ -24,14 +25,7 @@ var PedigreeView = (function($, d3, store) {
 
     var svg = this._parentElement.select(".pedigree-svg");
 
-    var width = $(".pedigree-svg").parent().width();
-    var height = $(".pedigree-svg").parent().height();
-
-    console.log(width, height);
-
-    svg
-        .attr("width", width)
-        .attr("height", height);
+    svg.style("height", "100%").style("width", "100%");
 
     var zoom = d3.zoom()
       .on("zoom", zoomed.bind(this));

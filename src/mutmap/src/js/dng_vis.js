@@ -30,7 +30,17 @@
   var graphData = processPedigree(kinshipPedigreeData);
   var vcfData = vcfParser.parseVCFText(dngOutputFileText);
 
-  // Create browser view
+  // Create genome browser views
+  var fullGenomeBrowserWrapper = d3.select("#full_genome_browser_wrapper");
+  var fullGenomeMetadata = {
+    minPos: 0,
+    maxPos: vcfData.header.contig[0].length
+  };
+  var browser = genomeBrowserView.createGenomeBrowser()
+    .vcfData(vcfData)
+    .metadata(fullGenomeMetadata);
+  browser(fullGenomeBrowserWrapper);
+
   var browserWrapper = d3.select('#browser_wrapper');
   var minPos = d3.min(vcfData.records, function(d) {
     return d.POS;
@@ -42,9 +52,7 @@
     minPos: minPos,
     maxPos: maxPos
   };
-  var browser = genomeBrowserView.createGenomeBrowser()
-    .vcfData(vcfData)
-    .metadata(metadata);
+  browser.metadata(metadata);
   browser(browserWrapper);
 
 
@@ -52,7 +60,6 @@
 
   // Create pedigree view
   var pedView = new PedigreeView(d3.select("#pedigree_wrapper"), graphData);
-  pedView.update();
 
   // Create stats view
   var statsView = new StatsView(d3.select("#stats_wrapper"));
