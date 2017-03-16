@@ -2,95 +2,84 @@
 //
 /* global d3 */
 /* global utils */
-/* exported PedigreeView */
+/* exported pedigreeView */
 
 var PedigreeView = (function($, d3, store) {
   "use strict";
 
+  var format = d3.format(",.6e");
+
   store.subscribe(stateChanged);
 
-  d3.select("#sample_tree_toggle").on("click", function() {
-    var action = {
-      type: "TOGGLE_SAMPLE_TREES"
-    };
-    store.dispatch(action);
-  });
+  var PedigreeView = function(parentElement, graphData) {
+    this._graphData = graphData;
+    this._parentElement = parentElement;
+    this._create();
+  };
 
-  var PedigreeView = function(selection, graphData) {
+  PedigreeView.prototype._create = function() {
 
-    this.nodes = graphData.nodes;
-    this.links = graphData.links;
+    this._parentElement.append("svg")
+        .attr("class", "pedigree-svg");
 
-    var zoom = d3.zoom()
-      .on("zoom", this.zoomed.bind(this));
+    var svg = this._parentElement.select(".pedigree-svg");
 
-    var svg = selection.append("svg").attr("class", "pedigree-svg");
     var width = $(".pedigree-svg").parent().width();
     var height = $(".pedigree-svg").parent().height();
 
-    svg.attr("width", width).attr("height", height);
+    console.log(width, height);
 
-    this.container = svg.call(zoom)
+    svg
+        .attr("width", width)
+        .attr("height", height);
+
+    var zoom = d3.zoom()
+      .on("zoom", zoomed.bind(this));
+    this._container = svg.call(zoom)
       .append("g")
-        .attr("class", "pedigree-container");
+        .attr("class", "container");
 
-    this.linkContainer = this.container
-      .append("g")
-        .attr("class", "link-container");
+    this._links_container = this._container.append("g")
+        .attr("class", "links-container");
 
-    this.nodeContainer = this.container
-      .append("g")
-        .attr("class", "node-container");
+    this._nodes_container = this._container.append("g")
+        .attr("class", "nodes-container");
 
-    this.update();
+    d3.select("#sample_tree_toggle").on("click", function() {
+      var action = {
+        type: "TOGGLE_SAMPLE_TREES"
+      };
+      store.dispatch(action);
+    });
+
+    function zoomed() {
+      this._container.attr("transform", d3.event.transform);
+    }
   };
-
-
-  PedigreeView.prototype.zoomed = function() {
-      this.container.attr("transform", d3.event.transform);
-  }
+ 
 
   PedigreeView.prototype.update = function() {
 
-    var visualLinks = this.linkContainer 
-      .selectAll(".link")
-        .data(this.links);
+    var nodes = this._graphData.nodes;
 
-    // update selection
-    visualLinks.selectAll(".link__line")
-        .attr("stroke-width", function(d) {
-          if (linkHasData(d)) {
-            return 5;
-          }
-          return 1;
-        })
-        .attr("stroke", function(d) {
-          if (linkHasData(d)) {
-            return "green";
-          }
+    this._updateLinks();
+    this._updateNodes();
+  };
 
-          return "#999";
-        });
+  PedigreeView.prototype._updateLinks = function() {
 
-    // update selection
-    visualLinks.selectAll(".link__text")
-        .attr("dx", function(d) {
-          return utils.halfwayBetween(d.source.x, d.target.x) - 45;
-        })
-        .attr("dy", function(d) {
-          return utils.halfwayBetween(d.source.y, d.target.y);
-        })
-        .text(function(d) {
-          if (linkHasData(d)) {
-            return d.dataLink.data.mutation;
-          }
-        });
+    var links = this._graphData.links;
 
-    var linksEnter = visualLinks.enter().append("g")
+    var visualLinksUpdate = this._links_container.selectAll(".link")
+        .data(links);
+
+    var visualLinksEnter = visualLinksUpdate.enter()
+      .append("g")
         .attr("class", "link");
 
-    linksEnter.append("path")
-        .attr("class", "link__line")
+    var visualLinksEnterUpdate = visualLinksEnter.merge(visualLinksUpdate);
+
+    visualLinksEnter.append("path")
         .attr("d", function(d) {
           if (d.type == "child" || d.type == "spouse") {
             return "M" + d.source.x + "," + d.source.y +
@@ -115,32 +104,54 @@ var PedigreeView = (function($, d3, store) {
         .attr("x1", function(d) { return d.source.x; })
         .attr("y1", function(d) { return d.source.y; })
         .attr("x2", function(d) { return d.target.x; })
-        .attr("y2", function(d) { return d.target.y; })
-        .attr("stroke-width", function(d) { return 1; })
-        .attr("stroke", function(d) { return "#999"; });
+        .attr("y2", function(d) { return d.target.y; });
 
-    linksEnter.append("text")
-        .attr("class", "link__text")
-        .attr("dx", function(d) {
-          return utils.halfwayBetween(d.source.x, d.target.x) - 45;
+    visualLinksEnter.append("text")
+      .attr("dx", function(d) {
+        return utils.halfwayBetween(d.source.x, d.target.x) - 45;
+      })
+      .attr("dy", function(d) {
+        return utils.halfwayBetween(d.source.y, d.target.y);
+      });
+
+    visualLinksEnterUpdate.select("text")
+      .text(function(d) {
+        if (linkHasData(d)) {
+          return d.dataLink.data.mutation;
+        }
+      });
+
+    visualLinksEnterUpdate.select("path")
+        .attr("stroke-width", function(d) {
+          if (linkHasData(d)) {
+            return 5;
+          }
+          return 1;
         })
-        .attr("dy", function(d) {
-          return utils.halfwayBetween(d.source.y, d.target.y);
+        .attr("stroke", function(d) {
+          if (linkHasData(d)) {
+            return "green";
+          }
+
+          return "#999";
         });
 
     function linkHasData(d) {
       return d.dataLink !== undefined && d.dataLink.data !== undefined;
     }
+  };
 
-    var visualNodes = this.nodeContainer.selectAll(".node")
-      .data(this.nodes)
-      .enter()
+  PedigreeView.prototype._updateNodes = function() {
+    var visualNodesUpdate = this._nodes_container.selectAll(".node")
+        .data(this._graphData.nodes);
+
+    var visualNodesEnter = visualNodesUpdate.enter()
       .append("g")
         .attr("class", "node");
 
     var tree = sampleTreeView.createSampleTree();
 
-    visualNodes.selectAll(".yolo")
+    visualNodesEnter.selectAll(".yolo")
         .data(function(d) {
           if (d.type == "person") {
             return [d];
@@ -156,7 +167,7 @@ var PedigreeView = (function($, d3, store) {
         }
       });
 
-    var nodeSymbols = visualNodes.append("path")
+    var nodeSymbols = visualNodesEnter.append("path")
       .attr("class", "nodeSymbol")
       .attr("d", d3.symbol()
         .type(function(d) {
@@ -184,20 +195,21 @@ var PedigreeView = (function($, d3, store) {
       })
       .on("click", nodeClicked);
 
-    visualNodes.append("text")
+    visualNodesEnter.append("text")
       .attr("dx", 15)
       .attr("dy", 15)
       .text(function(d) { 
         if (d.type !== "marriage") {
           return d.dataNode.id;
         }
-      });
+      })
+      .style("pointer-events", "none")
+      .style("font", "10px sans-serif");
 
-    visualNodes.attr("transform", function(d) {
-      return utils.svgTranslateString(d.x, d.y);
+    visualNodesEnter.attr("transform", function(d) {
+      return svgTranslateString(d.x, d.y);
     });
-
-  }
+  };
 
   function nodeClicked(d) {
     if (d.type !== "marriage") {
@@ -210,20 +222,6 @@ var PedigreeView = (function($, d3, store) {
     }
   }
 
-  function fillColor(d) {
-    if (d.type === "person") {
-      if (d.dataNode.sex === "male") {
-        return "SteelBlue";
-      }
-      else if (d.dataNode.sex === "female") {
-        return "Tomato";
-      }
-    }
-    else {
-      return "black";
-    }
-  }
-
   function stateChanged() {
 
     var state = store.getState();
@@ -231,6 +229,32 @@ var PedigreeView = (function($, d3, store) {
     if (state.activeNode) {
       d3.selectAll(".nodeSymbol").style("fill", fillColor);
       d3.select(state.activeNodeSelection).style("fill", "DarkSeaGreen");
+
+      var dngData = null;
+
+      var d = state.activeNode;
+      if (d.dataNode.data.dngOutputData !== undefined) {
+        dngData = d.dataNode.data.dngOutputData;
+      }
+      else {
+        // TODO: should probably be some sort of search for the correct
+        // child, rather than assuming it's the first one.
+        //console.log(d.dataNode);
+        if (d.dataNode.data.sampleIds.children[0]) {
+          dngData = d.dataNode.data.sampleIds.children[0].dngOutputData;
+        }
+        else {
+          dngData = d.dataNode.data.sampleIds.dngOutputData;
+        }
+      }
+
+      d3.select("#id_display").attr("value", d.dataNode.id);
+      d3.select("#gt_display").attr("value", dngData.GT);
+      d3.select("#gq_display").attr("value", dngData.GQ);
+      d3.select("#gp_display").attr("value", dngData.GP);
+      d3.select("#dp_display").attr("value", dngData.DP);
+      d3.select("#mup_display").attr("value", format(dngData.MUP));
+      d3.select("#mu1p_display").attr("value", format(dngData.MU1P));
     }
 
     d3.selectAll(".sampleTree").attr("visibility", function(d) {
@@ -261,6 +285,23 @@ var PedigreeView = (function($, d3, store) {
       });;
   }
 
+  function svgTranslateString(x, y) {
+    return "translate(" + x + "," + y + ")";
+  }
+
+  function fillColor(d) {
+    if (d.type === "person") {
+      if (d.dataNode.sex === "male") {
+        return "SteelBlue";
+      }
+      else if (d.dataNode.sex === "female") {
+        return "Tomato";
+      }
+    }
+    else {
+      return "black";
+    }
+  }
 
   return PedigreeView;
 
