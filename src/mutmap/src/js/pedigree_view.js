@@ -4,7 +4,7 @@
 /* global utils */
 /* exported pedigreeView */
 
-var PedigreeView = (function($, d3, store) {
+var PedigreeView = (function(d3, store) {
   "use strict";
 
   var format = d3.format(",.6e");
@@ -299,4 +299,4 @@ var PedigreeView = (function($, d3, store) {
 
   return PedigreeView;
 
-}($, d3, store));
+}(d3, store));

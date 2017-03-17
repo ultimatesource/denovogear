@@ -1,4 +1,4 @@
-var genomeBrowserView = (function($, d3) {
+var genomeBrowserView = (function(d3) {
   "use strict";
 
   var vcfData;
@@ -12,10 +12,11 @@ var genomeBrowserView = (function($, d3) {
 
       var svg = selection.append("svg")
           .attr("class", "browser-svg");
-      var width = $(".browser-svg").parent().width();
-      var height = $(".browser-svg").parent().height();
 
-      svg.attr("width", width).attr("height", height);
+      svg.style("width", "100%").style("height", "100%");
+
+      var width = parseInt(svg.style("width"));
+      var height = parseInt(svg.style("height"));
       
       var browser = svg.append("g")
           .attr("class", "genomeBrowser");
@@ -89,4 +90,4 @@ var genomeBrowserView = (function($, d3) {
     createGenomeBrowser: createGenomeBrowser
   };
 
-}($, d3, store));
+}(d3, store));

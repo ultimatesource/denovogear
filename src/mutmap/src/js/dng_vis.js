@@ -10,7 +10,7 @@
 /* global layoutData */
 /* global dngOutputFileText */
 
-(function($, d3, store) {
+(function(d3, store) {
   "use strict";
 
   // The placeholder tags below will be replaced with the correct data objects
@@ -365,4 +365,4 @@
     return utils.distanceBetweenPoints(nodeA.x, nodeA.y, nodeB.x, nodeB.y);
   }
  
-}($, d3, store));
+}(d3, store));
