@@ -1,8 +1,10 @@
 // eslint exceptions
 //
 /* global d3 */
+/* global store */
 /* global utils */
-/* exported pedigreeView */
+/* global sampleTreeView */
+/* exported PedigreeView */
 
 var PedigreeView = (function(d3, store) {
   "use strict";
@@ -53,8 +55,6 @@ var PedigreeView = (function(d3, store) {
  
 
   PedigreeView.prototype.update = function() {
-
-    var nodes = this._graphData.nodes;
 
     this._updateLinks();
     this._updateNodes();
@@ -161,7 +161,7 @@ var PedigreeView = (function(d3, store) {
         }
       });
 
-    var nodeSymbols = visualNodesEnter.append("path")
+    visualNodesEnter.append("path")
       .attr("class", "nodeSymbol")
       .attr("d", d3.symbol()
         .type(function(d) {
@@ -251,7 +251,7 @@ var PedigreeView = (function(d3, store) {
       d3.select("#mu1p_display").attr("value", format(dngData.MU1P));
     }
 
-    d3.selectAll(".sampleTree").attr("visibility", function(d) {
+    d3.selectAll(".sampleTree").attr("visibility", function() {
       if (state.showSampleTrees) {
         return "visible";
       }
@@ -261,7 +261,7 @@ var PedigreeView = (function(d3, store) {
     });
 
     d3.select("#sample_tree_toggle")
-      .attr("class", function(d) {
+      .attr("class", function() {
         if (state.showSampleTrees) {
           return "btn btn-danger";
         }
@@ -269,14 +269,14 @@ var PedigreeView = (function(d3, store) {
           return "btn btn-success";
         }
       })
-      .text(function(d) {
+      .text(function() {
         if (state.showSampleTrees) {
           return "Hide Trees";
         }
         else {
           return "Show Trees";
         }
-      });;
+      });
   }
 
   function svgTranslateString(x, y) {

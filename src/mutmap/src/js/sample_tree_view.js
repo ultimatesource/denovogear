@@ -1,3 +1,8 @@
+// eslint exceptions
+//
+/* global d3 */
+/* exported sampleTreeView */
+
 var sampleTreeView = (function(d3) {
 
   function createSampleTree() {
@@ -16,14 +21,14 @@ var sampleTreeView = (function(d3) {
 
       var sampleTree = selection.append("g")
           .attr("class", "sampleTree")
-          .attr("transform", function(d) {
+          .attr("transform", function() {
             // center the tree with the tree's root node overlapping the
             // current node
             return svgTranslateString(-rootNode.x, -rootNode.y);
           })
           .attr("visibility", "hidden");
 
-      var sampleTreeLinks = sampleTree.selectAll("sampleTreeLink")
+      sampleTree.selectAll("sampleTreeLink")
           .data(root.descendants().slice(1))
         .enter().append("g")
           .attr("class", "sampleTreeLink")

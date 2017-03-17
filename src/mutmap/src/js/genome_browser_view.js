@@ -1,3 +1,10 @@
+// eslint exceptions
+//
+/* global d3 */
+/* global store */
+/* global utils */
+/* exported genomeBrowserView */
+
 var genomeBrowserView = (function(d3) {
   "use strict";
 
@@ -7,8 +14,6 @@ var genomeBrowserView = (function(d3) {
   function createGenomeBrowser() {
 
     function my(selection) {
-
-      var contigLength = vcfData.header.contig[0].length;
 
       var svg = selection.append("svg")
           .attr("class", "browser-svg");
@@ -39,15 +44,11 @@ var genomeBrowserView = (function(d3) {
       var translateString = utils.svgTranslateString(margins.left,
         margins.top);
 
-      //var xScale = d3.scaleLinear()
-      //  .domain([0, contigLength])
-      //  .range([0, rectWidth]);
-
       var xScale = d3.scaleLinear()
         .domain([metadata.minPos, metadata.maxPos])
         .range([0, rectWidth]);
 
-      var mutations = browser.append("g")
+      browser.append("g")
           .attr("transform", translateString)
           .selectAll(".mutation")
           .data(vcfData.records)

@@ -1,3 +1,10 @@
+// eslint exceptions
+//
+/* global d3 */
+/* global store */
+/* exported StatsView */
+
+
 var StatsView = (function(d3, store) {
   "use strict";
 
@@ -13,11 +20,11 @@ var StatsView = (function(d3, store) {
       .enter().append("div")
         .attr("class", "stat");
 
-      stat.append("div")
+    stat.append("div")
         .attr("class", "stat__label")
         .text(function(d) { return d + ":"; });
 
-      stat.append("input")
+    stat.append("input")
         .attr("class", "stat__text form-control")
         .attr("id", function(d) { return d.toLowerCase() + "_display"; })
         .attr("type", "text")

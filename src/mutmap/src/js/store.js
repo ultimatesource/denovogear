@@ -1,3 +1,9 @@
+// eslint exceptions
+//
+/* global Immutable */
+/* global Redux */
+/* exported store */
+
 var store = (function(Immutable) {
   "use strict";
   
@@ -11,19 +17,22 @@ var store = (function(Immutable) {
   });
   var initialState = new StateRecord();
  
-  function reducer(state = initialState, action) {
+  function reducer(state, action) {
+    if (state === undefined) {
+      state = initialState;
+    }
+
     switch(action.type) {
-      case "NODE_CLICKED":
-        return state
-          .set('activeNodeSelection', action.selection)
-          .set('activeNode', action.node);
-      case "TOGGLE_SAMPLE_TREES":
-        return state.set('showSampleTrees', !state.showSampleTrees);
-      case "MUTATION_CLICKED":
-        return state.set('mutationRecordIndex', action.mutationRecordIndex);
-      default:
-        console.log("Unknown action:", action);
-        return state;
+    case "NODE_CLICKED":
+      return state
+        .set("activeNodeSelection", action.selection)
+        .set("activeNode", action.node);
+    case "TOGGLE_SAMPLE_TREES":
+      return state.set("showSampleTrees", !state.showSampleTrees);
+    case "MUTATION_CLICKED":
+      return state.set("mutationRecordIndex", action.mutationRecordIndex);
+    default:
+      return state;
     }
   }
 

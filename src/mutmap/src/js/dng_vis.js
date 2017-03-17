@@ -1,10 +1,14 @@
 // eslint exceptions
 //
+/* global d3 */
+/* global store */
 /* global pedParser */
 /* global PedigreeView*/
 /* global vcfParser */
 /* global pedigr */
 /* global utils */
+/* global genomeBrowserView */
+/* global StatsView */
 
 /* global pedigreeFileText */
 /* global layoutData */
@@ -36,12 +40,13 @@
     minPos: 0,
     maxPos: vcfData.header.contig[0].length
   };
+
   var browser = genomeBrowserView.createGenomeBrowser()
     .vcfData(vcfData)
     .metadata(fullGenomeMetadata);
   browser(fullGenomeBrowserWrapper);
 
-  var browserWrapper = d3.select('#browser_wrapper');
+  var browserWrapper = d3.select("#browser_wrapper");
   var minPos = d3.min(vcfData.records, function(d) {
     return d.POS;
   });
@@ -62,7 +67,7 @@
   var pedView = new PedigreeView(d3.select("#pedigree_wrapper"), graphData);
 
   // Create stats view
-  var statsView = new StatsView(d3.select("#stats_wrapper"));
+  new StatsView(d3.select("#stats_wrapper"));
 
   window.addEventListener("resize", function() {
     pedView.update();
@@ -101,7 +106,7 @@
       });
     }
     else {
-      console.log("No mutation found!");
+      throw "No mutation found";
     }
   }
 
@@ -161,10 +166,13 @@
             return element.dataNode === childNode.dataNode;
           });
 
+          var childLink;
+          var parentageLink;
+
           if (index === -1) {
             // TODO: this is duplicated below. fix it
-            var childLink = createChildLink(childNode, marriageNode);
-            var parentageLink = marriage.addChild(childNode.dataNode);
+            childLink = createChildLink(childNode, marriageNode);
+            parentageLink = marriage.addChild(childNode.dataNode);
             childLink.dataLink = parentageLink;
             links.push(childLink);
             encountered.push(childNode);
@@ -177,14 +185,14 @@
               marriageNode);
             
             if (distanceOldOneToParents > distanceCurrentToParents) {
-              var index = links.findIndex(function(element) {
+              var linkIndex = links.findIndex(function(element) {
                 return element.type === "child" &&
                   element.source.dataNode === childNode.dataNode;
               });
-              links.splice(index, 1);
+              links.splice(linkIndex, 1);
 
-              var childLink = createChildLink(childNode, marriageNode);
-              var parentageLink = marriage.addChild(childNode.dataNode);
+              childLink = createChildLink(childNode, marriageNode);
+              parentageLink = marriage.addChild(childNode.dataNode);
               childLink.dataLink = parentageLink;
               links.push(childLink);
             }
