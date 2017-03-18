@@ -1,7 +1,7 @@
 // eslint exceptions
 //
 /* global d3 */
-/* global store */
+/* global PubSub */
 /* global pedParser */
 /* global PedigreeView*/
 /* global vcfParser */
@@ -14,7 +14,7 @@
 /* global layoutData */
 /* global dngOutputFileText */
 
-(function(d3, store) {
+(function(d3, PubSub) {
   "use strict";
 
   // The placeholder tags below will be replaced with the correct data objects
@@ -41,10 +41,8 @@
     maxPos: vcfData.header.contig[0].length
   };
 
-  var browser = genomeBrowserView.createGenomeBrowser()
-    .vcfData(vcfData)
-    .metadata(fullGenomeMetadata);
-  browser(fullGenomeBrowserWrapper);
+  new GenomeBrowserView(fullGenomeBrowserWrapper, vcfData,
+    fullGenomeMetadata);
 
   var browserWrapper = d3.select("#browser_wrapper");
   var minPos = d3.min(vcfData.records, function(d) {
@@ -57,8 +55,7 @@
     minPos: minPos,
     maxPos: maxPos
   };
-  browser.metadata(metadata);
-  browser(browserWrapper);
+  var browserView = new GenomeBrowserView(browserWrapper, vcfData, metadata);
 
 
   dngOverlay(vcfData.header, vcfData.records[0]);
@@ -70,13 +67,14 @@
   new StatsView(d3.select("#stats_wrapper"));
 
   window.addEventListener("resize", function() {
-    pedView.update();
+    var dimensions = windowDimensions();
+
+    PubSub.publish("WINDOW_RESIZE");
   });
 
-  store.subscribe(function() {
-    var state = store.getState();
-    dngOverlay(vcfData.header, vcfData.records[state.mutationRecordIndex]);
-    pedView.update();
+  PubSub.subscribe("MUTATION_CLICKED", function(topic, data) {
+    dngOverlay(vcfData.header, vcfData.records[data.mutationRecordIndex]);
+    PubSub.publish("DNG_OVERLAY_UPDATE");
   });
 
   function dngOverlay(header, record) {
@@ -372,5 +370,16 @@
   function distanceBetweenNodes(nodeA, nodeB) {
     return utils.distanceBetweenPoints(nodeA.x, nodeA.y, nodeB.x, nodeB.y);
   }
+
+  function windowDimensions() {
+    var w = window,
+        d = document,
+        e = d.documentElement,
+        g = d.getElementsByTagName('body')[0],
+        x = w.innerWidth || e.clientWidth || g.clientWidth,
+        y = w.innerHeight|| e.clientHeight|| g.clientHeight;
+
+    return { x: x, y: y };
+  }
  
-}(d3, store));
+}(d3, PubSub));

@@ -39,21 +39,17 @@ html,body {
     <div id='browser_wrapper'></div>
   </div>
   <div class='row pedigree-row'>
-    <div id='pedigree_wrapper' class='col-xs-8 panel panel-default full-height'></div>
-    <div id='stats_wrapper' class='col-xs-4 panel panel-default'></div>
+    <div id='pedigree_wrapper' class='col-xs-12 col-md-8 panel panel-default full-height'></div>
+    <div id='stats_wrapper' class='col-xs-4 col-md-4 panel panel-default'></div>
   </div>
   <button id="sample_tree_toggle" type="button" type="text" class="btn btn-success">Show Trees</button>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.1.1.js"></script>
-<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
 <script src="https://d3js.org/d3.v4.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
-<!--<script src="https://cdn.rawgit.com/hammerlab/vcf.js/7ee03fefd387ff3520a6a4f88385105a7252aa25/vcf.js"></script>-->
-<script src="https://rawgit.com/anderspitman/vcf.js/add-contig-header/vcf.js"></script>
+<script src="https://cdn.rawgit.com/hammerlab/vcf.js/6316f027793a9dbc5bb10ff7771a03f47e1be33e/vcf.js"></script>
 <script src="https://cdn.rawgit.com/daviddao/biojs-io-newick/4b0988cbd169b8b44b2a81959a69ca1686b05bff/build/biojs-io-newick.min.js"></script>
-<script src="https://unpkg.com/redux@3.6.0/dist/redux.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/immutable/3.8.1/immutable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pubsub-js/1.5.4/pubsub.min.js"></script>
 
 <script>
 <!--BUNDLE_JS_PLACEHOLDER-->

@@ -1,23 +1,24 @@
 // eslint exceptions
 //
 /* global d3 */
-/* global store */
+/* global PubSub */
 /* global utils */
 /* global sampleTreeView */
 /* exported PedigreeView */
 
-var PedigreeView = (function(d3, store) {
+var PedigreeView = (function(d3, PubSub) {
   "use strict";
 
   var format = d3.format(",.6e");
-
-  store.subscribe(stateChanged);
 
   var PedigreeView = function(parentElement, graphData) {
     this._graphData = graphData;
     this._parentElement = parentElement;
     this._create();
     this.update();
+
+    PubSub.subscribe("DNG_OVERLAY_UPDATE", this._stateUpdate.bind(this));
+    PubSub.subscribe("ACTIVE_NODE_CHANGED", this._stateUpdate.bind(this));
   };
 
   PedigreeView.prototype._create = function() {
@@ -42,10 +43,7 @@ var PedigreeView = (function(d3, store) {
         .attr("class", "nodes-container");
 
     d3.select("#sample_tree_toggle").on("click", function() {
-      var action = {
-        type: "TOGGLE_SAMPLE_TREES"
-      };
-      store.dispatch(action);
+      PubSub.publish("SAMPLE_TREE_TOGGLE");
     });
 
     function zoomed() {
@@ -207,77 +205,56 @@ var PedigreeView = (function(d3, store) {
 
   function nodeClicked(d) {
     if (d.type !== "marriage") {
-      var action = {
-        "type": "NODE_CLICKED",
-        "selection": this,
-        "node": d
-      };
-      store.dispatch(action);
+      PubSub.publish("ACTIVE_NODE_CHANGED",
+        { activeNode: d, activeNodeSelection: this });
     }
   }
 
-  function stateChanged() {
+  PedigreeView.prototype._stateUpdate = function(topic, data) {
 
-    var state = store.getState();
+    switch(topic) {
 
-    if (state.activeNode) {
+    case "DNG_OVERLAY_UPDATE":
+      this.update();
+      return;
+    case "ACTIVE_NODE_CHANGED":
       d3.selectAll(".nodeSymbol").style("fill", fillColor);
-      d3.select(state.activeNodeSelection).style("fill", "DarkSeaGreen");
+      d3.select(data.activeNodeSelection).style("fill", "DarkSeaGreen");
+      return;
+    case "SAMPLE_TREE_TOGGLE":
 
-      var dngData = null;
-
-      var d = state.activeNode;
-      if (d.dataNode.data.dngOutputData !== undefined) {
-        dngData = d.dataNode.data.dngOutputData;
-      }
-      else {
-        // TODO: should probably be some sort of search for the correct
-        // child, rather than assuming it's the first one.
-        //console.log(d.dataNode);
-        if (d.dataNode.data.sampleIds.children[0]) {
-          dngData = d.dataNode.data.sampleIds.children[0].dngOutputData;
-        }
-        else {
-          dngData = d.dataNode.data.sampleIds.dngOutputData;
-        }
-      }
-
-      d3.select("#id_display").attr("value", d.dataNode.id);
-      d3.select("#gt_display").attr("value", dngData.GT);
-      d3.select("#gq_display").attr("value", dngData.GQ);
-      d3.select("#gp_display").attr("value", dngData.GP);
-      d3.select("#dp_display").attr("value", dngData.DP);
-      d3.select("#mup_display").attr("value", format(dngData.MUP));
-      d3.select("#mu1p_display").attr("value", format(dngData.MU1P));
-    }
-
-    d3.selectAll(".sampleTree").attr("visibility", function() {
-      if (state.showSampleTrees) {
-        return "visible";
-      }
-      else {
-        return "hidden";
-      }
-    });
-
-    d3.select("#sample_tree_toggle")
-      .attr("class", function() {
+      d3.selectAll(".sampleTree").attr("visibility", function() {
         if (state.showSampleTrees) {
-          return "btn btn-danger";
+          return "visible";
         }
         else {
-          return "btn btn-success";
-        }
-      })
-      .text(function() {
-        if (state.showSampleTrees) {
-          return "Hide Trees";
-        }
-        else {
-          return "Show Trees";
+          return "hidden";
         }
       });
-  }
+
+      d3.select("#sample_tree_toggle")
+        .attr("class", function() {
+          if (state.showSampleTrees) {
+            return "btn btn-danger";
+          }
+          else {
+            return "btn btn-success";
+          }
+        })
+        .text(function() {
+          if (state.showSampleTrees) {
+            return "Hide Trees";
+          }
+          else {
+            return "Show Trees";
+          }
+        });
+      return;
+    default:
+      console.log("unkown event");
+      return;
+    }
+  };
 
   function svgTranslateString(x, y) {
     return "translate(" + x + "," + y + ")";
@@ -299,4 +276,4 @@ var PedigreeView = (function(d3, store) {
 
   return PedigreeView;
 
-}(d3, store));
+}(d3, PubSub));

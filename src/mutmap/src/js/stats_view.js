@@ -1,14 +1,14 @@
 // eslint exceptions
 //
 /* global d3 */
-/* global store */
+/* global PubSub */
 /* exported StatsView */
 
 
-var StatsView = (function(d3, store) {
+var StatsView = (function(d3, PubSub) {
   "use strict";
 
-  store.subscribe(stateChanged);
+  PubSub.subscribe("ACTIVE_NODE_CHANGED", stateChanged);
 
   var format = d3.format(",.6e");
 
@@ -34,15 +34,13 @@ var StatsView = (function(d3, store) {
   StatsView.prototype.update = function() {
   };
 
-  function stateChanged() {
+  function stateChanged(topic, data) {
 
-    var state = store.getState();
-
-    if (state.activeNode) {
+    if (data.activeNode) {
 
       var dngData = null;
 
-      var d = state.activeNode;
+      var d = data.activeNode;
       if (d.dataNode.data.dngOutputData !== undefined) {
         dngData = d.dataNode.data.dngOutputData;
       }
@@ -70,4 +68,4 @@ var StatsView = (function(d3, store) {
 
   return StatsView;
 
-}(d3, store));
+}(d3, PubSub));
