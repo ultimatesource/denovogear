@@ -18,6 +18,19 @@ html,body {
   height: 100%;
 }
 
+.genome-browser-container {
+  height: 60px;
+}
+
+.genome-browser__mutation {
+  fill: tomato;
+}
+
+.genome-browser__mutation:hover {
+  stroke: #333333;
+  stroke-width: 1;
+}
+
 .full-height {
   height: 100%;
 }
@@ -33,10 +46,10 @@ html,body {
 
 <div class='container full-height'>
   <div class='row'>
-    <div id='full_genome_browser_wrapper'></div>
+    <div id='full_genome_browser_wrapper' class='genome-browser-container'></div>
   </div>
   <div class='row'>
-    <div id='browser_wrapper'></div>
+    <div id='browser_wrapper' class='genome-browser-container'></div>
   </div>
   <div class='row pedigree-row'>
     <div id='pedigree_wrapper' class='col-xs-12 col-md-8 panel panel-default full-height'></div>
