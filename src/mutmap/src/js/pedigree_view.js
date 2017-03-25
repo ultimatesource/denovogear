@@ -17,6 +17,26 @@ var PedigreeView = (function(d3, PubSub) {
     this._create();
     this.update();
 
+    // bounding box of the links in the graph serves as a heuristic for
+    // calculating the center of the graph
+    var boundingBox = this._links_container.node().getBBox();
+    var centerX = boundingBox.width / 2;
+    var centerY = boundingBox.height / 2;
+    var width = parseInt(this._svg.style("width"));
+    var height = parseInt(this._svg.style("height"));
+    var xCorrection = (width / 2) - centerX;
+    var yCorrection = (height / 2) - centerY;
+
+    var zoom = d3.zoom()
+      .on("zoom", zoomed.bind(this));
+    this._svg.call(zoom);
+
+    zoom.translateBy(this._svg, xCorrection, yCorrection);
+    zoom.scaleBy(this._svg, 0.1, 0.1);
+
+    var transition = this._svg.transition().duration(750);
+    zoom.scaleTo(transition, 1.0);
+
     PubSub.subscribe("DNG_OVERLAY_UPDATE", this._stateUpdate.bind(this));
     PubSub.subscribe("ACTIVE_NODE_CHANGED", this._stateUpdate.bind(this));
   };
@@ -26,15 +46,12 @@ var PedigreeView = (function(d3, PubSub) {
     this._parentElement.append("svg")
         .attr("class", "pedigree-svg");
 
-    var svg = this._parentElement.select(".pedigree-svg");
+    this._svg = this._parentElement.select(".pedigree-svg");
 
-    svg.style("height", "100%").style("width", "100%");
+    this._svg.style("height", "100%").style("width", "100%");
 
-    var zoom = d3.zoom()
-      .on("zoom", zoomed.bind(this));
-    this._container = svg.call(zoom)
-      .append("g")
-        .attr("class", "container");
+    this._container = this._svg.append("g")
+        .attr("class", "pedigree-container");
 
     this._links_container = this._container.append("g")
         .attr("class", "links-container");
@@ -46,11 +63,11 @@ var PedigreeView = (function(d3, PubSub) {
       PubSub.publish("SAMPLE_TREE_TOGGLE");
     });
 
-    function zoomed() {
-      this._container.attr("transform", d3.event.transform);
-    }
   };
  
+  function zoomed() {
+    this._container.attr("transform", d3.event.transform);
+  }
 
   PedigreeView.prototype.update = function() {
 

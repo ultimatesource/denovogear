@@ -50,8 +50,6 @@ var GenomeBrowserView = (function(d3, PubSub) {
     var width = parseInt(this._browser.style("width"));
     var height = parseInt(this._browser.style("height"));
 
-    console.log(width, height);
-
     var rectWidth = width - (this._margins.left + this._margins.right);
     this._browser.select("rect")
         .attr("x", this._margins.left)
@@ -60,9 +58,10 @@ var GenomeBrowserView = (function(d3, PubSub) {
         .attr("height", height - (this._margins.top + this._margins.bottom))
         .style("fill", "#999999");
 
+    var mutationWidth = 6;
     var xScale = d3.scaleLinear()
       .domain([this._metadata.minPos, this._metadata.maxPos])
-      .range([0, rectWidth]);
+      .range([0, rectWidth - mutationWidth]);
 
     var mutationUpdate = 
       this._mutationContainer.selectAll(".genome-browser__mutation")
@@ -70,7 +69,7 @@ var GenomeBrowserView = (function(d3, PubSub) {
 
     var mutationEnter = mutationUpdate.enter().append("rect")
         .attr("class", "genome-browser__mutation")
-        .attr("width", 6)
+        .attr("width", mutationWidth)
         .attr("height", height - this._margins.top - this._margins.bottom)
         .on("click", function(d, i) { mutationClicked(d, i); })
 
