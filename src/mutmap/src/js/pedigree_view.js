@@ -39,9 +39,13 @@ var PedigreeView = (function(d3, PubSub) {
 
     PubSub.subscribe("DNG_OVERLAY_UPDATE", this._stateUpdate.bind(this));
     PubSub.subscribe("ACTIVE_NODE_CHANGED", this._stateUpdate.bind(this));
+    PubSub.subscribe("SAMPLE_TREE_TOGGLE", this._stateUpdate.bind(this));
   };
 
   PedigreeView.prototype._create = function() {
+
+    this._activeNode = null;
+    this._showSampleTrees = false;
 
     this._parentElement.append("svg")
         .attr("class", "pedigree-svg");
@@ -243,32 +247,39 @@ var PedigreeView = (function(d3, PubSub) {
       return;
     case "SAMPLE_TREE_TOGGLE":
 
-      d3.selectAll(".sampleTree").attr("visibility", function() {
-        if (state.showSampleTrees) {
-          return "visible";
-        }
-        else {
-          return "hidden";
-        }
-      });
+      this._showSampleTrees = !this._showSampleTrees;
+
+      // Set new variable to preserve 'this' context
+      var showSampleTrees = this._showSampleTrees;
+
+      d3.selectAll(".sampleTree")
+          .attr("visibility", function() {
+            if (showSampleTrees) {
+              return "visible";
+            }
+            else {
+              return "hidden";
+            }
+          });
 
       d3.select("#sample_tree_toggle")
-        .attr("class", function() {
-          if (state.showSampleTrees) {
-            return "btn btn-danger";
-          }
-          else {
-            return "btn btn-success";
-          }
-        })
-        .text(function() {
-          if (state.showSampleTrees) {
-            return "Hide Trees";
-          }
-          else {
-            return "Show Trees";
-          }
-        });
+          .attr("class", function() {
+            if (showSampleTrees) {
+              return "btn btn-danger";
+            }
+            else {
+              return "btn btn-success";
+            }
+          })
+          .text(function() {
+            if (showSampleTrees) {
+              return "Hide Trees";
+            }
+            else {
+              return "Show Trees";
+            }
+          });
+
       return;
     default:
       console.log("unkown event");
