@@ -18,8 +18,13 @@ html,body {
   height: 100%;
 }
 
+:root {
+   --genome-browser-height: 60px;
+   --genome-browsers-area-height: calc(2 * var(--genome-browser-height));
+}
+
 .genome-browser-container {
-  height: 60px;
+  height: var(--genome-browser-height);
 }
 
 .genome-browser__mutation {
@@ -31,31 +36,33 @@ html,body {
   stroke-width: 1;
 }
 
-.full-height {
-  height: 100%;
+.pedigree-container {
+  height: calc(100vh - var(--genome-browsers-area-height));
+  margin-bottom: 0;
 }
-
-//.pedigree-row {
-//  height: 300px;
-//}
 
 </style>
 
 </head>
 <body>
 
-<div class='container full-height'>
+<div class='container'>
   <div class='row'>
-    <div id='full_genome_browser_wrapper' class='genome-browser-container'></div>
+    <div id='full_genome_browser_wrapper'
+      class='genome-browser-container'></div>
   </div>
   <div class='row'>
     <div id='browser_wrapper' class='genome-browser-container'></div>
   </div>
   <div class='row pedigree-row'>
-    <div id='pedigree_wrapper' class='col-xs-12 col-md-8 panel panel-default full-height'></div>
-    <div id='stats_wrapper' class='col-xs-4 col-md-4 panel panel-default'></div>
+    <div
+      class='pedigree-container col-xs-12 col-md-8 panel panel-default'></div>
+    <div class='col-xs-4 col-md-4'>
+      <div class='stats-container panel panel-default'></div>
+      <button id="sample_tree_toggle" type="button" type="text"
+        class="btn btn-success">Show Trees</button>
+    </div>
   </div>
-  <button id="sample_tree_toggle" type="button" type="text" class="btn btn-success">Show Trees</button>
 </div>
 
 <script src="https://d3js.org/d3.v4.js"></script>

@@ -61,10 +61,10 @@
   dngOverlay(vcfData.header, vcfData.records[0]);
 
   // Create pedigree view
-  var pedView = new PedigreeView(d3.select("#pedigree_wrapper"), graphData);
+  var pedView = new PedigreeView(d3.select(".pedigree-container"), graphData);
 
   // Create stats view
-  new StatsView(d3.select("#stats_wrapper"));
+  new StatsView(d3.select(".stats-container"));
 
   window.addEventListener("resize", function() {
     var dimensions = windowDimensions();
