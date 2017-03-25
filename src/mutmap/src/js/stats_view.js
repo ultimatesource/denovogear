@@ -9,6 +9,7 @@ var StatsView = (function(d3, PubSub) {
   "use strict";
 
   PubSub.subscribe("ACTIVE_NODE_CHANGED", stateChanged);
+  PubSub.subscribe("PEDIGREE_VIEW_UPDATE", stateChanged);
 
   var format = d3.format(",.6e");
 

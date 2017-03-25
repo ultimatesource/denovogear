@@ -56,6 +56,8 @@ var PedigreeView = (function(d3, PubSub) {
 
     this._updateLinks();
     this._updateNodes();
+
+    PubSub.publish("PEDIGREE_VIEW_UPDATE", { activeNode: this._activeNode });
   };
 
   PedigreeView.prototype._updateLinks = function() {
@@ -218,6 +220,7 @@ var PedigreeView = (function(d3, PubSub) {
       this.update();
       return;
     case "ACTIVE_NODE_CHANGED":
+      this._activeNode = data.activeNode;
       d3.selectAll(".nodeSymbol").style("fill", fillColor);
       d3.select(data.activeNodeSelection).style("fill", "DarkSeaGreen");
       return;
