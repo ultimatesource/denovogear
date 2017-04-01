@@ -92,15 +92,23 @@
       header.sampleNames.forEach(function(sampleName) {
         var format = record[sampleName];
 
-        if (isPersonNode(sampleName)) {
-          var id = getIdFromSampleName(sampleName);
+        // TODO: Using libraries for now, but might be more correct to use
+        // GL-1, GL-2, etc nodes?
+        if (isLibraryNode(sampleName)) {
+          var id = getIdFromLibraryName(sampleName);
           var personNode = pedGraph.getPerson(id);
           personNode.data.dngOutputData = format;
         }
-        else {
-          var sampleNode = findMatchingSampleNode(sampleName);
-          sampleNode.dngOutputData = format;
-        }
+
+        //if (isPersonNode(sampleName)) {
+        //  var id = getIdFromSampleName(sampleName);
+        //  var personNode = pedGraph.getPerson(id);
+        //  personNode.data.dngOutputData = format;
+        //}
+        //else {
+        //  var sampleNode = findMatchingSampleNode(sampleName);
+        //  sampleNode.dngOutputData = format;
+        //}
       });
     }
     else {
@@ -289,8 +297,16 @@
     return sampleName.startsWith("GL-");
   }
 
+  function isLibraryNode(sampleName) {
+    return sampleName.startsWith("LB-");
+  }
+
   function getIdFromSampleName(sampleName) {
     return sampleName.slice(3);
+  }
+
+  function getIdFromLibraryName(sampleName) {
+    return Number(sampleName.slice(-3));
   }
 
   function oneToZeroBase(index) {

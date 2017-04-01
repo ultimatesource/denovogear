@@ -122,8 +122,9 @@ var PedigreeView = (function(d3, PubSub) {
         .attr("y2", function(d) { return d.target.y; });
 
     visualLinksEnter.append("text")
+      .attr("text-anchor", "middle")
       .attr("dx", function(d) {
-        return utils.halfwayBetween(d.source.x, d.target.x) - 45;
+        return utils.halfwayBetween(d.source.x, d.target.x);
       })
       .attr("dy", function(d) {
         return utils.halfwayBetween(d.source.y, d.target.y);
@@ -145,7 +146,7 @@ var PedigreeView = (function(d3, PubSub) {
         })
         .attr("stroke", function(d) {
           if (linkHasData(d)) {
-            return "green";
+            return "#5cc464";
           }
 
           return "#999";
@@ -166,6 +167,7 @@ var PedigreeView = (function(d3, PubSub) {
 
     var tree = sampleTreeView.createSampleTree();
 
+    // TODO: this is a hack. I don't even really know why it works...
     visualNodesEnter.selectAll(".yolo")
         .data(function(d) {
           if (d.type == "person") {
@@ -182,34 +184,8 @@ var PedigreeView = (function(d3, PubSub) {
         }
       });
 
-    visualNodesEnter.append("path")
-      .attr("class", "nodeSymbol")
-      .attr("d", d3.symbol()
-        .type(function(d) {
-          if (d.type === "person") {
-            if (d.dataNode.sex === "male") {
-              return d3.symbolSquare;
-            }
-            else if (d.dataNode.sex === "female") {
-              return d3.symbolCircle;
-            }
-          }
-          else {
-            return d3.symbolTriangle;
-          }
-        })
-        .size(500))
-      .style("fill", fillColor)
-      .attr("visibility", function(d) {
-        if (d.type === "marriage") {
-          return "hidden";
-        }
-        else {
-          return "visible";
-        }
-      })
-      .on("click", nodeClicked);
-
+    visualNodesEnter.call(gpNode());
+    
     visualNodesEnter.append("text")
       .attr("dx", 15)
       .attr("dy", 15)
@@ -302,6 +278,92 @@ var PedigreeView = (function(d3, PubSub) {
     }
     else {
       return "black";
+    }
+  }
+
+  function gpNode() {
+
+
+    var color = d3.scaleOrdinal(d3.schemeCategory10);
+    var pie = d3.pie()
+      .sort(null);
+    var piePath = d3.arc()
+      .outerRadius(15)
+      .innerRadius(0);
+
+    function my(selection) {
+
+      selection.each(function(d) {
+
+        console.log(d);
+
+        if (d.type === "person") {
+          if (d.dataNode.sex === "male") {
+            return d3.symbolSquare;
+          }
+          else if (d.dataNode.sex === "female") {
+            if (d.dataNode.data.dngOutputData) {
+              var gpSplits = calculateGpSplits(d.dataNode.data.dngOutputData.GP);
+
+              var pieChart = d3.select(this).append("g")
+                  .attr("class", "node-symbol-female")
+                  .on("click", nodeClicked);
+
+              pieChart.selectAll(".arc")
+                  //.data(pie(d.dataNode.data.dngOutputData.GP))
+                  .data(pie(gpSplits))
+                .enter().append("path")
+                  .attr("class", "arc")
+                  .attr("d", piePath)
+                  .attr("fill", function(d, i) { 
+                    return d3.schemeCategory10[i];
+                    //return color(d.value);
+                  });
+            }
+
+            //return d3.symbolCircle;
+          }
+          else {
+          }
+        }
+        else {
+          return d3.symbolTriangle;
+        }
+
+      });
+    }
+
+    return my;
+
+    function calculateGpSplits(gp) {
+
+      if (gp.length === 6) {
+        var gpIndicesTable = [
+          [ 1, 3 ],
+          [ 2, 4, 5 ]
+        ];
+      }
+      else {
+        throw "GP indices table not defined for GP length: " + gp.length;
+      }
+
+      var refOnly = gp[0];
+
+      var includesRef = 0;
+      gpIndicesTable[0].forEach(function(index) {
+        includesRef += gp[index];
+      });
+
+      var doesNotIncludeRef = 0;
+      gpIndicesTable[1].forEach(function(index) {
+        doesNotIncludeRef += gp[index];
+      });
+
+      return [
+        refOnly,
+        includesRef,
+        doesNotIncludeRef
+      ];
     }
   }
 
