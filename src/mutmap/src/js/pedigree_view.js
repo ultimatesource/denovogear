@@ -218,8 +218,9 @@ var PedigreeView = (function(d3, PubSub) {
       return;
     case "ACTIVE_NODE_CHANGED":
       this._activeNode = data.activeNode;
-      d3.selectAll(".nodeSymbol").style("fill", fillColor);
-      d3.select(data.activeNodeSelection).style("fill", "DarkSeaGreen");
+      d3.selectAll(".node-symbol").classed("node-symbol--selected", false);
+      d3.select(data.activeNodeSelection)
+          .classed("node-symbol--selected", true);
       return;
     case "SAMPLE_TREE_TOGGLE":
 
@@ -305,7 +306,7 @@ var PedigreeView = (function(d3, PubSub) {
               var squareHeight = squareWidth;
 
               var square = d3.select(this).append("g")
-                  .attr("class", "node-symbol-male")
+                  .attr("class", "node-symbol node-symbol__male")
                   .on("click", nodeClicked);
 
               // Not using d3 selections because we need to keep track of
@@ -332,7 +333,7 @@ var PedigreeView = (function(d3, PubSub) {
                 calculateGpSplits(d.dataNode.data.dngOutputData.GP);
 
               var pieChart = d3.select(this).append("g")
-                  .attr("class", "node-symbol-female")
+                  .attr("class", "node-symbol node-symbol__female")
                   .on("click", nodeClicked);
 
               pieChart.selectAll(".arc")
@@ -346,8 +347,6 @@ var PedigreeView = (function(d3, PubSub) {
                     //return color(d.value);
                   });
             }
-
-            //return d3.symbolCircle;
           }
           else {
           }
