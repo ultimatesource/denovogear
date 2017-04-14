@@ -295,15 +295,41 @@ var PedigreeView = (function(d3, PubSub) {
 
       selection.each(function(d) {
 
-        console.log(d);
-
         if (d.type === "person") {
           if (d.dataNode.sex === "male") {
-            return d3.symbolSquare;
+            if (d.dataNode.data.dngOutputData) {
+              var gpSplits =
+                calculateGpSplits(d.dataNode.data.dngOutputData.GP);
+
+              var squareWidth = 30;
+              var squareHeight = squareWidth;
+
+              var square = d3.select(this).append("g")
+                  .attr("class", "node-symbol-male")
+                  .on("click", nodeClicked);
+
+              // Not using d3 selections because we need to keep track of
+              // the relative offsets
+              var offset = 0;
+              gpSplits.forEach(function(split, index) {
+
+                square.append("g")
+                    .attr("class", "partition")
+                  .append("rect")
+                    .attr("x", -(squareWidth / 2) + offset)
+                    .attr("y", -(squareHeight / 2))
+                    .attr("width", split*squareWidth)
+                    .attr("height", squareHeight)
+                    .attr("fill", d3.schemeCategory10[index]);
+
+                offset += split*squareWidth;
+              });
+            }
           }
           else if (d.dataNode.sex === "female") {
             if (d.dataNode.data.dngOutputData) {
-              var gpSplits = calculateGpSplits(d.dataNode.data.dngOutputData.GP);
+              var gpSplits =
+                calculateGpSplits(d.dataNode.data.dngOutputData.GP);
 
               var pieChart = d3.select(this).append("g")
                   .attr("class", "node-symbol-female")
