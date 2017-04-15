@@ -35,28 +35,8 @@
   var vcfData = vcfParser.parseVCFText(dngOutputFileText);
 
   // Create genome browser views
-  var fullGenomeBrowserWrapper = d3.select("#full_genome_browser_wrapper");
-  var fullGenomeMetadata = {
-    minPos: 0,
-    maxPos: vcfData.header.contig[0].length
-  };
-
-  new GenomeBrowserView(fullGenomeBrowserWrapper, vcfData,
-    fullGenomeMetadata);
-
-  var browserWrapper = d3.select("#browser_wrapper");
-  var minPos = d3.min(vcfData.records, function(d) {
-    return d.POS;
-  });
-  var maxPos = d3.max(vcfData.records, function(d) {
-    return d.POS;
-  });
-  var metadata = {
-    minPos: minPos,
-    maxPos: maxPos
-  };
-  var browserView = new GenomeBrowserView(browserWrapper, vcfData, metadata);
-
+  var genomeBrowserWrapper = d3.select("#genome_browser_wrapper");
+  new GenomeBrowserView(genomeBrowserWrapper, vcfData);
 
   dngOverlay(vcfData.header, vcfData.records[0]);
 
