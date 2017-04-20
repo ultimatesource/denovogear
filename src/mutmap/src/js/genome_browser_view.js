@@ -46,6 +46,11 @@ var GenomeBrowserView = (function(d3, PubSub) {
     var translateString = utils.svgTranslateString(this._margins.left,
       this._margins.top);
 
+    // TODO: Append the mutations to this._focus instead of this._browser,
+    // in order to match the hierarchical model of the system. I'm leaving it
+    // this way for now since doing it the other way breaks click events for
+    // the mutations because of the zooming and brushing and I don't want to
+    // spend the time to figure that out at the moment.
     this._mutationContainer = this._browser.append("g")
         .attr("transform", translateString)
         .attr("class", "genome-browser__mutation-container")
@@ -67,17 +72,17 @@ var GenomeBrowserView = (function(d3, PubSub) {
         .attr("transform",
           utils.svgTranslateString(this._margins.left, this._margins.top));
 
-    var rectWidth = width - (this._margins.left + this._margins.right);
+    this._genomeWidth = width - (this._margins.left + this._margins.right);
     this._focusRect
         .attr("x", 0)
         .attr("y", 0)
-        .attr("width", rectWidth)
+        .attr("width", this._genomeWidth)
         .attr("height", focusHeight);
 
     var contigLength = this._vcfData.header.contig[0]['length'];
     this._xFocusScale = d3.scaleLinear()
       .domain([0, contigLength])
-      .range([0, rectWidth]);
+      .range([0, this._genomeWidth]);
     this._xContextScale = d3.scaleLinear()
       .domain(this._xFocusScale.domain())
       .range(this._xFocusScale.range());
@@ -108,65 +113,101 @@ var GenomeBrowserView = (function(d3, PubSub) {
         .attr("class", "genome-browser__background")
         .attr("x", 0)
         .attr("y", 0)
-        .attr("width", rectWidth)
+        .attr("width", this._genomeWidth)
         .attr("height", contextHeight);
 
-    var brush = d3.brushX()
-      .extent([[0, 0], [rectWidth, contextHeight]])
+    this._brush = d3.brushX()
+      .extent([[0, 0], [this._genomeWidth, contextHeight]])
       .on("brush end", this._brushed.bind(this));
+    
+    this._zoom = d3.zoom()
+      .scaleExtent([1, Infinity])
+      .translateExtent([[0, 0], [this._genomeWidth, focusHeight]])
+      .extent([[0, 0], [this._genomeWidth, focusHeight]])
+      .on("zoom", this._zoomed.bind(this));
 
     // TODO: Hack. Find a proper way to update the original brush without
     // forcibly deleting the old one
     this._context.select(".brush").remove();
-
     this._context.append("g")
         .attr("class", "brush")
-        .call(brush)
+        .call(this._brush)
         // Start brush covering entire genome
-        .call(brush.move, this._xFocusScale.range())
+        .call(this._brush.move, this._xFocusScale.range())
 
     // TODO: Hack. Find a proper way to update the original axes without
     // forcibly deleting the old ones
     this._focus.selectAll(".axis--x").remove();
-
     this._focus.append("g")
         .attr("class", "axis axis--x")
         .attr("transform", utils.svgTranslateString(
           this._margins.left, focusHeight + this._margins.top))
         .call(this._xAxis);
 
-    this._focus.append("g")
+    this._context.selectAll(".axis--x").remove();
+    this._context.append("g")
         .attr("class", "axis axis--x")
-        .attr("transform", utils.svgTranslateString(
-          this._margins.left, focusHeight + this._margins.top +
-            xAxisPadding + contextHeight))
+        .attr("transform", utils.svgTranslateString(0, contextHeight))
         .call(this._xAxis);
+
+    this._focus.selectAll(".zoom").remove();
+    this._focus.append("rect")
+        .attr("class", "zoom")
+        .attr("width", this._genomeWidth)
+        .attr("height", focusHeight)
+        .attr("transform", "translate(" + this._margins.left + "," +
+          this._margins.top + ")")
+        .call(this._zoom);
   };
 
   GenomeBrowserView.prototype._brushed = function() {
+    // ignore brush-by-zoom
     if (d3.event.sourceEvent && d3.event.sourceEvent.type === "zoom") return;
 
-      var s = d3.event.selection || this._xContextScale.range();
-      this._xFocusScale.domain(s.map(this._xContextScale.invert,
-        this._xContextScale));
+    var s = d3.event.selection || this._xContextScale.range();
+    this._xFocusScale.domain(s.map(this._xContextScale.invert,
+      this._xContextScale));
 
-      this._focus.select(".axis--x").call(this._xAxis);
+    this._focus.select(".axis--x").call(this._xAxis);
 
-      var xFocusScale = this._xFocusScale;
-      this._mutationContainer.selectAll(".genome-browser__mutation")
-          .attr("x", function(d) {
-            var pos = d.POS;
-            var domain = xFocusScale.domain();
-            if (pos >= domain[0] && pos <= domain[1]) {
-              return xFocusScale(d.POS);
-            }
-            else {
-              // TODO: Hack. Should probably make this invisibly instead of
-              // just moving it way off the screen
-              return -1000;
-            }
-          });
+    this._browser.select(".zoom").call(this._zoom.transform, d3.zoomIdentity
+      .scale(this._genomeWidth / (s[1] - s[0]))
+      .translate(-s[0], 0));
+
+    this._repositionMutations();
+
   }
+
+  GenomeBrowserView.prototype._zoomed = function() {
+    // ignore zoom-by-brush
+    if (d3.event.sourceEvent && d3.event.sourceEvent.type === "brush") return;
+
+    var t = d3.event.transform;
+    this._xFocusScale.domain(t.rescaleX(this._xContextScale).domain());
+    this._focus.select(".axis--x").call(this._xAxis);
+    this._context.select(".brush").call(this._brush.move,
+      this._xFocusScale.range().map(t.invertX, t));
+
+    this._repositionMutations();
+
+  };
+
+  GenomeBrowserView.prototype._repositionMutations = function() {
+    var xFocusScale = this._xFocusScale;
+    this._mutationContainer.selectAll(".genome-browser__mutation")
+        .attr("x", function(d) {
+          var pos = d.POS;
+          var domain = xFocusScale.domain();
+          if (pos >= domain[0] && pos <= domain[1]) {
+            return xFocusScale(d.POS);
+          }
+          else {
+            // TODO: Hack. Should probably make this invisibly instead of
+            // just moving it way off the screen
+            return -1000;
+          }
+        });
+  };
 
   GenomeBrowserView.prototype._onWindowResize = function() {
     this.update();
