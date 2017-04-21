@@ -5,18 +5,48 @@
 /* global utils */
 /* exported GenomeBrowserView */
 
-var GenomeBrowserView = (function(d3, PubSub) {
+var contigView = (function(d3, PubSub) {
   "use strict";
 
-  var GenomeBrowserView = function(selection, vcfData) {
-    this._selection = selection;
-    this._vcfData = vcfData;
+  function ContigView(options) {
+    if (options === undefined) throw "No options";
+    if (options.renderInto === undefined) throw "No renderInto";
+    if (options.vcfData === undefined) throw "No vcfData";
+
+    this._selection = options.renderInto;
+    this._vcfData = options.vcfData;
+
+    PubSub.subscribe("WINDOW_RESIZE", this._onWindowResize.bind(this));
+  }
+
+  var SimpleContigView = function(options) {
+    ContigView.call(this, options);
+  };
+  SimpleContigView.prototype = Object.create(ContigView.prototype);
+  SimpleContigView.prototype.constructor = SimpleContigView;
+
+  SimpleContigView.prototype._create = function() {
+
+    this._browser = this._selection.append("svg")
+        .attr("class", "genome-browser");
+
+    this._browser.style("width", "100%").style("height", "100%");
+
+  };
+
+  SimpleContigView.prototype.update = function() {
+  };
+
+
+  var GenomeBrowserView = function(options) {
+    ContigView.call(this, options);
 
     this._create();
     this.update();
 
-    PubSub.subscribe("WINDOW_RESIZE", this._onWindowResize.bind(this));
   };
+  GenomeBrowserView.prototype = Object.create(ContigView.prototype);
+  GenomeBrowserView.prototype.constructor = GenomeBrowserView;
 
   GenomeBrowserView.prototype._create = function() {
     this._browser = this._selection.append("svg")
@@ -209,7 +239,7 @@ var GenomeBrowserView = (function(d3, PubSub) {
         });
   };
 
-  GenomeBrowserView.prototype._onWindowResize = function() {
+  ContigView.prototype._onWindowResize = function() {
     this.update();
   };
 
@@ -266,6 +296,13 @@ var GenomeBrowserView = (function(d3, PubSub) {
     PubSub.publish("MUTATION_CLICKED", { mutationRecordIndex: i });
   };
 
-  return GenomeBrowserView;
+  function createContigView(options) {
+    new SimpleContigView(options);
+    return new GenomeBrowserView(options);
+  }
+
+  return {
+    createContigView: createContigView
+  };
 
 }(d3, PubSub));

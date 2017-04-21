@@ -7,7 +7,7 @@
 /* global vcfParser */
 /* global pedigr */
 /* global utils */
-/* global genomeBrowserView */
+/* global contigView */
 /* global StatsView */
 
 /* global pedigreeFileText */
@@ -34,9 +34,14 @@
   var graphData = processPedigree(kinshipPedigreeData);
   var vcfData = vcfParser.parseVCFText(dngOutputFileText);
 
-  // Create genome browser views
+  // Create genome browser view
   var genomeBrowserWrapper = d3.select("#genome_browser_wrapper");
-  new GenomeBrowserView(genomeBrowserWrapper, vcfData);
+  var v = contigView.createContigView({
+    renderInto: genomeBrowserWrapper,
+    vcfData: vcfData
+  });
+
+  console.log(v);
 
   dngOverlay(vcfData.header, vcfData.records[0]);
 
