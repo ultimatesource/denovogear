@@ -42,20 +42,39 @@ struct libraries_t {
 #define DNG_LABEL_SEPARATOR "/"
 #define DNG_LABEL_SEPARATOR_CHAR '/'
 
+// Remove Prefixes from Sample/Library Labels
 template<typename S>
 S trim_label_prefix(const S &input) {
     using boost::starts_with;
     using boost::erase_head_copy;
 
-	if(starts_with(input, (DNG_LABEL_PREFIX_GERMLINE DNG_LABEL_SEPARATOR))) {
+	if(starts_with(input, (DNG_LABEL_PREFIX_LIBRARY DNG_LABEL_SEPARATOR))) {
+        return erase_head_copy(input, strlen((DNG_LABEL_PREFIX_LIBRARY DNG_LABEL_SEPARATOR)));
+    } else if(starts_with(input, (DNG_LABEL_PREFIX_GERMLINE DNG_LABEL_SEPARATOR))) {
 		return erase_head_copy(input, strlen((DNG_LABEL_PREFIX_GERMLINE DNG_LABEL_SEPARATOR)));
 	} else if(starts_with(input, (DNG_LABEL_PREFIX_SOMATIC DNG_LABEL_SEPARATOR))) {
 		return erase_head_copy(input, strlen((DNG_LABEL_PREFIX_SOMATIC DNG_LABEL_SEPARATOR)));
-	} else if(starts_with(input, (DNG_LABEL_PREFIX_LIBRARY DNG_LABEL_SEPARATOR))) {
-		return erase_head_copy(input, strlen((DNG_LABEL_PREFIX_LIBRARY DNG_LABEL_SEPARATOR)));
 	}
     return input;
 }
+
+// Return an empty label for germline and somatic prefixes
+// Remove label for library prefix
+template<typename S>
+S trim_label_prefix_only_libraries(const S &input) {
+    using boost::starts_with;
+    using boost::erase_head_copy;
+
+    if(starts_with(input, (DNG_LABEL_PREFIX_GERMLINE DNG_LABEL_SEPARATOR))) {
+        return {};
+    } else if(starts_with(input, (DNG_LABEL_PREFIX_SOMATIC DNG_LABEL_SEPARATOR))) {
+        return {};
+    } else if(starts_with(input, (DNG_LABEL_PREFIX_LIBRARY DNG_LABEL_SEPARATOR))) {
+        return erase_head_copy(input, strlen((DNG_LABEL_PREFIX_LIBRARY DNG_LABEL_SEPARATOR)));
+    }
+    return input;
+}
+
 
 }
 

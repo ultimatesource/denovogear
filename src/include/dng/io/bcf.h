@@ -48,9 +48,7 @@ public:
     template<typename R>
     void SelectLibraries(R &range);
 
-    void ResetLibraries() {
-        output_libraries_ = input_libraries_;
-    }
+    void ResetLibraries();
 
     const std::vector<contig_t>& contigs() const {
         return contigs_;
@@ -134,7 +132,10 @@ void BcfPileup::ParseSampleLabels(int index) {
     auto bcf_samples = reader->header->samples;
     for(int i=0;i<num_samples;++i) {
         std::string bcf_sample = bcf_samples[i];
-        std::string sample = trim_label_prefix(bcf_sample);
+        std::string sample = trim_label_prefix_only_libraries(bcf_sample);
+        if(sample.empty()) {
+            continue;
+        }
         std::string name;
 
         size_t pos = sample.find(DNG_LABEL_SEPARATOR_CHAR);        
@@ -190,10 +191,16 @@ void BcfPileup::SelectLibraries(R &range) {
         }
         selector += bcf_samples_[pos];
     }
-    if(reader_.SetSamples(selector.c_str()) == 0) {
-        return;
+    if(bcf_hdr_set_samples(reader_.reader(0)->header, selector.c_str(),0) != 0) {
+        throw std::runtime_error("Unable to select VCF/BCF columns '" + selector + "'." );
     }
+}
 
+void BcfPileup::ResetLibraries() {
+    output_libraries_ = input_libraries_;
+    if(bcf_hdr_set_samples(reader_.reader(0)->header, "-",0) != 0) {
+        throw std::runtime_error("Unable to reset VCF/BCF columns." );
+    }
 }
 
 inline
