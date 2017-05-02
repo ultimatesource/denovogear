@@ -43,17 +43,18 @@ struct libraries_t {
 #define DNG_LABEL_SEPARATOR_CHAR '/'
 
 template<typename S>
-void trim_label_prefix(S &input) {
+S trim_label_prefix(const S &input) {
     using boost::starts_with;
-    using boost::erase_head;
+    using boost::erase_head_copy;
 
 	if(starts_with(input, (DNG_LABEL_PREFIX_GERMLINE DNG_LABEL_SEPARATOR))) {
-		erase_head(input, strlen((DNG_LABEL_PREFIX_GERMLINE DNG_LABEL_SEPARATOR)));
+		return erase_head_copy(input, strlen((DNG_LABEL_PREFIX_GERMLINE DNG_LABEL_SEPARATOR)));
 	} else if(starts_with(input, (DNG_LABEL_PREFIX_SOMATIC DNG_LABEL_SEPARATOR))) {
-		erase_head(input, strlen((DNG_LABEL_PREFIX_SOMATIC DNG_LABEL_SEPARATOR)));
+		return erase_head_copy(input, strlen((DNG_LABEL_PREFIX_SOMATIC DNG_LABEL_SEPARATOR)));
 	} else if(starts_with(input, (DNG_LABEL_PREFIX_LIBRARY DNG_LABEL_SEPARATOR))) {
-		erase_head(input, strlen((DNG_LABEL_PREFIX_LIBRARY DNG_LABEL_SEPARATOR)));
+		return erase_head_copy(input, strlen((DNG_LABEL_PREFIX_LIBRARY DNG_LABEL_SEPARATOR)));
 	}
+    return input;
 }
 
 }

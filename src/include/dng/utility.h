@@ -46,6 +46,7 @@
 #include <boost/range/iterator.hpp>
 #include <boost/range/distance.hpp>
 #include <boost/range/algorithm/find.hpp>
+#include <boost/range/algorithm/find_if.hpp>
 #include <boost/range/as_literal.hpp>
 
 #include <dng/detail/unit_test.h>
@@ -306,6 +307,12 @@ template<typename Range, typename Value>
 inline
 size_t find_position(const Range& r, const Value& v) {
     return boost::distance(boost::find<boost::return_begin_found>(r, v));
+}
+
+template<typename Range, typename Pred>
+inline
+size_t find_position_if(const Range& r, Pred pred) {
+    return boost::distance(boost::find_if<boost::return_begin_found>(r, pred));
 }
 
 template<typename T>

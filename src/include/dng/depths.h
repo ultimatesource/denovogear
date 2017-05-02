@@ -77,7 +77,7 @@ public:
     static const int alleles_diploid[10][2];
     static const int encoded_alleles_diploid_unphased[10][2];
     static const int encoded_alleles_haploid[4][2];
-    
+
     struct match_labels_t {
         std::unordered_map<std::string,int> tree;
         match_labels_t();
@@ -94,6 +94,8 @@ public:
         int operator()(const key_t &rng) const;
     };
     static match_indexes_t MatchIndexes;
+
+    static int MatchAlleles(char *str);
 
     static int8_t ColorDropN(int8_t color) { return color & 0x3F;}
 
@@ -220,6 +222,36 @@ inline
 int AlleleDepths::match_indexes_t::operator()(const key_t &rng) const {
     auto it = tree.find(rng);
     return (it != tree.end()) ? it->second : -1;
+}
+
+inline
+int AlleleDepths::MatchAlleles(char *str) {
+    assert(str != nullptr);
+    // If string is not of length 1, return unknown
+    if(str[0] == '\0' || str[1] != '\0') {
+        return -1;
+    }
+    // code this as a switch and let the compiler optimize
+    switch(str[0]) {
+    case 'A':
+    case 'a':
+        return 0;
+    case 'C':
+    case 'c':
+        return 1;
+    case 'G':
+    case 'g':
+        return 2;
+    case 'T':
+    case 't':
+        return 3;
+    case 'N':
+    case 'n':
+        return 4;
+    default:
+        return -1;
+    }
+    return -1;
 }
 
 inline

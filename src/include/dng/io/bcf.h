@@ -36,6 +36,11 @@ class BcfPileup {
 public:
     using data_type = bcf1_t *;
 
+    struct contig_t {
+        std::string name;
+        int length;
+    };
+
     typedef void (callback_type)(const data_type &, utility::location_t);
 
     int AddFile(const char* filename);
@@ -43,13 +48,19 @@ public:
     template<typename R>
     void SelectLibraries(R &range);
 
-    // void ResetLibraries();
+    void ResetLibraries() {
+        output_libraries_ = input_libraries_;
+    }
+
+    const std::vector<contig_t>& contigs() const {
+        return contigs_;
+    }
 
     const libraries_t& libraries() const {
-         return libraries_;
+         return output_libraries_;
     }
     size_t num_libraries() const {
-         return libraries_.names.size();
+         return output_libraries_.names.size();
     }
 
     template<typename CallBack>
@@ -62,18 +73,19 @@ public:
 private:
     hts::bcf::SyncedReader reader_;
 
+    void ParseSampleLabels(int index);
+    void ParseContigs(int index);
 
-    void ParseSampleLabels();
+    dng::libraries_t input_libraries_;
+    dng::libraries_t output_libraries_;
+    std::vector<std::string> bcf_samples_;
 
-    dng::libraries_t libraries_;
+    std::vector<contig_t> contigs_;
 };
 
 template<typename CallBack>
 void BcfPileup::operator()(CallBack call_back) {
     assert(reader_.num_readers() == 1); // only support one reader
-
-    using utility::location_t;
-    using pileup::AlleleDepths;
 
     while(reader_.NextLine()) {
         bcf1_t *rec = reader_.GetLine(0);
@@ -86,116 +98,122 @@ void BcfPileup::operator()(CallBack call_back) {
         if((variant_types != VCF_SNP) && (variant_types != VCF_REF)){
             continue;
         }
+        // Unpack the record before calling call_back
+        bcf_unpack(rec, BCF_UN_STR);
 
-        // Construct location
-        auto location = utility::make_location(rec->rid, rec->pos);
-
-        // REF+ALT in the order they appear in the record
-        // bcf_unpack(rec, BCF_UN_STR);
-        // alleles.clear();
-        // int num_alleles = rec->n_allele;
-        // for(int a = 0; a < num_alleles; ++a) {
-        //     alleles += rec->d.allele[a];
-        // }
-        // line.resize(AlleleDepths::MatchLabel(alleles));
-
-        // // Read all the Allele Depths for every sample into ad array
-        // int *ad = nullptr;
-        // int n_ad = 0;
-        // int n_ad_array = 0;
-        // n_ad = bcf_get_format_int32(reader_.header(0), rec, "AD", &ad, &n_ad_array);
-        // if(n_ad < 0) {
-        //     // AD tag is missing, so we do nothing at this time
-        //     // TODO: support using calculated genotype likelihoods
-        //     continue;
-        // }
-        // if(line.num_nucleotides() == num_alleles) {
-        //     assert(n_ad == line.data_size());
-        //     for(int i=0,k=0;i<num_samples;++i) {
-        //         for(int a=0;a<num_alleles;++a) {
-        //             line(i,a) = ad[k++];
-        //         }
-        //     }           
-        // } else {
-        //     assert(n_ad-num_samples == line.data_size());
-        //     for(int i=0,k=0;i<num_samples;++i) {
-        //         k++; // skip reference AD since it is N
-        //         for(int a=1;a<num_alleles;++a) {
-        //             line(i,a-1) = ad[k++];
-        //         }
-        //     }
-        // }
         // execute func
-        call_back(rec, location);
+        call_back(rec);
     }
 }
 
 inline
 int BcfPileup::AddFile(const char* filename) {
     assert(filename != nullptr);
-    assert(reader_.num_readers() == 0); // only support one input file
+    
+    int index = reader_.num_readers();
+    assert(index == 0); // only support one input file at this time
 
     if(reader_.AddReader(filename) == 0) {
         return 0;
     }
-    ParseSampleLabels();
+    ParseSampleLabels(index);
+    ParseContigs(index);
 
     return 1;
 }
 
-
 // Parse PREFIX/SAMPLE/LIBRARY formatted labels
 inline
-void BcfPileup::ParseSampleLabels() {
-    libraries_.names.clear();
-    libraries_.samples.clear();
+void BcfPileup::ParseSampleLabels(int index) {
 
-    int num_samples = reader_.num_samples();
-    auto bcf_samples = reader_.samples();
-    std::string sample, library;
+    auto reader = reader_.reader(index);
+
+    bool needs_updating = false;
+
+    int num_samples = bcf_hdr_nsamples(reader->header);
+    auto bcf_samples = reader->header->samples;
     for(int i=0;i<num_samples;++i) {
-        sample = bcf_samples[i];
-        library.clear();
+        std::string bcf_sample = bcf_samples[i];
+        std::string sample = trim_label_prefix(bcf_sample);
+        std::string name;
 
-        trim_label_prefix(sample);
         size_t pos = sample.find(DNG_LABEL_SEPARATOR_CHAR);        
         if(pos != std::string::npos) {
-            library = sample.substr(pos+1);
+            name = sample.substr(pos+1);
             sample.erase(pos);
         }
-        if(library.empty()) {
-            library = sample;
+        if(name.empty()) {
+            name = sample;
         }
-        libraries_.names.push_back(library);
-        libraries_.samples.push_back(sample);
+        pos = utility::find_position(input_libraries_.names, name);
+        if(pos == input_libraries_.names.size()) {
+            input_libraries_.names.push_back(std::move(name));
+            input_libraries_.samples.push_back(std::move(sample));
+            bcf_samples_.push_back(std::move(bcf_sample));
+            needs_updating = true;
+        } else {
+            if(bcf_samples_[pos] != bcf_sample) {
+                throw std::runtime_error("Multiple VCF/BCF column names for library '" + name + "': '" +
+                    bcf_samples_[pos] + "' and '" + bcf_sample + "'.");
+            }
+            if(input_libraries_.samples[pos] != sample) {
+                throw ("Multiple sample names for library '" + name + "': '" +
+                    input_libraries_.samples[pos] + "' and '" + sample + "'.");
+            }
+        }
+    }
+    if(needs_updating) {
+        ResetLibraries();
     }
 }
 
 template<typename R>
 void BcfPileup::SelectLibraries(R &range) {
-    assert(libraries_.names.size() == libraries_.samples.size());
-    assert(libraries_.names.size() == reader_.num_samples());
+    assert(input_libraries_.names.size() == input_libraries_.samples.size());
+    assert(input_libraries_.names.size() == bcf_samples_.size());
+
+    output_libraries_ = {};
 
     // For every library in range, try to find it in input_libraries_
-    auto bcf_samples = reader_.samples();
     std::string selector;
     for(auto it = boost::begin(range); it != boost::end(range); ++it) {
-        auto pos = utility::find_position(libraries_.names, *it);
-        if(pos == libraries_.names.size()) {
+        auto pos = utility::find_position(input_libraries_.names, *it);
+        if(pos == input_libraries_.names.size()) {
             // Do nothing if library was not found.
             continue;
         }
+        output_libraries_.names.push_back(input_libraries_.names[pos]);
+        output_libraries_.samples.push_back(input_libraries_.samples[pos]);
+
         if(!selector.empty()) {
             selector += ',';
         }
-        selector += bcf_samples[pos];
+        selector += bcf_samples_[pos];
     }
     if(reader_.SetSamples(selector.c_str()) == 0) {
         return;
     }
-    ParseSampleLabels();
+
 }
 
+inline
+void BcfPileup::ParseContigs(int index) {
+
+    auto reader = reader_.reader(index);
+
+    const int num_contigs = reader->header->n[BCF_DT_CTG];
+
+    for(int i=0;i<num_contigs;++i) {
+        const char *name = reader->header->id[BCF_DT_CTG][i].key;
+        auto pos = utility::find_position_if(contigs_, [name](const contig_t& contig) { return name == contig.name; });
+        int length = reader->header->id[BCF_DT_CTG][i].val->info[0];
+        if(pos < contigs_.size()) {
+            assert(contigs_[pos].length == length);
+            continue;
+        }
+        contigs_.push_back({name, length});
+    }
+}
 
 } //namespace io
 } //namespace dng

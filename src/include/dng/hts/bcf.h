@@ -318,6 +318,12 @@ public:
         bcf_write(handle(), hdr(), &rec);
     }
 
+    void WriteRecord(BareVariant *rec) {
+        // Add line to the body of the VCF
+        assert(rec != nullptr);
+        bcf_write(handle(), hdr(), rec);
+    }
+
     /** Explicity closes the file and flushes the stream */
     void Close() {
     	bcf_close(handle());
@@ -375,7 +381,7 @@ public:
         return bcf_sr_add_reader(handle(), filename);
     }
     void RemoveReader(int index) {
-        assert(0 < index && index < handle()->nreaders);
+        assert(0 <= index && index < handle()->nreaders);
         bcf_sr_remove_reader(handle(), index);
     }
 
@@ -383,7 +389,7 @@ public:
         return bcf_sr_next_line(handle());
     }
     bcf1_t* GetLine(int index) {
-        assert(0 < index && index < handle()->nreaders);
+        assert(0 <= index && index < handle()->nreaders);
         return bcf_sr_get_line(handle(), index);
     }
 
@@ -396,19 +402,19 @@ public:
         return handle()->nreaders;
     }    
     bcf_sr_t* reader(int index) {
-        assert(0 < index && index < handle()->nreaders);
+        assert(0 <= index && index < handle()->nreaders);
         return bcf_sr_get_reader(handle(), index);    
     }
     const bcf_sr_t* reader(int index) const {
-        assert(0 < index && index < handle()->nreaders);
+        assert(0 <= index && index < handle()->nreaders);
         return bcf_sr_get_reader(handle(), index);    
     }
     bcf_hdr_t* header(int index) {
-        assert(0 < index && index < handle()->nreaders);
+        assert(0 <= index && index < handle()->nreaders);
         return bcf_sr_get_header(handle(), index);    
     }
     const bcf_hdr_t* header(int index) const {
-        assert(0 < index && index < handle()->nreaders);
+        assert(0 <= index && index < handle()->nreaders);
         return bcf_sr_get_header(handle(), index);    
     }
 

@@ -184,7 +184,7 @@ void BamPileup::ParseHeaderTokens(It it, It it_last) {
                 }
             }
             if(id.empty()) {
-                throw std::runtime_error("ERROR: an @RG header line is missing an 'ID' tag.");
+                throw std::runtime_error("An @RG header line is missing an 'ID' tag.");
             }
             if(name.empty()) {
                 name = id;
@@ -200,7 +200,7 @@ void BamPileup::ParseHeaderTokens(It it, It it_last) {
                 needs_updating = true;
             } else {
                 if(input_libraries_.samples[pos] != sample) {
-                    throw std::runtime_error("ERROR: Multiple sample names are defined for read groups with library " + prefix + name + ".");
+                    throw std::runtime_error("Multiple sample names are defined for read groups with library " + prefix + name + ".");
                 }
                 needs_updating |= input_libraries_.read_groups[pos].insert(id).second;
             }
