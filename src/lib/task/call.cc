@@ -837,12 +837,14 @@ int process_bcf(task::Call::argument_type &arg) {
         // Identify site
         std::string allele_str;
         std::vector<char> allele_indexes;
+        std::vector<int>  allele_list;
         const int num_alleles = rec->n_allele;
         int first_is_n = 0;
         for(int a = 0; a < num_alleles; ++a) {
             int n = AlleleDepths::MatchAlleles(rec->d.allele[a]);
             if(0 <= n && n <= 3) {
-                allele_indexes.push_back(a);
+                allele_indexes.push_back(n);
+                allele_list.push_back(a);
             } else if(a == 0 && n == 4) {
                 first_is_n = 64;
             }
@@ -863,7 +865,7 @@ int process_bcf(task::Call::argument_type &arg) {
         for(int i=0;i<num_libs;++i) {
             int offset = i*num_alleles;
             for(int a=0; a<allele_indexes.size();++a) {
-                data(i,a) = ad[offset+allele_indexes[a]];
+                data(i,a) = ad[offset+allele_list[a]];
             }
         }
 
