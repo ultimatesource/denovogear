@@ -29,7 +29,7 @@
 
 XM((fasta), (f), "faidx indexed reference sequence file", std::string, "")
 XM((gamma), , "genotype likelihood parameters",
-   std::vector<std::string>, DL(std::vector<std::string>({"0.98,0.0005,0.0005,1.04", "0.02,0.075,0.005,1.18"}),
+   std::vector<std::string>, DL(std::vector<std::string>({"0.98,0.00001,0.0005,1", "0.02,0.01,0.005,1.1"}),
                                 "see docs"))
 XM((header), (h), "Location of separate bam header file for read-groups.", 
    std::string, "")
