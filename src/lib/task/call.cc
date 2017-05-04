@@ -248,7 +248,7 @@ int process_bam(task::Call::argument_type &arg) {
 
     // User the header from the first file to determine the contigs
     for(auto && contig : mpileup.contigs()) {
-    	vcfout.AddContig(contig.first.c_str(), contig.second); // Add contigs to header
+    	vcfout.AddContig(contig.name.c_str(), contig.length); // Add contigs to header
     }
 
     for(auto && line : relationship_graph.BCFHeaderLines()) {
@@ -809,8 +809,8 @@ int process_bcf(task::Call::argument_type &arg) {
     const bcf_hdr_t *header = mpileup.reader().header(0); // TODO: fixthis
     const int num_libs = mpileup.num_libraries();
 
-    for(auto && contig : hts::extra::extract_contigs(header)) {
-        vcfout.AddHeaderMetadata(contig.c_str()); // Add contigs to header
+    for(auto && contig : mpileup.contigs()) {
+        vcfout.AddContig(contig.name.c_str(), contig.length); // Add contigs to header
     }
     for(auto && line : relationship_graph.BCFHeaderLines()) {
         vcfout.AddHeaderMetadata(line.c_str());  // Add pedigree info

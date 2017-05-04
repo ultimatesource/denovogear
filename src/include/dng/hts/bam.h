@@ -248,6 +248,8 @@ public:
         return regions_;
     }
 
+    std::vector<std::pair<const char *, int>> contigs() const;
+
 protected:
     bool NextRegion() {
         regions_.pop_front();
@@ -278,6 +280,28 @@ protected:
     std::deque<region_t> regions_;
     bool has_regions_{false};
 };
+
+
+inline
+std::vector<std::pair<const char*, int>> contigs(const bam_hdr_t *header) {
+    assert(header != nullptr);
+    std::vector<std::pair<const char*, int>> contigs;
+    int n_targets = header->n_targets;
+    for(int a = 0; a < n_targets; a++) {
+        if(header->target_name[a] == nullptr) {
+            continue;
+        }
+        contigs.emplace_back(header->target_name[a], header->target_len[a]);
+    }
+    return contigs;
+}
+
+inline
+std::vector<std::pair<const char *, int>> File::contigs() const {
+    return bam::contigs(header());
+}
+
+
 
 } // namespace bam
 

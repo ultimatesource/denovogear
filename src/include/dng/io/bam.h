@@ -93,6 +93,11 @@ public:
     typedef detail::BamScan::list_type list_type;
     typedef detail::BamScan::node_type node_type;
 
+    struct contig_t {
+        std::string name;
+        int length;
+    };
+
     typedef std::vector<list_type> data_type;
     typedef void (callback_type)(const data_type &, utility::location_t);
 
@@ -128,9 +133,12 @@ public:
         return scanners_.front().file().header();
     }
 
-    std::vector<std::pair<std::string, uint32_t>>
-    contigs() const {
-        return hts::extra::parse_contigs(header());
+    std::vector<contig_t> contigs() const {
+        std::vector<contig_t> ret;
+        for(auto && contig : hts::bam::contigs(header())) {
+            ret.push_back({contig.first,contig.second});
+        }
+        return ret;
     }
 
 
