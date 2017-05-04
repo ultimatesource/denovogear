@@ -192,7 +192,7 @@ void BamPileup::operator()(InFiles &range, Func func) {
     using namespace std;
     using namespace fileio;
     using utility::make_location;
-    using dng::regions::region_t;
+    using dng::regions::location_range_t;
 
     // encapsulate input files into scanners
     vector<detail::BamScan<typename boost::range_value<InFiles>::type>> scanners;
@@ -215,12 +215,12 @@ void BamPileup::operator()(InFiles &range, Func func) {
     }
 
     // If the first file has parsed regions, use them.
-    std::queue<region_t> region_queue;
+    std::queue<location_range_t> region_queue;
     for(auto && r : boost::begin(range)->regions()) {
         // convert regions from bam format to dng format
         region_queue.emplace(r);
     }
-    regions::region_t current_reg = {0, utility::LOCATION_MAX};
+    location_range_t current_reg = {0, utility::LOCATION_MAX};
     if(!region_queue.empty()) {
         current_reg = region_queue.front();
         region_queue.pop();

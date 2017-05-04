@@ -44,8 +44,8 @@ using namespace dng::regions;
 namespace qi = boost::spirit::qi;
 namespace phoenix = boost::phoenix;
 
-struct make_region_impl {
-    typedef detail::raw_parsed_region_t result_type;
+struct make_range_impl {
+    typedef parsed_range_t result_type;
 
     result_type operator()(std::string s, int b, int e) const {
         return {s,b,e};
@@ -57,11 +57,11 @@ struct make_region_impl {
         return {s,1,INT_MAX};
     }
 };
-const phoenix::function<make_region_impl> make_region;
+const phoenix::function<make_range_impl> make_range;
 
 template <typename Iterator, typename Skipper>
 struct regions_grammar :
-qi::grammar<Iterator, detail::raw_parsed_regions_t(), Skipper> {
+qi::grammar<Iterator, parsed_ranges_t(), Skipper> {
     typedef std::pair<int,int> pos_t;
     regions_grammar() : regions_grammar::base_type(start) {
         using qi::uint_; using qi::char_; using qi::as_string;
@@ -69,8 +69,8 @@ qi::grammar<Iterator, detail::raw_parsed_regions_t(), Skipper> {
         using qi::lit;
         using namespace qi::labels;
 
-        start = region % no_skip[wsp];
-        region = (label >> -(':' >> position))[_val = make_region(_1,_2)];
+        start = range % no_skip[wsp];
+        range = (label >> -(':' >> position))[_val = make_range(_1,_2)];
         position %=
             ((pos[_a = _1] >> ( ('-' >> ( pos | attr(INT_MAX)))
                               | ('+' >> pos)[_1 = _a+_1-1]
@@ -88,8 +88,8 @@ qi::grammar<Iterator, detail::raw_parsed_regions_t(), Skipper> {
     qi::uint_parser<unsigned, 10, 1, 3> uint3_p;
     qi::uint_parser<unsigned, 10, 3, 3> uint3_3_p;
 
-    qi::rule<Iterator, detail::raw_parsed_regions_t(), Skipper> start;
-    qi::rule<Iterator, detail::raw_parsed_region_t(), Skipper> region;
+    qi::rule<Iterator, parsed_ranges_t(), Skipper> start;
+    qi::rule<Iterator, parsed_range_t(), Skipper> range;
     qi::rule<Iterator, std::string(), Skipper> label;
     qi::rule<Iterator, int(), Skipper> pos, pos_end;
     qi::rule<Iterator, std::pair<int,int>(), qi::locals<int>, Skipper> position;
@@ -98,17 +98,16 @@ qi::grammar<Iterator, detail::raw_parsed_regions_t(), Skipper> {
     Skipper wsp;
 };
 
-
-std::pair<detail::raw_parsed_regions_t,bool> dng::regions::detail::parse_regions(const std::string &text) {
+std::pair<parsed_ranges_t,bool> dng::regions::parse_ranges(const std::string &text) {
     namespace ss = boost::spirit::standard;
     using ss::space;
     regions_grammar<std::string::const_iterator, ss::space_type> parser_grammar;
 
     std::string::const_iterator first = text.begin();
-    raw_parsed_regions_t regions;
-    bool success = qi::phrase_parse(first, text.end(), parser_grammar, space, regions);
+    parsed_ranges_t ranges;
+    bool success = qi::phrase_parse(first, text.end(), parser_grammar, space, ranges);
     success = success && (first == text.end());
-    return {regions, success};
+    return {ranges, success};
 }
 
 inline
@@ -145,9 +144,9 @@ hts::bam::regions_t dng::regions::bam_parse_region(const std::string &text, cons
     using hts::bam::region_t;
     using hts::bam::regions_t;
     // Parse string
-    auto raw_regions = dng::regions::detail::parse_regions(text);
+    auto raw_regions = parse_ranges(text);
     if(!raw_regions.second) {
-        throw std::runtime_error("ERROR: Parsing of regions string failed.");
+        throw std::runtime_error("Parsing of regions string failed.");
     }
     // Return quickly if there are no regions
     if(raw_regions.first.empty()) {
@@ -160,10 +159,10 @@ hts::bam::regions_t dng::regions::bam_parse_region(const std::string &text, cons
         int beg = r.beg-1;
         int end = r.end;
         if(tid < 0 ) {
-            throw std::runtime_error("ERROR: Unknown contig name: '" + r.target + "'");
+            throw std::runtime_error("Unknown contig name: '" + r.target + "'");
         }
         if(beg < 0 || end < 0 || beg >= end) {
-            throw std::runtime_error("ERROR: Invalid region coordinates: '" +
+            throw std::runtime_error("Invalid region coordinates: '" +
                 r.target + ":" + std::to_string(beg+1) + "-" + std::to_string(end) + "'" );
         }
         value.push_back({tid,beg,end});
@@ -177,7 +176,7 @@ hts::bam::region_t parse_bed_line(const std::string &target, const std::string &
     const hts::bam::File &file) {
     int tid = file.TargetNameToID(target.c_str());
     if(tid < 0 ) {
-        throw std::runtime_error("ERROR: Unknown contig name: '" + target + "'");
+        throw std::runtime_error("Unknown contig name: '" + target + "'");
     }
     size_t sz;
     int beg = stoi(beg_str, &sz);
@@ -192,7 +191,7 @@ hts::bam::region_t parse_bed_line(const std::string &target, const std::string &
     }    
     // check for valid coordinates
     if(beg < 0 || end < 0 || beg >= end) {
-        throw std::runtime_error("ERROR: Invalid bed coordinates: '" + target + "\t" + beg_str +"\t" + end_str + "'");
+        throw std::runtime_error("Invalid bed coordinates: '" + target + "\t" + beg_str +"\t" + end_str + "'");
     }
     return {tid,beg,end};
 }
@@ -202,11 +201,11 @@ hts::bam::regions_t dng::regions::bam_parse_bed(const std::string &path, const h
 	using hts::bam::regions_t;
 
     if(path.empty()) {
-        throw std::runtime_error("ERROR: path to bed file was not specified or is blank.");        
+        throw std::runtime_error("path to bed file was not specified or is blank.");
     }
     std::ifstream bed_file(path);
     if(!bed_file.is_open()) {
-        throw std::runtime_error("ERROR: unable to open bed file '" + path + "'.");
+        throw std::runtime_error("unable to open bed file '" + path + "'.");
     }
     // Construct the tokenizer from the ifstream
     auto tokens = utility::make_tokenizer(io::istreambuf_range(bed_file));
@@ -217,7 +216,7 @@ hts::bam::regions_t dng::regions::bam_parse_bed(const std::string &path, const h
     for(auto tok_iter = tokens.begin(); tok_iter != tokens.end(); ++tok_iter) {
         if(*tok_iter == "\n") {
             if(column < 3 && !((column == 1 && col[0].empty()) || col[0][0] == '#')) {
-                throw std::runtime_error("ERROR: line " + std::to_string(line_num) + " in bed file '"
+                throw std::runtime_error("line " + std::to_string(line_num) + " in bed file '"
                 + path + "' has less than three columns." );
             }
             ++line_num;

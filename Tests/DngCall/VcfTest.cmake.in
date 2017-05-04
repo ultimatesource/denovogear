@@ -26,7 +26,7 @@ set(TrioAlt-STDOUT-FAIL
   "5\t126385929\t\\.\tG\tX"
 )
 
-set(TrioAltRegions-CMD @DNG_CALL_EXE@ -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0.001 -r test2.bed test2.vcf.gz)
+set(TrioAltRegions-CMD @DNG_CALL_EXE@ -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0.001 -r 5:126385921-126385925 test2.vcf.gz)
 set(TrioAltRegions-WD "@TESTDATA_DIR@/sample_5_3/")
 set(TrioAltRegions-RESULT 0)
 set(TrioAltRegions-STDOUT

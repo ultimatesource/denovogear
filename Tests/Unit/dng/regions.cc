@@ -23,11 +23,11 @@
 
 using namespace dng::regions;
 
-namespace dng { namespace regions { namespace detail {
-bool operator==(const raw_parsed_region_t &a, const raw_parsed_region_t &b) {
+namespace dng { namespace regions {
+bool operator==(const parsed_range_t &a, const parsed_range_t &b) {
     return std::tie(a.target,a.beg,a.end) == std::tie(b.target,b.beg,b.end);
 }
-}}}
+}}
 
 namespace hts { namespace bam {
 bool operator==(const region_t &a, const region_t &b) {
@@ -35,9 +35,9 @@ bool operator==(const region_t &a, const region_t &b) {
 }
 }}
 
-bool region_parsing(std::string input, detail::raw_parsed_regions_t b ) {
+bool region_parsing(std::string input, parsed_ranges_t b ) {
     std::cerr << "Parsing region '" << input << "': ";
-    auto result = detail::parse_regions(input);
+    auto result = parse_ranges(input);
     if(result.second == false) {
         std::cerr << "FAIL\n";
         return false;
@@ -56,7 +56,7 @@ bool region_parsing(std::string input, detail::raw_parsed_regions_t b ) {
 
 bool region_parsing_expect_fail(std::string input) {
     std::cerr << "Parsing region '" << input << "': ";
-    auto result = detail::parse_regions(input);
+    auto result = parse_ranges(input);
     if(result.second == false) {
         std::cerr << "FAIL (expected)\n";
         return true;
@@ -97,7 +97,7 @@ bool region_bam_parsing_expect_fail(std::string input, hts::bam::File &file) {
     return false;
 }
 
-const char bamtext[]= "data:"
+const char bamtext[]= "data:,"
 "@HD\tVN:1.4\tGO:none\tSO:coordinate\n"
 "@SQ\tSN:1\tLN:249250621\n"
 "@SQ\tSN:2\tLN:243199373\n"

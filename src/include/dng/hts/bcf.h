@@ -377,7 +377,14 @@ public:
         return handle_.get();
     }
 
+    int SetRegions(const char* regions) {
+        assert(regions != nullptr);
+        assert(num_readers() == 0); // must be called before any readers are added
+        return bcf_sr_set_regions(handle(), regions, 0);
+    }
+
     int AddReader(const char *filename) {
+        assert(filename != nullptr);
         return bcf_sr_add_reader(handle(), filename);
     }
     void RemoveReader(int index) {

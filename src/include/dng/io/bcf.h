@@ -28,6 +28,10 @@
 #include <dng/utility.h>
 #include <dng/depths.h>
 #include <dng/library.h>
+#include <dng/regions.h>
+
+#include <boost/spirit/include/karma_generate.hpp>
+
 
 namespace dng {
 namespace io {
@@ -49,6 +53,8 @@ public:
     void SelectLibraries(R &range);
 
     void ResetLibraries();
+
+    int SetRegions(const regions::parsed_ranges_t &ranges);
 
     const std::vector<contig_t>& contigs() const {
         return contigs_;
@@ -220,6 +226,26 @@ void BcfPileup::ParseContigs(int index) {
         }
         contigs_.push_back({name, length});
     }
+}
+
+inline
+int BcfPileup::SetRegions(const regions::parsed_ranges_t &ranges) {
+    // convert ranges to the 1-based synced_bcf_reader format
+    namespace karma = boost::spirit::karma;
+    std::string str;
+    str.reserve(128);
+    for(size_t i = 0; i < ranges.size(); ++i) {
+        if(i != 0) {
+            str += ',';
+        }
+        const auto & a = ranges[i];
+        str += a.target;
+        str += ':';
+        karma::generate(std::back_inserter(str), a.beg);
+        str += '-';
+        karma::generate(std::back_inserter(str), a.end);
+    }
+    return reader_.SetRegions(str.c_str());
 }
 
 } //namespace io

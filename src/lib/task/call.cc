@@ -206,9 +206,7 @@ int process_bam(task::Call::argument_type &arg) {
     std::array<double, 4> freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
 
     // Fetch the selected regions
-    // TODO: convert io:at_slurp to support the syntax @EXT:FileName, where the extension is returned
-    // TODO: This will allow us to support @filename.bed
-    io::at_slurp(arg.region); // replace arg.region with the contents of a file if needed
+    auto region_ext = io::at_slurp(arg.region); // replace arg.region with the contents of a file if needed
 
     // Open input files
     using BamPileup = dng::io::BamPileup;
@@ -221,6 +219,7 @@ int process_bam(task::Call::argument_type &arg) {
             throw std::runtime_error("Unable to open input file '" + str + "'.");
         }
         // add regions
+        // TODO: make this work with region_ext
         if(!arg.region.empty()) {
             if(arg.region.find(".bed") != std::string::npos) {
                 input.regions(regions::bam_parse_bed(arg.region, input));
@@ -774,6 +773,17 @@ int process_bcf(task::Call::argument_type &arg) {
 
     using dng::io::BcfPileup;
     BcfPileup mpileup;
+
+    // Fetch the selected regions
+    auto region_ext = io::at_slurp(arg.region); // replace arg.region with the contents of a file if needed
+    if(!arg.region.empty()) {
+        auto ranges = regions::parse_ranges(arg.region);
+        if(ranges.second == false) {
+            throw std::runtime_error("unable to parse the format of '--region' argument.");
+        }
+        mpileup.SetRegions(ranges.first);
+    }
+
     if(mpileup.AddFile(arg.input[0].c_str()) == 0) {
         int errnum = mpileup.reader().handle()->errnum;
         throw std::runtime_error(bcf_sr_strerror(errnum));

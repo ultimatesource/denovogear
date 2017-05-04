@@ -214,6 +214,7 @@ template<typename T>
 std::string to_pretty(const T &value) {
     namespace karma = boost::spirit::karma;
     std::string str;
+    str.reserve(16);
     if(karma::generate(std::back_inserter(str), value)) {
         return str;
     }
@@ -231,10 +232,15 @@ inline T lphred(double p, T m = std::numeric_limits<T>::max()) {
     return (q > m) ? m : static_cast<T>(q);
 }
 
-// extracts extension and filename from both file.ext and ext:file.foo
-// returns {ext, filename.ext}
+// extracts extension and filename from both file.foo and ext:file.foo
+// returns {ext, file.foo}
 // trims whitespace as well
-std::pair<std::string, std::string> extract_file_type(const std::string &path);
+std::pair<std::string, std::string> extract_file_type(const char *path);
+
+inline
+std::pair<std::string, std::string> extract_file_type(const std::string &path) {
+    return extract_file_type(path.c_str());
+}
 
 // a strongly-typed enum for file category
 enum class FileCat {
