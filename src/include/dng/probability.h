@@ -71,6 +71,8 @@ protected:
 
     GenotypeArray diploid_prior_[5]; // Holds P(G | theta)
     GenotypeArray haploid_prior_[5]; // Holds P(G | theta)
+
+    DNG_UNIT_TEST(unittest_dng_log_probability);
 };
 
 TransitionMatrixVector create_mutation_matrices(const RelationshipGraph &pedigree,

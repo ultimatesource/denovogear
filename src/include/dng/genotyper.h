@@ -121,6 +121,7 @@ public:
             epsilon = f.first[2];
             omega = f.first[3];
         }
+        params_t() { }
     };
 
     DirichletMultinomialMixture(params_t model_a, params_t model_b);

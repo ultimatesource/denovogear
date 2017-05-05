@@ -26,7 +26,7 @@
 #include <algorithm>
 
 #include <dng/utility.h>
-#include <dng/find_mutations.h>
+#include <dng/call_mutations.h>
 #include "fixture_read_test_from_file.h"
 
 struct TrioWorkspace : public  ReadTrioFromFile {
