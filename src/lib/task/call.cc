@@ -843,6 +843,14 @@ int process_bcf(task::Call::argument_type &arg) {
 
     AlleleDepths data;
 
+    // allocate space for ad. bcf_get_format_int32 uses realloc internally
+    int n_ad_capacity = num_libs*5;
+    std::unique_ptr<int[],decltype(std::free)*> ad{
+        reinterpret_cast<int*>(std::malloc(sizeof(int)*n_ad_capacity)), std::free};
+    if(!ad) {
+        throw std::bad_alloc{};
+    }
+
     // run calculation based on the depths at each site.
     mpileup([&](const BcfPileup::data_type & rec) {
         data.location(rec->rid, rec->pos);
@@ -866,14 +874,22 @@ int process_bcf(task::Call::argument_type &arg) {
         assert(color != -1);
         data.resize(color+first_is_n, rec->n_sample);
         // Read all the Allele Depths for every sample into an AD array
-        int *ad = nullptr;
-        int n_ad_array = 0;
-        int n_ad = bcf_get_format_int32(header, rec, "AD", &ad, &n_ad_array);
-        if(n_ad < 0) {
+
+        int *pad = ad.get();
+        int n_ad = bcf_get_format_int32(header, rec, "AD", &pad, &n_ad_capacity);
+        if(n_ad == -4) {
+            throw std::bad_alloc{};
+        } else if(pad != ad.get()) {
+            // update pointer
+            ad.release();
+            ad.reset(pad);
+        }
+        if(n_ad <= 0) {
             // AD tag is missing, so we do nothing at this time
             // TODO: support using calculated genotype likelihoods
             return;
         }
+
         assert(n_ad >= data.data_size());
         for(int i=0;i<num_libs;++i) {
             int offset = i*num_alleles;
@@ -1034,20 +1050,25 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
     record->sample_genotypes(int32_vector);
     record->samples("GQ", call_stats.genotype_qualities);
 
-    const size_t gt_count = type_info_gt_table[new_color].width*num_nodes;
+    const size_t gt_width = type_info_gt_table[new_color].width;
+    const size_t gt_count = gt_width*num_nodes;
     float_vector.assign(gt_count, hts::bcf::float_missing);
     for(size_t i=0,k=0;i<num_nodes;++i) {
         if(work.ploidies[i] == 2) {
-            for(size_t j=0;j<type_info_gt_table[new_color].width;++j) {
+            for(size_t j=0;j<gt_width;++j) {
                 size_t pos = reencode_genotype(j, 2, new_color, old_color);
-                assert(pos < type_info_gt_table[new_color].width);
+                assert(pos < type_info_gt_table[old_color].width);
                 float_vector[k++] = call_stats.posterior_probabilities[i][pos];
             }
         } else if(work.ploidies[i] == 1) {
-            for(size_t j=0;j<type_info_table[new_color].width;++j) {      
+            size_t j;
+            for(j=0;j<type_info_table[new_color].width;++j) {
                 size_t pos = reencode_genotype(j, 1, new_color, old_color);
-                assert(pos < type_info_table[new_color].width);
+                assert(pos < type_info_table[old_color].width);
                 float_vector[k++] = call_stats.posterior_probabilities[i][pos];
+            }
+            for(;j<gt_width;++j) {
+                float_vector[k++] = hts::bcf::float_vector_end;
             }
         }
     }
@@ -1062,19 +1083,24 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
     }
 
     float_vector.assign(gt_count, hts::bcf::float_missing);
-    for(size_t i=0,k=work.library_nodes.first*type_info_gt_table[new_color].width;i<num_libraries;++i) {
+    for(size_t i=0,k=work.library_nodes.first*gt_width;i<num_libraries;++i) {
         if(work.ploidies[i] == 2) {
-            for(size_t j=0;j<type_info_gt_table[new_color].width;++j) {
+            for(size_t j=0;j<gt_width;++j) {
                 size_t pos = reencode_genotype(j, 2, new_color, old_color);
-                assert(pos < type_info_gt_table[new_color].width);
+                assert(pos < type_info_gt_table[old_color].width);
                 float_vector[k++] = call_stats.genotype_likelihoods[i][pos];
             }
         } else if(work.ploidies[i] == 1) {
-            for(size_t j=0;j<type_info_table[new_color].width;++j) {      
+            size_t j;
+            for(j=0;j<type_info_table[new_color].width;++j) {
                 size_t pos = reencode_genotype(j, 1, new_color, old_color);
-                assert(pos < type_info_table[new_color].width);
+                assert(pos < type_info_table[old_color].width);
                 float_vector[k++] = call_stats.genotype_likelihoods[i][pos];
             }
+            for(;j<gt_width;++j) {
+                float_vector[k++] = hts::bcf::float_vector_end;
+            }
+
         }        
     }    
     record->samples("GL", float_vector);

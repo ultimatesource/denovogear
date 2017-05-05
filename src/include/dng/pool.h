@@ -23,6 +23,7 @@
 
 #include <limits>
 #include <memory>
+#include <vector>
 
 #include <boost/version.hpp>
 #include <boost/intrusive/list.hpp>
@@ -102,7 +103,7 @@ public:
             return;
         }
         // clear inactive as needed
-	if(boost::intrusive::is_safe_autounlink<list_type::value_traits::link_mode>::value) {
+        if(boost::intrusive::is_safe_autounlink<list_type::value_traits::link_mode>::value) {
             inactive_.clear();
         }
         // enumerate over allocated blocks

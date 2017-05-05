@@ -807,24 +807,24 @@ void dng::RelationshipGraph::CreatePeelingOps(
         });
 
         // Find the range of the parent types
-        auto pos = boost::find_if(family_edges, [&](edge_t x) -> bool {
+        auto it = boost::find_if(family_edges, [&](edge_t x) -> bool {
             return (edge_types(x) != EdgeType::Spousal);
         });
-        size_t num_spousal_edges = distance(family_edges.begin(), pos);
+        size_t num_spousal_edges = distance(family_edges.begin(), it);
 
         // Check to see what type of graph we have
         if (num_spousal_edges == 0) {
             // If we do not have a parent-child single branch,
             // we can't construct the pedigree.
             if (family_edges.size() != 1) {
-                throw std::runtime_error("ERROR: Unable to construct peeler for pedigree;  "
+                throw std::runtime_error("Unable to construct peeler for pedigree;  "
                         "do not have a parent-child single branch");
             }
             // Create a mitotic peeling operation.
-            auto child_index = target(*pos, pedigree_graph);
-            size_t parent = node_ids[source(*pos, pedigree_graph)];
+            auto child_index = target(*it, pedigree_graph);
+            size_t parent = node_ids[source(*it, pedigree_graph)];
             size_t child = node_ids[child_index];
-            transitions_[child] = {TransitionType::Pair, parent, null_id, lengths[*pos], 0.0};
+            transitions_[child] = {TransitionType::Pair, parent, null_id, lengths[*it], 0.0};
             family_members_.push_back({parent, child});
 
             if (node_ids[pivots[k]] == child) {
@@ -838,7 +838,7 @@ void dng::RelationshipGraph::CreatePeelingOps(
 
         } else if (num_spousal_edges == 1) {
             // If this family contains no children, skip it
-            if (pos == family_edges.end()) {
+            if (it == family_edges.end()) {
                 continue;
             }
             // We have a nuclear family with 1 or more children
@@ -848,15 +848,16 @@ void dng::RelationshipGraph::CreatePeelingOps(
             family_members_.push_back({dad, mom});
             auto &family_members = family_members_.back();
 
-            while (pos != family_edges.end()) {
-                size_t child = node_ids[target(*pos, pedigree_graph)];
-                transitions_[child] = {TransitionType::Trio, dad, mom, lengths[*pos], lengths[*(pos + 1)]};
-                family_members.push_back(child); // Child
-
-                // child edges come in pairs
-                ++pos;
-                assert(node_ids[target(*pos, pedigree_graph)] == child);
-                ++pos;
+            for (;it != family_edges.end();++it) {
+                size_t child = node_ids[target(*it, pedigree_graph)];
+                if(edge_types(*it) == EdgeType::Maternal) {
+                    transitions_[child] = {TransitionType::Trio, dad, mom, 0, lengths[*it]};
+                    family_members.push_back(child);
+                } else {
+                    assert(edge_types(*it) == EdgeType::Paternal);
+                    assert(transitions_[child].type == TransitionType::Trio);
+                    transitions_[child].length1 = lengths[*it];
+                }
             }
             if (node_ids[pivots[k]] == node_ids[DUMMY_INDEX]) {
                 // A family without a pivot is a root family
