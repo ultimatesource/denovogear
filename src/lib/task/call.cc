@@ -47,9 +47,6 @@
 #include <dng/stats.h>
 #include <dng/io/utility.h>
 #include <dng/io/fasta.h>
-#include <dng/find_mutations_ylinked.h>
-#include <dng/find_mutations_xlinked.h>
-#include <dng/find_mutations.h>
 #include <dng/call_mutations.h>
 
 #include <dng/io/bam.h>
