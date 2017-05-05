@@ -55,6 +55,7 @@ public:
     typedef property_t<boost::edge_type_t> PropEdgeType;
     typedef property_t<boost::edge_length_t> PropEdgeLength;
     typedef property_t<boost::vertex_label_t> PropVertexLabel;
+
     typedef property_t<boost::vertex_group_t> PropVertexGroup;
     typedef property_t<boost::vertex_index_t> PropVertexIndex;
     typedef property_t<boost::vertex_sex_t> PropVertexSex;

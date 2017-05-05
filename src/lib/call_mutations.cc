@@ -71,7 +71,6 @@ bool CallMutations::operator()(const pileup::RawDepths &depths,
 
 bool CallMutations::operator()(const pileup::AlleleDepths &depths,
                 stats_t *stats) {
-
     int ref_index = depths.type_info().reference;
     size_t gt_width = depths.type_gt_info().width;
     size_t width = depths.type_info().width;
@@ -82,16 +81,15 @@ bool CallMutations::operator()(const pileup::AlleleDepths &depths,
     }
     GenotypeArray haploid_prior(width);
     for(int i=0;i<width;++i) {
-        haploid_prior(i) = diploid_prior_[ref_index](depths.type_info().indexes[i]);
+        haploid_prior(i) = diploid_prior_[ref_index](0);//depths.type_info().indexes[i]);
     }
-
+    
     // Set the prior probability of the founders given the reference
     work_.SetFounders(diploid_prior, haploid_prior);
 
     // Genotype Likelihoods
     double scale = work_.SetGenotypeLikelihoods(genotyper_, depths);
 
-    // Run
     bool found = Calculate(stats, depths.color());
     if(found && stats != nullptr) {
         stats->lld += scale/M_LN10;
@@ -156,6 +154,16 @@ bool CallMutations::Calculate(stats_t *stats, int color) {
         stats->node_mup[i] = 0.0;
     }
     for (size_t i = work_.founder_nodes.second; i < work_.num_nodes; ++i) {
+        // std::cerr << color << " " << i << " a: "
+        //           << work_.temp_buffer.rows() << ','
+        //           << work_.temp_buffer.cols() << ' '
+        //           << oneplus_mutation_matrices_[color][i].rows() << ','
+        //           << oneplus_mutation_matrices_[color][i].cols() <<  ' '
+        //           << work_.super[i].rows() << ','
+        //           << work_.super[i].cols() << ' '
+        //           << work_.lower[i].rows() << ','
+        //           << work_.lower[i].cols() << std::endl;
+
         stats->node_mup[i] = (work_.super[i] * (oneplus_mutation_matrices_[color][i] *
                                           work_.lower[i].matrix()).array()).sum();
         stats->node_mup[i] /= mup;
@@ -174,6 +182,18 @@ bool CallMutations::Calculate(stats_t *stats, int color) {
         stats->node_mu1p[i] = 0.0;
     }
     for (size_t i = work_.founder_nodes.second; i < work_.num_nodes; ++i) {
+        // std::cerr << color << " " << i << " b: "
+        //           << work_.temp_buffer.rows() << ','
+        //           << work_.temp_buffer.cols() << ' '
+        //           << one_mutation_matrices_[color][i].rows() << ','
+        //           << one_mutation_matrices_[color][i].cols() <<  ' '
+        //           << work_.super[i].rows() << ','
+        //           << work_.super[i].cols() << ' '
+        //           << work_.lower[i].rows() << ','
+        //           << work_.lower[i].cols() << std::endl;
+
+        work_.temp_buffer.resize(1,1);
+
         work_.temp_buffer = (work_.super[i].matrix() *
                                work_.lower[i].matrix().transpose()).array() *
                               one_mutation_matrices_[color][i].array();

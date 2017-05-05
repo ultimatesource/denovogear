@@ -53,7 +53,7 @@ public:
     const peel::workspace_t& work() const { return work_; };
 
 protected:
-    using matrices_t = std::array<TransitionMatrixVector, pileup::AlleleDepths::type_info_table_length+1>;
+    using matrices_t = std::array<TransitionMatrixVector, pileup::AlleleDepths::type_info_table_length>;
     static constexpr int COLOR_ACGT = 40; // When color == 40 all four nucleotides are observed in order A,C,G,T
 
     matrices_t CreateMutationMatrices(const int mutype = MUTATIONS_ALL) const;

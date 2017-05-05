@@ -674,7 +674,10 @@ int process_ad(task::Call::argument_type &arg) {
     }
 
     // Select libraries in the input that are used in the pedigree
+    std::cerr << "before " << mpileup.libraries().names.size() << "\n";
+    std::cerr << relationship_graph.library_names().size() << "\n";
     mpileup.SelectLibraries(relationship_graph.library_names());
+    std::cerr << "after " << mpileup.libraries().names.size() << "\n";
 
     // Begin writing VCF header
     auto out_file = vcf_get_output_mode(arg);
@@ -1034,9 +1037,18 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
     const size_t gt_count = type_info_gt_table[new_color].width*num_nodes;
     float_vector.assign(gt_count, hts::bcf::float_missing);
     for(size_t i=0,k=0;i<num_nodes;++i) {
-        for(size_t j=0;j<type_info_gt_table[new_color].width;++j) {
-            size_t pos = reencode_genotype(j, 2, new_color, old_color);
-            float_vector[k++] = call_stats.posterior_probabilities[i][pos];
+        if(work.ploidies[i] == 2) {
+            for(size_t j=0;j<type_info_gt_table[new_color].width;++j) {
+                size_t pos = reencode_genotype(j, 2, new_color, old_color);
+                assert(pos < type_info_gt_table[new_color].width);
+                float_vector[k++] = call_stats.posterior_probabilities[i][pos];
+            }
+        } else if(work.ploidies[i] == 1) {
+            for(size_t j=0;j<type_info_table[new_color].width;++j) {      
+                size_t pos = reencode_genotype(j, 1, new_color, old_color);
+                assert(pos < type_info_table[new_color].width);
+                float_vector[k++] = call_stats.posterior_probabilities[i][pos];
+            }
         }
     }
     record->samples("GP", float_vector);
@@ -1051,10 +1063,19 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
 
     float_vector.assign(gt_count, hts::bcf::float_missing);
     for(size_t i=0,k=work.library_nodes.first*type_info_gt_table[new_color].width;i<num_libraries;++i) {
-        for(size_t j=0;j<type_info_gt_table[new_color].width;++j) {
-            size_t pos = reencode_genotype(j, 2, new_color, old_color);
-            float_vector[k++] = call_stats.genotype_likelihoods[i][pos];
-        }
+        if(work.ploidies[i] == 2) {
+            for(size_t j=0;j<type_info_gt_table[new_color].width;++j) {
+                size_t pos = reencode_genotype(j, 2, new_color, old_color);
+                assert(pos < type_info_gt_table[new_color].width);
+                float_vector[k++] = call_stats.genotype_likelihoods[i][pos];
+            }
+        } else if(work.ploidies[i] == 1) {
+            for(size_t j=0;j<type_info_table[new_color].width;++j) {      
+                size_t pos = reencode_genotype(j, 1, new_color, old_color);
+                assert(pos < type_info_table[new_color].width);
+                float_vector[k++] = call_stats.genotype_likelihoods[i][pos];
+            }
+        }        
     }    
     record->samples("GL", float_vector);
 

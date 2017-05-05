@@ -31,7 +31,6 @@ void dng::peel::down(workspace_t &work, const family_members_t &family,
     auto child = family[1];
     work.upper[child] = (mat[child].transpose() * (work.upper[parent] *
                          work.lower[parent]).matrix()).array();
-
 }
 
 // Family Order: Parent, Child
@@ -80,7 +79,7 @@ void dng::peel::to_father(workspace_t &work, const family_members_t &family,
     work.lower[dad] *= (work.temp_buffer.matrix().transpose() * (work.upper[mom] *
                         work.lower[mom]).matrix()).array();
 
-    work.temp_buffer.resize(work.temp_buffer.size(), 1);
+    //work.temp_buffer.resize(work.temp_buffer.size(), 1);
 }
 
 // Family Order: Father, Mother, Child1, Child2, ...
@@ -100,7 +99,7 @@ void dng::peel::to_father_fast(workspace_t &work,
     work.temp_buffer.resize(mom_width, dad_width);
     work.lower[dad] = (work.temp_buffer.matrix().transpose() * (work.upper[mom] *
                        work.lower[mom]).matrix()).array();
-    work.temp_buffer.resize(work.temp_buffer.size(), 1);
+    //work.temp_buffer.resize(work.temp_buffer.size(), 1);
 }
 
 // Family Order: Father, Mother, Child1, Child2, ...
@@ -120,7 +119,7 @@ void dng::peel::to_mother(workspace_t &work, const family_members_t &family,
     work.temp_buffer.resize(mom_width, dad_width);
     work.lower[mom] *= (work.temp_buffer.matrix() * (work.upper[dad] *
                         work.lower[dad]).matrix()).array();
-    work.temp_buffer.resize(work.temp_buffer.size(), 1);
+    //work.temp_buffer.resize(work.temp_buffer.size(), 1);
 }
 
 // Family Order: Father, Mother, Child1, Child2, ...
@@ -140,7 +139,7 @@ void dng::peel::to_mother_fast(workspace_t &work,
     work.temp_buffer.resize(mom_width, dad_width);
     work.lower[mom] = (work.temp_buffer.matrix() * (work.upper[dad] *
                        work.lower[dad]).matrix()).array();
-    work.temp_buffer.resize(work.temp_buffer.size(), 1);
+    //work.temp_buffer.resize(work.temp_buffer.size(), 1);
 }
 
 // Family Order: Father, Mother, Child, Child2, ....
@@ -220,14 +219,14 @@ void dng::peel::to_father_reverse(workspace_t &work,
     // Calculate P(dad-only data & dad = g)
     auto mom_width = work.upper[mom].size();
     auto dad_width = work.upper[dad].size();
-    work.temp_buffer.resize(mom_width, dad_width); //TODO: FIXME: add transpose()
+    work.temp_buffer.resize(mom_width, dad_width);
     GenotypeArrayVector::value_type dad_v = work.upper[dad] * (work.lower[dad] /
-                                         ((work.temp_buffer.matrix() * mom_v.matrix()).array() +
+                                         ((work.temp_buffer.matrix().transpose() * mom_v.matrix()).array() +
                                           DNG_INDIVIDUAL_BUFFER_MIN));
 
     // Calculate P(dependent data | mom = g)
-    work.lower[mom] *= (work.temp_buffer.matrix().transpose() *
-                        dad_v.matrix()).array(); //TODO: FIXME: remove transpose()
+    work.lower[mom] *= (work.temp_buffer.matrix() *
+                        dad_v.matrix()).array();
     work.temp_buffer.resize(work.temp_buffer.size(), 1);
 
     // Calculate P(data & dad & mom)

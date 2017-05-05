@@ -28,7 +28,7 @@ using namespace dng;
 using namespace dng::detail::graph;
 
 void parse_pedigree_table(Graph &pedigree_graph, const dng::io::Pedigree &pedigree);
-std::vector<std::string> add_libraries_to_graph(Graph &pedigree_graph, const libraries_t &libs);
+void add_libraries_to_graph(Graph &pedigree_graph, const libraries_t &libs);
 void update_edge_lengths(Graph &pedigree_graph,
         double mu_meiotic, double mu_somatic, double mu_library);
 void simplify_pedigree(Graph &pedigree_graph);
@@ -119,7 +119,8 @@ bool dng::RelationshipGraph::Construct(const io::Pedigree& pedigree,
     // Connect somatic to libraries and save the names of the libraries that
     // were successfully connected.
     first_library_ = num_vertices(pedigree_graph);
-    library_names_ = add_libraries_to_graph(pedigree_graph, libs);
+    
+    add_libraries_to_graph(pedigree_graph, libs);
 
     num_nodes_ = num_vertices(pedigree_graph);
 
@@ -178,7 +179,7 @@ void prune_pedigree_autosomal(Graph &pedigree_graph) {
     auto vertex_range = boost::make_iterator_range(vertices(pedigree_graph));
     for (vertex_t v : vertex_range) {
         ploidies[v] = 2;
-    }    
+    }
 }
 
 void prune_pedigree_ylinked(Graph &pedigree_graph) {
@@ -535,12 +536,12 @@ void parse_pedigree_table(Graph &pedigree_graph, const dng::io::Pedigree &pedigr
     }
 }
 
-std::vector<std::string> add_libraries_to_graph(Graph &pedigree_graph, const libraries_t &libs) {
+void add_libraries_to_graph(Graph &pedigree_graph, const libraries_t &libs) {
     auto sexes  = get(boost::vertex_sex, pedigree_graph);
     auto labels = get(boost::vertex_label, pedigree_graph);
     auto types  = get(boost::vertex_type, pedigree_graph);
+    auto library_labels = get(boost::vertex_library_label, pedigree_graph);
 
-    std::vector<std::string> ret;
 
     std::map<std::string, vertex_t> soma;
     auto vertex_range = boost::make_iterator_range(vertices(pedigree_graph));
@@ -565,9 +566,8 @@ std::vector<std::string> add_libraries_to_graph(Graph &pedigree_graph, const lib
         vertex_t v = add_vertex({name, VertexType::Library}, pedigree_graph);
         add_edge(u, v, {EdgeType::Library, 1.0f}, pedigree_graph);
         sexes[v] = sexes[u];
-        ret.push_back(libs.names[i]);
+        library_labels[v] = libs.names[i];
     }
-    return ret;
 }
 
 void update_edge_lengths(Graph &pedigree_graph,
@@ -685,12 +685,16 @@ std::vector<size_t> dng::RelationshipGraph::ConstructNodes(const Graph &pedigree
 
     auto labels = get(boost::vertex_label, pedigree_graph);
     auto ploidies = get(boost::vertex_ploidy, pedigree_graph);
+    auto library_labels = get(boost::vertex_library_label, pedigree_graph);
 
     auto vertex_range = boost::make_iterator_range(vertices(pedigree_graph));
     for(vertex_t v : vertex_range) {
         // Skip vertices with no edges
         if (out_degree(v, pedigree_graph) == 0) {
             continue;
+        }
+        if(!library_labels[v].empty()) {
+            library_names_.push_back(library_labels[v]);
         }
         const auto vid = labels_.size();
         node_ids[v] = vid;     
