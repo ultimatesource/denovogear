@@ -51,11 +51,11 @@
 #include <dng/utility.h>
 #include <dng/hts/bcf.h>
 #include <dng/hts/extra.h>
-#include <dng/vcfpileup.h>
 #include <dng/mutation.h>
 #include <dng/stats.h>
 #include <dng/io/utility.h>
 #include <dng/io/fasta.h>
+#include <dng/io/ad.h>
 #include <dng/depths.h>
 #include <dng/multithread.h>
 
