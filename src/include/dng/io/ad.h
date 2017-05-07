@@ -38,7 +38,6 @@
 
 #include <dng/detail/unit_test.h>
 
-
 namespace dng {
 namespace io {
 

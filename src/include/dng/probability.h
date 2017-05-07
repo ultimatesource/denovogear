@@ -27,6 +27,8 @@
 #include <dng/relationship_graph.h>
 #include <dng/mutation.h>
 
+#include <dng/detail/unit_test.h>
+
 namespace dng {
 
 class LogProbability {
