@@ -33,7 +33,9 @@
   var kinshipPedigreeData = layoutData;
   var graphData = processPedigree(kinshipPedigreeData);
   var vcfData = vcfParser.parseVCFText(dngOutputFileText);
+  // TODO: Using globals. Hack. Use a better method.
   var mutationIndex = 0;
+  var ownerParentageLink;
 
   // Create genome browser view
   var v = contigView.createContigView({
@@ -55,11 +57,12 @@
     PubSub.publish("WINDOW_RESIZE");
   });
 
-  //PubSub.subscribe("MUTATION_CLICKED", function(topic, data) {
-  //  updateMutation(data.mutationRecordIndex);
-  //});
+  PubSub.subscribe("MUTATION_CLICKED", function(topic, data) {
+    updateMutation(data.mutationRecordIndex);
+  });
 
   PubSub.subscribe("PREV_MUTATION_BUTTON_CLICKED", function(topic, data) {
+    
     mutationIndex--;
     if (mutationIndex === -1) {
       mutationIndex = vcfData.records.length - 1;
@@ -69,6 +72,7 @@
   });
 
   PubSub.subscribe("NEXT_MUTATION_BUTTON_CLICKED", function(topic, data) {
+
     mutationIndex++;
     if (mutationIndex === vcfData.records.length) {
       mutationIndex = 0;
@@ -77,14 +81,13 @@
     updateMutation(mutationIndex);
   });
 
-  function updateMutation(mutationRecordIndex) {
+  function updateMutation(mutationIndex) {
     ownerParentageLink.getData().mutation = undefined;
-    dngOverlay(vcfData.header, vcfData.records[mutationRecordIndex]);
+    dngOverlay(vcfData.header, vcfData.records[mutationIndex]);
+    PubSub.publish("MUTATION_INDEX_UPDATED", mutationIndex);
     PubSub.publish("DNG_OVERLAY_UPDATE");
   }
 
-  // TODO: Using a global. Hack. Find a better way.
-  var ownerParentageLink;
   function dngOverlay(header, record) {
 
     var mutationLocation = record.INFO.DNL;

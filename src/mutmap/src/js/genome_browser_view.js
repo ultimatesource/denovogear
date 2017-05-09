@@ -15,8 +15,11 @@ var contigView = (function(d3, PubSub, utils) {
 
     this._selection = options.renderInto;
     this._vcfData = options.vcfData;
+    this._mutationIndex = 0;
 
     PubSub.subscribe("WINDOW_RESIZE", this._onWindowResize.bind(this));
+    PubSub.subscribe("MUTATION_INDEX_UPDATED",
+      this._mutationIndexChanged.bind(this));
   }
 
   var SimpleContigView = function(options) {
@@ -96,10 +99,17 @@ var contigView = (function(d3, PubSub, utils) {
     var mutations = mutationMaker()
       .vcfData(this._vcfData)
       .scale(this._xFocusScale)
-      .height(genomeHeight);
+      .height(genomeHeight)
+      .mutationIndex(this._mutationIndex);
     this._mutationContainer.call(mutations);
 
   };
+
+
+
+
+
+
 
 
   var GenomeBrowserView = function(options) {
@@ -307,11 +317,17 @@ var contigView = (function(d3, PubSub, utils) {
     this.update();
   };
 
+  ContigView.prototype._mutationIndexChanged = function(topic, mutationIndex) {
+    this._mutationIndex = mutationIndex;
+    this.update();
+  };
+
   function mutationMaker() {
 
     var scale;
     var vcfData;
     var height;
+    var mutationIndex;
 
     function my(selection) {
       var mutationWidth = 6;
@@ -321,7 +337,6 @@ var contigView = (function(d3, PubSub, utils) {
           .data(vcfData.records);
 
       var mutationEnter = mutationUpdate.enter().append("rect")
-          .attr("class", "genome-browser__mutation")
           .attr("width", mutationWidth)
           .attr("height", height)
           .on("click", mutationClicked)
@@ -331,6 +346,14 @@ var contigView = (function(d3, PubSub, utils) {
       // preserve 'this' context
       var xFocusScale = scale;
       mutationEnterUpdate
+          .attr("class", function(d, i) {
+            if (i === mutationIndex) {
+              return "genome-browser__mutation--selected";
+            }
+            else {
+              return "genome-browser__mutation";
+            }
+          })
           .attr("x", function(d) { return xFocusScale(d.POS); })
           .attr("y", 0);
     }
@@ -353,6 +376,12 @@ var contigView = (function(d3, PubSub, utils) {
       return my;
     };
 
+    my.mutationIndex = function(value) {
+      if (!arguments.length) return mutationIndex;
+      mutationIndex = value;
+      return my;
+    };
+
     return my;
   }
 
@@ -371,8 +400,6 @@ var contigView = (function(d3, PubSub, utils) {
           .attr("class", "glyphicon glyphicon-arrow-left");
       prevButton.append("span")
           .text(" Previous Mutation");
-
-      console.log(vcfData);
 
       var dropdown = selection.append("div")
           .attr("class", "dropdown")
@@ -416,6 +443,8 @@ var contigView = (function(d3, PubSub, utils) {
   }
 
   function mutationClicked(d, i) {
+    d3.select(this)
+        .classed("genome-browser__mutation--selected", true);
     PubSub.publish("MUTATION_CLICKED", { mutationRecordIndex: i });
   };
 
