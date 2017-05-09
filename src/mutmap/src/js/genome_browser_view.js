@@ -5,7 +5,7 @@
 /* global utils */
 /* exported GenomeBrowserView */
 
-var contigView = (function(d3, PubSub) {
+var contigView = (function(d3, PubSub, utils) {
   "use strict";
 
   function ContigView(options) {
@@ -21,20 +21,84 @@ var contigView = (function(d3, PubSub) {
 
   var SimpleContigView = function(options) {
     ContigView.call(this, options);
+    this._create();
+    this.update();
   };
+
   SimpleContigView.prototype = Object.create(ContigView.prototype);
   SimpleContigView.prototype.constructor = SimpleContigView;
 
   SimpleContigView.prototype._create = function() {
+
+    this._margins = {
+      left: 40,
+      right: 40,
+      top: 5,
+      bottom: 60
+    };
+
+    var mutationSelector = mutationSelectorMaker().vcfData(this._vcfData);
+    this._selection.call(mutationSelector);
 
     this._browser = this._selection.append("svg")
         .attr("class", "genome-browser");
 
     this._browser.style("width", "100%").style("height", "100%");
 
+    this._rect = this._browser.append("rect")
+        .attr("class", "genome-browser__background");
+
+    this._mutationContainer = this._browser.append("g")
+        .attr("transform",
+          utils.svgTranslateString(this._margins.left, this._margins.top))
+        .attr("class", "genome-browser__mutation-container")
+
   };
 
   SimpleContigView.prototype.update = function() {
+
+    var width = parseInt(this._browser.style("width"));
+    var height = parseInt(this._browser.style("height"));
+
+    var horizontalMargin = this._margins.left + this._margins.right;
+    var verticalMargin = this._margins.top + this._margins.bottom;
+
+    var genomeWidth = width - horizontalMargin;
+    var genomeHeight = height - verticalMargin;
+
+    this._rect
+        .attr("transform",
+          utils.svgTranslateString(this._margins.left, this._margins.top))
+        .attr("x", 0)
+        .attr("y", 0)
+        .attr("width", genomeWidth)
+        .attr("height", genomeHeight);
+
+    var contigLength = this._vcfData.header.contig[0]['length'];
+    this._xFocusScale = d3.scaleLinear()
+      .domain([0, contigLength])
+      .range([0, genomeWidth]);
+    this._xContextScale = d3.scaleLinear()
+      .domain(this._xFocusScale.domain())
+      .range(this._xFocusScale.range());
+
+    this._xAxis = d3.axisBottom(this._xFocusScale);
+
+    // TODO: Hack. Find a proper way to update the original axes without
+    // forcibly deleting the old ones
+    this._browser.selectAll(".axis--x").remove();
+    this._browser.append("g")
+        .attr("class", "axis axis--x")
+        .attr("transform", utils.svgTranslateString(
+          this._margins.left, genomeHeight + this._margins.top))
+        .call(this._xAxis);
+
+    var mutations = mutationMaker()
+      .vcfData(this._vcfData)
+      .scale(this._xFocusScale)
+      .height(genomeHeight);
+    this._mutationContainer.call(mutations);
+
   };
 
 
@@ -243,7 +307,7 @@ var contigView = (function(d3, PubSub) {
     this.update();
   };
 
-  function mutationMaker(scale, vcfData) {
+  function mutationMaker() {
 
     var scale;
     var vcfData;
@@ -260,7 +324,7 @@ var contigView = (function(d3, PubSub) {
           .attr("class", "genome-browser__mutation")
           .attr("width", mutationWidth)
           .attr("height", height)
-          .on("click", function(d, i) { mutationClicked(d, i); })
+          .on("click", mutationClicked)
 
       var mutationEnterUpdate = mutationEnter.merge(mutationUpdate);
 
@@ -292,17 +356,76 @@ var contigView = (function(d3, PubSub) {
     return my;
   }
 
+  function mutationSelectorMaker() {
+
+    var vcfData;
+
+    function my(selection) {
+
+      var prevButton = selection.append("button")
+          .attr("class", "btn btn-default")
+          .on("click", function() {
+            PubSub.publish("PREV_MUTATION_BUTTON_CLICKED");
+          });
+      prevButton.append("span")
+          .attr("class", "glyphicon glyphicon-arrow-left");
+      prevButton.append("span")
+          .text(" Previous Mutation");
+
+      console.log(vcfData);
+
+      var dropdown = selection.append("div")
+          .attr("class", "dropdown")
+      dropdown.append("button")
+          .attr("class", "btn btn-default dropdown-toggle")
+          .attr("id", "dropdownMenu1")
+          .attr("type", "button")
+          .attr("data-toggle", "dropdown")
+          .text("Select");
+
+      dropdown.append("ul")
+          .attr("class", "dropdown-menu")
+        .selectAll(".mutation")
+          .data(vcfData.records)
+        .enter().append("li")
+          .attr("class", "mutation")
+        .append("a")
+          .attr("href", "#")
+          .text(function(d) {
+            return "Contig: " + d.CHROM + ", Position: " + d.POS;
+          });
+
+      var nextButton = selection.append("button")
+          .attr("class", "btn btn-default")
+          .on("click", function() {
+            PubSub.publish("NEXT_MUTATION_BUTTON_CLICKED");
+          });
+      nextButton.append("span")
+          .text("Next Mutation ");
+      nextButton.append("span")
+          .attr("class", "glyphicon glyphicon-arrow-right");
+    }
+
+    my.vcfData = function(value) {
+      if (!arguments.length) return vcfData;
+      vcfData = value;
+      return my;
+    };
+
+    return my;
+  }
+
   function mutationClicked(d, i) {
     PubSub.publish("MUTATION_CLICKED", { mutationRecordIndex: i });
   };
 
   function createContigView(options) {
-    new SimpleContigView(options);
-    return new GenomeBrowserView(options);
+    return new SimpleContigView(options);
+    //return new GenomeBrowserView(options);
   }
 
   return {
     createContigView: createContigView
   };
 
-}(d3, PubSub));
+}(d3, PubSub, utils));

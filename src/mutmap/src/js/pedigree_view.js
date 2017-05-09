@@ -132,28 +132,29 @@ var PedigreeView = (function(d3, PubSub) {
 
     visualLinksEnterUpdate.select("text")
       .text(function(d) {
-        if (linkHasData(d)) {
+        if (linkHasMutation(d)) {
           return d.dataLink.data.mutation;
         }
       });
 
     visualLinksEnterUpdate.select("path")
         .attr("stroke-width", function(d) {
-          if (linkHasData(d)) {
+          if (linkHasMutation(d)) {
             return 5;
           }
           return 1;
         })
         .attr("stroke", function(d) {
-          if (linkHasData(d)) {
+          if (linkHasMutation(d)) {
             return "#5cc464";
           }
 
           return "#999";
         });
 
-    function linkHasData(d) {
-      return d.dataLink !== undefined && d.dataLink.data !== undefined;
+    function linkHasMutation(d) {
+      return d.dataLink !== undefined && d.dataLink.data !== undefined &&
+        d.dataLink.data.mutation !== undefined;
     }
   };
 

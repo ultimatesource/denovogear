@@ -33,15 +33,13 @@
   var kinshipPedigreeData = layoutData;
   var graphData = processPedigree(kinshipPedigreeData);
   var vcfData = vcfParser.parseVCFText(dngOutputFileText);
+  var mutationIndex = 0;
 
   // Create genome browser view
-  var genomeBrowserWrapper = d3.select("#genome_browser_wrapper");
   var v = contigView.createContigView({
-    renderInto: genomeBrowserWrapper,
+    renderInto: d3.select("#genome_browser_wrapper"),
     vcfData: vcfData
   });
-
-  console.log(v);
 
   dngOverlay(vcfData.header, vcfData.records[0]);
 
@@ -57,18 +55,43 @@
     PubSub.publish("WINDOW_RESIZE");
   });
 
-  PubSub.subscribe("MUTATION_CLICKED", function(topic, data) {
-    dngOverlay(vcfData.header, vcfData.records[data.mutationRecordIndex]);
-    PubSub.publish("DNG_OVERLAY_UPDATE");
+  //PubSub.subscribe("MUTATION_CLICKED", function(topic, data) {
+  //  updateMutation(data.mutationRecordIndex);
+  //});
+
+  PubSub.subscribe("PREV_MUTATION_BUTTON_CLICKED", function(topic, data) {
+    mutationIndex--;
+    if (mutationIndex === -1) {
+      mutationIndex = vcfData.records.length - 1;
+    }
+
+    updateMutation(mutationIndex);
   });
 
+  PubSub.subscribe("NEXT_MUTATION_BUTTON_CLICKED", function(topic, data) {
+    mutationIndex++;
+    if (mutationIndex === vcfData.records.length) {
+      mutationIndex = 0;
+    }
+
+    updateMutation(mutationIndex);
+  });
+
+  function updateMutation(mutationRecordIndex) {
+    ownerParentageLink.getData().mutation = undefined;
+    dngOverlay(vcfData.header, vcfData.records[mutationRecordIndex]);
+    PubSub.publish("DNG_OVERLAY_UPDATE");
+  }
+
+  // TODO: Using a global. Hack. Find a better way.
+  var ownerParentageLink;
   function dngOverlay(header, record) {
 
     var mutationLocation = record.INFO.DNL;
     var owner = findOwnerNode(mutationLocation);
 
     if (owner !== undefined) {
-      var ownerParentageLink = owner.getParentageLink();
+      ownerParentageLink = owner.getParentageLink();
       var parentageLinkData = {
         mutation: record.INFO.DNT
       };

@@ -224,6 +224,10 @@ var pedigr = (function() {
     this.data = data;
   };
 
+  ParentageLink.prototype.getData = function() {
+    return this.data;
+  };
+
 
   return {
     PedigreeGraph: PedigreeGraph,
