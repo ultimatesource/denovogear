@@ -34,13 +34,36 @@
   var graphData = processPedigree(kinshipPedigreeData);
   var vcfData = vcfParser.parseVCFText(dngOutputFileText);
   // TODO: Using globals. Hack. Use a better method.
-  var mutationIndex = 0;
+  var selectedContigIndex = 0;
+  var selectedMutationIndex = 0;
   var ownerParentageLink;
+
+  // transform contigs to hierarchical format
+  var contigData = [];
+  vcfData.header.contig.forEach(function(contig) {
+    var id = Number(contig.ID);
+    var contig = {
+      id: id,
+      length: contig.length,
+      records: []
+    };
+
+    vcfData.records.forEach(function(record) {
+      if (id === Number(record.CHROM)) {
+        contig.records.push(record);
+      }
+    });
+
+    contigData.push(contig);
+  });
 
   // Create genome browser view
   var v = contigView.createContigView({
     renderInto: d3.select("#genome_browser_wrapper"),
-    vcfData: vcfData
+    vcfData: vcfData,
+    contigData: contigData,
+    selectedContigIndex: selectedContigIndex,
+    selectedMutationIndex: selectedMutationIndex
   });
 
   dngOverlay(vcfData.header, vcfData.records[0]);
@@ -63,28 +86,49 @@
 
   PubSub.subscribe("PREV_MUTATION_BUTTON_CLICKED", function(topic, data) {
     
-    mutationIndex--;
-    if (mutationIndex === -1) {
-      mutationIndex = vcfData.records.length - 1;
+    selectedMutationIndex--;
+    if (selectedMutationIndex === -1) {
+
+      selectedContigIndex--;
+      if (selectedContigIndex === -1) {
+        selectedContigIndex = contigData.length - 1;
+        selectedMutationIndex = 0;
+      }
+
+      selectedMutationIndex =
+        contigData[selectedContigIndex].records.length - 1;
     }
 
-    updateMutation(mutationIndex);
+    updateMutation(selectedMutationIndex);
   });
 
   PubSub.subscribe("NEXT_MUTATION_BUTTON_CLICKED", function(topic, data) {
 
-    mutationIndex++;
-    if (mutationIndex === vcfData.records.length) {
-      mutationIndex = 0;
+    selectedMutationIndex++;
+    if (selectedMutationIndex ===
+        contigData[selectedContigIndex].records.length) {
+
+      selectedMutationIndex = 0;
+
+      selectedContigIndex++;
+      if (selectedContigIndex === contigData.length) {
+        selectedContigIndex = 0;
+        selectedMutationIndex = 0;
+      }
     }
 
-    updateMutation(mutationIndex);
+    updateMutation(selectedMutationIndex);
   });
 
-  function updateMutation(mutationIndex) {
+  function updateMutation(selectedMutationIndex) {
     ownerParentageLink.getData().mutation = undefined;
-    dngOverlay(vcfData.header, vcfData.records[mutationIndex]);
-    PubSub.publish("MUTATION_INDEX_UPDATED", mutationIndex);
+    //console.log(selectedContigIndex, selectedMutationIndex);
+    dngOverlay(vcfData.header,
+      contigData[selectedContigIndex].records[selectedMutationIndex]);
+    PubSub.publish("MUTATION_INDEX_UPDATED", { 
+      selectedContigIndex: selectedContigIndex,
+      selectedMutationIndex: selectedMutationIndex
+    });
     PubSub.publish("DNG_OVERLAY_UPDATE");
   }
 

@@ -25,10 +25,44 @@ var utils = (function() {
     return "translate(" + x + "," + y + ")";
   }
 
+  function OptionsManager() {
+  }
+
+  OptionsManager.prototype.checkOptions = function(options) {
+
+    if (options === undefined) throw "No options";
+    if (options.requiredOptions  === undefined) throw "No requiredOptions";
+    if (options.providedOptions  === undefined) throw "No providedOptions";
+
+    // This is simply used to maintain the list of required options in a more
+    // efficient data struct than an actual list, since it will need to be
+    // searched for each potential unused option
+    //var requiredObject = {};
+
+    // Verify all required options are provided, and also build
+    // requiredObject for the unused option check which comes later 
+    options.requiredOptions.forEach(function(option) {
+      //requiredObject[option] = null;
+      if (options.providedOptions[option] === undefined) {
+        throw "Required option '" + option + "' not provided";
+      }
+    });
+
+    // Verify no unused options are provided
+    //Object.keys(options.providedOptions).forEach(function(option) {
+    //  if (requiredObject[option] === undefined) {
+    //    throw "Unused option '" + option + "' provided";
+    //  }
+    //});
+  }
+
   return {
     halfwayBetween: halfwayBetween,
     distanceBetweenPoints: distanceBetweenPoints,
-    svgTranslateString: svgTranslateString
+    svgTranslateString: svgTranslateString,
+    createOptionsManager: function() {
+      return new OptionsManager();
+    }
   };
 
 }());
