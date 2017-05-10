@@ -81,7 +81,7 @@
   });
 
   PubSub.subscribe("MUTATION_CLICKED", function(topic, data) {
-    updateMutation(data.mutationRecordIndex);
+    updateMutation();
   });
 
   PubSub.subscribe("PREV_MUTATION_BUTTON_CLICKED", function(topic, data) {
@@ -99,7 +99,7 @@
         contigData[selectedContigIndex].records.length - 1;
     }
 
-    updateMutation(selectedMutationIndex);
+    updateMutation();
   });
 
   PubSub.subscribe("NEXT_MUTATION_BUTTON_CLICKED", function(topic, data) {
@@ -117,12 +117,11 @@
       }
     }
 
-    updateMutation(selectedMutationIndex);
+    updateMutation();
   });
 
-  function updateMutation(selectedMutationIndex) {
+  function updateMutation() {
     ownerParentageLink.getData().mutation = undefined;
-    //console.log(selectedContigIndex, selectedMutationIndex);
     dngOverlay(vcfData.header,
       contigData[selectedContigIndex].records[selectedMutationIndex]);
     PubSub.publish("MUTATION_INDEX_UPDATED", { 
@@ -131,6 +130,26 @@
     });
     PubSub.publish("DNG_OVERLAY_UPDATE");
   }
+
+  PubSub.subscribe("MUTATION_SELECTED", function(topic, data) {
+
+    // find matching contig and mutation indexes
+    for (var i = 0; i < contigData.length; i++) {
+      if (contigData[i].id === Number(data.CHROM)) {
+
+        var contigIndex = i;
+        for (var j = 0; j < contigData[i].records.length; j++) {
+          if (contigData[i].records[j].POS === data.POS) {
+            selectedContigIndex = i;
+            selectedMutationIndex = j;
+            updateMutation();
+            break;
+          }
+        }
+        break;
+      }
+    }
+  });
 
   function dngOverlay(header, record) {
 

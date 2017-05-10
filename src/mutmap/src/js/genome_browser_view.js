@@ -427,6 +427,9 @@ var contigView = (function(d3, PubSub, utils) {
           .attr("href", "#")
           .text(function(d) {
             return "Contig: " + d.CHROM + ", Position: " + d.POS;
+          })
+          .on("click", function(d) {
+            PubSub.publish("MUTATION_SELECTED", d);
           });
 
       var nextButton = selection.append("button")
@@ -450,9 +453,7 @@ var contigView = (function(d3, PubSub, utils) {
   }
 
   function mutationClicked(d, i) {
-    d3.select(this)
-        .classed("genome-browser__mutation--selected", true);
-    PubSub.publish("MUTATION_CLICKED", { mutationRecordIndex: i });
+    PubSub.publish("MUTATION_SELECTED", d);
   };
 
   function createContigView(options) {
