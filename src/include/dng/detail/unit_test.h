@@ -27,12 +27,37 @@
 
 // Declare a class capable of preforming unit tests on public, private, and protected members.
 #define DNG_UNIT_TEST(name) \
-    friend class name
+    friend class name \
+/**/
 
 // Declare a nullary function capable of preforming unit tests on public, private, and protected members.
 #define DNG_UNIT_TEST_FUNCTION(name) \
-    friend void name()
+    friend void name() \
+/**/
 
+#define GETTER1( C, V ) \
+    static auto V(C& x) -> decltype(x.V##_)& { return x.V##_; } \
+/**/
+
+#define GETTER2( C, V, S ) \
+    static auto S(C& x) -> decltype(x.V##_.S)& { return x.V##_.S; } \
+/**/
+
+#define GETTERF( C, F ) \
+    template<typename ... Args> \
+    static auto F(C &x, Args... args) -> decltype(x.F(args...)) { return x.F(args...); } \
+/**/
+
+#define CHECK_EQUAL_RANGES( L, R ) \
+    BOOST_CHECK_EQUAL_COLLECTIONS( ::std::begin( L ), ::std::end( L ), \
+                                   ::std::begin( R ), ::std::end( R )) \
+/**/
+
+#define CHECK_CLOSE_RANGES( L, R, T )    do { \
+    ::boost::test_tools::local_fpc_tolerance<double> t_o_l( T ); \
+    BOOST_TEST( L == R, ::boost::test_tools::per_element() ); \
+    } while(false) \
+/**/
 
 namespace dng {
 namespace detail {

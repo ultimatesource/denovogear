@@ -33,35 +33,17 @@
 
 #include <boost/range/iterator_range.hpp>
 
-#define CHECK_EQUAL_RANGES( L, R ) \
-    BOOST_CHECK_EQUAL_COLLECTIONS( ::std::begin( L ), ::std::end( L ), \
-                                   ::std::begin( R ), ::std::end( R )) \
-/**/
-
-#define CHECK_CLOSE_RANGES( L, R, T )    do { \
-    ::boost::test_tools::local_fpc_tolerance<double> t_o_l( T ); \
-    BOOST_TEST( L == R, ::boost::test_tools::per_element() ); \
-    } while(false) \
-/**/
-
-
-#define GETTER1(var) static auto var(LogProbability& x) -> decltype(x.var##_)& { return x.var##_; }
-#define GETTER2(var,sub) static auto sub(LogProbability& x) -> decltype(x.var##_.sub)& { return x.var##_.sub; }
-
 namespace dng {
     struct unittest_dng_log_probability {
-        GETTER2(params,theta)
-        GETTER2(params,ref_weight)
-        GETTER2(params,nuc_freq)
-        GETTER2(params,params_a)
-        GETTER2(params,params_b)
-        GETTER1(haploid_prior);
-        GETTER1(diploid_prior);
+        GETTER2(LogProbability, params, theta)
+        GETTER2(LogProbability, params, ref_weight)
+        GETTER2(LogProbability, params, nuc_freq)
+        GETTER2(LogProbability, params, params_a)
+        GETTER2(LogProbability, params, params_b)
+        GETTER1(LogProbability, haploid_prior);
+        GETTER1(LogProbability, diploid_prior);
     };
 }
-
-#undef GETTER1
-#undef GETTER2
 
 using u = dng::unittest_dng_log_probability;
 using d4 = std::array<double, 4>;

@@ -35,6 +35,8 @@
 #include <dng/hts/bam.h>
 #include <dng/hts/extra.h>
 
+#include <dng/detail/unit_test.h>
+
 namespace dng {
 namespace io {
 
@@ -169,6 +171,8 @@ private:
     bam_libraries_t output_libraries_;
 
     utility::StringMap read_group_to_libraries_;
+
+    DNG_UNIT_TEST(unittest_dng_io_bam);
 };
 
 template<typename InFile>

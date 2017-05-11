@@ -18,6 +18,8 @@
  */
 #define BOOST_TEST_MODULE dng::io::ad
 
+#include <dng/detail/unit_test.h>
+
 #include <dng/io/ad.h>
 #include <dng/detail/varint.h>
 
