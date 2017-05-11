@@ -168,7 +168,7 @@ void prune_pedigree(Graph &pedigree_graph, InheritanceModel model) {
         prune_pedigree_xlinked(pedigree_graph);
         break;
     default:
-        throw std::runtime_error("ERROR: Selected inheritance model not implemented yet.");
+        throw std::runtime_error("Selected inheritance model not implemented yet.");
     }
     //boost::write_graphviz(std::cerr, pedigree_graph);
 
@@ -199,7 +199,7 @@ void prune_pedigree_ylinked(Graph &pedigree_graph) {
         case Sex::Unknown:
         default:
             if(v != DUMMY_INDEX) {
-                throw std::runtime_error("ERROR: Y-linked inheritance requires every individual to have a known sex.");
+                throw std::runtime_error("Y-linked inheritance requires every individual to have a known sex.");
             }
         }
     }
@@ -229,7 +229,7 @@ void prune_pedigree_xlinked(Graph &pedigree_graph) {
         case Sex::Unknown:
         default:
             if(v != DUMMY_INDEX) {
-                throw std::runtime_error("ERROR: X-linked inheritance requires every individual to have a known sex.");
+                throw std::runtime_error("X-linked inheritance requires every individual to have a known sex.");
             }
         }
     }
@@ -494,14 +494,14 @@ void parse_pedigree_table(Graph &pedigree_graph, const dng::io::Pedigree &pedigr
         }
         if (dad == mom && dad != DUMMY_INDEX) {
             // Selfing is not supported
-            throw std::runtime_error("Error: Unable to construct peeler for pedigree; selfing is not supported");
+            throw std::runtime_error("Unable to construct peeler for pedigree; selfing is not supported");
         }
         if (dad != DUMMY_INDEX && sexes[dad] == Sex::Female) {
-            throw std::runtime_error("Error: Unable to construct peeler for pedigree; the father of '" +
+            throw std::runtime_error("Unable to construct peeler for pedigree; the father of '" +
                 pedigree.name(child) + "' is female.");
         }
         if (mom != DUMMY_INDEX && sexes[mom] == Sex::Male ) {
-            throw std::runtime_error("Error: Unable to construct peeler for pedigree; the mother of '" +
+            throw std::runtime_error("Unable to construct peeler for pedigree; the mother of '" +
                 pedigree.name(child) + "' is male.");
         }
 
@@ -530,7 +530,7 @@ void parse_pedigree_table(Graph &pedigree_graph, const dng::io::Pedigree &pedigr
             add_edge(child, v, {EdgeType::Mitotic, 1.0f}, pedigree_graph);
             sexes[v] = sexes[child];
         } else if (res == -1) {
-            throw std::runtime_error("Error: unable to parse somatic data for individual '" +
+            throw std::runtime_error("Unable to parse somatic data for individual '" +
                                      pedigree.name(child) + "'.");
         }
     }
@@ -697,11 +697,12 @@ std::vector<size_t> dng::RelationshipGraph::ConstructNodes(const Graph &pedigree
             library_names_.push_back(library_labels[v]);
         }
         const auto vid = labels_.size();
-        node_ids[v] = vid;     
-        if (!labels[v].empty()) {
-            labels_.push_back(labels[v]);
+        node_ids[v] = vid;
+
+        if (labels[v].empty() || labels[v].back() == DNG_LABEL_SEPARATOR_CHAR) {
+            labels_.push_back(labels[v] + "unnamed_node_" + utility::to_pretty(vid));
         } else {
-            labels_.push_back("unnamed_node_" + utility::to_pretty(vid));
+            labels_.push_back(labels[v]);
         }
         ploidies_.push_back(ploidies[v]);
     }
