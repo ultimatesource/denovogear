@@ -78,6 +78,15 @@ istreambuf_range(std::basic_istream<Elem, Traits> &in) {
                std::istreambuf_iterator<Elem, Traits>());
 }
 
+template<class Elem, class Traits> inline
+boost::iterator_range<std::istreambuf_iterator<Elem, Traits> >
+istreambuf_range(std::basic_streambuf<Elem, Traits> *in) {
+    return boost::iterator_range<std::istreambuf_iterator<Elem, Traits>>(
+               std::istreambuf_iterator<Elem, Traits>(in),
+               std::istreambuf_iterator<Elem, Traits>());
+}
+
+
 // if ss has format @filename.ext or @ext:filename slurp contents of
 // filename into ss and return ext.
 // if slurp does not occurs, returns extension of '.'

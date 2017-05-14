@@ -52,6 +52,7 @@
 #include <dng/io/bam.h>
 #include <dng/io/bcf.h>
 #include <dng/io/ad.h>
+#include <dng/io/ped.h>
 
 #include <htslib/faidx.h>
 #include <htslib/khash.h>
@@ -189,7 +190,8 @@ int task::Call::operator()(Call::argument_type &arg) {
 // Processes bam, sam, and cram files.
 int process_bam(task::Call::argument_type &arg) {
     // Parse pedigree from file
-    io::Pedigree ped = io::parse_pedigree(arg.ped);
+
+    Pedigree ped = io::parse_ped(arg.ped);
 
     // Open Reference
     io::Fasta reference{arg.fasta.c_str()};
@@ -430,7 +432,7 @@ int process_bam(task::Call::argument_type &arg) {
 
 int process_ad(task::Call::argument_type &arg) {
 	// Parse the pedigree file
-	io::Pedigree ped = io::parse_pedigree(arg.ped);
+    Pedigree ped = io::parse_ped(arg.ped);
 
     // Parse Nucleotide Frequencies
     std::array<double, 4> freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
@@ -543,7 +545,7 @@ int process_ad(task::Call::argument_type &arg) {
 // Process vcf, bcf input data
 int process_bcf(task::Call::argument_type &arg) {
 	// Parse the pedigree file
-	io::Pedigree ped = io::parse_pedigree(arg.ped);
+    Pedigree ped = io::parse_ped(arg.ped);
 
     // Parse Nucleotide Frequencies
     auto freqs = utility::parse_nuc_freqs(arg.nuc_freqs);

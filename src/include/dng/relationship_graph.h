@@ -29,6 +29,7 @@
 #include <dng/matrix.h>
 #include <dng/library.h>
 #include <dng/peeling.h>
+#include <dng/pedigree.h>
 #include <dng/detail/graph.h>
 #include <dng/detail/unit_test.h>
 
@@ -75,11 +76,11 @@ public:
         double length2;
     };
 
-    bool Construct(const io::Pedigree& pedigree, const libraries_t& libs,
+    bool Construct(const Pedigree& pedigree, const libraries_t& libs,
             InheritanceModel inheritance_model,
             double mu, double mu_somatic, double mu_library);
 
-    bool Construct(const io::Pedigree& pedigree, const libraries_t& libs,
+    bool Construct(const Pedigree& pedigree, const libraries_t& libs,
             double mu, double mu_somatic, double mu_library);
 
     double PeelForwards(peel::workspace_t &work,

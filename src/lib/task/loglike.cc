@@ -56,6 +56,7 @@
 #include <dng/io/utility.h>
 #include <dng/io/fasta.h>
 #include <dng/io/ad.h>
+#include <dng/io/ped.h>
 #include <dng/depths.h>
 #include <dng/multithread.h>
 
@@ -124,7 +125,7 @@ int process_bam(LogLike::argument_type &arg) {
     using namespace hts::bcf;
 
     // Parse pedigree from file
-    io::Pedigree ped = io::parse_pedigree(arg.ped);
+    Pedigree ped = io::parse_ped(arg.ped);
 
     // Open Reference
     io::Fasta reference{arg.fasta.c_str()};
@@ -238,7 +239,7 @@ int process_bam(LogLike::argument_type &arg) {
 int process_ad(LogLike::argument_type &arg) {
     using namespace std;
     // Parse pedigree from file
-    io::Pedigree ped = io::parse_pedigree(arg.ped);
+    Pedigree ped = io::parse_ped(arg.ped);
 
     // Open Reference
     io::Fasta reference{arg.fasta.c_str()};

@@ -24,7 +24,7 @@
 #include <string>
 #include <type_traits>
 
-#include <dng/io/ped.h>
+#include <dng/pedigree.h>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graphviz.hpp>
 
@@ -62,7 +62,7 @@ enum struct EdgeType : std::size_t {
 enum struct VertexType : std::size_t {
     Germline, Somatic, Library
 };
-using Sex = dng::io::Pedigree::Sex;
+using Sex = dng::Pedigree::Sex;
 
 typedef boost::property<boost::vertex_group_t, std::size_t> VertexGroupProp;
 typedef boost::property<boost::vertex_library_label_t, std::string, VertexGroupProp> VertexLibraryLabelProp;
