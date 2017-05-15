@@ -1,6 +1,8 @@
 /*
  * Copyright (c) 2016 Steven H. Wu
+ * Copyright (c) 2017 Reed A. Cartwright
  * Authors:  Steven H. Wu <stevenwu@asu.edu>
+ *           Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
  *
@@ -17,10 +19,14 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-
 #define BOOST_TEST_MODULE dng::mutation
 
+#include <dng/detail/unit_test.h>
+#include <dng/detail/rangeio.h>
+
 #include <iostream>
+
+#include <boost/numeric/ublas/matrix.hpp>
 
 #include <dng/mutation.h>
 
@@ -54,58 +60,57 @@ struct CreateMutationMatrix {
 
 };
 
-BOOST_FIXTURE_TEST_SUITE(test_f81_suite, CreateMutationMatrix )
-
-BOOST_AUTO_TEST_CASE(test_f81_equal) {
-
-    auto diag = equal_mutation_matrix.diagonal();
-    std::vector<double> expected_diag = {0.999999, 0.999999, 0.999999, 0.999999};
-    std::vector<double> expected_off_diag = {3.333331111e-07, 3.333331111e-07, 3.333331111e-07, 3.333331111e-07};
-
-    boost_check_close_vector(expected_diag, diag);
-    for (int i = 0; i < 4; ++i) {
-        auto actual = equal_mutation_matrix.col(i);
-        Eigen::Array4d expected = Eigen::Array4d::Constant(expected_off_diag[i]);
-        expected(i) = expected_diag[i];
-        boost_check_close_vector(expected, actual);
-    }
-}
-
 BOOST_AUTO_TEST_CASE(test_f81) {
+    auto test = [](double mu, std::array<double,4> freqs) -> void {
+        BOOST_TEST_CONTEXT("mu=" << mu << ", freqs=" << rangeio::wrap(freqs))
+    {
+        using namespace boost::numeric::ublas;
+        using mat = matrix<double,column_major,std::vector<double>>;
+        // Build matrix
+        mat Q(4,4);
+        for(int i=0;i<4;++i) {
+            for(int j=0;j<4;++j) {
+                Q(i,j) = freqs[j];
+            }
+            Q(i,i) = Q(i,i)-1.0;
+        }
+        // Scale matrix into substitution time
+        double scale = 0.0;
+        for(int i=0;i<4;++i) {
+            for(int j=0;j<4;++j) {
+                if(j != i) {
+                    scale += Q(i,j)*freqs[i];
+                }
+            }
+        }
+        Q /= scale;
 
-    auto diag = unequal_mutation_matrix.diagonal();
-    std::vector<double> expected_diag = {0.9999987143, 0.9999988571, 0.9999990000, 0.9999991429};
-    std::vector<double> expected_off_diag = {1.428570408e-07, 2.857140816e-07, 4.285711225e-07, 5.714281633e-07};
+        mat P = identity_matrix<double>(4);
+        mat m = P;
+        double u = 1.0;
+        double f = 1.0;
+        // Use the first 11 elements of the expm series 
+        for(int n=1;n <= 10; ++n) {
+            mat a = prec_prod(m,Q);
+            m = a;
+            u *= mu;
+            f *= n;
+            P += m * (u/f);
+        }
 
-
-    boost_check_close_vector(expected_diag, diag);
-    for (int i = 0; i < 4; ++i) {
-        auto actual = unequal_mutation_matrix.col(i);
-        Eigen::Array4d expected = Eigen::Array4d::Constant(expected_off_diag[i]);
-        expected(i) = expected_diag[i];
-        boost_check_close_vector(expected, actual);
+        auto expected_matrix = P.data();
+        auto test_matrix_ = f81::matrix(mu, freqs);
+        auto test_matrix = boost::make_iterator_range(test_matrix_.data(), test_matrix_.data()+test_matrix_.size());
+        CHECK_CLOSE_RANGES( test_matrix, expected_matrix, 2*DBL_EPSILON );
     }
+    };
+
+    test(0.0,  {0.25, 0.25, 0.25, 0.25});
+    test(1e-8, {0.25, 0.25, 0.25, 0.25});
+    test(1e-9, {0.3,0.2,0.2,0.3});
+    test(1e-6, {0.1, 0.2, 0.3, 0.4});    
+    test(1e-3, {0.01, 0.1, 0.19, 0.7});
 }
-
-BOOST_AUTO_TEST_CASE(test_f81_random) {
-
-    auto matrix = f81::matrix(1e-3, {0.01, 0.1, 0.19, 0.7});
-    auto diag = matrix.diagonal();
-    std::vector<double> expected_diag = {0.9978677587, 0.9980615989, 0.9982554390, 0.9993538663};
-    std::vector<double> expected_off_diag = {0.0000215377905, 0.0002153779050, 0.0004092180195, 0.0015076453352};
-
-
-    boost_check_close_vector(expected_diag, diag);
-    for (int i = 0; i < 4; ++i) {
-        auto actual = matrix.col(i);
-        Eigen::Array4d expected = Eigen::Array4d::Constant(expected_off_diag[i]);
-        expected(i) = expected_diag[i];
-        boost_check_close_vector(expected, actual);
-    }
-}
-BOOST_AUTO_TEST_SUITE_END()
-
-
 
 BOOST_FIXTURE_TEST_SUITE(test_mutation_suite, CreateMutationMatrix )
 

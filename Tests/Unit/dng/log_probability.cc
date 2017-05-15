@@ -50,6 +50,7 @@ using d4 = std::array<double, 4>;
 using d10 = std::array<double, 10>;
 
 using namespace dng;
+using Sex = dng::Pedigree::Sex;
 
 // Use a lambda function to construct a global relationship graph
 RelationshipGraph graph = []() -> RelationshipGraph {
@@ -57,8 +58,10 @@ RelationshipGraph graph = []() -> RelationshipGraph {
         {"Mom", "Dad", "Eve"},
         {"Mom", "Dad", "Eve"}
     };
-    io::Pedigree ped;
-    ped.Parse("1\tMom\t0\t0\t2\n1\tDad\t0\t0\t1\n1\tEve\tDad\tMom\t2\n");
+    Pedigree ped;
+    ped.AddMember("Dad","0","0",Sex::Male,"");
+    ped.AddMember("Mom","0","0",Sex::Female,"");
+    ped.AddMember("Eve","Dad","Mom",Sex::Female,"");
 
     RelationshipGraph g;
     g.Construct(ped, libs, 1e-8, 1e-8, 1e-8);
