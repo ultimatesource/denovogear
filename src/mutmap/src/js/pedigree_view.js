@@ -363,8 +363,22 @@ var PedigreeView = (function(d3, PubSub) {
 
     function calculateGpSplits(gp) {
 
-      if (gp.length === 6) {
-        var gpIndicesTable = [
+      var gpIndicesTable;
+
+      if (gp.length === 3) {
+        // According to VCF spec, ordering is AA, AB, BB
+        // see GL section in
+        // https://samtools.github.io/hts-specs/VCFv4.2.pdf
+        gpIndicesTable = [
+          [ 1 ],
+          [ 2 ]
+        ];
+      }
+      else if (gp.length === 6) {
+        // According to VCF spec, ordering is AA, AB, BB, AC, BC, CC
+        // see GL section in
+        // https://samtools.github.io/hts-specs/VCFv4.2.pdf
+        gpIndicesTable = [
           [ 1, 3 ],
           [ 2, 4, 5 ]
         ];

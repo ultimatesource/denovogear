@@ -7,9 +7,10 @@ test <- function() {
     sourceDirectory <- file.path('.')
     #pedFilePath <- file.path('..', '..', 'testdata', 'human_trio',
     #                         'trio.ped')
-    pedFilePath <- file.path('..', '..', 'testdata', 'relationship_graph',
-                             'relationship_graph.ped')
-    dngOutputFilePath <- file.path('..', '..', 'dng_test_output.vcf')
+    #pedFilePath <- file.path('..', '..', 'testdata', 'relationship_graph',
+    #                         'relationship_graph.ped')
+    pedFilePath <- file.path('..', '..', '..', 'platinum.ped')
+    dngOutputFilePath <- file.path('..', '..', '..', 'platinum_filtered.vcf')
     outputFilePath <- file.path('mutmap.html')
 
     build(sourceDirectory, pedFilePath, dngOutputFilePath, outputFilePath)

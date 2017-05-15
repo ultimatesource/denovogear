@@ -10,7 +10,9 @@ computeLayout <- function(pedFilePath) {
     ped <- pedigree(id=data[,2], dadid=data[,3], momid=data[,4], sex=data[,5],
                     famid=data[,1])
 
-    ped1 <- ped['1']
+    #familyId <- data[1,1]
+    #ped1 <- ped[familyId]
+    ped1 <- ped['1463']
     outData <- list()
     outData$layout <- align.pedigree(ped1)
     pedigree <- list()
