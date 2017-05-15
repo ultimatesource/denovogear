@@ -67,8 +67,9 @@ var contigView = (function(d3, PubSub, utils) {
 
   SimpleContigView.prototype.update = function() {
 
-    var width = parseInt(this._browser.style("width"));
-    var height = parseInt(this._browser.style("height"));
+    var boundingRect = this._selection.node().getBoundingClientRect();
+    var width = boundingRect.width;
+    var height = boundingRect.height;
 
     var horizontalMargin = this._margins.left + this._margins.right;
     var verticalMargin = this._margins.top + this._margins.bottom;
