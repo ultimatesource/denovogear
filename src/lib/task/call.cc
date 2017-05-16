@@ -40,7 +40,6 @@
 #include <dng/task/call.h>
 #include <dng/relationship_graph.h>
 #include <dng/fileio.h>
-#include <dng/read_group.h>
 #include <dng/seq.h>
 #include <dng/utility.h>
 #include <dng/mutation.h>
@@ -190,7 +189,6 @@ int task::Call::operator()(Call::argument_type &arg) {
 // Processes bam, sam, and cram files.
 int process_bam(task::Call::argument_type &arg) {
     // Parse pedigree from file
-
     Pedigree ped = io::parse_ped(arg.ped);
 
     // Open Reference

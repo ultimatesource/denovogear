@@ -45,8 +45,6 @@
 #include <dng/task/loglike.h>
 #include <dng/probability.h>
 #include <dng/fileio.h>
-#include <dng/pileup.h>
-#include <dng/read_group.h>
 #include <dng/seq.h>
 #include <dng/utility.h>
 #include <dng/hts/bcf.h>
@@ -57,6 +55,7 @@
 #include <dng/io/fasta.h>
 #include <dng/io/ad.h>
 #include <dng/io/ped.h>
+#include <dng/io/bam.h>
 #include <dng/depths.h>
 #include <dng/multithread.h>
 
@@ -122,8 +121,6 @@ int task::LogLike::operator()(task::LogLike::argument_type &arg) {
 }
 
 int process_bam(LogLike::argument_type &arg) {
-    using namespace hts::bcf;
-
     // Parse pedigree from file
     Pedigree ped = io::parse_ped(arg.ped);
 
@@ -133,72 +130,76 @@ int process_bam(LogLike::argument_type &arg) {
     // Parse Nucleotide Frequencies
     std::array<double, 4> freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
 
-    // quality thresholds
-    int min_qual = arg.min_basequal;
-
-    // Print header to output
-    cout_add_header_text(arg);
-
-    // replace arg.region with the contents of a file if needed
-    io::at_slurp(arg.region);
+    // Fetch the selected regions
+    auto region_ext = io::at_slurp(arg.region); // replace arg.region with the contents of a file if needed
 
     // Open input files
-    dng::ReadGroups rgs;
-    vector<hts::bam::File> bamdata;
+    using BamPileup = dng::io::BamPileup;
+    BamPileup mpileup{arg.min_qlen, arg.rgtag};
     for(auto && str : arg.input) {
-        bamdata.emplace_back(str.c_str(), "r", arg.fasta.c_str(), arg.min_mapqual, arg.header.c_str());
-        if(!bamdata.back().is_open()) {
-            throw std::runtime_error("Error: Unable to open input file '" + str + "'.");
+        // TODO: We put all this logic here to simplify the BamPileup construction
+        // TODO: However it might make sense to incorporate it into BamPileup::AddFile
+        hts::bam::File input{str.c_str(), "r", arg.fasta.c_str(), arg.min_mapqual, arg.header.c_str()};
+        if(!input.is_open()) {
+            throw std::runtime_error("Unable to open input file '" + str + "'.");
         }
         // add regions
+        // TODO: make this work with region_ext
         if(!arg.region.empty()) {
-            bamdata.back().regions(regions::bam_parse_region(arg.region,bamdata.back()));
+            if(arg.region.find(".bed") != std::string::npos) {
+                input.regions(regions::bam_parse_bed(arg.region, input));
+            } else {
+                input.regions(regions::bam_parse_region(arg.region, input));
+            }
         }
-        // Add each genotype/sample column
-        rgs.ParseHeaderText(bamdata, arg.rgtag);
+        mpileup.AddFile(std::move(input));
     }
 
     // Construct peeling algorithm from parameters and pedigree information
-    InheritanceModel model = inheritance_model(arg.model);
-
-
-    dng::RelationshipGraph graph;
-    if(!graph.Construct(ped, rgs.GetLibraries(), model, arg.mu, arg.mu_somatic, arg.mu_library)) {
-        throw std::runtime_error("Error: Unable to construct peeler for pedigree; "
-                                 "possible non-zero-loop pedigree.");
+    RelationshipGraph relationship_graph;
+    if (!relationship_graph.Construct(ped, mpileup.libraries(), inheritance_model(arg.model),
+                                      arg.mu, arg.mu_somatic, arg.mu_library)) {
+        throw std::runtime_error("Unable to construct peeler for pedigree; "
+                                 "possible non-zero-loop relationship_graph.");
     }
+
     // Select libraries in the input that are used in the pedigree
-    rgs.SelectLibraries(graph.library_names());
+    mpileup.SelectLibraries(relationship_graph.library_names());
+
+    // Print header to output
+    cout_add_header_text(arg);
 
     if(arg.gamma.size() < 2) {
         throw std::runtime_error("Error: Unable to construct genotype-likelihood model; "
                                  "Gamma needs to be specified at least twice to change model from default.");
     }
 
-    for(auto && line : graph.BCFHeaderLines()) {
+    for(auto && line : relationship_graph.BCFHeaderLines()) {
         std::cout << line << "\n";
     }
 
-    LogProbability calculate (graph,
+    LogProbability calculate (relationship_graph,
         { arg.theta, freqs, arg.ref_weight, arg.gamma[0], arg.gamma[1] } );
 
     // Pileup data
-    pileup::RawDepths read_depths(rgs.libraries().size());
+    dng::pileup::RawDepths read_depths(mpileup.num_libraries());
 
+    const size_t num_nodes = relationship_graph.num_nodes();
+    const size_t library_start = relationship_graph.library_nodes().first;
     const int min_basequal = arg.min_basequal;
     auto filter_read = [min_basequal](
-    dng::BamPileup::data_type::value_type::const_reference r) -> bool {
+    BamPileup::data_type::value_type::const_reference r) -> bool {
         return (r.is_missing
-        || r.qual.first[r.pos] < min_basequal
-        || seq::base_index(r.aln.seq_at(r.pos)) >= 4);
+        || r.base_qual() < min_basequal
+        || seq::base_index(r.base()) >= 4);
     };
 
     // Treat sequence_data and variant data separately
     dng::stats::ExactSum sum_data;
     dng::stats::ExactSum sum_scale;
-    const bam_hdr_t *h = bamdata[0].header();
-    dng::BamPileup mpileup{rgs.groups(), arg.min_qlen};
-    mpileup(bamdata, [&](const dng::BamPileup::data_type & data, location_t loc) {
+    auto h = mpileup.header();
+    
+    mpileup([&](const BamPileup::data_type & data, utility::location_t loc) {
         // Calculate target position and fetch sequence name
         int contig = utility::location_to_contig(loc);
         int position = utility::location_to_position(loc);
@@ -209,7 +210,7 @@ int process_bam(LogLike::argument_type &arg) {
         size_t ref_index = seq::char_index(ref_base);
 
         // reset all depth counters
-        read_depths.assign(read_depths.size(), {});
+        boost::fill(read_depths, pileup::depth_t{});
 
         // pileup on read counts
         for(std::size_t u = 0; u < data.size(); ++u) {
@@ -217,10 +218,10 @@ int process_bam(LogLike::argument_type &arg) {
                 if(filter_read(r)) {
                     continue;
                 }
-                std::size_t base = seq::base_index(r.aln.seq_at(r.pos));
-                assert(read_depths[rgs.library_from_id(u)].counts[ base ] < 65535);
+                std::size_t base = seq::base_index(r.base());
+                assert(read_depths[u].counts[ base ] < 65535);
 
-                read_depths[rgs.library_from_id(u)].counts[ base ] += 1;
+                read_depths[u].counts[ base ] += 1;
             }
         }
         auto loglike = calculate(read_depths, ref_index);

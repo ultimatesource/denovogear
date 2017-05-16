@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Reed A. Cartwright
+ * Copyright (c) 2016-2017 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -18,10 +18,10 @@
  */
 #define BOOST_TEST_MODULE dng::io::ad
 
-#include <dng/detail/unit_test.h>
-
 #include <dng/io/ad.h>
 #include <dng/detail/varint.h>
+
+#include "../../testing.h"
 
 #include <sstream>
 #include <iostream>

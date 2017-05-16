@@ -22,16 +22,15 @@
 
 #define BOOST_TEST_MODULE dng::log_probability
 
-#include <boost/test/unit_test.hpp>
+#include <dng/probability.h>
 
 #include <iostream>
 #include <fstream>
 #include <numeric>
 
 #include <dng/task/call.h>
-#include <dng/probability.h>
 
-#include <boost/range/iterator_range.hpp>
+#include "../testing.h"
 
 namespace dng {
     struct unittest_dng_log_probability {
@@ -50,10 +49,11 @@ using d4 = std::array<double, 4>;
 using d10 = std::array<double, 10>;
 
 using namespace dng;
+using namespace dng::detail;
 using Sex = dng::Pedigree::Sex;
 
 // Use a lambda function to construct a global relationship graph
-RelationshipGraph graph = []() -> RelationshipGraph {
+RelationshipGraph rel_graph = []() -> RelationshipGraph {
     libraries_t libs = {
         {"Mom", "Dad", "Eve"},
         {"Mom", "Dad", "Eve"}
@@ -77,7 +77,7 @@ BOOST_AUTO_TEST_CASE(test_constructor_1) {
         std::string{"0.02,0.01,0.005,1.1"}
     };
 
-    LogProbability log_probability{graph, params};
+    LogProbability log_probability{rel_graph, params};
 
     BOOST_CHECK_EQUAL(u::theta(log_probability), params.theta);
     CHECK_EQUAL_RANGES(u::nuc_freq(log_probability), params.nuc_freq);
@@ -103,7 +103,7 @@ BOOST_AUTO_TEST_CASE(test_constructor_2) {
         std::string{"0.5,0.01,0.02,1"}
     };
 
-    LogProbability log_probability{graph, params};
+    LogProbability log_probability{rel_graph, params};
 
     BOOST_CHECK_EQUAL(u::theta(log_probability), params.theta);
     CHECK_EQUAL_RANGES(u::nuc_freq(log_probability), params.nuc_freq);
@@ -132,7 +132,7 @@ void do_test_haploid_prior(double theta, d4 expected_freqs, double ref_weight) {
             std::string{"0.02,0.01,0.005,1.1"}
         };
 
-        LogProbability log_probability{graph, params};
+        LogProbability log_probability{rel_graph, params};
 
         for(int i=0;i<5;++i) {
             d4 expected_prior;
@@ -142,8 +142,8 @@ void do_test_haploid_prior(double theta, d4 expected_freqs, double ref_weight) {
                 double alpha_sum = theta + ((i < 4) ? ref_weight : 0.0);
                 expected_prior[g] = alphaA/alpha_sum;
             }
-            auto && test_prior_ref = u::haploid_prior(log_probability)[i];
-            auto test_prior = boost::make_iterator_range(test_prior_ref.data(), test_prior_ref.data()+test_prior_ref.size());
+            auto && test_prior_ = u::haploid_prior(log_probability)[i];
+            auto test_prior = make_eigen_range(test_prior_);
             BOOST_TEST_INFO("reference = " << i);
             CHECK_CLOSE_RANGES( test_prior, expected_prior, DBL_EPSILON );
         }
@@ -170,7 +170,7 @@ void do_test_diploid_prior(double theta, d4 expected_freqs, double ref_weight) {
             std::string{"0.02,0.01,0.005,1.1"}
         };
 
-        LogProbability log_probability{graph, params};
+        LogProbability log_probability{rel_graph, params};
 
         for(int i=0;i<5;++i) {
             d10 expected_prior;
@@ -190,8 +190,8 @@ void do_test_diploid_prior(double theta, d4 expected_freqs, double ref_weight) {
                     ++a;
                 }
             }
-            auto && test_prior_ref = u::diploid_prior(log_probability)[i];
-            auto test_prior = boost::make_iterator_range(test_prior_ref.data(), test_prior_ref.data()+test_prior_ref.size());
+            auto && test_prior_ = u::diploid_prior(log_probability)[i];
+            auto test_prior = make_eigen_range(test_prior_);
             BOOST_TEST_INFO("reference = " << i);
             CHECK_CLOSE_RANGES( test_prior, expected_prior, 2*DBL_EPSILON );
         }

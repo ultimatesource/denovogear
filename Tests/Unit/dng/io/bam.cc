@@ -18,9 +18,9 @@
  */
 #define BOOST_TEST_MODULE dng::io::bam
 
-#include <dng/detail/unit_test.h>
-
 #include <dng/io/bam.h>
+
+#include "../../testing.h"
 
 #include <vector>
 

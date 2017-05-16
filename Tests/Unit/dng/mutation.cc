@@ -21,19 +21,21 @@
 
 #define BOOST_TEST_MODULE dng::mutation
 
-#include <dng/detail/unit_test.h>
+#include <dng/mutation.h>
+
 #include <dng/detail/rangeio.h>
 
 #include <iostream>
 
 #include <boost/numeric/ublas/matrix.hpp>
 
-#include <dng/mutation.h>
+#include "../testing.h"
 
 #include "../boost_test_helper.h"
 
 using namespace dng;
 using namespace dng::genotype;
+using dng::detail::make_eigen_range;
 
 struct CreateMutationMatrix {
 
@@ -112,9 +114,31 @@ BOOST_AUTO_TEST_CASE(test_f81) {
     test(1e-3, {0.01, 0.1, 0.19, 0.7});
 }
 
+BOOST_AUTO_TEST_CASE(test_mitosis_haploid_matrix) {
+    auto test = [](double mu, std::array<double,4> freqs) -> void {
+        BOOST_TEST_CONTEXT("mu=" << mu << ", freqs=" << rangeio::wrap(freqs))
+    {
+        auto m = f81::matrix(mu, freqs);
+
+        // Testing default
+        auto x = mitosis_haploid_matrix(m);
+        auto expected_default = make_eigen_range(m);
+        auto test_default = make_eigen_range(x);
+        CHECK_CLOSE_RANGES(test_default, expected_default, 2*DBL_EPSILON );
+    }};
+
+    test(0.0,  {0.25, 0.25, 0.25, 0.25});
+    test(1e-8, {0.25, 0.25, 0.25, 0.25});
+    test(1e-9, {0.3,0.2,0.2,0.3});
+    test(1e-6, {0.1, 0.2, 0.3, 0.4});    
+    test(1e-3, {0.01, 0.1, 0.19, 0.7});
+
+}
+
+
 BOOST_FIXTURE_TEST_SUITE(test_mutation_suite, CreateMutationMatrix )
 
-BOOST_AUTO_TEST_CASE(test_mitosis_haploid_matrix) {
+BOOST_AUTO_TEST_CASE(test_mitosis_haploid_matrix_) {
 
 
     TransitionMatrix expected_matrix_negative = TransitionMatrix::Zero(4, 4);

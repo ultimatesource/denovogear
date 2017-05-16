@@ -27,7 +27,6 @@
 #include <utility>
 
 #include <dng/pool.h>
-#include <dng/read_group.h>
 #include <dng/utility.h>
 #include <dng/regions.h>
 #include <dng/library.h>
