@@ -367,6 +367,7 @@ var PedigreeView = (function(d3, PubSub) {
 
       var gpIndicesTable;
 
+      // TODO: Generate this table algorithmically.
       if (gp.length === 3) {
         // According to VCF spec, ordering is AA, AB, BB
         // see GL section in
@@ -383,6 +384,12 @@ var PedigreeView = (function(d3, PubSub) {
         gpIndicesTable = [
           [ 1, 3 ],
           [ 2, 4, 5 ]
+        ];
+      }
+      else if (gp.length === 10) {
+        gpIndicesTable = [
+          [ 1, 3, 6 ],
+          [ 2, 4, 5, 7, 8, 9 ]
         ];
       }
       else {
