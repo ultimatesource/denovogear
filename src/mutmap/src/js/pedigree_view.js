@@ -166,6 +166,8 @@ var PedigreeView = (function(d3, PubSub) {
       .append("g")
         .attr("class", "node");
 
+    var visualNodesEnterUpdate = visualNodesEnter.merge(visualNodesUpdate);
+
     var tree = sampleTreeView.createSampleTree();
 
     // TODO: this is a hack. I don't even really know why it works...
@@ -185,7 +187,7 @@ var PedigreeView = (function(d3, PubSub) {
         }
       });
 
-    visualNodesEnter.call(gpNode());
+    visualNodesEnterUpdate.call(gpNode());
     
     visualNodesEnter.append("text")
       .attr("dx", 15)
