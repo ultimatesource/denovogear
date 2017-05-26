@@ -63,10 +63,6 @@ var PedigreeView = (function(d3, PubSub) {
     this._nodes_container = this._container.append("g")
         .attr("class", "nodes-container");
 
-    d3.select("#sample_tree_toggle").on("click", function() {
-      PubSub.publish("SAMPLE_TREE_TOGGLE");
-    });
-
   };
  
   function zoomed() {
