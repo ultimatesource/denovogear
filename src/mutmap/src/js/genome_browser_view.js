@@ -67,8 +67,9 @@ var contigView = (function(d3, PubSub, utils) {
 
   SimpleContigView.prototype.update = function() {
 
-    var width = parseInt(this._browser.style("width"));
-    var height = parseInt(this._browser.style("height"));
+    var boundingRect = this._selection.node().getBoundingClientRect();
+    var width = boundingRect.width;
+    var height = boundingRect.height;
 
     var horizontalMargin = this._margins.left + this._margins.right;
     var verticalMargin = this._margins.top + this._margins.bottom;
@@ -321,6 +322,8 @@ var contigView = (function(d3, PubSub, utils) {
 
   ContigView.prototype._selectedMutationIndexChanged =
       function(topic, data) {
+
+
     this._selectedContigIndex = data.selectedContigIndex;
     this._selectedMutationIndex = data.selectedMutationIndex;
     this.update();
@@ -334,6 +337,7 @@ var contigView = (function(d3, PubSub, utils) {
     var selectedMutationIndex;
 
     function my(selection) {
+
       var mutationWidth = 6;
 
       var mutationUpdate = 
@@ -363,6 +367,14 @@ var contigView = (function(d3, PubSub, utils) {
           })
           .attr("x", function(d) { return xFocusScale(d.POS); })
           .attr("y", 0);
+
+      mutationEnterUpdate.each(function(d, i) {
+        if (i === selectedMutationIndex) {
+          // Make this the last element in the DOM parent so it renders on top
+          // of any overlapping mutations
+          d3.select(this).raise();
+        }
+      });
     }
 
     my.scale = function(value) {

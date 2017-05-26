@@ -166,6 +166,8 @@ var PedigreeView = (function(d3, PubSub) {
       .append("g")
         .attr("class", "node");
 
+    var visualNodesEnterUpdate = visualNodesEnter.merge(visualNodesUpdate);
+
     var tree = sampleTreeView.createSampleTree();
 
     // TODO: this is a hack. I don't even really know why it works...
@@ -185,7 +187,7 @@ var PedigreeView = (function(d3, PubSub) {
         }
       });
 
-    visualNodesEnter.call(gpNode());
+    visualNodesEnterUpdate.call(gpNode());
     
     visualNodesEnter.append("text")
       .attr("dx", 15)
@@ -363,10 +365,31 @@ var PedigreeView = (function(d3, PubSub) {
 
     function calculateGpSplits(gp) {
 
-      if (gp.length === 6) {
-        var gpIndicesTable = [
+      var gpIndicesTable;
+
+      // TODO: Generate this table algorithmically.
+      if (gp.length === 3) {
+        // According to VCF spec, ordering is AA, AB, BB
+        // see GL section in
+        // https://samtools.github.io/hts-specs/VCFv4.2.pdf
+        gpIndicesTable = [
+          [ 1 ],
+          [ 2 ]
+        ];
+      }
+      else if (gp.length === 6) {
+        // According to VCF spec, ordering is AA, AB, BB, AC, BC, CC
+        // see GL section in
+        // https://samtools.github.io/hts-specs/VCFv4.2.pdf
+        gpIndicesTable = [
           [ 1, 3 ],
           [ 2, 4, 5 ]
+        ];
+      }
+      else if (gp.length === 10) {
+        gpIndicesTable = [
+          [ 1, 3, 6 ],
+          [ 2, 4, 5, 7, 8, 9 ]
         ];
       }
       else {

@@ -27,7 +27,6 @@
   // provides dngOutputFileText
   /*DNG_VCF_DATA_PLACEHOLDER*/
 
-  
   var pedigreeData = pedParser.parsePedigreeFile(pedigreeFileText);
   var pedGraph = buildGraphFromPedigree(pedigreeData);
   var kinshipPedigreeData = layoutData;
@@ -41,7 +40,7 @@
   // transform contigs to hierarchical format
   var contigData = [];
   vcfData.header.contig.forEach(function(contig) {
-    var id = Number(contig.ID);
+    var id = contig.ID;
     var contig = {
       id: id,
       length: contig.length,
@@ -49,7 +48,7 @@
     };
 
     vcfData.records.forEach(function(record) {
-      if (id === Number(record.CHROM)) {
+      if (id === record.CHROM) {
         contig.records.push(record);
       }
     });
@@ -65,6 +64,8 @@
     selectedContigIndex: selectedContigIndex,
     selectedMutationIndex: selectedMutationIndex
   });
+
+  //console.log(vcfData);
 
   dngOverlay(vcfData.header, vcfData.records[0]);
 
@@ -135,7 +136,7 @@
 
     // find matching contig and mutation indexes
     for (var i = 0; i < contigData.length; i++) {
-      if (contigData[i].id === Number(data.CHROM)) {
+      if (contigData[i].id === data.CHROM) {
 
         var contigIndex = i;
         for (var j = 0; j < contigData[i].records.length; j++) {
@@ -153,7 +154,7 @@
 
   function dngOverlay(header, record) {
 
-    var mutationLocation = record.INFO.DNL;
+    var mutationLocation = record.INFO.DNL.slice(3);
     var owner = findOwnerNode(mutationLocation);
 
     if (owner !== undefined) {
@@ -166,9 +167,11 @@
       header.sampleNames.forEach(function(sampleName) {
         var format = record[sampleName];
 
+
         // TODO: Using libraries for now, but might be more correct to use
         // GL-1, GL-2, etc nodes?
         if (isLibraryNode(sampleName)) {
+
           var id = getIdFromLibraryName(sampleName);
           var personNode = pedGraph.getPerson(id);
           personNode.data.dngOutputData = format;
@@ -340,7 +343,7 @@
 
     // TODO: This seems very likely to break in the future. Need to find a
     // robust way of matching up sample names and libraries.
-    if (tree.name != "" && sampleName.includes(tree.name)) {
+    if (tree.name != "" && tree.name.includes(sampleName)) {
       return tree;
     }
 
@@ -372,7 +375,7 @@
   }
 
   function isLibraryNode(sampleName) {
-    return sampleName.startsWith("LB-");
+    return sampleName.startsWith("LB/");
   }
 
   function getIdFromSampleName(sampleName) {
@@ -380,7 +383,8 @@
   }
 
   function getIdFromLibraryName(sampleName) {
-    return Number(sampleName.slice(-3));
+    //return Number(sampleName.slice(-3));
+    return sampleName.slice(3, 10);
   }
 
   function oneToZeroBase(index) {
