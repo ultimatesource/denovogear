@@ -35,7 +35,7 @@
 
 using namespace dng;
 using namespace dng::genotype;
-using dng::detail::make_eigen_range;
+using dng::detail::make_test_range;
 
 struct CreateMutationMatrix {
 
@@ -62,8 +62,19 @@ struct CreateMutationMatrix {
 
 };
 
+// This generic function allows us to test the same parameters
+// for different test functions
+template<typename F>
+void run_mutation_tests(F test, double prec = 2*DBL_EPSILON) {
+    test(0.0,  {0.25, 0.25, 0.25, 0.25}, prec);
+    test(1e-8, {0.25, 0.25, 0.25, 0.25}, prec);
+    test(1e-9, {0.3,0.2,0.2,0.3}, prec);
+    test(1e-6, {0.1, 0.2, 0.3, 0.4}, prec); 
+    test(1e-3, {0.01, 0.1, 0.19, 0.7}, prec);
+}
+
 BOOST_AUTO_TEST_CASE(test_f81) {
-    auto test = [](double mu, std::array<double,4> freqs) -> void {
+    auto test = [](double mu, std::array<double,4> freqs, double prec) -> void {
         BOOST_TEST_CONTEXT("mu=" << mu << ", freqs=" << rangeio::wrap(freqs))
     {
         using namespace boost::numeric::ublas;
@@ -102,247 +113,340 @@ BOOST_AUTO_TEST_CASE(test_f81) {
 
         auto expected_matrix = P.data();
         auto test_matrix_ = f81::matrix(mu, freqs);
-        auto test_matrix = boost::make_iterator_range(test_matrix_.data(), test_matrix_.data()+test_matrix_.size());
-        CHECK_CLOSE_RANGES( test_matrix, expected_matrix, 2*DBL_EPSILON );
+        auto test_matrix = make_test_range(test_matrix_);
+        CHECK_CLOSE_RANGES( test_matrix, expected_matrix, prec);
     }
     };
 
-    test(0.0,  {0.25, 0.25, 0.25, 0.25});
-    test(1e-8, {0.25, 0.25, 0.25, 0.25});
-    test(1e-9, {0.3,0.2,0.2,0.3});
-    test(1e-6, {0.1, 0.2, 0.3, 0.4});    
-    test(1e-3, {0.01, 0.1, 0.19, 0.7});
+    run_mutation_tests(test);
 }
 
 BOOST_AUTO_TEST_CASE(test_mitosis_haploid_matrix) {
-    auto test = [](double mu, std::array<double,4> freqs) -> void {
+    auto test = [](double mu, std::array<double,4> freqs, double prec) -> void {
         BOOST_TEST_CONTEXT("mu=" << mu << ", freqs=" << rangeio::wrap(freqs))
     {
         auto m = f81::matrix(mu, freqs);
 
         // Testing default
-        auto x = mitosis_haploid_matrix(m);
-        auto expected_default = make_eigen_range(m);
-        auto test_default = make_eigen_range(x);
-        CHECK_CLOSE_RANGES(test_default, expected_default, 2*DBL_EPSILON );
+        auto x_default = mitosis_haploid_matrix(m);
+        auto expected_default = make_test_range(m);
+        auto test_default = make_test_range(x_default);
+        CHECK_CLOSE_RANGES(test_default, expected_default, prec);
+
+        // Test MUTATIONS_ALL
+        auto x_all = mitosis_haploid_matrix(m, MUTATIONS_ALL);
+        auto expected_all = make_test_range(m);
+        auto test_all = make_test_range(x_all);
+        CHECK_CLOSE_RANGES(test_all, expected_all, prec);
+
+        // Test 0 Mutations
+        auto x_0 = mitosis_haploid_matrix(m, 0);
+        auto m_0 = m;
+        for(int i=0;i<4;++i) {
+            for(int j=0;j<4;++j) {
+                if(i != j) {
+                    m_0(i,j) = 0.0;
+                }
+            }
+        }
+        auto expected_0 = make_test_range(m_0);
+        auto test_0 = make_test_range(x_0);
+        CHECK_CLOSE_RANGES(test_0, expected_0, prec);
+
+        // Test 1 Mutation
+        auto x_1 = mitosis_haploid_matrix(m, 1);
+        auto m_1 = m;
+        for(int i=0;i<4;++i) {
+            for(int j=0;j<4;++j) {
+                if(i == j) {
+                    m_1(i,j) = 0.0;
+                }
+            }
+        }
+        auto expected_1 = make_test_range(m_1);
+        auto test_1 = make_test_range(x_1);
+        CHECK_CLOSE_RANGES(test_1, expected_1, prec);
+
+        // Test 2 Mutations
+        auto x_2 = mitosis_haploid_matrix(m, 2);
+        auto m_2 = m;
+        for(int i=0;i<4;++i) {
+            for(int j=0;j<4;++j) {
+                m_2(i,j) = 0.0;
+            }
+        }
+        auto expected_2 = make_test_range(m_2);
+        auto test_2 = make_test_range(x_2);
+        CHECK_CLOSE_RANGES(test_2, expected_2, prec);
+
+        // Test Mean Mutations
+        auto x_mean = mitosis_haploid_matrix(m, MUTATIONS_MEAN);
+        auto m_mean = m;
+        for(int i=0;i<4;++i) {
+            for(int j=0;j<4;++j) {
+                if(i == j) {
+                    m_mean(i,j) = 0.0;
+                }
+            }
+        }
+        auto expected_mean = make_test_range(m_mean);
+        auto test_mean = make_test_range(x_mean);
+        CHECK_CLOSE_RANGES(test_mean, expected_mean, prec);
     }};
 
-    test(0.0,  {0.25, 0.25, 0.25, 0.25});
-    test(1e-8, {0.25, 0.25, 0.25, 0.25});
-    test(1e-9, {0.3,0.2,0.2,0.3});
-    test(1e-6, {0.1, 0.2, 0.3, 0.4});    
-    test(1e-3, {0.01, 0.1, 0.19, 0.7});
-
-}
-
-
-BOOST_FIXTURE_TEST_SUITE(test_mutation_suite, CreateMutationMatrix )
-
-BOOST_AUTO_TEST_CASE(test_mitosis_haploid_matrix_) {
-
-
-    TransitionMatrix expected_matrix_negative = TransitionMatrix::Zero(4, 4);
-    for (int i = 0; i < 4; ++i) {
-        for (int j = 0; j < 4; ++j) {
-            expected_matrix_negative(i, j) = unequal_mutation_matrix(i, j);
-        }
-    }
-    TransitionMatrix expected_matrix_negative_r = TransitionMatrix::Zero(4, 4);
-    expected_matrix_negative_r <<
-        0.99999871428663267, 2.857140816381332e-07, 4.2857112245719982e-07, 5.714281632762664e-07,
-        1.428570408190666e-07, 0.99999885714367343, 4.2857112245719982e-07, 5.714281632762664e-07,
-        1.428570408190666e-07, 2.857140816381332e-07, 0.99999900000071429, 5.714281632762664e-07,
-        1.428570408190666e-07, 2.857140816381332e-07, 4.2857112245719982e-07, 0.99999914285775504;
-    TransitionMatrix expected_copy_unequal_mutation_matrix = unequal_mutation_matrix;
-
-
-    TransitionMatrix expected_matrix_zero = TransitionMatrix::Zero(4, 4);
-    expected_matrix_zero.diagonal() = unequal_mutation_matrix.diagonal();
-    TransitionMatrix expected_matrix_zero_r = TransitionMatrix::Zero(4, 4);
-    expected_matrix_zero_r <<
-        0.99999871428663267, 0, 0, 0,
-        0, 0.99999885714367343, 0, 0,
-        0, 0, 0.99999900000071429, 0,
-        0, 0, 0, 0.99999914285775504;
-
-    TransitionMatrix expected_matrix_one = unequal_mutation_matrix;
-    expected_matrix_one.diagonal() = Eigen::Vector4d::Zero(4);
-
-    TransitionMatrix expected_matrix_one_r =  TransitionMatrix::Zero(4, 4);
-    expected_matrix_one_r <<
-        0, 2.857140816381332e-07, 4.2857112245719982e-07, 5.714281632762664e-07,
-        1.428570408190666e-07, 0, 4.2857112245719982e-07, 5.714281632762664e-07,
-        1.428570408190666e-07, 2.857140816381332e-07, 0, 5.714281632762664e-07,
-        1.428570408190666e-07, 2.857140816381332e-07, 4.2857112245719982e-07, 0;
-
-    TransitionMatrix expected_matrix_two =  TransitionMatrix::Zero(4, 4);
-
-    auto actual_negative = mitosis_haploid_matrix(unequal_mutation_matrix, -1);
-    boost_check_matrix(expected_matrix_negative, actual_negative);
-    boost_check_matrix(expected_matrix_negative_r, actual_negative);
-    boost_check_matrix(expected_copy_unequal_mutation_matrix, actual_negative);
-
-    // -2 now signals mean matrix
-    // auto actual_neg_2 = mitosis_haploid_matrix(unequal_mutation_matrix, -2);
-    // boost_check_matrix(expected_matrix_negative, actual_neg_2);
-    // boost_check_matrix(expected_matrix_negative_r, actual_neg_2);
-    // boost_check_matrix(expected_copy_unequal_mutation_matrix, actual_neg_2);
-
-    auto actual_zero = mitosis_haploid_matrix(unequal_mutation_matrix, 0);
-    boost_check_matrix(expected_matrix_zero, actual_zero);
-    boost_check_matrix(expected_matrix_zero_r, actual_zero);
-
-    auto actual_one = mitosis_haploid_matrix(unequal_mutation_matrix, 1);
-    boost_check_matrix(expected_matrix_one, actual_one);
-    boost_check_matrix(expected_matrix_one_r, actual_one);
-
-    auto actual_two = mitosis_haploid_matrix(unequal_mutation_matrix, 2);
-    boost_check_matrix(expected_matrix_two, actual_two);
-
+    run_mutation_tests(test);
 }
 
 BOOST_AUTO_TEST_CASE(test_mitosis_diploid_matrix) {
-
-
-    TransitionMatrix expected_matrix_negative_cpp = TransitionMatrix::Zero(10, 10);
-    auto kp = kroneckerProduct(unequal_mutation_matrix, unequal_mutation_matrix);
-    for(int m = 0; m < 10; ++m) {
-        int i = unfolded_diploid_genotypes_upper[m];
-        for (int j = 0; j < 16; ++j) {
-            int n = folded_diploid_genotypes[j];
-            expected_matrix_negative_cpp(m, n) += kp.coeff(i, j);
+    auto test = [](double mu, std::array<double,4> freqs, double prec) -> void {
+        BOOST_TEST_CONTEXT("mu=" << mu << ", freqs=" << rangeio::wrap(freqs))
+    {
+        auto f = f81::matrix(mu, freqs);
+        
+        // compute 16 x 16 mutation matrix
+        double mk[4][4][4][4];
+        for(int a=0;a<4;++a) {
+            for(int b=0;b<4;++b) {
+                for(int x=0;x<4;++x) {
+                    for(int y=0;y<4;++y) {
+                        // a -> x and b -> y
+                        mk[a][b][x][y] = f(a,x)*f(b,y);
+                    }
+                }
+            }
         }
+        // fold the matrix
+        double m[100];
+        for(int x=0,z=0;x<4;++x) {
+            for(int y=0;y<=x;++y) {
+                for(int a=0,c=0;a<4;++a) {
+                    for(int b=0;b<=a;++b) {
+                        m[z] = mk[a][b][x][y];
+                        if( x != y) {
+                            m[z] += mk[a][b][y][x];
+                        }
+                        ++z;
+                    }
+                }
+            }
+        }
+
+        // Testing default
+        auto x_default = mitosis_diploid_matrix(f);
+        auto expected_default = make_test_range(m);
+        auto test_default = make_test_range(x_default);
+        CHECK_CLOSE_RANGES(test_default, expected_default, prec);
+
+        // Test MUTATIONS_ALL
+        auto x_all = mitosis_diploid_matrix(f, MUTATIONS_ALL);
+        auto expected_all = make_test_range(m);
+        auto test_all = make_test_range(x_all);
+        CHECK_CLOSE_RANGES(test_all, expected_all, prec);
+
+        // Test 0 Mutations
+        auto x_0 = mitosis_diploid_matrix(f, 0);
+        for(int x=0,z=0;x<4;++x) {
+            for(int y=0;y<=x;++y) {
+                for(int a=0;a<4;++a) {
+                    for(int b=0;b<=a;++b) {
+                        if(a == x && b == y) {
+                            m[z] = mk[a][b][x][y];
+                        } else {
+                            m[z] = 0.0;
+                        }
+                        ++z;
+                    }
+                }
+            }
+        }
+        auto expected_0 = make_test_range(m);
+        auto test_0 = make_test_range(x_0);
+        CHECK_CLOSE_RANGES(test_0, expected_0, prec);
+
+        // Test 1 Mutations
+        auto x_1 = mitosis_diploid_matrix(f, 1);
+        for(int x=0,z=0;x<4;++x) {
+            for(int y=0;y<=x;++y) {
+                for(int a=0;a<4;++a) {
+                    for(int b=0;b<=a;++b) {
+                        m[z] = 0.0;
+                        if(((a != x) + (b != y)) == 1) {
+                            m[z] += mk[a][b][x][y];
+                        }
+                        if(x != y && ((a != y) + (b != x)) == 1) {
+                            m[z] += mk[a][b][y][x];
+                        }
+                        ++z;
+                    }
+                }
+            }
+        }
+        auto expected_1 = make_test_range(m);
+        auto test_1 = make_test_range(x_1);
+        CHECK_CLOSE_RANGES(test_1, expected_1, prec);
+
+        // Test 2 Mutations
+        auto x_2 = mitosis_diploid_matrix(f, 2);
+        for(int x=0,z=0;x<4;++x) {
+            for(int y=0;y<=x;++y) {
+                for(int a=0;a<4;++a) {
+                    for(int b=0;b<=a;++b) {
+                        m[z] = 0.0;
+                        if(((a != x) + (b != y)) == 2) {
+                            m[z] += mk[a][b][x][y];
+                        }
+                        if(x != y && ((a != y) + (b != x)) == 2) {
+                            m[z] += mk[a][b][y][x];
+                        }
+                        ++z;
+                    }
+                }
+            }
+        }
+        auto expected_2 = make_test_range(m);
+        auto test_2 = make_test_range(x_2);
+        CHECK_CLOSE_RANGES(test_2, expected_2, prec);
+
+        // Test 3 Mutations
+        auto x_3 = mitosis_diploid_matrix(f, 3);
+        for(int x=0,z=0;x<4;++x) {
+            for(int y=0;y<=x;++y) {
+                for(int a=0;a<4;++a) {
+                    for(int b=0;b<=a;++b) {
+                        m[z] = 0.0;
+                        ++z;
+                    }
+                }
+            }
+        }
+        auto expected_3 = make_test_range(m);
+        auto test_3 = make_test_range(x_3);
+        CHECK_CLOSE_RANGES(test_3, expected_3, prec);
+
+        // Test Mean Mutations
+        auto x_mean = mitosis_diploid_matrix(f, MUTATIONS_MEAN);
+        for(int x=0,z=0;x<4;++x) {
+            for(int y=0;y<=x;++y) {
+                for(int a=0;a<4;++a) {
+                    for(int b=0;b<=a;++b) {
+                        m[z] = 0.0;
+                        m[z] += mk[a][b][x][y]*((a != x) + (b != y));
+                        if(x != y) {
+                            m[z] += mk[a][b][y][x]*((a != y) + (b != x));
+                        }
+                        ++z;
+                    }
+                }
+            }
+        }
+        auto expected_mean = make_test_range(m);
+        auto test_mean = make_test_range(x_mean);
+        CHECK_CLOSE_RANGES(test_mean, expected_mean, prec);
     }
+    };
 
-    TransitionMatrix expected_matrix_negative = TransitionMatrix::Zero(10, 10);
-    expected_matrix_negative
-        << 0.99999742857491836, 5.7142742858343843e-07, 8.1632536446321836e-14, 8.5714114287515769e-07, 2.4489760933896552e-13, 1.8367320700422418e-13, 1.1428548571668769e-06, 3.2653014578528734e-13, 4.8979521867793104e-13, 3.2653014578528734e-13,
-        1.4285685714585961e-07, 0.99999757143181633, 2.8571375510798738e-07, 4.2857063266198118e-07, 4.2857075511078579e-07, 1.8367320700422418e-13, 5.7142751021597487e-07, 5.7142767348104764e-07, 4.8979521867793104e-13, 3.2653014578528734e-13,
-        2.0408134111580459e-14, 2.8571375510798738e-07, 0.99999771428865292, 1.2244880466948276e-13, 8.5714126532396225e-07, 1.8367320700422418e-13, 1.6326507289264367e-13, 1.1428550204319495e-06, 4.8979521867793104e-13, 3.2653014578528734e-13,
-        1.4285685714585961e-07, 2.8571375510798743e-07, 8.1632536446321836e-14, 0.99999771428869388, 2.8571391837306032e-07, 4.2857069388638351e-07, 5.7142751021597487e-07, 3.2653014578528734e-13, 5.7142783674612063e-07, 3.2653014578528734e-13,
-        2.0408134111580459e-14, 1.4285691837026191e-07, 2.8571375510798738e-07, 1.4285695918653016e-07, 0.99999785714565304, 4.2857069388638351e-07, 1.6326507289264367e-13, 5.7142767348104764e-07, 5.7142783674612063e-07, 3.2653014578528734e-13,
-        2.0408134111580459e-14, 8.1632536446321836e-14, 8.1632536446321836e-14, 2.8571379592425565e-07, 5.7142759184851131e-07, 0.99999800000242856, 1.6326507289264367e-13, 3.2653014578528734e-13, 1.1428551836970226e-06, 3.2653014578528734e-13,
-        1.4285685714585961e-07, 2.8571375510798743e-07, 8.1632536446321836e-14, 4.2857063266198118e-07, 2.4489760933896552e-13, 1.8367320700422418e-13, 0.99999785714557132, 2.857140000055967e-07, 4.2857100000839511e-07, 5.7142767348104764e-07,
-        2.0408134111580459e-14, 1.4285691837026191e-07, 2.8571375510798738e-07, 1.2244880466948276e-13, 4.2857075511078579e-07, 1.8367320700422418e-13, 1.4285700000279835e-07, 0.99999800000257133, 4.2857100000839511e-07, 5.7142767348104764e-07,
-        2.0408134111580459e-14, 8.1632536446321836e-14, 8.1632536446321836e-14, 1.4285695918653016e-07, 2.8571391837306032e-07, 4.2857069388638351e-07, 1.4285700000279835e-07, 2.857140000055967e-07, 0.99999814285957134, 5.7142767348104764e-07,
-        2.0408134111580459e-14, 8.1632536446321836e-14, 8.1632536446321836e-14, 1.2244880466948276e-13, 2.4489760933896552e-13, 1.8367320700422418e-13, 2.8571383674052382e-07, 5.7142767348104764e-07, 8.5714151022157157e-07, 0.99999828571624483;
-
-    TransitionMatrix expected_matrix_zero = TransitionMatrix::Zero(10, 10);
-    expected_matrix_zero
-        << 0.99999742857491836, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0.99999757143177548, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0.99999771428865292, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0.99999771428863271, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0.99999785714553058, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0.99999800000242856, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0.99999785714548972, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0.99999800000240802, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0.99999814285932642, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0.99999828571624483;
-
-    TransitionMatrix expected_matrix_one = TransitionMatrix::Zero(10, 10);
-    expected_matrix_one
-        << 0, 5.7142742858343843e-07, 0, 8.5714114287515769e-07, 0, 0, 1.1428548571668769e-06, 0, 0, 0,
-        1.4285685714585961e-07, 0, 2.8571375510798738e-07, 4.2857057143757885e-07, 4.2857063266198113e-07, 0, 5.7142742858343843e-07, 5.7142751021597476e-07, 0, 0,
-        0, 2.8571375510798738e-07, 0, 0, 8.5714126532396225e-07, 0, 0, 1.1428550204319495e-06, 0, 0,
-        1.4285685714585961e-07, 2.8571371429171921e-07, 0, 0, 2.8571379592425565e-07, 4.2857069388638351e-07, 5.7142742858343843e-07, 0, 5.7142759184851131e-07, 0,
-        0, 1.4285687755399369e-07, 2.8571375510798738e-07, 1.4285689796212783e-07, 0, 4.2857069388638351e-07, 0, 5.7142751021597476e-07, 5.7142759184851131e-07, 0,
-        0, 0, 0, 2.8571379592425565e-07, 5.7142759184851131e-07, 0, 0, 0, 1.1428551836970226e-06, 0,
-        1.4285685714585961e-07, 2.8571371429171921e-07, 0, 4.2857057143757885e-07, 0, 0, 0, 2.8571383674052382e-07, 4.2857075511078579e-07, 5.7142767348104764e-07,
-        0, 1.4285687755399369e-07, 2.8571375510798738e-07, 0, 4.2857063266198113e-07, 0, 1.4285691837026191e-07, 0, 4.2857075511078579e-07, 5.7142767348104764e-07,
-        0, 0, 0, 1.4285689796212783e-07, 2.8571379592425565e-07, 4.2857069388638351e-07, 1.4285691837026191e-07, 2.8571383674052382e-07, 0, 5.7142767348104764e-07,
-        0, 0, 0, 0, 0, 0, 2.8571383674052382e-07, 5.7142767348104764e-07, 8.5714151022157157e-07, 0;
-
-    TransitionMatrix expected_matrix_two = TransitionMatrix::Zero(10, 10);
-    expected_matrix_two
-        << 0, 0, 8.1632536446321836e-14, 0, 2.4489760933896552e-13, 1.8367320700422418e-13, 0, 3.2653014578528734e-13, 4.8979521867793104e-13, 3.2653014578528734e-13,
-        0, 4.0816268223160918e-14, 0, 6.122440233474138e-14, 1.2244880466948276e-13, 1.8367320700422418e-13, 8.1632536446321836e-14, 1.6326507289264367e-13, 4.8979521867793104e-13, 3.2653014578528734e-13,
-        2.0408134111580459e-14, 0, 0, 1.2244880466948276e-13, 0, 1.8367320700422418e-13, 1.6326507289264367e-13, 0, 4.8979521867793104e-13, 3.2653014578528734e-13,
-        0, 4.0816268223160918e-14, 8.1632536446321836e-14, 6.122440233474138e-14, 1.2244880466948276e-13, 0, 8.1632536446321836e-14, 3.2653014578528734e-13, 2.4489760933896552e-13, 3.2653014578528734e-13,
-        2.0408134111580459e-14, 4.0816268223160918e-14, 0, 6.122440233474138e-14, 1.2244880466948276e-13, 0, 1.6326507289264367e-13, 1.6326507289264367e-13, 2.4489760933896552e-13, 3.2653014578528734e-13,
-        2.0408134111580459e-14, 8.1632536446321836e-14, 8.1632536446321836e-14, 0, 0, 0, 1.6326507289264367e-13, 3.2653014578528734e-13, 0, 3.2653014578528734e-13,
-        0, 4.0816268223160918e-14, 8.1632536446321836e-14, 6.122440233474138e-14, 2.4489760933896552e-13, 1.8367320700422418e-13, 8.1632536446321836e-14, 1.6326507289264367e-13, 2.4489760933896552e-13, 0,
-        2.0408134111580459e-14, 4.0816268223160918e-14, 0, 1.2244880466948276e-13, 1.2244880466948276e-13, 1.8367320700422418e-13, 8.1632536446321836e-14, 1.6326507289264367e-13, 2.4489760933896552e-13, 0,
-        2.0408134111580459e-14, 8.1632536446321836e-14, 8.1632536446321836e-14, 6.122440233474138e-14, 1.2244880466948276e-13, 0, 8.1632536446321836e-14, 1.6326507289264367e-13, 2.4489760933896552e-13, 0,
-        2.0408134111580459e-14, 8.1632536446321836e-14, 8.1632536446321836e-14, 1.2244880466948276e-13, 2.4489760933896552e-13, 1.8367320700422418e-13, 0, 0, 0, 0;
-
-    TransitionMatrix expected_matrix_three = TransitionMatrix::Zero(10, 10);
-
-
-    auto actual_negative = mitosis_diploid_matrix(unequal_mutation_matrix, -1);
-    boost_check_matrix(expected_matrix_negative_cpp, actual_negative);
-    boost_check_matrix(expected_matrix_negative, actual_negative);
-
-    auto actual_zero = mitosis_diploid_matrix(unequal_mutation_matrix, 0);
-    boost_check_matrix(expected_matrix_zero, actual_zero);
-
-    auto actual_one = mitosis_diploid_matrix(unequal_mutation_matrix, 1);
-    boost_check_matrix(expected_matrix_one, actual_one);
-
-    auto actual_two = mitosis_diploid_matrix(unequal_mutation_matrix, 2);
-    boost_check_matrix(expected_matrix_two, actual_two);
-
-    auto actual_three = mitosis_diploid_matrix(unequal_mutation_matrix, 3);
-    boost_check_matrix(expected_matrix_three, actual_three);
+    run_mutation_tests(test);
 }
 
 BOOST_AUTO_TEST_CASE(test_meiosis_haploid_matrix) {
+    auto test = [](double mu, std::array<double,4> freqs, double prec) -> void {
+        BOOST_TEST_CONTEXT("mu=" << mu << ", freqs=" << rangeio::wrap(freqs))
+    {
+        auto f = f81::matrix(mu, freqs);
+        
+        // compute 10 x 4 mutation matrix
+        double m[40];
+        for(int x=0,z=0;x<4;++x) {
+            for(int a=0,c=0;a<4;++a) {
+                for(int b=0;b<=a;++b) {
+                    m[z] = 0.5*(f(a,x)+f(b,x));
+                    ++z;
+                }
+            }
+        }
 
-    TransitionMatrix expected_matrix_negative = TransitionMatrix::Zero(10, 4);
-    expected_matrix_negative
-        << 0.99999871428663267, 2.857140816381332e-07, 4.2857112245719982e-07, 5.714281632762664e-07,
-        0.49999942857183677, 0.49999957142887752, 4.2857112245719982e-07, 5.714281632762664e-07,
-        1.428570408190666e-07, 0.99999885714367343, 4.2857112245719982e-07, 5.714281632762664e-07,
-        0.49999942857183677, 2.857140816381332e-07, 0.49999971428591838, 5.714281632762664e-07,
-        1.428570408190666e-07, 0.49999957142887752, 0.49999971428591838, 5.714281632762664e-07,
-        1.428570408190666e-07, 2.857140816381332e-07, 0.99999900000071429, 5.714281632762664e-07,
-        0.49999942857183677, 2.857140816381332e-07, 4.2857112245719982e-07, 0.49999985714295914,
-        1.428570408190666e-07, 0.49999957142887752, 4.2857112245719982e-07, 0.49999985714295914,
-        1.428570408190666e-07, 2.857140816381332e-07, 0.49999971428591838, 0.49999985714295914,
-        1.428570408190666e-07, 2.857140816381332e-07, 4.2857112245719982e-07, 0.99999914285775504;
+        // Testing default
+        auto x_default = meiosis_haploid_matrix(f);
+        auto expected_default = make_test_range(m);
+        auto test_default = make_test_range(x_default);
+        CHECK_CLOSE_RANGES(test_default, expected_default, prec);
 
-    TransitionMatrix expected_matrix_zero = TransitionMatrix::Zero(10, 4);
-    expected_matrix_zero
-        << 0.99999871428663267, 0, 0, 0,
-        0.49999935714331634, 0.49999942857183671, 0, 0,
-        0, 0.99999885714367343, 0, 0,
-        0.49999935714331634, 0, 0.49999950000035714, 0,
-        0, 0.49999942857183671, 0.49999950000035714, 0,
-        0, 0, 0.99999900000071429, 0,
-        0.49999935714331634, 0, 0, 0.49999957142887752,
-        0, 0.49999942857183671, 0, 0.49999957142887752,
-        0, 0, 0.49999950000035714, 0.49999957142887752,
-        0, 0, 0, 0.99999914285775504;
+        // Test MUTATIONS_ALL
+        auto x_all = meiosis_haploid_matrix(f, MUTATIONS_ALL);
+        auto expected_all = make_test_range(m);
+        auto test_all = make_test_range(x_all);
+        CHECK_CLOSE_RANGES(test_all, expected_all, prec);
 
-    TransitionMatrix expected_matrix_one = TransitionMatrix::Zero(10, 4);
-    expected_matrix_one
-        << 0, 2.857140816381332e-07, 4.2857112245719982e-07, 5.714281632762664e-07,
-        7.1428520409533299e-08, 1.428570408190666e-07, 4.2857112245719982e-07, 5.714281632762664e-07,
-        1.428570408190666e-07, 0, 4.2857112245719982e-07, 5.714281632762664e-07,
-        7.1428520409533299e-08, 2.857140816381332e-07, 2.1428556122859991e-07, 5.714281632762664e-07,
-        1.428570408190666e-07, 1.428570408190666e-07, 2.1428556122859991e-07, 5.714281632762664e-07,
-        1.428570408190666e-07, 2.857140816381332e-07, 0, 5.714281632762664e-07,
-        7.1428520409533299e-08, 2.857140816381332e-07, 4.2857112245719982e-07, 2.857140816381332e-07,
-        1.428570408190666e-07, 1.428570408190666e-07, 4.2857112245719982e-07, 2.857140816381332e-07,
-        1.428570408190666e-07, 2.857140816381332e-07, 2.1428556122859991e-07, 2.857140816381332e-07,
-        1.428570408190666e-07, 2.857140816381332e-07, 4.2857112245719982e-07, 0;
+        // Test 0 Mutations
+        auto x_0 = meiosis_haploid_matrix(f, 0);
+        for(int x=0,z=0;x<4;++x) {
+            for(int a=0,c=0;a<4;++a) {
+                for(int b=0;b<=a;++b) {
+                    m[z] = 0.0;
+                    m[z] += 0.5*f(a,x)*(a==x);
+                    m[z] += 0.5*f(b,x)*(b==x);
+                    ++z;
+                }
+            }
+        }
+        auto expected_0 = make_test_range(m);
+        auto test_0 = make_test_range(x_0);
+        CHECK_CLOSE_RANGES(test_0, expected_0, prec);
 
-    TransitionMatrix expected_matrix_two = TransitionMatrix::Zero(10, 4);
+        // Test 1 Mutation
+        auto x_1 = meiosis_haploid_matrix(f, 1);
+        for(int x=0,z=0;x<4;++x) {
+            for(int a=0,c=0;a<4;++a) {
+                for(int b=0;b<=a;++b) {
+                    m[z] = 0.0;
+                    m[z] += 0.5*f(a,x)*(a!=x);
+                    m[z] += 0.5*f(b,x)*(b!=x);
+                    ++z;
+                }
+            }
+        }
+        auto expected_1 = make_test_range(m);
+        auto test_1 = make_test_range(x_1);
+        CHECK_CLOSE_RANGES(test_1, expected_1, prec);
 
+        // Test 2 Mutations
+        auto x_2 = meiosis_haploid_matrix(f, 2);
+        for(int x=0,z=0;x<4;++x) {
+            for(int a=0,c=0;a<4;++a) {
+                for(int b=0;b<=a;++b) {
+                    m[z] = 0.0;
+                    ++z;
+                }
+            }
+        }
+        auto expected_2 = make_test_range(m);
+        auto test_2 = make_test_range(x_2);
+        CHECK_CLOSE_RANGES(test_2, expected_2, prec);
 
-    auto actual_negative = meiosis_haploid_matrix(unequal_mutation_matrix, -1);
-    boost_check_matrix(expected_matrix_negative, actual_negative);
+        // Test Mean Mutations
+        auto x_mean = meiosis_haploid_matrix(f, MUTATIONS_MEAN);
+        for(int x=0,z=0;x<4;++x) {
+            for(int a=0,c=0;a<4;++a) {
+                for(int b=0;b<=a;++b) {
+                    m[z] = 0.0;
+                    m[z] += 0.5*f(a,x)*(a!=x);
+                    m[z] += 0.5*f(b,x)*(b!=x);
+                    ++z;
+                }
+            }
+        }
+        auto expected_mean = make_test_range(m);
+        auto test_mean = make_test_range(x_mean);
+        CHECK_CLOSE_RANGES(test_mean, expected_mean, prec);
 
-    auto actual_zero = meiosis_haploid_matrix(unequal_mutation_matrix, 0);
-    boost_check_matrix(expected_matrix_zero, actual_zero);
+    }};
 
-    auto actual_one = meiosis_haploid_matrix(unequal_mutation_matrix, 1);
-    boost_check_matrix(expected_matrix_one, actual_one);
-
-    auto actual_two = meiosis_haploid_matrix(unequal_mutation_matrix, 2);
-    boost_check_matrix(expected_matrix_two, actual_two);
+    run_mutation_tests(test);
 }
 
+
+
+BOOST_FIXTURE_TEST_SUITE(test_mutation_suite, CreateMutationMatrix )
 
 BOOST_AUTO_TEST_CASE(test_meiosis_diploid_matrix) {
     TransitionMatrix expected_matrix_negative = TransitionMatrix::Zero(100, 10);
@@ -778,16 +882,6 @@ BOOST_AUTO_TEST_CASE(test_meiosis_diploid_matrix) {
     auto actual_three = meiosis_diploid_matrix(unequal_mutation_matrix,
                                                unequal_mutation_matrix, 3);
     boost_check_matrix(expected_matrix_three, actual_three);
-}
-
-//TODO(SW): Implement the following tests
-BOOST_AUTO_TEST_CASE(test_mitosis_haploid_mean_matrix) {
-}
-BOOST_AUTO_TEST_CASE(test_mitosis_diploid_mean_matrix) {
-}
-BOOST_AUTO_TEST_CASE(test_meiosis_haploid_mean_matrix) {
-}
-BOOST_AUTO_TEST_CASE(test_meiosis_diploid_mean_matrix) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()

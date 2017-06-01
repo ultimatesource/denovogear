@@ -76,11 +76,11 @@ struct AutoTempFile {
 
 namespace {
 template<typename T>
-struct eigen_range {
+struct test_range {
     using const_iterator = T;
     using value_type = typename std::iterator_traits<T>::value_type;
 
-    eigen_range(T b, T e) : begin_{b}, end_{e} { }
+    test_range(T b, T e) : begin_{b}, end_{e} { }
 
     const_iterator begin() const { return begin_; }
     const_iterator end() const { return end_; }
@@ -92,10 +92,23 @@ struct eigen_range {
 
 
 template<typename M>
-auto make_eigen_range(const M& m) -> eigen_range<decltype(m.data())>
+auto make_test_range(const M& m) -> test_range<decltype(m.data())>
 {
     return {m.data(), m.data()+m.size()};
 }
+
+template<typename T>
+auto make_test_range(const T* b, const T* e) -> test_range<const T*>
+{
+    return {b, e};
+}
+
+template<typename T, size_t N>
+auto make_test_range(const T (&a)[N]) -> test_range<const T*>
+{
+    return {&a[0], &a[N]};
+}
+
 
 } // anonymous namespace
 
