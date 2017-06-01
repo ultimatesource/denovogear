@@ -6,4 +6,4 @@
 # This should be run from build directory like this:
 # src/mutmap/autotest.sh
 
-ls ../src/mutmap/src/html/*.html ../src/mutmap/src/js/*.js | entr sh -c 'ninja; curl localhost:6011'
+find ../src/mutmap/ -not -name "*.swp" -and -not -type d | entr sh -c 'ninja; curl localhost:6011'

@@ -4,6 +4,7 @@ if (Rscript_FOUND)
 
   set(MUTMAP_DIR ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBEXECDIR}/mutmap)
   set(JS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/js)
+  set(VIEW_DIR ${JS_DIR}/views)
   set(DIST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/dist)
   set(BUNDLE_FILE ${CMAKE_CURRENT_BINARY_DIR}/bundle.js)
   
@@ -13,12 +14,12 @@ if (Rscript_FOUND)
       ${JS_DIR}/dng_vcf_parser.js
       ${JS_DIR}/ped_parser.js
       ${JS_DIR}/pedigr.js
-      ${JS_DIR}/genome_browser_view.js
-      ${JS_DIR}/sample_tree_view.js
-      ${JS_DIR}/stats_view.js
-      ${JS_DIR}/mutation_distribution_view.js
-      ${JS_DIR}/mutation_explorer_view.js
-      ${JS_DIR}/pedigree_view.js
+      ${VIEW_DIR}/contig.js
+      ${VIEW_DIR}/sample_tree.js
+      ${VIEW_DIR}/stats.js
+      ${VIEW_DIR}/mutation_distribution.js
+      ${VIEW_DIR}/mutation_explorer.js
+      ${VIEW_DIR}/pedigree.js
       ${JS_DIR}/mutmap.js)
   
   add_custom_command(
