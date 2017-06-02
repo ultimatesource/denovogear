@@ -36,31 +36,7 @@
 using namespace dng;
 using namespace dng::genotype;
 using dng::detail::make_test_range;
-
-struct CreateMutationMatrix {
-
-    std::string fixture;
-
-    MutationMatrix equal_mutation_matrix;
-    MutationMatrix unequal_mutation_matrix;
-    std::array<double, 4> equal_freq = {{0.25, 0.25, 0.25, 0.25}};
-    std::array<double, 4> unequal_freq = {{0.1, 0.2, 0.3, 0.4}};
-
-
-    CreateMutationMatrix(std::string s = "CreateMutationMatrix") : fixture(s) {
-        BOOST_TEST_MESSAGE("set up fixture: " << fixture);
-
-        equal_mutation_matrix = f81::matrix(1e-6, equal_freq);
-        unequal_mutation_matrix = f81::matrix(1e-6, unequal_freq);
-
-    }
-
-    ~CreateMutationMatrix() {
-        BOOST_TEST_MESSAGE("tear down fixture: " << fixture);
-    }
-
-
-};
+using d4 = std::array<double,4>;
 
 // This generic function allows us to test the same parameters
 // for different test functions
@@ -72,17 +48,9 @@ void run_mutation_tests(F test, double prec = 2*DBL_EPSILON) {
     test(1e-6, {0.1, 0.2, 0.3, 0.4}, prec); 
     test(1e-3, {0.01, 0.1, 0.19, 0.7}, prec);
 }
-template<typename F>
-void run_population_tests(F test, double prec = 2*DBL_EPSILON) {
-    test(0.001,  {0.25, 0.25, 0.25, 0.25}, prec);
-    test(0.1, {0.25, 0.25, 0.25, 0.25}, prec);
-    test(1e-6, {0.3,0.2,0.2,0.3}, prec);
-    test(0.001, {0.1, 0.2, 0.3, 0.4}, prec); 
-    test(0.001, {0.01, 0.1, 0.19, 0.7}, prec);
-}
 
 BOOST_AUTO_TEST_CASE(test_f81) {
-    auto test = [](double mu, std::array<double,4> freqs, double prec) -> void {
+    auto test = [](double mu, d4 freqs, double prec) -> void {
         BOOST_TEST_CONTEXT("mu=" << mu << ", freqs=" << rangeio::wrap(freqs))
     {
         using namespace boost::numeric::ublas;
@@ -130,7 +98,7 @@ BOOST_AUTO_TEST_CASE(test_f81) {
 }
 
 BOOST_AUTO_TEST_CASE(test_mitosis_haploid_matrix) {
-    auto test = [](double mu, std::array<double,4> freqs, double prec) -> void {
+    auto test = [](double mu, d4 freqs, double prec) -> void {
         BOOST_TEST_CONTEXT("mu=" << mu << ", freqs=" << rangeio::wrap(freqs))
     {
         auto m = f81::matrix(mu, freqs);
@@ -206,7 +174,7 @@ BOOST_AUTO_TEST_CASE(test_mitosis_haploid_matrix) {
 }
 
 BOOST_AUTO_TEST_CASE(test_mitosis_diploid_matrix) {
-    auto test = [](double mu, std::array<double,4> freqs, double prec) -> void {
+    auto test = [](double mu, d4 freqs, double prec) -> void {
         BOOST_TEST_CONTEXT("mu=" << mu << ", freqs=" << rangeio::wrap(freqs))
     {
         auto f = f81::matrix(mu, freqs);
@@ -357,7 +325,7 @@ BOOST_AUTO_TEST_CASE(test_mitosis_diploid_matrix) {
 }
 
 BOOST_AUTO_TEST_CASE(test_meiosis_haploid_matrix) {
-    auto test = [](double mu, std::array<double,4> freqs, double prec) -> void {
+    auto test = [](double mu, d4 freqs, double prec) -> void {
         BOOST_TEST_CONTEXT("mu=" << mu << ", freqs=" << rangeio::wrap(freqs))
     {
         auto f = f81::matrix(mu, freqs);
@@ -453,7 +421,7 @@ BOOST_AUTO_TEST_CASE(test_meiosis_haploid_matrix) {
 }
 
 BOOST_AUTO_TEST_CASE(test_mitosis_matrix) {
-    auto test = [](double mu, std::array<double,4> freqs, double prec) -> void {
+    auto test = [](double mu, d4 freqs, double prec) -> void {
         BOOST_TEST_CONTEXT("mu=" << mu << ", freqs=" << rangeio::wrap(freqs))
     {
         auto f = f81::matrix(mu, freqs);
@@ -499,7 +467,7 @@ BOOST_AUTO_TEST_CASE(test_mitosis_matrix) {
 }
 
 BOOST_AUTO_TEST_CASE(test_gamete_matrix) {
-    auto test = [](double mu, std::array<double,4> freqs, double prec) -> void {
+    auto test = [](double mu, d4 freqs, double prec) -> void {
         BOOST_TEST_CONTEXT("mu=" << mu << ", freqs=" << rangeio::wrap(freqs))
     {
         auto f = f81::matrix(mu, freqs);
@@ -643,8 +611,8 @@ BOOST_AUTO_TEST_CASE(test_meiosis_matrix) {
         }}
     }};
 
-    auto test = [&](double dad_mu, std::array<double,4> dad_freqs,
-                   double mom_mu, std::array<double,4> mom_freqs, double prec) -> void {
+    auto test = [&](double dad_mu, d4 dad_freqs,
+                   double mom_mu, d4 mom_freqs, double prec) -> void {
         BOOST_TEST_CONTEXT("dad_mu=" << dad_mu << ", dad_freqs=" << rangeio::wrap(dad_freqs)
                       << ", mom_mu=" << mom_mu << ", mom_freqs=" << rangeio::wrap(mom_freqs) )
     {
@@ -663,28 +631,103 @@ BOOST_AUTO_TEST_CASE(test_meiosis_matrix) {
     test(1e-6, {0.1, 0.2, 0.3, 0.4}, 1e-3, {0.01, 0.1, 0.19, 0.7}, prec); 
 }
 
-BOOST_AUTO_TEST_CASE(test_population_alphas) {
-    auto test = [](double theta, std::array<double,4> freqs, double prec) -> void {
-        auto test_prior = [&](std::array<double,4> prior) -> void {
-            BOOST_TEST_CONTEXT("theta=" << theta << ", freqs=" << rangeio::wrap(freqs)
-                          << ", prior=" << rangeio::wrap(prior))
-        {
-            auto test_alphas = population_alphas(theta, freqs, prior);
-            std::vector<double> expected_alphas;
-            for(int i=0; i<4; ++i) {
-                double d = theta*freqs[i]+prior[i];
-                expected_alphas.push_back(d);
-            }
-            CHECK_CLOSE_RANGES(test_alphas, expected_alphas, prec);
-        }};
-
-        test_prior({0.0,0,0,0});
-        for(double w : {1.0,1e5,1e-5}) {
-            test_prior({w,0,0,0});
-            test_prior({0,w,0,0});
-            test_prior({0,0,w,0});
-            test_prior({0,0,0,w});
-        }
+template<typename F>
+void run_population_tests(F test, double prec = 2*DBL_EPSILON) {
+    auto test_prior = [&](d4 p) {
+        test(0.001,  {0.25, 0.25, 0.25, 0.25}, p, prec);
+        test(0.1, {0.25, 0.25, 0.25, 0.25}, p, prec);
+        test(1e-6, {0.3,0.2,0.2,0.3}, p, prec);
+        test(0.001, {0.1, 0.2, 0.3, 0.4}, p, prec); 
+        test(0.001, {0.01, 0.1, 0.19, 0.7}, p, prec);
+        test(1, {0.01, 0.1, 0.19, 0.7}, p, prec);
+        test(100, {0.01, 0.1, 0.19, 0.7}, p, prec);        
+        test(0.01,  {1, 1, 1, 1}, p, prec);
+        test(0.0,  {1, 1, 1, 1}, p, prec);
+        test(1e-9,  {4, 3, 2, 1}, p, prec);
     };
+    test_prior({0.0,0,0,0});
+    for(double w : {1.0,1e5,1e-5}) {
+        test_prior({w,0,0,0});
+        test_prior({0,w,0,0});
+        test_prior({0,0,w,0});
+        test_prior({0,0,0,w});
+    }
+}
+
+BOOST_AUTO_TEST_CASE(test_population_alphas) {
+    auto test = [](double theta, d4 freqs, d4 prior, double prec) -> void {
+    BOOST_TEST_CONTEXT("theta=" << theta << ", freqs=" << rangeio::wrap(freqs)
+                    << ", prior=" << rangeio::wrap(prior)) {
+        auto test_alphas = population_alphas(theta, freqs, prior);
+        std::vector<double> expected_alphas;
+        double total = 0.0;
+        for(auto &&a : freqs) {
+            total += a;
+        }
+        for(auto &&a : freqs) {
+            a /= total;
+        }
+        for(int i=0; i<4; ++i) {
+            double d = theta*freqs[i]+prior[i];
+            expected_alphas.push_back(d);
+        }
+        CHECK_CLOSE_RANGES(test_alphas, expected_alphas, prec);
+    }};
+    run_population_tests(test);
+}
+
+BOOST_AUTO_TEST_CASE(test_population_prior_diploid) {
+    auto test = [](double theta, d4 freqs, d4 prior, double prec) -> void {
+    BOOST_TEST_CONTEXT("theta=" << theta << ", freqs=" << rangeio::wrap(freqs)
+                    << ", prior=" << rangeio::wrap(prior)) {
+        auto x_prior = population_prior_diploid(theta, freqs, prior);
+        auto alphas = population_alphas(theta, freqs, prior);
+        double alpha_sum = 0.0;
+        for(auto &&a : alphas) {
+            alpha_sum += a;
+        }
+        if(alpha_sum == 0.0) {
+            return;
+        }
+        std::vector<double> expected_prior;
+        for(int i=0; i < 4; ++i) {
+            for(int j=0; j <= i; ++j) {
+                double d;
+                if(i == j) {
+                    d = alphas[i]*(1.0+alphas[i])/alpha_sum/(1.0+alpha_sum);
+                } else {
+                    d = 2.0*alphas[i]*alphas[j]/alpha_sum/(1.0+alpha_sum);
+                }
+                expected_prior.push_back(d);
+            }
+        }
+        auto test_prior = make_test_range(x_prior);
+        CHECK_CLOSE_RANGES(test_prior, expected_prior, prec);
+
+    }};
+    run_population_tests(test);
+}
+
+BOOST_AUTO_TEST_CASE(test_population_prior_haploid) {
+    auto test = [](double theta, d4 freqs, d4 prior, double prec) -> void {
+    BOOST_TEST_CONTEXT("theta=" << theta << ", freqs=" << rangeio::wrap(freqs)
+                    << ", prior=" << rangeio::wrap(prior)) {
+        auto x_prior = population_prior_haploid(theta, freqs, prior);
+        auto alphas = population_alphas(theta, freqs, prior);
+        double alpha_sum = 0.0;
+        for(auto &&a : alphas) {
+            alpha_sum += a;
+        }
+        if(alpha_sum == 0.0) {
+            return;
+        }
+        std::vector<double> expected_prior;
+        for(int i=0; i < 4; ++i) {
+            expected_prior.push_back(alphas[i]/alpha_sum);
+        }
+        auto test_prior = make_test_range(x_prior);
+        CHECK_CLOSE_RANGES(test_prior, expected_prior, prec);
+
+    }};
     run_population_tests(test);
 }
