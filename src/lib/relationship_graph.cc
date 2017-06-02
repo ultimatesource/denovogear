@@ -45,13 +45,13 @@ constexpr vertex_t NULL_INDEX{DUMMY_INDEX-1};
 const std::pair<std::string, InheritanceModel> inheritance_keys[] = {
     {"", InheritanceModel::Unknown},
     {"AUTOSOMAL", InheritanceModel::Autosomal},
-    {"MITOCHONDRIAL", InheritanceModel::Maternal},
     {"MATERNAL", InheritanceModel::Maternal},
     {"PATERNAL", InheritanceModel::Paternal},
     {"X-LINKED", InheritanceModel::XLinked},
     {"Y-LINKED", InheritanceModel::YLinked},
     {"W-LINKED", InheritanceModel::WLinked},
     {"Z-LINKED", InheritanceModel::ZLinked},
+    {"MITOCHONDRIAL", InheritanceModel::Maternal},
     {"XLINKED", InheritanceModel::XLinked},
     {"YLINKED", InheritanceModel::YLinked},
     {"WLINKED", InheritanceModel::WLinked},
@@ -62,11 +62,25 @@ dng::InheritanceModel dng::inheritance_model(const std::string &pattern) {
     InheritanceModel model = dng::utility::key_switch_tuple(pattern, inheritance_keys,
                                                 inheritance_keys[0]).second;
     if (model == InheritanceModel::Unknown){
-        throw  std::runtime_error("ERROR: Inheritance model '" + pattern
+        throw std::invalid_argument("Inheritance model '" + pattern
             + "' is not supported. Supported values are: "
             "[autosomal, mitochondrial, paternal, x-linked, y-linked, w-linked, z-linked]");
     }
     return model;
+}
+
+std::string dng::to_string(InheritanceModel model) {
+    if(model != InheritanceModel::Unknown) {
+        for(auto &&a : inheritance_keys) {
+            if(std::get<1>(a) != model) {
+                continue;
+            }
+            return std::get<0>(a);
+        }
+    }
+    throw std::invalid_argument("Unable to convert model '" + std::to_string((int)model)
+            + "' to string.");
+    return {};   
 }
 
 /*

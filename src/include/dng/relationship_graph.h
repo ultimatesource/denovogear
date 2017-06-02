@@ -48,6 +48,8 @@ enum struct InheritanceModel {
 
 InheritanceModel inheritance_model(const std::string &pattern);
 
+std::string to_string(InheritanceModel model);
+
 class RelationshipGraph {
 public:
     template<typename T>
