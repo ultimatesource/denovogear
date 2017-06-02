@@ -5,22 +5,21 @@ var mutationDistributionView = (function(d3, PubSub, utils) {
 
   function MutationDistributionView(options) {
     optionsManager.checkOptions({
-      requiredOptions: ['renderInto', 'graphData'],
+      requiredOptions: ['renderInto', 'graphData', 'vcfText'],
       providedOptions: options
     });
 
-    var graphData = options.graphData;
+    var distProc = new DistributionProcessor(options.vcfText);
 
-    var links = graphData.links;
-    var nodes = graphData.nodes;
-    console.log(graphData);
+
+    this._graphData = options.graphData;
 
     this._selection = options.renderInto;
 
     var container = this._selection.append("div")
         .attr("class", "row")
       .append("div")
-        .attr("class", "col-xs-12");
+        .attr("class", "mutation-dist-container col-xs-12");
 
     var svg = container.append("svg")
         .style("width", "100%")
@@ -34,6 +33,17 @@ var mutationDistributionView = (function(d3, PubSub, utils) {
 
     this._links_container = g.append("g")
         .attr("class", "links-container");
+
+    this._nodes_container = g.append("g")
+        .attr("class", "nodes-container");
+
+    this._updateLinks();
+    this._updateNodes();
+  }
+
+  MutationDistributionView.prototype._updateLinks = function() {
+
+    var links = this._graphData.links;
 
     var visualLinksUpdate = this._links_container.selectAll(".link")
         .data(links);
@@ -108,10 +118,137 @@ var mutationDistributionView = (function(d3, PubSub, utils) {
         d.dataLink.data.mutation !== undefined;
     }
 
+  MutationDistributionView.prototype._updateNodes = function() {
+
+    var visualNodesUpdate = this._nodes_container.selectAll(".node")
+        .data(this._graphData.nodes);
+
+    var visualNodesEnter = visualNodesUpdate.enter()
+      .append("g")
+        .attr("class", "node");
+
+    var visualNodesEnterUpdate = visualNodesEnter.merge(visualNodesUpdate);
+
+    var tree = sampleTreeView.createSampleTree();
+
+    visualNodesEnterUpdate.each(function(d) {
+
+      var symbolSize = 500;
+
+      if (d.type === "person") {
+        if (d.dataNode.sex === "male") {
+          d3.select(this).append("path")
+              .attr("d", d3.symbol().type(d3.symbolSquare).size(symbolSize))
+              .attr("fill", "steelblue");
+        }
+        else {
+          d3.select(this).append("path")
+              .attr("d", d3.symbol().type(d3.symbolCircle).size(symbolSize))
+              .attr("fill", "tomato");
+        }
+      }
+    });
+
+    //visualNodesEnterUpdate.call(gpNode());
+    //
+    visualNodesEnter.append("text")
+      .attr("dx", 15)
+      .attr("dy", 15)
+      .text(function(d) { 
+        if (d.type !== "marriage") {
+          return d.dataNode.id;
+        }
+      })
+      .style("pointer-events", "none")
+      .style("font", "10px sans-serif");
+
+    visualNodesEnter.attr("transform", function(d) {
+      return utils.svgTranslateString(d.x, d.y);
+    });
+  };
+
+
+
   }
   
   function createMutationDistributionView(options) {
     return new MutationDistributionView(options);
+  }
+
+
+  function DistributionProcessor(vcfText) {
+
+    //var vcfText;
+
+    //fetch("platinum_filtered.vcf")
+    //.then(function(response) {
+    //  return response.text();
+    //})
+    //.then(function(text) {
+    //  vcfText = text;
+
+    //  processData();
+    //});
+    
+    processData();
+
+    function processData() {
+      var startTime = new Date();
+
+      var count = 0;
+      var counts = {};
+      //vcfParser.parseVCFText(vcfText);
+      var lines = vcfText.split("\n");
+      lines.forEach(function(line, index) {
+        if (!line.startsWith("#") && line.length > 0) {
+
+          var data = parseDataLine(line);
+          var info = parseInfoColumn(data[7]);
+          var dnl = parseDNL(info);
+
+          if (counts[dnl.value] === undefined) {
+            counts[dnl.value] = 0;
+          }
+          counts[dnl.value]++;
+          count++;
+
+          if (index % 1000 === 0) {
+            console.log(dnl);
+          }
+        }
+      });
+
+      console.log(count);
+      console.log(counts);
+
+      var endTime = new Date();
+      var elapsed = endTime - startTime;
+
+      console.log("Parsing time:", elapsed / 1000);
+    }
+
+    function parseDataLine(line) {
+      var columns = line.split("\t");
+      return columns;
+    }
+
+    function parseInfoColumn(column) {
+      return column.split(';');
+    }
+
+    function parseDNL(info) {
+      return parsePair(info[6]);
+    }
+
+    function parsePair(pair) {
+      var pairArray = pair.split('=');
+      return {
+        key: pairArray[0],
+        value: pairArray[1]
+      };
+    }
+
+
   }
 
   return {

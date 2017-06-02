@@ -23,8 +23,9 @@
   //  .on('shown.bs.tab', function(e) {
 
   var options = {
-    renderInto: d3.select(".mutation-distribution-container"),
+    renderInto: d3.select(".mutation-distribution-tab"),
     graphData: graphData,
+    vcfText: dngOutputFileText,
   };
   mutationDistributionView.createMutationDistributionView(options);
 
@@ -38,7 +39,7 @@
       rendered = true;
 
       var options = {
-        renderInto: d3.select(".mutation-explorer-container"),
+        renderInto: d3.select(".mutation-explorer-tab"),
         graphData: graphData,
         pedGraph: pedGraph,
       };
