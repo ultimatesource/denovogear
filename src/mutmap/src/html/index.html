@@ -74,7 +74,25 @@ html,body {
 <body>
 
 <div class='container'>
-  <div class='mutation-explorer-container'>
+  <ul class='nav nav-tabs'>
+    <li class='active'>
+      <a href="#mutation-distribution" data-toggle="tab">
+        Mutations Distribution
+      </a>
+    </li>
+    <li>
+      <a href="#mutation-explorer" data-toggle="tab">
+        Mutations Explorer
+      </a>
+    </li>
+  </ul>
+  <div class='tab-content'>
+    <div id='mutation-distribution'
+      class='tab-pane active mutation-distribution-container'>
+    </div>
+    <div id='mutation-explorer'
+      class='tab-pane mutation-explorer-container'>
+    </div>
   </div>
 </div>
 

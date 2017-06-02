@@ -25,15 +25,6 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
       providedOptions: options
     });
 
-    // The placeholder tags below will be replaced with the correct data objects
-    // by the build system. See mutmap/tools/layout_and_template.R
-    //
-    // provides pedigreeFileText
-    /*PEDIGREE_FILE_TEXT_PLACEHOLDER*/
-    // provides layoutData
-    /*LAYOUT_DATA_PLACEHOLDER*/
-    // provides dngOutputFileText
-    /*DNG_VCF_DATA_PLACEHOLDER*/
 
     var pedigreeData = pedParser.parsePedigreeFile(pedigreeFileText);
     var pedGraph = buildGraphFromPedigree(pedigreeData);
