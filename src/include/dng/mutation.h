@@ -151,10 +151,13 @@ inline TransitionMatrix gamete_matrix(const int parent_ploidy, const MutationMat
     return (parent_ploidy == 1) ? mitosis_haploid_matrix(m, mutype) : meiosis_haploid_matrix(m,mutype);
 }
 
-inline int number_of_parent_pairs(const int dad_ploidy, const int mom_ploidy) {
-    assert(dad_ploidy == 1 || dad_ploidy == 2);
-    assert(mom_ploidy == 1 || mom_ploidy == 2);
-    return ((dad_ploidy == 1) ? 4 : 10)*((mom_ploidy == 1) ? 4 : 10);
+inline int number_of_parent_genotypes(const int ploidy) {
+    assert(ploidy == 1 || ploidy == 2);
+    return ((ploidy == 1) ? 4 : 10);
+}
+
+inline int number_of_parent_genotype_pairs(const int dad_ploidy, const int mom_ploidy) {
+    return number_of_parent_genotypes(dad_ploidy)*number_of_parent_genotypes(mom_ploidy);
 }
 
 inline TransitionMatrix meiosis_matrix(const int dad_ploidy, const MutationMatrix &dad_m,
@@ -175,7 +178,7 @@ inline TransitionMatrix meiosis_matrix(const int dad_ploidy, const MutationMatri
         TransitionMatrix mom = gamete_matrix(mom_ploidy, mom_m, MUTATIONS_ALL);
         temp = kroneckerProduct(dad, mom);
     } else if(mutype >= 0) {
-        temp = dng::TransitionMatrix::Zero(number_of_parent_pairs(dad_ploidy,mom_ploidy), 16);
+        temp = dng::TransitionMatrix::Zero(number_of_parent_genotype_pairs(dad_ploidy,mom_ploidy), 16);
         for(int i = 0; i <= mutype; ++i) {
             TransitionMatrix dad = gamete_matrix(dad_ploidy, dad_m, i);
             TransitionMatrix mom = gamete_matrix(mom_ploidy, mom_m, mutype - i);
@@ -194,7 +197,7 @@ inline TransitionMatrix meiosis_matrix(const int dad_ploidy, const MutationMatri
         }
     }
 
-    return ret; // 100 x 10
+    return ret;
 }
 
 inline TransitionMatrix meiosis_diploid_mean_matrix(const MutationMatrix &mdad,
