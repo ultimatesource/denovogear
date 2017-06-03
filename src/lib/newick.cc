@@ -38,6 +38,9 @@ namespace qi = boost::spirit::qi;
 namespace standard = boost::spirit::standard;
 namespace phoenix = boost::phoenix;
 
+namespace dng {
+namespace newick { 
+
 struct node_t {
     std::string label;
     double length;
@@ -75,10 +78,10 @@ struct make_inode_impl {
 const phoenix::function<make_inode_impl> make_inode;
 
 template <typename Iterator>
-struct newick_grammar :
+struct grammar :
 qi::grammar<Iterator, void(tree_t &), standard::space_type> {
     // http://evolution.genetics.washington.edu/phylip/newick_doc.html
-    newick_grammar() : newick_grammar::base_type(start) {
+    grammar() : grammar::base_type(start) {
         using standard::char_; using qi::eps; using qi::attr;
         using qi::double_; using qi::lexeme; using qi::raw; using qi::omit;
         using qi::as_string;
@@ -111,15 +114,17 @@ qi::grammar<Iterator, void(tree_t &), standard::space_type> {
     qi::rule<Iterator, double(), standard::space_type> length;
 };
 
+}} // namespace dng::newick
+
 int dng::detail::graph::parse_newick(const std::string &text, vertex_t root, Graph &graph) {
     using standard::space; using phoenix::ref;
-    newick_grammar<std::string::const_iterator> newick_parser;
+    newick::grammar<std::string::const_iterator> newick_parser;
     std::string::const_iterator first = text.begin();
     qi::parse(first, text.end(), *space);
     if(first == text.end()) {
         return 0;
     }
-    tree_t tree;
+    newick::tree_t tree;
     bool r = qi::phrase_parse(first, text.end(), newick_parser(phoenix::ref(tree)),
                               space);
     if(first != text.end() || !r) {

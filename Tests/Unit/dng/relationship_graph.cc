@@ -22,10 +22,16 @@
 #define BOOST_TEST_MODULE dng::relationship_graph
 
 #include <dng/relationship_graph.h>
+#include <dng/utility.h>
 
 #include <vector>
-#include <boost/range/adaptor/transformed.hpp>
 #include <functional>
+#include <iterator>
+#include <boost/range/adaptor/transformed.hpp>
+#include <boost/range/adaptor/filtered.hpp>
+#include <boost/range/algorithm/sort.hpp>
+#include <boost/range/algorithm/remove_copy.hpp>
+#include <boost/range/irange.hpp>
 
 #include "../testing.h"
 
@@ -118,65 +124,113 @@ BOOST_AUTO_TEST_CASE(test_inheritance_model_to_string) {
 using TransitionType = RelationshipGraph::TransitionType;
 using transition_t = RelationshipGraph::transition_t;
 
-struct expected_relationship_graph_t {
-    int founder;
-    int nonfounder;
-    int somatic;
-    int library;
-    int num_nodes;
-    int library_nodes_first;
-    int library_nodes_second;
-    std::vector<int> roots;
-    std::vector<std::string> labels;
-    std::vector<std::string> library_names;
-    std::vector<int> ploidies;
-    std::vector<TransitionType> types;
-    std::vector<int> parent1;
-    std::vector<int> parent2;
-    std::vector<float> length1;
-    std::vector<float> length2;
+struct node_t {
+    std::string label;
+    int ploidy;
+    int vertex_type;
+    bool is_root;
+    TransitionType transition_type;
+    int parent1; // dad or source
+    float length1;
+    int parent2; // mom or null
+    float length2;
+    std::string library_name;
 };
+
+constexpr int HAPLOID = 1;
+constexpr int DIPLOID = 2;
+
+constexpr int GERMLINE = 1;
+constexpr int SOMATIC = 2;
+constexpr int LIBRARY = 3;
+
+constexpr auto FOUNDER = TransitionType::Founder;
+constexpr auto PAIR = TransitionType::Pair;
+constexpr auto TRIO = TransitionType::Trio;
+
+constexpr bool ROOT = true;
+
+using expected_nodes_t = std::vector<node_t>;
 
 BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct) {
     const double prec = 2*DBL_EPSILON;
 
-    auto test = [prec](const RelationshipGraph &test, const expected_relationship_graph_t& expected) -> void {
+    auto test = [prec](const RelationshipGraph &test, const expected_nodes_t& expected) -> void {
+        using boost::adaptors::filtered;
+        using boost::adaptors::transformed;
+
+        auto indexes = boost::irange(expected_nodes_t::size_type(0), expected.size());
+
         // Check Node Structure
-        BOOST_CHECK_EQUAL(u::first_founder(test), expected.founder);
-        BOOST_CHECK_EQUAL(u::first_nonfounder(test), expected.nonfounder);
-        BOOST_CHECK_EQUAL(u::first_somatic(test), expected.somatic);
-        BOOST_CHECK_EQUAL(u::first_library(test), expected.library);
+        BOOST_CHECK_EQUAL(test.num_nodes(), expected.size());
 
-        BOOST_CHECK_EQUAL(test.num_nodes(), expected.num_nodes);
-        BOOST_CHECK_EQUAL(test.library_nodes().first, expected.library_nodes_first);
-        BOOST_CHECK_EQUAL(test.library_nodes().second, expected.library_nodes_second);
+        auto expected_first_founder = utility::find_position_if(expected, [](const node_t & n) -> bool {
+            return (n.vertex_type == GERMLINE && n.transition_type == FOUNDER);
+        });
+        BOOST_CHECK_EQUAL(u::first_founder(test), expected_first_founder);
 
-        CHECK_EQUAL_RANGES(u::roots(test), expected.roots);
+        auto expected_first_nonfounder = utility::find_position_if(expected, [](const node_t & n) -> bool {
+            return (n.transition_type != FOUNDER);
+        });
+        BOOST_CHECK_EQUAL(u::first_nonfounder(test), expected_first_nonfounder);
+
+        auto expected_first_somatic = utility::find_position_if(expected, [](const node_t & n) -> bool {
+            return (n.vertex_type >= SOMATIC);
+        });
+        BOOST_CHECK_EQUAL(u::first_somatic(test), expected_first_somatic);
+
+        auto expected_first_library = utility::find_position_if(expected, [](const node_t & n) -> bool {
+            return (n.vertex_type >= LIBRARY);
+        });
+        BOOST_CHECK_EQUAL(u::first_library(test), expected_first_library);
+
+        BOOST_CHECK_EQUAL(test.library_nodes().first, expected_first_library);
+        BOOST_CHECK_EQUAL(test.library_nodes().second, expected.size());
+
+        // BOOST_TEST(a == b) doesn't like its second operator to be a boost::range
+        // Wrapping the range hides the type and allows the BOOST_TEST operator to be found 
+        auto expected_roots_ = indexes | filtered([&](size_t i) -> bool {
+            return (expected[i].is_root == true);
+        });
+        auto expected_roots = make_test_range(expected_roots_); 
+        CHECK_EQUAL_RANGES(u::roots(test), expected_roots);
 
         // Check Labels and Ploidies
-        CHECK_EQUAL_RANGES(test.labels(), expected.labels);
-        CHECK_EQUAL_RANGES(test.library_names(), expected.library_names);
-        CHECK_EQUAL_RANGES(test.ploidies(), expected.ploidies);
+        auto expected_labels = make_test_range(expected | transformed(std::mem_fn(&node_t::label)));
+        CHECK_EQUAL_RANGES(test.labels(), expected_labels);
 
-        auto test_transition_types = boost::adaptors::transform(test.transitions(),
-            std::mem_fn(&transition_t::type));
-        CHECK_EQUAL_RANGES(test_transition_types, expected.types);
+        auto expected_ploidies = make_test_range(expected | transformed(std::mem_fn(&node_t::ploidy)));
+        CHECK_EQUAL_RANGES(test.ploidies(), expected_ploidies);
 
-        auto test_transition_parent1 = boost::adaptors::transform(test.transitions(),
-            std::mem_fn(&RelationshipGraph::transition_t::parent1));
-        CHECK_EQUAL_RANGES(test_transition_parent1, expected.parent1);
+        // Check Library names
+        std::vector<std::string> test_library_names = test.library_names();
+        boost::sort(test_library_names);
+        std::vector<std::string> expected_library_names;
+        boost::remove_copy(expected | transformed(std::mem_fn(&node_t::library_name)),
+            std::back_inserter(expected_library_names), "");
+        boost::sort(expected_library_names);
+        CHECK_EQUAL_RANGES(test_library_names, expected_library_names);
 
-        auto test_transition_parent2 = boost::adaptors::transform(test.transitions(),
-            std::mem_fn(&RelationshipGraph::transition_t::parent2));
-        CHECK_EQUAL_RANGES(test_transition_parent2, expected.parent2);
+        // Check Transitions
+        auto test_transition_types = make_test_range(test.transitions() | transformed(std::mem_fn(&transition_t::type)));
+        auto expected_transition_types = make_test_range(expected | transformed(std::mem_fn(&node_t::transition_type)));
+        CHECK_EQUAL_RANGES(test_transition_types, expected_transition_types);
 
-        auto test_transition_length1 = boost::adaptors::transform(test.transitions(),
-            std::mem_fn(&RelationshipGraph::transition_t::length1));
-        CHECK_EQUAL_RANGES(test_transition_length1, expected.length1);
+        auto test_parent1 = make_test_range(test.transitions() | transformed(std::mem_fn(&transition_t::parent1)));
+        auto expected_parent1 = make_test_range(expected | transformed(std::mem_fn(&node_t::parent1)));
+        CHECK_EQUAL_RANGES(test_parent1, expected_parent1);
 
-        auto test_transition_length2 = boost::adaptors::transform(test.transitions(),
-            std::mem_fn(&RelationshipGraph::transition_t::length2));
-        CHECK_EQUAL_RANGES(test_transition_length2, expected.length2);
+        auto test_parent2 = make_test_range(test.transitions() | transformed(std::mem_fn(&transition_t::parent2)));
+        auto expected_parent2 = make_test_range(expected | transformed(std::mem_fn(&node_t::parent2)));
+        CHECK_EQUAL_RANGES(test_parent2, expected_parent2);
+
+        auto test_length1 = make_test_range(test.transitions() | transformed(std::mem_fn(&transition_t::length1)));
+        auto expected_length1 = make_test_range(expected | transformed(std::mem_fn(&node_t::length1)));
+        CHECK_EQUAL_RANGES(test_length1, expected_length1);
+
+        auto test_length2 = make_test_range(test.transitions() | transformed(std::mem_fn(&transition_t::length2)));
+        auto expected_length2 = make_test_range(expected | transformed(std::mem_fn(&node_t::length2)));
+        CHECK_EQUAL_RANGES(test_length2, expected_length2);
     };
 
     libraries_t libs = {
@@ -191,21 +245,21 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct) {
     quad_ped.AddMember("Bob","Dad","Mom",Sex::Male,"BobSm");
 
     {
-        // Construct Graph
+        //Construct Graph
         RelationshipGraph graph;
         graph.Construct(quad_ped, libs, InheritanceModel::Autosomal, 1e-8, 3e-8, 5e-8);
 
-        expected_relationship_graph_t expected = {
-            0, 2, 2, 2, 6, 2, 6, // node information
-            {0}, // roots
-            {"GL/Dad", "GL/Mom", "LB/DadSm/DadLb", "LB/MomSm/MomLb", "LB/EveSm/EveLb", "LB/BobSm/BobLb"},
-            {"DadLb", "MomLb", "EveLb", "BobLb"},
-            {2,2,2,2,2,2},
-            {TransitionType::Founder, TransitionType::Founder,
-             TransitionType::Pair, TransitionType::Pair, TransitionType::Trio,TransitionType::Trio},
-            {-1,-1,0,1,0,0}, {-1,-1,-1,-1,1,1},
-            {0.0,0.0,8e-8,8e-8,9e-8,9e-8}, {0.0,0.0,0.0,0.0,9e-8,9e-8}
-        };
+        float lsg = 9e-8f; // library-somatic-germline
+        float ls  = 8e-8f; // library-somatic
+
+        const expected_nodes_t expected = {
+            {{"GL/Dad"}, DIPLOID, GERMLINE,  ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, {""}},
+            {{"GL/Mom"}, DIPLOID, GERMLINE, !ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, {""}},
+            {{"LB/DadSm/DadLb"}, DIPLOID, LIBRARY, !ROOT, PAIR, 0, ls, -1, 0.0f, {"DadLb"}},
+            {{"LB/MomSm/MomLb"}, DIPLOID, LIBRARY, !ROOT, PAIR, 1, ls, -1, 0.0f, {"MomLb"}},
+            {{"LB/EveSm/EveLb"}, DIPLOID, LIBRARY, !ROOT, TRIO, 0, lsg, 1, lsg, {"EveLb"}},
+            {{"LB/BobSm/BobLb"}, DIPLOID, LIBRARY, !ROOT, TRIO, 0, lsg, 1, lsg, {"BobLb"}}
+          };
 
         BOOST_TEST_CONTEXT("graph=quad_graph_autosomal") {
             test(graph, expected);
@@ -213,42 +267,40 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct) {
     }
 
     {
-        // Construct Graph
+        //Construct Graph
         RelationshipGraph graph;
         graph.Construct(quad_ped, libs, InheritanceModel::XLinked, 1e-8, 3e-8, 5e-8);
 
-        expected_relationship_graph_t expected = {
-            0, 2, 2, 2, 6, 2, 6, // node information
-            {0}, // roots
-            {"GL/Dad", "GL/Mom", "LB/DadSm/DadLb", "LB/MomSm/MomLb", "LB/EveSm/EveLb", "LB/BobSm/BobLb"},
-            {"DadLb", "MomLb", "EveLb", "BobLb"},
-            {1,2,1,2,2,1},
-            {TransitionType::Founder, TransitionType::Founder,
-             TransitionType::Pair, TransitionType::Pair, TransitionType::Trio,TransitionType::Pair},
-            {-1,-1,0,1,0,1}, {-1,-1,-1,-1,1,-1},
-            {0.0,0.0,8e-8,8e-8,9e-8,9e-8}, {0.0,0.0,0.0,0.0,9e-8,0.0}
-        };
+        float lsg = 9e-8f; // library-somatic-germline
+        float ls  = 8e-8f; // library-somatic
 
-        BOOST_TEST_CONTEXT("graph=trio_graph_xlinked") {
+        const expected_nodes_t expected = {
+            {{"GL/Dad"}, HAPLOID, GERMLINE,  ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, {""}},
+            {{"GL/Mom"}, DIPLOID, GERMLINE, !ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, {""}},
+            {{"LB/DadSm/DadLb"}, HAPLOID, LIBRARY, !ROOT, PAIR, 0, ls, -1, 0.0f, {"DadLb"}},
+            {{"LB/MomSm/MomLb"}, DIPLOID, LIBRARY, !ROOT, PAIR, 1, ls, -1, 0.0f, {"MomLb"}},
+            {{"LB/EveSm/EveLb"}, DIPLOID, LIBRARY, !ROOT, TRIO, 0, lsg, 1, lsg, {"EveLb"}},
+            {{"LB/BobSm/BobLb"}, HAPLOID, LIBRARY, !ROOT, PAIR, 1, lsg, -1, 0.0f, {"BobLb"}}
+          };
+
+        BOOST_TEST_CONTEXT("graph=quad_graph_xlinked") {
             test(graph, expected);
         }
     }
 
     {
-        // Construct Graph
+        //Construct Graph
         RelationshipGraph graph;
         graph.Construct(quad_ped, libs, InheritanceModel::YLinked, 1e-8, 3e-8, 5e-8);
 
-        expected_relationship_graph_t expected = {
-            0, 1, 1, 1, 3, 1, 3, // node information
-            {0}, // roots
-            {"GL/Dad", "LB/DadSm/DadLb", "LB/BobSm/BobLb"},
-            {"DadLb", "BobLb"},
-            {1,1,1},
-            {TransitionType::Founder, TransitionType::Pair, TransitionType::Pair},
-            {-1,0,0}, {-1,-1,-1},
-            {0.0,8e-8,9e-8}, {0.0,0.0,0.0}
-        };
+        float lsg = 9e-8f; // library-somatic-germline
+        float ls  = 8e-8f; // library-somatic
+
+        const expected_nodes_t expected = {
+            {{"GL/Dad"}, HAPLOID, GERMLINE,  ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, {""}},
+            {{"LB/DadSm/DadLb"}, HAPLOID, LIBRARY, !ROOT, PAIR, 0, ls, -1, 0.0f, {"DadLb"}},
+            {{"LB/BobSm/BobLb"}, HAPLOID, LIBRARY, !ROOT, PAIR, 0, lsg, -1, 0.0f, {"BobLb"}}
+          };
 
         BOOST_TEST_CONTEXT("graph=quad_graph_ylinked") {
             test(graph, expected);

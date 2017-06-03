@@ -100,7 +100,7 @@ struct test_range {
 
     const_iterator begin() const { return begin_; }
     const_iterator end() const { return end_; }
-    size_t size() const { return end()-begin(); }
+    size_t size() const { return std::distance(begin(),end()); }
 
     const_iterator begin_;
     const_iterator end_;
@@ -112,6 +112,13 @@ auto make_test_range(const M& m) -> test_range<decltype(m.data())>
 {
     return {m.data(), m.data()+m.size()};
 }
+
+template<typename M>
+auto make_test_range(const M& m) -> test_range<decltype(m.begin())>
+{
+    return {m.begin(), m.end()};
+}
+
 
 template<typename T>
 auto make_test_range(const T* b, const T* e) -> test_range<const T*>
