@@ -640,7 +640,6 @@ void add_libraries_to_graph(Graph &pedigree_graph, const libraries_t &libs) {
     auto types  = get(boost::vertex_type, pedigree_graph);
     auto library_labels = get(boost::vertex_library_label, pedigree_graph);
 
-
     std::map<std::string, vertex_t> soma;
     auto vertex_range = boost::make_iterator_range(vertices(pedigree_graph));
     for(vertex_t v : vertex_range) {

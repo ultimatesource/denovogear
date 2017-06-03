@@ -21,6 +21,7 @@
 #ifndef TESTS_UNIT_TESTING_H
 #define TESTS_UNIT_TESTING_H
 
+#include <type_traits>
 #include <boost/test/unit_test.hpp>
 #include <boost/preprocessor/seq/for_each.hpp>
 
@@ -28,7 +29,8 @@
 #include <boost/filesystem/fstream.hpp>
 
 #define GETTER1( C, V ) \
-    static auto V(C& x) -> decltype(x.V##_)& { return x.V##_; } \
+    static auto V(const C& x) -> decltype(x.V##_) { return x.V##_; } \
+    static auto V(C& x) -> decltype(x.V##_) { return x.V##_; } \
 /**/
 
 #define GETTER2( C, V, S ) \

@@ -115,106 +115,143 @@ BOOST_AUTO_TEST_CASE(test_inheritance_model_to_string) {
     BOOST_CHECK_THROW(to_string(static_cast<InheritanceModel>(-1)), std::invalid_argument);
 }
 
-struct topology_t {
-    std::string name;
-    libraries_t libs;
-    Pedigree ped;
+using TransitionType = RelationshipGraph::TransitionType;
+using transition_t = RelationshipGraph::transition_t;
+
+struct expected_relationship_graph_t {
+    int founder;
+    int nonfounder;
+    int somatic;
+    int library;
+    int num_nodes;
+    int library_nodes_first;
+    int library_nodes_second;
+    std::vector<int> roots;
+    std::vector<std::string> labels;
+    std::vector<std::string> library_names;
+    std::vector<int> ploidies;
+    std::vector<TransitionType> types;
+    std::vector<int> parent1;
+    std::vector<int> parent2;
+    std::vector<float> length1;
+    std::vector<float> length2;
 };
 
-struct rates_t {
-    double germline;
-    double somatic;
-    double library;
-};
-
-template<typename F>
-void run_graph_tests(F test, double prec = 2*DBL_EPSILON) {
-    topology_t trio{"trio"};
-    trio.libs = {
-        {"Mom", "Dad", "Eve"},
-        {"Mom", "Dad", "Eve"}
-    };
-    trio.ped.AddMember("Dad","0","0",Sex::Male,"");
-    trio.ped.AddMember("Mom","0","0",Sex::Female,"");
-    trio.ped.AddMember("Eve","Dad","Mom",Sex::Female,"");
-
-    test(trio, {1e-8,1e-8,1e-8}, InheritanceModel::Autosomal, prec);
-}
-
-BOOST_AUTO_TEST_CASE(test_trio_RelationshipGraph_Construct) {
+BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct) {
     const double prec = 2*DBL_EPSILON;
 
+    auto test = [prec](const RelationshipGraph &test, const expected_relationship_graph_t& expected) -> void {
+        // Check Node Structure
+        BOOST_CHECK_EQUAL(u::first_founder(test), expected.founder);
+        BOOST_CHECK_EQUAL(u::first_nonfounder(test), expected.nonfounder);
+        BOOST_CHECK_EQUAL(u::first_somatic(test), expected.somatic);
+        BOOST_CHECK_EQUAL(u::first_library(test), expected.library);
+
+        BOOST_CHECK_EQUAL(test.num_nodes(), expected.num_nodes);
+        BOOST_CHECK_EQUAL(test.library_nodes().first, expected.library_nodes_first);
+        BOOST_CHECK_EQUAL(test.library_nodes().second, expected.library_nodes_second);
+
+        CHECK_EQUAL_RANGES(u::roots(test), expected.roots);
+
+        // Check Labels and Ploidies
+        CHECK_EQUAL_RANGES(test.labels(), expected.labels);
+        CHECK_EQUAL_RANGES(test.library_names(), expected.library_names);
+        CHECK_EQUAL_RANGES(test.ploidies(), expected.ploidies);
+
+        auto test_transition_types = boost::adaptors::transform(test.transitions(),
+            std::mem_fn(&transition_t::type));
+        CHECK_EQUAL_RANGES(test_transition_types, expected.types);
+
+        auto test_transition_parent1 = boost::adaptors::transform(test.transitions(),
+            std::mem_fn(&RelationshipGraph::transition_t::parent1));
+        CHECK_EQUAL_RANGES(test_transition_parent1, expected.parent1);
+
+        auto test_transition_parent2 = boost::adaptors::transform(test.transitions(),
+            std::mem_fn(&RelationshipGraph::transition_t::parent2));
+        CHECK_EQUAL_RANGES(test_transition_parent2, expected.parent2);
+
+        auto test_transition_length1 = boost::adaptors::transform(test.transitions(),
+            std::mem_fn(&RelationshipGraph::transition_t::length1));
+        CHECK_EQUAL_RANGES(test_transition_length1, expected.length1);
+
+        auto test_transition_length2 = boost::adaptors::transform(test.transitions(),
+            std::mem_fn(&RelationshipGraph::transition_t::length2));
+        CHECK_EQUAL_RANGES(test_transition_length2, expected.length2);
+    };
+
     libraries_t libs = {
-        {"MomLb", "DadLb", "EveLb"},
-        {"MomSm", "DadSm", "EveSm"}
+        {"DadLb", "MomLb","EveLb", "BobLb"},
+        {"DadSm", "MomSm", "EveSm", "BobSm"}
     };
 
-    Pedigree ped;
-    ped.AddMember("Dad","0","0",Sex::Male,"DadSm");
-    ped.AddMember("Mom","0","0",Sex::Female,"MomSm");
-    ped.AddMember("Eve","Dad","Mom",Sex::Female,"EveSm");
+    Pedigree quad_ped;
+    quad_ped.AddMember("Dad","0","0",Sex::Male,"DadSm");
+    quad_ped.AddMember("Mom","0","0",Sex::Female,"MomSm");
+    quad_ped.AddMember("Eve","Dad","Mom",Sex::Female,"EveSm");
+    quad_ped.AddMember("Bob","Dad","Mom",Sex::Male,"BobSm");
 
-    // Construct Graph
-    RelationshipGraph g;
-    g.Construct(ped, libs, InheritanceModel::Autosomal, 1e-8, 1e-8, 1e-8);
+    {
+        // Construct Graph
+        RelationshipGraph graph;
+        graph.Construct(quad_ped, libs, InheritanceModel::Autosomal, 1e-8, 3e-8, 5e-8);
 
-    // Check Node Structure
-    BOOST_CHECK_EQUAL(u::first_founder(g), 0);
-    BOOST_CHECK_EQUAL(u::first_nonfounder(g), 2);
-    BOOST_CHECK_EQUAL(u::first_somatic(g), 2);
-    BOOST_CHECK_EQUAL(u::first_library(g), 2);
+        expected_relationship_graph_t expected = {
+            0, 2, 2, 2, 6, 2, 6, // node information
+            {0}, // roots
+            {"GL/Dad", "GL/Mom", "LB/DadSm/DadLb", "LB/MomSm/MomLb", "LB/EveSm/EveLb", "LB/BobSm/BobLb"},
+            {"DadLb", "MomLb", "EveLb", "BobLb"},
+            {2,2,2,2,2,2},
+            {TransitionType::Founder, TransitionType::Founder,
+             TransitionType::Pair, TransitionType::Pair, TransitionType::Trio,TransitionType::Trio},
+            {-1,-1,0,1,0,0}, {-1,-1,-1,-1,1,1},
+            {0.0,0.0,8e-8,8e-8,9e-8,9e-8}, {0.0,0.0,0.0,0.0,9e-8,9e-8}
+        };
 
-    BOOST_CHECK_EQUAL(g.num_nodes(), 5);
-    BOOST_CHECK_EQUAL(std::get<0>(g.library_nodes()), 2);
-    BOOST_CHECK_EQUAL(std::get<1>(g.library_nodes()), 5);
+        BOOST_TEST_CONTEXT("graph=quad_graph_autosomal") {
+            test(graph, expected);
+        }
+    }
 
-    std::vector<int> expected_roots = {0};
-    CHECK_EQUAL_RANGES(u::roots(g), expected_roots);
+    {
+        // Construct Graph
+        RelationshipGraph graph;
+        graph.Construct(quad_ped, libs, InheritanceModel::XLinked, 1e-8, 3e-8, 5e-8);
 
-    // Check Labels and Ploidies
-    std::vector<std::string> expected_labels = { 
-        "GL/Dad", "GL/Mom", "LB/MomSm/MomLb", "LB/DadSm/DadLb", "LB/EveSm/EveLb"
-    };
-    CHECK_EQUAL_RANGES(g.labels(), expected_labels);
+        expected_relationship_graph_t expected = {
+            0, 2, 2, 2, 6, 2, 6, // node information
+            {0}, // roots
+            {"GL/Dad", "GL/Mom", "LB/DadSm/DadLb", "LB/MomSm/MomLb", "LB/EveSm/EveLb", "LB/BobSm/BobLb"},
+            {"DadLb", "MomLb", "EveLb", "BobLb"},
+            {1,2,1,2,2,1},
+            {TransitionType::Founder, TransitionType::Founder,
+             TransitionType::Pair, TransitionType::Pair, TransitionType::Trio,TransitionType::Pair},
+            {-1,-1,0,1,0,1}, {-1,-1,-1,-1,1,-1},
+            {0.0,0.0,8e-8,8e-8,9e-8,9e-8}, {0.0,0.0,0.0,0.0,9e-8,0.0}
+        };
 
-    std::vector<std::string> expected_library_names = {
-        "MomLb", "DadLb", "EveLb"
-    };
-    CHECK_EQUAL_RANGES(g.library_names(), expected_library_names);
+        BOOST_TEST_CONTEXT("graph=trio_graph_xlinked") {
+            test(graph, expected);
+        }
+    }
 
-    std::vector<int> expected_ploidies(5,2);
-    CHECK_EQUAL_RANGES(g.ploidies(), expected_ploidies);
+    {
+        // Construct Graph
+        RelationshipGraph graph;
+        graph.Construct(quad_ped, libs, InheritanceModel::YLinked, 1e-8, 3e-8, 5e-8);
 
-    // Check Transitions
-    using TransitionType = RelationshipGraph::TransitionType;
-    using transition_t = RelationshipGraph::transition_t;
+        expected_relationship_graph_t expected = {
+            0, 1, 1, 1, 3, 1, 3, // node information
+            {0}, // roots
+            {"GL/Dad", "LB/DadSm/DadLb", "LB/BobSm/BobLb"},
+            {"DadLb", "BobLb"},
+            {1,1,1},
+            {TransitionType::Founder, TransitionType::Pair, TransitionType::Pair},
+            {-1,0,0}, {-1,-1,-1},
+            {0.0,8e-8,9e-8}, {0.0,0.0,0.0}
+        };
 
-    std::vector<TransitionType> expected_transition_types = {
-       TransitionType::Founder, TransitionType::Founder,
-       TransitionType::Pair, TransitionType::Pair, TransitionType::Trio
-    };
-    std::vector<int> expected_transition_parent1 = {-1,-1,1,0,0};
-    std::vector<int> expected_transition_parent2 = {-1,-1,-1,-1,1};
-    std::vector<float> expected_transition_length1 = {0.0,0.0,2e-8,2e-8,3e-8};
-    std::vector<float> expected_transition_length2 = {0.0,0.0,0.0,0.0,3e-8};
-
-    auto test_transition_types = boost::adaptors::transform(g.transitions(),
-        std::mem_fn(&transition_t::type));
-    CHECK_EQUAL_RANGES(test_transition_types, expected_transition_types);
-
-    auto test_transition_parent1 = boost::adaptors::transform(g.transitions(),
-        std::mem_fn(&RelationshipGraph::transition_t::parent1));
-    CHECK_EQUAL_RANGES(test_transition_parent1, expected_transition_parent1);
-
-    auto test_transition_parent2 = boost::adaptors::transform(g.transitions(),
-        std::mem_fn(&RelationshipGraph::transition_t::parent2));
-    CHECK_EQUAL_RANGES(test_transition_parent2, expected_transition_parent2);
-
-    auto test_transition_length1 = boost::adaptors::transform(g.transitions(),
-        std::mem_fn(&RelationshipGraph::transition_t::length1));
-    CHECK_EQUAL_RANGES(test_transition_length1, expected_transition_length1);
-
-    auto test_transition_length2 = boost::adaptors::transform(g.transitions(),
-        std::mem_fn(&RelationshipGraph::transition_t::length2));
-    CHECK_EQUAL_RANGES(test_transition_length2, expected_transition_length2);
+        BOOST_TEST_CONTEXT("graph=quad_graph_ylinked") {
+            test(graph, expected);
+        }
+    }
 }
