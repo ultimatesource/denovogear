@@ -22,6 +22,7 @@
 #define TESTS_UNIT_TESTING_H
 
 #include <boost/test/unit_test.hpp>
+#include <boost/preprocessor/seq/for_each.hpp>
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
@@ -39,10 +40,23 @@
     static auto F(C &x, Args... args) -> decltype(x.F(args...)) { return x.F(args...); } \
 /**/
 
-#define CHECK_EQUAL_RANGES( L, R ) \
-    BOOST_CHECK_EQUAL_COLLECTIONS( ::std::begin( L ), ::std::end( L ), \
-                                   ::std::begin( R ), ::std::end( R )) \
+#define GETTER1_ELEM( R, C, V ) \
+    GETTER1( C, V ) \
 /**/
+
+#define GETTERS_FOR_MEMBER_VARIABLES( C, S ) \
+    BOOST_PP_SEQ_FOR_EACH(GETTER1_ELEM, C, S) \
+/**/
+
+// #define CHECK_EQUAL_RANGES( L, R ) \
+//     BOOST_CHECK_EQUAL_COLLECTIONS( ::std::begin( L ), ::std::end( L ), \
+//                                    ::std::begin( R ), ::std::end( R )) \
+// /**/
+
+#define CHECK_EQUAL_RANGES( L, R ) \
+    BOOST_TEST(L == R, ::boost::test_tools::per_element() ) \
+/**/
+
 
 #define CHECK_CLOSE_RANGES( L, R, T )    do { \
     ::boost::test_tools::local_fpc_tolerance<double> t_o_l( T ); \
