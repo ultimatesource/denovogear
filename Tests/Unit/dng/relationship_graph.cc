@@ -306,4 +306,40 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct) {
             test(graph, expected);
         }
     }
+
+    libraries_t somatic_libs = {
+        {"M1A", "M1B", "M2A", "M3A", "M3B"},
+        {"M1", "M1", "M2", "M3", "M3"}
+    };
+
+    Pedigree somatic_ped;
+    somatic_ped.AddMember("M","0","0",Sex::Female,"((M1,M2)M12,M3);");
+
+    {
+        constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
+
+        //Construct Graph
+        RelationshipGraph graph;
+        graph.Construct(somatic_ped, somatic_libs, InheritanceModel::Autosomal, g, s, l);
+
+
+        const expected_nodes_t expected = {
+            {"GL/M", DIPLOID, GERMLINE,  ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
+            {"SM/unnamed_node_1", DIPLOID, SOMATIC, !ROOT, PAIR, 0, s, -1, 0.0f, ""},
+            {"SM/M3", DIPLOID, SOMATIC, !ROOT, PAIR, 1, s, -1, 0.0f, ""},
+            {"SM/M12", DIPLOID, SOMATIC, !ROOT, PAIR, 1, s, -1, 0.0f, ""},
+            {"SM/M1", DIPLOID, SOMATIC, !ROOT, PAIR, 3, s, -1, 0.0f, ""},
+            {"LB/M1/M1A", DIPLOID, LIBRARY, !ROOT, PAIR, 4, l, -1, 0.0f, "M1A"},
+            {"LB/M1/M1B", DIPLOID, LIBRARY, !ROOT, PAIR, 4, l, -1, 0.0f, "M1B"},            
+            {"LB/M2/M2A", DIPLOID, LIBRARY, !ROOT, PAIR, 3, l+s, -1, 0.0f, "M2A"},
+            {"LB/M3/M3A", DIPLOID, LIBRARY, !ROOT, PAIR, 2, l, -1, 0.0f, "M3A"},
+            {"LB/M3/M3B", DIPLOID, LIBRARY, !ROOT, PAIR, 2, l, -1, 0.0f, "M3B"},
+          };
+
+        BOOST_TEST_CONTEXT("graph=somatic_graph") {
+            test(graph, expected);
+        }
+    }
+
+
 }

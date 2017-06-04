@@ -26,10 +26,11 @@
 #include <boost/range/algorithm/find.hpp>
 #include <boost/range/adaptor/reversed.hpp>
 
-using namespace dng;
+namespace dng {
+namespace detail {
 using namespace dng::detail::graph;
 
-void parse_pedigree_table(Graph &pedigree_graph, const dng::Pedigree &pedigree);
+vertex_t parse_pedigree_table(Graph &pedigree_graph, const dng::Pedigree &pedigree);
 void add_libraries_to_graph(Graph &pedigree_graph, const libraries_t &libs);
 void update_edge_lengths(Graph &pedigree_graph,
         double mu_meiotic, double mu_somatic, double mu_library);
@@ -38,6 +39,11 @@ void simplify_pedigree(Graph &pedigree_graph);
 void prune_pedigree(Graph &pedigree_graph, InheritanceModel model);
 
 void prefix_vertex_labels(Graph &pedigree_graph);
+}} // namespace dng::detail
+
+using namespace dng;
+using namespace dng::detail;
+using namespace dng::detail::graph;
 
 constexpr vertex_t DUMMY_INDEX{0};
 constexpr vertex_t NULL_INDEX{DUMMY_INDEX-1};
@@ -121,9 +127,8 @@ bool dng::RelationshipGraph::Construct(const Pedigree& pedigree,
     Graph pedigree_graph;
 
     first_founder_ = 0;
-    parse_pedigree_table(pedigree_graph, pedigree);
-    first_somatic_ = num_vertices(pedigree_graph);
-
+    first_somatic_ = parse_pedigree_table(pedigree_graph, pedigree);
+ 
     // Find first germline node that is not a child of DUMMY_INDEX
     for(first_nonfounder_ = 1; first_nonfounder_ < first_somatic_; ++first_nonfounder_) {
         auto id = edge(DUMMY_INDEX, first_nonfounder_, pedigree_graph);
@@ -165,91 +170,6 @@ bool dng::RelationshipGraph::Construct(const Pedigree& pedigree,
 
     // PrintMachine(cerr);
     return true;
-}
-
-void prune_pedigree_autosomal(Graph &pedigree_graph);
-void prune_pedigree_ylinked(Graph &pedigree_graph);
-void prune_pedigree_xlinked(Graph &pedigree_graph);
-
-void prune_pedigree(Graph &pedigree_graph, InheritanceModel model) {
-    //boost::write_graphviz(std::cerr, pedigree_graph);
-
-    switch(model) {
-    case InheritanceModel::Autosomal:
-        prune_pedigree_autosomal(pedigree_graph);
-        break;
-    case InheritanceModel::YLinked:
-        prune_pedigree_ylinked(pedigree_graph);
-        break;
-    case InheritanceModel::XLinked:
-        prune_pedigree_xlinked(pedigree_graph);
-        break;
-    default:
-        throw std::invalid_argument("Selected inheritance model not implemented yet.");
-    }
-    //boost::write_graphviz(std::cerr, pedigree_graph);
-
-}
-
-void prune_pedigree_autosomal(Graph &pedigree_graph) {
-    auto ploidies  = get(boost::vertex_ploidy, pedigree_graph);
-    auto vertex_range = boost::make_iterator_range(vertices(pedigree_graph));
-    for (vertex_t v : vertex_range) {
-        ploidies[v] = 2;
-    }
-}
-
-void prune_pedigree_ylinked(Graph &pedigree_graph) {
-    auto sexes  = get(boost::vertex_sex, pedigree_graph);
-    auto ploidies  = get(boost::vertex_ploidy, pedigree_graph);
-
-    auto vertex_range = boost::make_iterator_range(vertices(pedigree_graph));
-    for (vertex_t v : vertex_range) {
-        switch(sexes[v]) {
-        case Sex::Female:
-            clear_vertex(v,pedigree_graph);
-            ploidies[v] = 0;
-            break;
-        case Sex::Male:
-            ploidies[v] = 1;
-            break;
-        case Sex::Unknown:
-        default:
-            if(v != DUMMY_INDEX) {
-                throw std::runtime_error("Y-linked inheritance requires every individual to have a known sex.");
-            }
-        }
-    }
-}
-
-void prune_pedigree_xlinked(Graph &pedigree_graph) {
-    auto is_y = [&](edge_t e) -> bool {
-        if(get(boost::edge_type, pedigree_graph, e) != EdgeType::Paternal)
-            return false;
-        vertex_t a = source(e, pedigree_graph);
-        vertex_t b = target(e, pedigree_graph);
-        return (get(boost::vertex_sex, pedigree_graph, std::max(a,b)) == Sex::Male);
-    };
-    remove_edge_if(is_y, pedigree_graph);
-
-    auto sexes  = get(boost::vertex_sex, pedigree_graph);
-    auto ploidies  = get(boost::vertex_ploidy, pedigree_graph);
-    auto vertex_range = boost::make_iterator_range(vertices(pedigree_graph));
-    for (vertex_t v : vertex_range) {
-        switch(sexes[v]) {
-        case Sex::Female:
-            ploidies[v] = 2;
-            break;
-        case Sex::Male:
-            ploidies[v] = 1;
-            break;
-        case Sex::Unknown:
-        default:
-            if(v != DUMMY_INDEX) {
-                throw std::runtime_error("X-linked inheritance requires every individual to have a known sex.");
-            }
-        }
-    }
 }
 
 void dng::RelationshipGraph::ConstructPeelingMachine() {
@@ -485,7 +405,96 @@ std::vector<std::string> dng::RelationshipGraph::BCFHeaderLines() const {
     return ret;
 }
 
-void parse_pedigree_table(Graph &pedigree_graph, const dng::Pedigree &pedigree) {
+namespace dng {
+namespace detail {
+
+void prune_pedigree_autosomal(Graph &pedigree_graph);
+void prune_pedigree_ylinked(Graph &pedigree_graph);
+void prune_pedigree_xlinked(Graph &pedigree_graph);
+
+void prune_pedigree(Graph &pedigree_graph, InheritanceModel model) {
+    //boost::write_graphviz(std::cerr, pedigree_graph);
+
+    switch(model) {
+    case InheritanceModel::Autosomal:
+        prune_pedigree_autosomal(pedigree_graph);
+        break;
+    case InheritanceModel::YLinked:
+        prune_pedigree_ylinked(pedigree_graph);
+        break;
+    case InheritanceModel::XLinked:
+        prune_pedigree_xlinked(pedigree_graph);
+        break;
+    default:
+        throw std::invalid_argument("Selected inheritance model not implemented yet.");
+    }
+    //boost::write_graphviz(std::cerr, pedigree_graph);
+
+}
+
+void prune_pedigree_autosomal(Graph &pedigree_graph) {
+    auto ploidies  = get(boost::vertex_ploidy, pedigree_graph);
+    auto vertex_range = boost::make_iterator_range(vertices(pedigree_graph));
+    for (vertex_t v : vertex_range) {
+        ploidies[v] = 2;
+    }
+}
+
+void prune_pedigree_ylinked(Graph &pedigree_graph) {
+    auto sexes  = get(boost::vertex_sex, pedigree_graph);
+    auto ploidies  = get(boost::vertex_ploidy, pedigree_graph);
+
+    auto vertex_range = boost::make_iterator_range(vertices(pedigree_graph));
+    for (vertex_t v : vertex_range) {
+        switch(sexes[v]) {
+        case Sex::Female:
+            clear_vertex(v,pedigree_graph);
+            ploidies[v] = 0;
+            break;
+        case Sex::Male:
+            ploidies[v] = 1;
+            break;
+        case Sex::Unknown:
+        default:
+            if(v != DUMMY_INDEX) {
+                throw std::runtime_error("Y-linked inheritance requires every individual to have a known sex.");
+            }
+        }
+    }
+}
+
+void prune_pedigree_xlinked(Graph &pedigree_graph) {
+    auto is_y = [&](edge_t e) -> bool {
+        if(get(boost::edge_type, pedigree_graph, e) != EdgeType::Paternal)
+            return false;
+        vertex_t a = source(e, pedigree_graph);
+        vertex_t b = target(e, pedigree_graph);
+        return (get(boost::vertex_sex, pedigree_graph, std::max(a,b)) == Sex::Male);
+    };
+    remove_edge_if(is_y, pedigree_graph);
+
+    auto sexes  = get(boost::vertex_sex, pedigree_graph);
+    auto ploidies  = get(boost::vertex_ploidy, pedigree_graph);
+    auto vertex_range = boost::make_iterator_range(vertices(pedigree_graph));
+    for (vertex_t v : vertex_range) {
+        switch(sexes[v]) {
+        case Sex::Female:
+            ploidies[v] = 2;
+            break;
+        case Sex::Male:
+            ploidies[v] = 1;
+            break;
+        case Sex::Unknown:
+        default:
+            if(v != DUMMY_INDEX) {
+                throw std::runtime_error("X-linked inheritance requires every individual to have a known sex.");
+            }
+        }
+    }
+}
+
+
+vertex_t parse_pedigree_table(Graph &pedigree_graph, const dng::Pedigree &pedigree) {
     using namespace std;
     using Sex = dng::Pedigree::Sex;
     using member_t = unsigned int;
@@ -632,6 +641,7 @@ void parse_pedigree_table(Graph &pedigree_graph, const dng::Pedigree &pedigree) 
     }
     // Sanity Check
     assert(counter == pedigree_names.size());
+    return counter;
 }
 
 void add_libraries_to_graph(Graph &pedigree_graph, const libraries_t &libs) {
@@ -770,6 +780,8 @@ void simplify_pedigree(Graph &pedigree_graph) {
         }
     }
 }
+
+}} // namespace dng::detail
 
 std::vector<size_t> dng::RelationshipGraph::ConstructNodes(const Graph &pedigree_graph) {
     // node_ids[vertex] will convert vertex_id to node position.
