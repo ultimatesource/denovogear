@@ -11,6 +11,9 @@ var mutationDistributionView = (function(d3, PubSub, utils) {
 
     var distProc = new DistributionProcessor(options.vcfText);
 
+    console.log(distProc.getCounts());
+
+    var counts = distProc.getCounts();
 
     this._graphData = options.graphData;
 
@@ -190,7 +193,7 @@ var mutationDistributionView = (function(d3, PubSub, utils) {
     //  processData();
     //});
     
-    processData();
+    this.counts = processData();
 
     function processData() {
       var startTime = new Date();
@@ -212,19 +215,35 @@ var mutationDistributionView = (function(d3, PubSub, utils) {
           counts[dnl.value]++;
           count++;
 
-          if (index % 1000 === 0) {
-            console.log(dnl);
-          }
+          //if (index % 1000 === 0) {
+          //  console.log(dnl);
+          //}
         }
       });
 
-      console.log(count);
+      //console.log(count);
       console.log(counts);
 
       var endTime = new Date();
       var elapsed = endTime - startTime;
 
-      console.log("Parsing time:", elapsed / 1000);
+      //console.log("Parsing time:", elapsed / 1000);
+
+      var processedCounts = {};
+
+      Object.keys(counts).forEach(function(key) {
+        var id = idFromKey(key);
+
+        console.log(id);
+
+        if (processedCounts[id] === undefined) {
+          processedCounts[id] = 0;
+        }
+
+        processedCounts[id] += counts[key];
+      });
+
+      return processedCounts;
     }
 
     function parseDataLine(line) {
@@ -248,8 +267,22 @@ var mutationDistributionView = (function(d3, PubSub, utils) {
       };
     }
 
+    function idFromKey(key) {
+      var idStartIndex = key.indexOf("/") + 1;
+      var idStopIndex = key.indexOf("_");
+      if (idStopIndex === -1) {
+        idStartIndex = key.length - 1;
+      }
+
+      return key.slice(idStartIndex, idStopIndex);
+    }
+
 
   }
+
+  DistributionProcessor.prototype.getCounts = function() {
+    return this.counts;
+  };
 
   return {
     createMutationDistributionView: createMutationDistributionView
