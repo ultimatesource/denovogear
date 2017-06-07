@@ -411,25 +411,33 @@ namespace detail {
 void prune_pedigree_autosomal(Graph &pedigree_graph);
 void prune_pedigree_ylinked(Graph &pedigree_graph);
 void prune_pedigree_xlinked(Graph &pedigree_graph);
+void prune_pedigree_wlinked(Graph &pedigree_graph);
+void prune_pedigree_zlinked(Graph &pedigree_graph);
+void prune_pedigree_maternal(Graph &pedigree_graph);
+void prune_pedigree_paternal(Graph &pedigree_graph);
 
 void prune_pedigree(Graph &pedigree_graph, InheritanceModel model) {
     //boost::write_graphviz(std::cerr, pedigree_graph);
 
     switch(model) {
     case InheritanceModel::Autosomal:
-        prune_pedigree_autosomal(pedigree_graph);
-        break;
+        return prune_pedigree_autosomal(pedigree_graph);
     case InheritanceModel::YLinked:
-        prune_pedigree_ylinked(pedigree_graph);
-        break;
+        return prune_pedigree_ylinked(pedigree_graph);
     case InheritanceModel::XLinked:
-        prune_pedigree_xlinked(pedigree_graph);
-        break;
+        return prune_pedigree_xlinked(pedigree_graph);
+    case InheritanceModel::WLinked:
+        return prune_pedigree_wlinked(pedigree_graph);
+    case InheritanceModel::ZLinked:
+        return prune_pedigree_zlinked(pedigree_graph);
+    case InheritanceModel::Maternal:
+        return prune_pedigree_maternal(pedigree_graph);
+    case InheritanceModel::Paternal:
+        return prune_pedigree_paternal(pedigree_graph);
     default:
-        throw std::invalid_argument("Selected inheritance model not implemented yet.");
+        throw std::invalid_argument("Selected inheritance model invalid or not implemented yet.");
     }
     //boost::write_graphviz(std::cerr, pedigree_graph);
-
 }
 
 void prune_pedigree_autosomal(Graph &pedigree_graph) {
@@ -456,8 +464,8 @@ void prune_pedigree_ylinked(Graph &pedigree_graph) {
             break;
         case Sex::Unknown:
         default:
-            if(v != DUMMY_INDEX) {
-                throw std::runtime_error("Y-linked inheritance requires every individual to have a known sex.");
+            if(out_degree(v, pedigree_graph) != 0) {
+                throw std::invalid_argument("Y-linked inheritance requires every individual to have a known sex.");
             }
         }
     }
@@ -465,8 +473,9 @@ void prune_pedigree_ylinked(Graph &pedigree_graph) {
 
 void prune_pedigree_xlinked(Graph &pedigree_graph) {
     auto is_y = [&](edge_t e) -> bool {
-        if(get(boost::edge_type, pedigree_graph, e) != EdgeType::Paternal)
+        if(get(boost::edge_type, pedigree_graph, e) != EdgeType::Paternal) {
             return false;
+        }
         vertex_t a = source(e, pedigree_graph);
         vertex_t b = target(e, pedigree_graph);
         return (get(boost::vertex_sex, pedigree_graph, std::max(a,b)) == Sex::Male);
@@ -486,10 +495,93 @@ void prune_pedigree_xlinked(Graph &pedigree_graph) {
             break;
         case Sex::Unknown:
         default:
-            if(v != DUMMY_INDEX) {
+            if(out_degree(v, pedigree_graph) != 0) {
                 throw std::runtime_error("X-linked inheritance requires every individual to have a known sex.");
             }
         }
+    }
+}
+
+
+void prune_pedigree_wlinked(Graph &pedigree_graph) {
+    auto sexes  = get(boost::vertex_sex, pedigree_graph);
+    auto ploidies  = get(boost::vertex_ploidy, pedigree_graph);
+
+    auto vertex_range = boost::make_iterator_range(vertices(pedigree_graph));
+    for (vertex_t v : vertex_range) {
+        switch(sexes[v]) {
+        case Sex::Male:
+            clear_vertex(v,pedigree_graph);
+            ploidies[v] = 0;
+            break;
+        case Sex::Female:
+            ploidies[v] = 1;
+            break;
+        case Sex::Unknown:
+        default:
+            if(out_degree(v, pedigree_graph) != 0) {
+                throw std::runtime_error("W-linked inheritance requires every individual to have a known sex.");
+            }
+        }
+    }
+}
+
+void prune_pedigree_zlinked(Graph &pedigree_graph) {
+    auto is_w = [&](edge_t e) -> bool {
+        if(get(boost::edge_type, pedigree_graph, e) != EdgeType::Maternal) {
+            return false;
+        }
+        vertex_t a = source(e, pedigree_graph);
+        vertex_t b = target(e, pedigree_graph);
+        return (get(boost::vertex_sex, pedigree_graph, std::max(a,b)) == Sex::Female);
+    };
+    remove_edge_if(is_w, pedigree_graph);
+
+    auto sexes  = get(boost::vertex_sex, pedigree_graph);
+    auto ploidies  = get(boost::vertex_ploidy, pedigree_graph);
+    auto vertex_range = boost::make_iterator_range(vertices(pedigree_graph));
+    for (vertex_t v : vertex_range) {
+        switch(sexes[v]) {
+        case Sex::Male:
+            ploidies[v] = 2;
+            break;
+        case Sex::Female:
+            ploidies[v] = 1;
+            break;
+        case Sex::Unknown:
+        default:
+            if(out_degree(v, pedigree_graph) != 0) {
+                throw std::runtime_error("Z-linked inheritance requires every individual to have a known sex.");
+            }
+        }
+    }
+}
+
+void prune_pedigree_maternal(Graph &pedigree_graph) {
+    auto is_p = [&](edge_t e) -> bool {
+        auto edge_type = get(boost::edge_type, pedigree_graph, e);
+        return (edge_type == EdgeType::Paternal || edge_type == EdgeType::Spousal);
+    };
+    remove_edge_if(is_p, pedigree_graph);
+
+    auto ploidies  = get(boost::vertex_ploidy, pedigree_graph);
+    auto vertex_range = boost::make_iterator_range(vertices(pedigree_graph));
+    for (vertex_t v : vertex_range) {
+        ploidies[v] = 1;
+    }
+}
+
+void prune_pedigree_paternal(Graph &pedigree_graph) {
+    auto is_m = [&](edge_t e) -> bool {
+        auto edge_type = get(boost::edge_type, pedigree_graph, e);
+        return (edge_type == EdgeType::Maternal || edge_type == EdgeType::Spousal);
+    };
+    remove_edge_if(is_m, pedigree_graph);
+
+    auto ploidies  = get(boost::vertex_ploidy, pedigree_graph);
+    auto vertex_range = boost::make_iterator_range(vertices(pedigree_graph));
+    for (vertex_t v : vertex_range) {
+        ploidies[v] = 1;
     }
 }
 
@@ -533,11 +625,11 @@ vertex_t parse_pedigree_table(Graph &pedigree_graph, const dng::Pedigree &pedigr
         }
         // Check for sanity
         if (pedigree_sexes[dad_id] == Sex::Female) {
-            throw std::runtime_error("Unable to construct graph for pedigree; the father of '" +
+            throw std::invalid_argument("Unable to construct graph for pedigree; the father of '" +
                 member.child + "' is female.");
         }
         if (pedigree_sexes[mom_id] == Sex::Male ) {
-            throw std::runtime_error("Unable to construct graph for pedigree; the mother of '" +
+            throw std::invalid_argument("Unable to construct graph for pedigree; the mother of '" +
                 member.child + "' is male.");
         }
         // if only one parent exists, create the other one
@@ -619,20 +711,22 @@ vertex_t parse_pedigree_table(Graph &pedigree_graph, const dng::Pedigree &pedigr
                     add_edge(dad, mom, EdgeType::Spousal, pedigree_graph);
                 }
 
-                // Process newick file
-                std::size_t current_index = num_vertices(pedigree_graph);
-                int res = parse_newick(pedigree.GetMember(pedchild.id).attribute, child, pedigree_graph);
-                if (res == 0) {
-                    // this line has a blank somatic line, so use the name from the pedigree
-                    vertex_t v = add_vertex({labels[child], VertexType::Somatic}, pedigree_graph);
-                    add_edge(child, v, {EdgeType::Mitotic, 1.0f}, pedigree_graph);
-                } else if (res == -1) {
-                    throw std::invalid_argument("Unable to parse somatic data for individual '" +
-                                             pedigree_names[pedchild.id] + "'.");
-                }
-                // Mark the sex of the somatic nodes
-                for (vertex_t i = current_index; i < num_vertices(pedigree_graph); ++i) {
-                    sexes[i] = sexes[child];
+                if(pedchild.id < pedigree_dummy) {
+                    // Process newick file
+                    std::size_t current_index = num_vertices(pedigree_graph);
+                    int res = parse_newick(pedigree.GetMember(pedchild.id).attribute, child, pedigree_graph);
+                    if (res == 0) {
+                        // this line has a blank somatic line, so use the name from the pedigree
+                        vertex_t v = add_vertex({labels[child], VertexType::Somatic}, pedigree_graph);
+                        add_edge(child, v, {EdgeType::Mitotic, 1.0f}, pedigree_graph);
+                    } else if (res == -1) {
+                        throw std::invalid_argument("Unable to parse somatic data for individual '" +
+                                                 pedigree_names[pedchild.id] + "'.");
+                    }
+                    // Mark the sex of the somatic nodes
+                    for (vertex_t i = current_index; i < num_vertices(pedigree_graph); ++i) {
+                        sexes[i] = sexes[child];
+                    }
                 }
 
                 visited.push(pedchild.id);
@@ -730,21 +824,52 @@ void prefix_vertex_labels(dng::detail::graph::Graph &pedigree_graph) {
 
 
 void simplify_pedigree(Graph &pedigree_graph) {
+    using boost::make_iterator_range;
+
     auto edge_types = get(boost::edge_type, pedigree_graph);
     auto lengths = get(boost::edge_length, pedigree_graph);
     auto types = get(boost::vertex_type, pedigree_graph);
 
-    auto vertex_range = boost::adaptors::reverse(boost::make_iterator_range(vertices(pedigree_graph)));
+    auto vertex_range = boost::adaptors::reverse(make_iterator_range(vertices(pedigree_graph)));
 
     for (vertex_t v : vertex_range) {
         if(types[v] == VertexType::Library) {
             continue;
         }
-        size_t children = 0, ancestors = 0, spouses = 0;
+        // identify children
+        auto edge_range = make_iterator_range(out_edges(v, pedigree_graph));
+        // NOTE: This assumes that children is a reasonable number
+        // and will kill performance if it does not.
+        std::vector<vertex_t> meiotic_children;
+        for(edge_t && e : edge_range) {
+            vertex_t u = target(e, pedigree_graph);
+            if( u > v &&
+                (edge_types[e] == EdgeType::Maternal || 
+                 edge_types[e] == EdgeType::Paternal)) {
+                meiotic_children.push_back(u);
+            }
+        }
 
-        auto rng = out_edges(v, pedigree_graph);
-        for (auto it = rng.first; it != rng.second; ++it) {
-            edge_t e = *it;
+        // Remove spousal edges with no children
+        remove_out_edge_if(v, [&](edge_t e) -> bool {
+            if(edge_types[e] != EdgeType::Spousal) {
+                return false;
+            }
+            vertex_t u = target(e, pedigree_graph);
+            auto spousal_edge_range = make_iterator_range(out_edges(u, pedigree_graph));
+            for(edge_t && e : spousal_edge_range) {
+                vertex_t o = target(e, pedigree_graph);
+                auto it = boost::range::find(meiotic_children, o);
+                if(it != meiotic_children.end()) {
+                    return false;
+                }
+            }
+            return true;
+        }, pedigree_graph);
+
+        size_t children = 0, ancestors = 0, spouses = 0;
+        edge_range = make_iterator_range(out_edges(v, pedigree_graph));
+        for (auto && e : edge_range) {
             if (edge_types[e] == EdgeType::Spousal) {
                 spouses += 1;
             } else if (target(e, pedigree_graph) > v) {
@@ -763,8 +888,9 @@ void simplify_pedigree(Graph &pedigree_graph) {
             edge_t edge_trio[3];
             vertex_t vertex_trio[3];//
             int child_index = ancestors;
+            auto it = edge_range.begin();
             for (size_t j = 0; j <= ancestors; ++j) {
-                edge_trio[j] = *(rng.first + j);
+                edge_trio[j] = *it++;
                 vertex_trio[j] = target(edge_trio[j], pedigree_graph);
             }
             for (size_t p = 0; p < child_index; ++p) {
@@ -922,18 +1048,21 @@ void dng::RelationshipGraph::CreatePeelingOps(
         });
         size_t num_spousal_edges = distance(family_edges.begin(), it);
 
+
+
         // Check to see what type of graph we have
         if (num_spousal_edges == 0) {
             // If we do not have a parent-child single branch,
             // we can't construct the pedigree.
             if (family_edges.size() != 1) {
-                throw std::runtime_error("Unable to construct peeler for pedigree;  "
+                throw std::invalid_argument("Unable to construct peeler for pedigree;  "
                         "do not have a parent-child single branch");
             }
             // Create a mitotic peeling operation.
             auto child_index = target(*it, pedigree_graph);
             size_t parent = node_ids[source(*it, pedigree_graph)];
             size_t child = node_ids[child_index];
+            
             transitions_[child] = {TransitionType::Pair, parent, null_id, lengths[*it], 0.0};
             family_members_.push_back({parent, child});
 
@@ -941,11 +1070,10 @@ void dng::RelationshipGraph::CreatePeelingOps(
                 peeling_ops_.push_back(peel::op::DOWN);
             } else {
                 peeling_ops_.push_back(peel::op::UP);
-                if (pivots[k] == DUMMY_INDEX) {
+                if (node_ids[pivots[k]] == node_ids[DUMMY_INDEX]) {
                     roots_.push_back(parent);
                 }
             }
-
         } else if (num_spousal_edges == 1) {
             // If this family contains no children, skip it
             if (it == family_edges.end()) {
