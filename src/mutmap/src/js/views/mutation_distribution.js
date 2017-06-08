@@ -38,6 +38,10 @@ var mutationDistributionView = (function(d3, PubSub, utils) {
         .style("width", "100%")
         .style("height", "100%");
 
+    var zoom = d3.zoom()
+      .on("zoom", zoomed.bind(this));
+    svg.call(zoom);
+
     var g = svg.append("g");
 
     var boundingRect = this._selection.node().getBoundingClientRect();
@@ -52,6 +56,11 @@ var mutationDistributionView = (function(d3, PubSub, utils) {
 
     this._updateLinks();
     this._updateNodes();
+
+    function zoomed() {
+      console.log("zoom");
+      g.attr("transform", d3.event.transform);
+    }
   }
 
   MutationDistributionView.prototype._updateLinks = function() {
@@ -123,13 +132,15 @@ var mutationDistributionView = (function(d3, PubSub, utils) {
             return "#5cc464";
           }
 
-          return "#999";
+          return "#ccc";
         });
 
     function linkHasMutation(d) {
       return d.dataLink !== undefined && d.dataLink.data !== undefined &&
         d.dataLink.data.mutation !== undefined;
     }
+
+  }
 
   MutationDistributionView.prototype._updateNodes = function() {
 
@@ -164,44 +175,66 @@ var mutationDistributionView = (function(d3, PubSub, utils) {
     });
 
     visualNodesEnter.append("text")
-      .attr("dx", 15)
-      .attr("dy", 15)
-      .text(function(d) { 
-        if (d.type !== "marriage") {
-          return d.dataNode.id;
-        }
-      })
-      .style("pointer-events", "none")
-      .style("font", "10px sans-serif");
+        .attr("x", 15)
+        .attr("y", 15)
+        .text(function(d) { 
+          if (d.type !== "marriage") {
+            return d.dataNode.id;
+          }
+        })
+        .style("pointer-events", "none")
+        .style("font", "10px sans-serif");
 
+    var barWidth = 10;
     var counts = this._counts;
     var scale = this._barScale;
     visualNodesEnter.append("rect")
-      .attr("x", -25)
-      .attr("y", function(d) {
-        if (counts[d.dataNode.id]) {
-          return -scale(counts[d.dataNode.id]);
-        }
-        else {
-          return 0;
-        }
-      })
-      .attr("width", 10)
-      .attr("height", function(d) {
-        if (counts[d.dataNode.id]) {
-          return scale(counts[d.dataNode.id]);
-        }
-        else {
-          return 0;
-        }
-      })
-      .attr("fill", d3.schemeCategory20[4]);
+        .attr("x", -25)
+        .attr("y", function(d) {
+          if (counts[d.dataNode.id]) {
+            return -scale(counts[d.dataNode.id]);
+          }
+          else {
+            return 0;
+          }
+        })
+        .attr("width", barWidth)
+        .attr("height", function(d) {
+          if (counts[d.dataNode.id]) {
+            return scale(counts[d.dataNode.id]);
+          }
+          else {
+            return 0;
+          }
+        })
+        .attr("fill", d3.schemeCategory20[4]);
+
+    visualNodesEnter.append("text")
+        .attr("x", -25 + barWidth/2)
+        .attr("y", function(d) {
+
+          var offset;
+          if (counts[d.dataNode.id]) {
+            offset = -scale(counts[d.dataNode.id]);
+          }
+          else {
+            offset = 0;
+          }
+
+          return offset - 3;
+        })
+        .attr("text-anchor", "middle")
+        .text(function(d) {
+          if (counts[d.dataNode.id]) {
+            return counts[d.dataNode.id];
+          }
+          else {
+            return 0;
+          }
+        });
 
   };
 
-
-
-  }
   
   function createMutationDistributionView(options) {
     return new MutationDistributionView(options);
