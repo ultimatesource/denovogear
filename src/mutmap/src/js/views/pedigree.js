@@ -133,6 +133,8 @@ var PedigreeView = (function(d3, PubSub) {
         }
       });
 
+    console.log(d3.schemeCategory20[4]);
+
     visualLinksEnterUpdate.select("path")
         .attr("stroke-width", function(d) {
           if (linkHasMutation(d)) {
@@ -142,7 +144,7 @@ var PedigreeView = (function(d3, PubSub) {
         })
         .attr("stroke", function(d) {
           if (linkHasMutation(d)) {
-            return "#5cc464";
+            return d3.schemeCategory20[7];
           }
 
           return "#999";

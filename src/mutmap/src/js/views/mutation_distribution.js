@@ -11,9 +11,19 @@ var mutationDistributionView = (function(d3, PubSub, utils) {
 
     var distProc = new DistributionProcessor(options.vcfText);
 
-    console.log(distProc.getCounts());
+    this._counts = distProc.getCounts();
 
-    var counts = distProc.getCounts();
+    console.log(this._counts);
+
+    this._maxCount = 0;
+    Object.keys(this._counts).forEach(function(key) {
+      if (this._counts[key] > this._maxCount) {
+        this._maxCount = this._counts[key];
+      }
+    }, this);
+    this._barScale = d3.scaleLinear()
+      .domain([0, this._maxCount])
+      .range([0, 100]);
 
     this._graphData = options.graphData;
 
@@ -128,13 +138,14 @@ var mutationDistributionView = (function(d3, PubSub, utils) {
 
     var visualNodesEnter = visualNodesUpdate.enter()
       .append("g")
-        .attr("class", "node");
+        .attr("class", "node")
+        .attr("transform", function(d) {
+          return utils.svgTranslateString(d.x, d.y);
+        });
 
-    var visualNodesEnterUpdate = visualNodesEnter.merge(visualNodesUpdate);
+    //var visualNodesEnterUpdate = visualNodesEnter.merge(visualNodesUpdate);
 
-    var tree = sampleTreeView.createSampleTree();
-
-    visualNodesEnterUpdate.each(function(d) {
+    visualNodesEnter.each(function(d) {
 
       var symbolSize = 500;
 
@@ -142,18 +153,16 @@ var mutationDistributionView = (function(d3, PubSub, utils) {
         if (d.dataNode.sex === "male") {
           d3.select(this).append("path")
               .attr("d", d3.symbol().type(d3.symbolSquare).size(symbolSize))
-              .attr("fill", "steelblue");
+              .attr("fill", d3.schemeCategory20[1]);
         }
         else {
           d3.select(this).append("path")
               .attr("d", d3.symbol().type(d3.symbolCircle).size(symbolSize))
-              .attr("fill", "tomato");
+              .attr("fill", d3.schemeCategory20[7]);
         }
       }
     });
 
-    //visualNodesEnterUpdate.call(gpNode());
-    //
     visualNodesEnter.append("text")
       .attr("dx", 15)
       .attr("dy", 15)
@@ -165,9 +174,29 @@ var mutationDistributionView = (function(d3, PubSub, utils) {
       .style("pointer-events", "none")
       .style("font", "10px sans-serif");
 
-    visualNodesEnter.attr("transform", function(d) {
-      return utils.svgTranslateString(d.x, d.y);
-    });
+    var counts = this._counts;
+    var scale = this._barScale;
+    visualNodesEnter.append("rect")
+      .attr("x", -25)
+      .attr("y", function(d) {
+        if (counts[d.dataNode.id]) {
+          return -scale(counts[d.dataNode.id]);
+        }
+        else {
+          return 0;
+        }
+      })
+      .attr("width", 10)
+      .attr("height", function(d) {
+        if (counts[d.dataNode.id]) {
+          return scale(counts[d.dataNode.id]);
+        }
+        else {
+          return 0;
+        }
+      })
+      .attr("fill", d3.schemeCategory20[4]);
+
   };
 
 
@@ -181,26 +210,13 @@ var mutationDistributionView = (function(d3, PubSub, utils) {
 
   function DistributionProcessor(vcfText) {
 
-    //var vcfText;
-
-    //fetch("platinum_filtered.vcf")
-    //.then(function(response) {
-    //  return response.text();
-    //})
-    //.then(function(text) {
-    //  vcfText = text;
-
-    //  processData();
-    //});
-    
     this.counts = processData();
 
     function processData() {
-      var startTime = new Date();
+      //var startTime = new Date();
 
       var count = 0;
       var counts = {};
-      //vcfParser.parseVCFText(vcfText);
       var lines = vcfText.split("\n");
       lines.forEach(function(line, index) {
         if (!line.startsWith("#") && line.length > 0) {
@@ -221,12 +237,8 @@ var mutationDistributionView = (function(d3, PubSub, utils) {
         }
       });
 
-      //console.log(count);
-      console.log(counts);
-
-      var endTime = new Date();
-      var elapsed = endTime - startTime;
-
+      //var endTime = new Date();
+      //var elapsed = endTime - startTime;
       //console.log("Parsing time:", elapsed / 1000);
 
       var processedCounts = {};
@@ -234,13 +246,13 @@ var mutationDistributionView = (function(d3, PubSub, utils) {
       Object.keys(counts).forEach(function(key) {
         var id = idFromKey(key);
 
-        console.log(id);
+        if (id.length > 0) {
+          if (processedCounts[id] === undefined) {
+            processedCounts[id] = 0;
+          }
 
-        if (processedCounts[id] === undefined) {
-          processedCounts[id] = 0;
+          processedCounts[id] += counts[key];
         }
-
-        processedCounts[id] += counts[key];
       });
 
       return processedCounts;
@@ -271,7 +283,7 @@ var mutationDistributionView = (function(d3, PubSub, utils) {
       var idStartIndex = key.indexOf("/") + 1;
       var idStopIndex = key.indexOf("_");
       if (idStopIndex === -1) {
-        idStartIndex = key.length - 1;
+        idStopIndex = key.length;
       }
 
       return key.slice(idStartIndex, idStopIndex);
