@@ -133,8 +133,6 @@ var PedigreeView = (function(d3, PubSub) {
         }
       });
 
-    console.log(d3.schemeCategory20[4]);
-
     visualLinksEnterUpdate.select("path")
         .attr("stroke-width", function(d) {
           if (linkHasMutation(d)) {

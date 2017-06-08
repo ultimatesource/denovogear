@@ -13,8 +13,6 @@ var mutationDistributionView = (function(d3, PubSub, utils) {
 
     this._counts = distProc.getCounts();
 
-    console.log(this._counts);
-
     this._maxCount = 0;
     Object.keys(this._counts).forEach(function(key) {
       if (this._counts[key] > this._maxCount) {
@@ -23,7 +21,7 @@ var mutationDistributionView = (function(d3, PubSub, utils) {
     }, this);
     this._barScale = d3.scaleLinear()
       .domain([0, this._maxCount])
-      .range([0, 100]);
+      .range([0, 80]);
 
     this._graphData = options.graphData;
 
@@ -32,7 +30,7 @@ var mutationDistributionView = (function(d3, PubSub, utils) {
     var container = this._selection.append("div")
         .attr("class", "row")
       .append("div")
-        .attr("class", "mutation-dist-container col-xs-12");
+        .attr("class", "mutation-dist-container col-xs-12 panel panel-default");
 
     var svg = container.append("svg")
         .style("width", "100%")
@@ -58,7 +56,6 @@ var mutationDistributionView = (function(d3, PubSub, utils) {
     this._updateNodes();
 
     function zoomed() {
-      console.log("zoom");
       g.attr("transform", d3.event.transform);
     }
   }

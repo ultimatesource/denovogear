@@ -65,7 +65,7 @@
         node.type = "person";
         node.dataNode =
           pedGraph.getPerson(pedigreeData[oneToZeroBase(id)].individualId);
-        node.x = 120 * layout.pos[rowIdx][colIdx];
+        node.x = 90 * layout.pos[rowIdx][colIdx];
         node.y = 120 * rowIdx;
 
         // TODO: such a hack. remove

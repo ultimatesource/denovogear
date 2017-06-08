@@ -25,6 +25,7 @@ html,body {
 :root {
    --genome-browser-height: 100px;
    --genome-browsers-area-height: calc(1 * var(--genome-browser-height));
+   --bootstrap-tab-height: 50px;
 }
 
 .axis--x .domain {
@@ -59,12 +60,14 @@ html,body {
 }
 
 .pedigree-container {
-  height: calc(100vh - var(--genome-browsers-area-height));
+  height: calc(100vh - var(--genome-browsers-area-height) -
+                       var(--bootstrap-tab-height));
   margin-bottom: 0;
 }
 
 .mutation-dist-container {
-  height: 500px;
+  height: calc(100vh - var(--bootstrap-tab-height));
+  margin-bottom: 0;
 }
 
 .node-symbol--selected {
