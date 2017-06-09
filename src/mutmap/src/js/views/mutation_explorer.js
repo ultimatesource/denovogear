@@ -28,7 +28,22 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
     var graphData = options.graphData;
     var pedGraph = options.pedGraph;
 
+
     var vcfData = vcfParser.parseVCFText(dngOutputFileText);
+
+    var startTime = new Date();
+
+    var vcfDataNew = vcfParserNew.VcfParser.create()
+      .parse({ vcfText: dngOutputFileText });
+
+    var endTime = new Date();
+    var elapsed = endTime - startTime;
+    console.log("Parsing time:", elapsed / 1000);
+
+    console.log(vcfData);
+    console.log(vcfDataNew);
+
+    
     // TODO: Using globals. Hack. Use a better method.
     var selectedContigIndex = 0;
     var selectedMutationIndex = 0;
