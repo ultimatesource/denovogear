@@ -35,15 +35,6 @@
 namespace dng {
 namespace peel {
 
-namespace op {
-enum Type {
-    UP, DOWN, TOFATHER, TOMOTHER, TOCHILD,
-    UPFAST, DOWNFAST, TOFATHERFAST, TOMOTHERFAST,
-    TOCHILDFAST,
-    NUM // Total number of possible forward operations
-};
-} // namespace dng::peel::op
-
 struct workspace_t {
     GenotypeArrayVector upper; // Holds P(~Descendent_Data & G=g)
     GenotypeArrayVector lower; // Holds P( Descendent_Data | G=g)
@@ -183,7 +174,14 @@ struct info_t {
     int writes_to;
 };
 
-constexpr info_t info[op::NUM] = {
+enum struct Op { 
+    UP=0, DOWN, TOFATHER, TOMOTHER, TOCHILD,
+    UPFAST, DOWNFAST, TOFATHERFAST, TOMOTHERFAST,
+    TOCHILDFAST,
+    NUM // Total number of possible forward operations
+};
+
+constexpr info_t info[(int)Op::NUM] = {
     /* Up           */ {true,  0},
     /* Down         */ {false, 1},
     /* ToFather     */ {true,  0},
@@ -197,13 +195,13 @@ constexpr info_t info[op::NUM] = {
 };
 
 // TODO: Write test case to check that peeling ops are in the right order.
-constexpr function_t functions[op::NUM] = {
+constexpr function_t functions[(int)Op::NUM] = {
     &up, &down, &to_father, &to_mother, &to_child,
     &up_fast, &down_fast, &to_father_fast, &to_mother_fast,
     &to_child_fast
 };
 
-constexpr function_t reverse_functions[op::NUM] = {
+constexpr function_t reverse_functions[(int)Op::NUM] = {
     &up_reverse, &down_reverse, &to_father_reverse,
     &to_mother_reverse, &to_child_reverse,
     &up_reverse, &down_reverse, &to_father_reverse,

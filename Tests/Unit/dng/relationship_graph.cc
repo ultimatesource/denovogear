@@ -163,7 +163,7 @@ constexpr bool ROOT = true;
 
 using expected_nodes_t = std::vector<node_t>;
 
-BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct) {
+BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
     const double prec = 2*DBL_EPSILON;
 
     auto test = [prec](const RelationshipGraph &test, const expected_nodes_t& expected) -> void {
@@ -683,4 +683,8 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_CreateWorkspace) {
     BOOST_CHECK_EQUAL(workspace.lower.size(), 12);
     BOOST_CHECK_EQUAL(workspace.super.size(), 12);
     BOOST_CHECK_EQUAL(workspace.dirty_lower, false);
+}
+
+BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_peeler) {
+    
 }

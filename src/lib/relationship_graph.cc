@@ -180,35 +180,38 @@ void dng::RelationshipGraph::ConstructPeelingMachine() {
     peeling_reverse_functions_.reserve(peeling_ops_.size());
     std::vector<std::size_t> lower_written(num_nodes_, -1);
     for(std::size_t i = 0 ; i < peeling_ops_.size(); ++i) {
-        auto a = peeling_ops_[i];
+        peel::Op a = peeling_ops_[i];
         const auto &fam = family_members_[i];
-        auto w = fam[info[a].writes_to];
-        int b = a;
+        int b = (int)a;
+        auto w = fam[info[b].writes_to];
+        bool do_fast = false;
         switch(a) {
-        case op::DOWN:
+        case Op::DOWN:
             // If the lower of the parent has never been written to, we can use the fast version
-            b = (lower_written[fam[0]] == -1) ? op::UPFAST + b : b;
+            do_fast = (lower_written[fam[0]] != -1);
             break;
-        case op::TOCHILD:
+        case Op::TOCHILD:
             // If the we only have one child, we can use the fast version
-            b = (fam.size() == 3) ? op::UPFAST + b : b;
+            do_fast = (fam.size() == 3);
             break;
-        case op::TOMOTHER:
-        case op::TOFATHER:
-        case op::UP:
+        case Op::TOMOTHER:
+        case Op::TOFATHER:
+        case Op::UP:
             // If the lower of the destination has never been written to, we can use the fast version
-            b = (lower_written[w] == -1) ? op::UPFAST + b : b;
+            do_fast = (lower_written[w] == -1);
             break;
         default:
             assert(false); // should never get here
             break;
         }
-        peeling_functions_ops_.push_back(static_cast<decltype(op::NUM)>(b));
+        b = do_fast ? (int)Op::UPFAST + b : b;
+
+        peeling_functions_ops_.push_back(static_cast<peel::Op>(b));
         peeling_functions_.push_back(functions[b]);
         peeling_reverse_functions_.push_back(reverse_functions[b]);
 
         // If the operation writes to a lower value, make note of it
-        if(info[a].writes_lower) {
+        if(info[b].writes_lower) {
             lower_written[w] = i;
         }
     }
@@ -228,28 +231,28 @@ void dng::RelationshipGraph::PrintMachine(std::ostream &os) {
         const auto &fam = family_members_[i];
         os << "Peeling Op " << i + 1;
         switch(peeling_functions_ops_[i]) {
-        case peel::op::DOWNFAST:
+        case peel::Op::DOWNFAST:
             os << " (DownFast)\n";
             os << "\tw\tupper[" << fam[1] << "] // " << labels_[fam[1]] << "\n";
             os << "\tr\tupper[" << fam[0] << "] // " << labels_[fam[0]] << "\n";
             break;
-        case peel::op::DOWN:
+        case peel::Op::DOWN:
             os << " (Down)\n";
             os << "\tw\tupper[" << fam[1] << "] // " << labels_[fam[1]] << "\n";
             os << "\tr\tupper[" << fam[0] << "] // " << labels_[fam[0]] << "\n";
             os << "\tr\tlower[" << fam[0] << "] // " << labels_[fam[0]] << "\n";
             break;
-        case peel::op::UPFAST:
+        case peel::Op::UPFAST:
             os << " (UpFast)\n";
             os << "\tw\tlower[" << fam[0] << "] // " << labels_[fam[0]] << "\n";
             os << "\tr\tlower[" << fam[1] << "] // " << labels_[fam[1]] << "\n";
             break;
-        case peel::op::UP:
+        case peel::Op::UP:
             os << " (Up)\n";
             os << "\trw\tlower[" << fam[0] << "] // " << labels_[fam[0]] << "\n";
             os << "\tr\tlower[" << fam[1] << "] // " << labels_[fam[1]] << "\n";
             break;
-        case peel::op::TOFATHERFAST:
+        case peel::Op::TOFATHERFAST:
             os << " (ToFatherFast)\n";
             os << "\tw\tlower[" << fam[0] << "] // " << labels_[fam[0]] << "\n";
             os << "\tr\tupper[" << fam[1] << "] // " << labels_[fam[1]] << "\n";
@@ -258,7 +261,7 @@ void dng::RelationshipGraph::PrintMachine(std::ostream &os) {
                 os << "\tr\tlower[" << fam[j] << "] // " << labels_[fam[j]] << "\n";
             }
             break;
-        case peel::op::TOFATHER:
+        case peel::Op::TOFATHER:
             os << " (ToFather)\n";
             os << "\trw\tlower[" << fam[0] << "] // " << labels_[fam[0]] << "\n";
             os << "\tr\tupper[" << fam[1] << "] // " << labels_[fam[1]] << "\n";
@@ -267,7 +270,7 @@ void dng::RelationshipGraph::PrintMachine(std::ostream &os) {
                 os << "\tr\tlower[" << fam[j] << "] // " << labels_[fam[j]] << "\n";
             }
             break;
-        case peel::op::TOMOTHERFAST:
+        case peel::Op::TOMOTHERFAST:
             os << " (ToMotherFast)\n";
             os << "\tw\tlower[" << fam[1] << "] // " << labels_[fam[1]] << "\n";
             os << "\tr\tupper[" << fam[0] << "] // " << labels_[fam[0]] << "\n";
@@ -276,7 +279,7 @@ void dng::RelationshipGraph::PrintMachine(std::ostream &os) {
                 os << "\tr\tlower[" << fam[j] << "] // " << labels_[fam[j]] << "\n";
             }
             break;
-        case peel::op::TOMOTHER:
+        case peel::Op::TOMOTHER:
             os << " (ToMother)\n";
             os << "\trw\tlower[" << fam[0] << "] // " << labels_[fam[1]] << "\n";
             os << "\tr\tupper[" << fam[1] << "] // " << labels_[fam[0]] << "\n";
@@ -285,7 +288,7 @@ void dng::RelationshipGraph::PrintMachine(std::ostream &os) {
                 os << "\tr\tlower[" << fam[j] << "] // " << labels_[fam[j]] << "\n";
             }
             break;
-        case peel::op::TOCHILDFAST:
+        case peel::Op::TOCHILDFAST:
             os << " (ToChildFast)\n";
             os << "\tw\tupper[" << fam[2] << "] // " << labels_[fam[2]] << "\n";
             os << "\tr\tupper[" << fam[0] << "] // " << labels_[fam[0]] << "\n";
@@ -293,7 +296,7 @@ void dng::RelationshipGraph::PrintMachine(std::ostream &os) {
             os << "\tr\tupper[" << fam[1] << "] // " << labels_[fam[1]] << "\n";
             os << "\tr\tlower[" << fam[1] << "] // " << labels_[fam[1]] << "\n";
             break;
-        case peel::op::TOCHILD:
+        case peel::Op::TOCHILD:
             os << " (ToChild)\n";
             os << "\tw\tupper[" << fam[2] << "] // " << labels_[fam[2]] << "\n";
             os << "\tr\tupper[" << fam[0] << "] // " << labels_[fam[0]] << "\n";
@@ -305,7 +308,7 @@ void dng::RelationshipGraph::PrintMachine(std::ostream &os) {
             }
             break;
         default:
-            os << " (Unknown " << peeling_functions_ops_[i] << ")\n";
+            os << " (Unknown " << (int)peeling_functions_ops_[i] << ")\n";
         }
     }
 
@@ -329,22 +332,22 @@ void dng::RelationshipGraph::PrintTable(std::ostream &os) {
     for(int i = 0; i < peeling_ops_.size(); ++i) {
         const auto &fam = family_members_[i];
         switch(peeling_ops_[i]) {
-        case peel::op::DOWN:
-        case peel::op::DOWNFAST:
+        case peel::Op::DOWN:
+        case peel::Op::DOWNFAST:
             write_up[fam[0]] = i + 1;
             break;
-        case peel::op::TOCHILD:
-        case peel::op::TOCHILDFAST:
+        case peel::Op::TOCHILD:
+        case peel::Op::TOCHILDFAST:
             write_up[fam[2]] = i + 1;
             break;
-        case peel::op::UP:
-        case peel::op::UPFAST:
-        case peel::op::TOFATHER:
-        case peel::op::TOFATHERFAST:
+        case peel::Op::UP:
+        case peel::Op::UPFAST:
+        case peel::Op::TOFATHER:
+        case peel::Op::TOFATHERFAST:
             write_low[fam[0]] = i + 1;
             break;
-        case peel::op::TOMOTHER:
-        case peel::op::TOMOTHERFAST:
+        case peel::Op::TOMOTHER:
+        case peel::Op::TOMOTHERFAST:
             write_low[fam[1]] = i + 1;
         default:
             break;
@@ -1067,9 +1070,9 @@ void dng::RelationshipGraph::CreatePeelingOps(
             family_members_.push_back({parent, child});
 
             if (node_ids[pivots[k]] == child) {
-                peeling_ops_.push_back(peel::op::DOWN);
+                peeling_ops_.push_back(peel::Op::DOWN);
             } else {
-                peeling_ops_.push_back(peel::op::UP);
+                peeling_ops_.push_back(peel::Op::UP);
                 if (node_ids[pivots[k]] == node_ids[DUMMY_INDEX]) {
                     roots_.push_back(parent);
                 }
@@ -1099,7 +1102,7 @@ void dng::RelationshipGraph::CreatePeelingOps(
             }
             if (node_ids[pivots[k]] == node_ids[DUMMY_INDEX]) {
                 // A family without a pivot is a root family
-                peeling_ops_.push_back(peel::op::TOFATHER);
+                peeling_ops_.push_back(peel::Op::TOFATHER);
                 roots_.push_back(family_members[0]);
 
             } else {
@@ -1107,13 +1110,13 @@ void dng::RelationshipGraph::CreatePeelingOps(
                 size_t p = distance(family_members.begin(), pivot_pos);
 
                 if (p == 0) {
-                    peeling_ops_.push_back(peel::op::TOFATHER);
+                    peeling_ops_.push_back(peel::Op::TOFATHER);
                 } else if (p == 1) {
-                    peeling_ops_.push_back(peel::op::TOMOTHER);
+                    peeling_ops_.push_back(peel::Op::TOMOTHER);
                 } else if (p == 2) {
-                    peeling_ops_.push_back(peel::op::TOCHILD);
+                    peeling_ops_.push_back(peel::Op::TOCHILD);
                 } else {
-                    peeling_ops_.push_back(peel::op::TOCHILD);
+                    peeling_ops_.push_back(peel::Op::TOCHILD);
                     boost::swap(family_members[p], family_members[2]);
                 }
             }
