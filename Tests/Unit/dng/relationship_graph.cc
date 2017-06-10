@@ -27,6 +27,7 @@
 #include <vector>
 #include <functional>
 #include <iterator>
+#include <utility>
 #include <boost/range/adaptor/transformed.hpp>
 #include <boost/range/adaptor/filtered.hpp>
 #include <boost/range/algorithm/sort.hpp>
@@ -39,7 +40,8 @@ namespace dng {
 struct unittest_dng_relationship_graph {
     GETTERS_FOR_MEMBER_VARIABLES(RelationshipGraph,
         (first_founder)(first_nonfounder)
-        (first_somatic)(first_library)(roots)
+        (first_somatic)(first_library)(roots)(num_nodes)
+        (ploidies)
     )
 };
 
@@ -51,7 +53,16 @@ operator<<(std::basic_ostream<CharType, CharTrait>& o, const dng::RelationshipGr
     return o;
 }
 
+}
 
+namespace std {
+template<typename CharType, typename CharTrait, typename A, typename B>
+inline
+std::basic_ostream<CharType, CharTrait>&
+operator<<(std::basic_ostream<CharType, CharTrait>& o, const std::pair<A,B>& m) {
+    o << "{" << m.first << ", " << m.second << "}";
+    return o;
+}
 }
 
 using u = dng::unittest_dng_relationship_graph;
@@ -609,7 +620,6 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct) {
         test(graph, expected);
     }
 
-
     BOOST_TEST_CONTEXT("graph=halfsibs_graph") {
         libraries_t libs = {
             {"Dad", "Mom1", "Mom2", "Eve1", "Bob2"},
@@ -640,8 +650,37 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct) {
             {"LB/Bob2", DIPLOID, LIBRARY,  !ROOT, TRIO, 0, g+s+l, 2, g+s+l, "Bob2"},
           };
 
-        test(graph, expected);        
+        test(graph, expected);
     }
+}
 
+BOOST_AUTO_TEST_CASE(test_RelationshipGraph_CreateWorkspace) {
+    // Test CreateWorkspace 
 
+    using std::make_pair;
+    RelationshipGraph graph;
+    u::first_founder(graph) = 0;
+    u::first_nonfounder(graph) = 2;
+    u::first_somatic(graph) = 4; 
+    u::first_library(graph) = 8;
+    u::num_nodes(graph) = 12;
+    u::ploidies(graph).assign(12,2);
+
+    auto workspace = graph.CreateWorkspace();
+
+    using p = decltype(workspace.founder_nodes);
+
+    BOOST_CHECK_EQUAL(workspace.num_nodes, 12);
+    BOOST_CHECK_EQUAL(workspace.founder_nodes,  (p{0,2}));
+    BOOST_CHECK_EQUAL(workspace.germline_nodes, (p{0,4}));
+    BOOST_CHECK_EQUAL(workspace.somatic_nodes,  (p{4,8}));
+    BOOST_CHECK_EQUAL(workspace.library_nodes,  (p{8,12}));
+    
+    std::vector<int> expected_ploidies(12,2);
+    CHECK_EQUAL_RANGES(workspace.ploidies, expected_ploidies);
+
+    BOOST_CHECK_EQUAL(workspace.upper.size(), 12);
+    BOOST_CHECK_EQUAL(workspace.lower.size(), 12);
+    BOOST_CHECK_EQUAL(workspace.super.size(), 12);
+    BOOST_CHECK_EQUAL(workspace.dirty_lower, false);
 }

@@ -29,8 +29,8 @@
 #include <boost/filesystem/fstream.hpp>
 
 #define GETTER1( C, V ) \
-    static auto V(const C& x) -> decltype(x.V##_) { return x.V##_; } \
-    static auto V(C& x) -> decltype(x.V##_) { return x.V##_; } \
+    static auto V(const C& x) -> const decltype(x.V##_)& { return x.V##_; } \
+    static auto V(C& x) -> decltype(x.V##_)& { return x.V##_; } \
 /**/
 
 #define GETTER2( C, V, S ) \
@@ -131,7 +131,6 @@ auto make_test_range(const T (&a)[N]) -> test_range<const T*>
 {
     return {&a[0], &a[N]};
 }
-
 
 } // anonymous namespace
 
