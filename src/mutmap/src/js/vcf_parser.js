@@ -4,6 +4,9 @@ var vcfParserNew = (function() {
 
   var optionsManager = utils.createOptionsManager();
 
+  var FORMAT_INDEX = 8;
+  var FIRST_SAMPLE_INDEX = 9;
+
   function VcfParser(options) {
 
   }
@@ -20,6 +23,7 @@ var vcfParserNew = (function() {
     this._vcfData = {
       header: {
         contig: [],
+        sampleNames: [],
       },
       records: [],
     };
@@ -29,19 +33,26 @@ var vcfParserNew = (function() {
       if (line.startsWith("##contig")) {
         this._parseContig(line);
       }
+      else if (line.startsWith("#CHROM")) {
+        this._parseHeader(line);
+      }
       else if (!line.startsWith("#") && line.length > 0) {
 
-
-        var columns = this._parseDataLine(line);
+        var columns = this._parseTSVLine(line);
         var chrom = this._parseChromosome(columns);
         var pos = this._parsePosition(columns);
-        //var info = this._parseInfoColumn(data[7]);
-        //var dnl = parseDNL(info);
+        var info = this._parseInfoColumn(columns);
+        var samples = this._parseSamples(columns);
         
         var record = {
-          chrom: chrom,
-          pos: pos,
+          CHROM: chrom,
+          POS: pos,
+          INFO: info,
         };
+
+        Object.keys(samples).forEach(function(sampleName) {
+          record[sampleName] = samples[sampleName];
+        }, this);
 
         this._vcfData.records.push(record);
       }
@@ -65,16 +76,33 @@ var vcfParserNew = (function() {
     //console.log(lengthPair);
     var length = Number(lengthPair.value);
 
-    this._vcfData.header.contig.push({ id: id, length: length });
+    this._vcfData.header.contig.push({ ID: id, length: length });
   };
 
-  VcfParser.prototype._parseDataLine = function(line) {
+  VcfParser.prototype._parseHeader = function(line) {
+    var columns = this._parseTSVLine(line);
+    for (var i = FIRST_SAMPLE_INDEX; i < columns.length; i++) {
+      this._vcfData.header.sampleNames.push(columns[i]);
+    }
+  };
+
+  VcfParser.prototype._parseTSVLine = function(line) {
     var columns = line.split("\t");
     return columns;
   };
 
-  VcfParser.prototype._parseInfoColumn = function(column) {
-    return column.split(';');
+  VcfParser.prototype._parseInfoColumn = function(columns) {
+
+    var infoColumn = columns[7];
+    var pairs = infoColumn.split(';');
+
+    var info = {};
+    pairs.forEach(function(pairString) {
+      var pair = this._parsePair(pairString);
+      info[pair.key] = pair.value;
+    }, this);
+
+    return info;
   };
 
   VcfParser.prototype._parseChromosome = function(columns) {
@@ -85,9 +113,44 @@ var vcfParserNew = (function() {
     return Number(columns[1]);
   };
 
-  VcfParser.prototype._parseDNL = function(info) {
-    return this._parsePair(info[6]);
-  }
+  VcfParser.prototype._parseSamples = function(columns) {
+
+    var samples = {};
+    var format = this._parseFormat(columns[FORMAT_INDEX]);
+    for (var i = FIRST_SAMPLE_INDEX; i < columns.length; i++) {
+      var sampleName =
+        this._vcfData.header.sampleNames[i - FIRST_SAMPLE_INDEX];
+      samples[sampleName] = this._parseSampleInfo(columns[i], format);
+    }
+
+    return samples;
+
+  };
+
+  VcfParser.prototype._parseSampleInfo = function(column, format) {
+
+    var items = column.split(":");
+    var sampleInfo = {};
+    for (var i = 0; i < format.length; i++) {
+
+      if (items[i].includes(",")) {
+        sampleInfo[format[i]] = items[i].split(",");
+
+        for (var j = 0; j < sampleInfo[format[i]].length; j++ ) {
+          sampleInfo[format[i]][j] = Number(sampleInfo[format[i]][j]);
+        }
+      }
+      else {
+        sampleInfo[format[i]] = Number(items[i]);
+      }
+    }
+
+    return sampleInfo;
+  };
+
+  VcfParser.prototype._parseFormat = function(column) {
+    return column.split(":");
+  };
 
   VcfParser.prototype._parsePair = function(pair) {
     var pairArray = pair.split('=');

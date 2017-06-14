@@ -29,16 +29,19 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
     var pedGraph = options.pedGraph;
 
 
-    var vcfData = vcfParser.parseVCFText(dngOutputFileText);
 
     var startTime = new Date();
 
     var vcfDataNew = vcfParserNew.VcfParser.create()
       .parse({ vcfText: dngOutputFileText });
 
+
     var endTime = new Date();
     var elapsed = endTime - startTime;
     console.log("Parsing time:", elapsed / 1000);
+
+    //var vcfData = vcfParser.parseVCFText(dngOutputFileText);
+    var vcfData = vcfDataNew;
 
     console.log(vcfData);
     console.log(vcfDataNew);
@@ -51,7 +54,7 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
 
     // transform contigs to hierarchical format
     var contigData = [];
-    vcfData.header.contig.forEach(function(contig) {
+    vcfDataNew.header.contig.forEach(function(contig) {
       var id = contig.ID;
       var contig = {
         id: id,
@@ -59,7 +62,7 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
         records: []
       };
 
-      vcfData.records.forEach(function(record) {
+      vcfDataNew.records.forEach(function(record) {
         if (id === record.CHROM) {
           contig.records.push(record);
         }
