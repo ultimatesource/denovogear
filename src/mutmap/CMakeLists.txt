@@ -11,7 +11,6 @@ if (Rscript_FOUND)
   # Note: order is important for dependencies here
   set(JS_FILES
       ${JS_DIR}/utils.js
-      ${JS_DIR}/dng_vcf_parser.js
       ${JS_DIR}/vcf_parser.js
       ${JS_DIR}/ped_parser.js
       ${JS_DIR}/pedigr.js
