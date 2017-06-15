@@ -196,7 +196,8 @@ void BamPileup::ParseHeaderTokens(It it, It it_last) {
             if(pos == input_libraries_.names.size()) {
                 input_libraries_.names.push_back(std::move(name));
                 input_libraries_.samples.push_back(std::move(sample));
-                input_libraries_.read_groups.push_back(utility::StringSet{{id}});
+                input_libraries_.read_groups.emplace_back();
+                input_libraries_.read_groups.back().insert(std::move(id));
                 needs_updating = true;
             } else {
                 if(input_libraries_.samples[pos] != sample) {
