@@ -67,19 +67,23 @@
     auto CHECK_CLOSE_RANGES_B = ::std::begin( R ); \
     ::std::size_t CHECK_CLOSE_RANGES_N = 0; \
     while(CHECK_CLOSE_RANGES_A < ::std::end( L )) { \
-        BOOST_CHECK_CLOSE(*CHECK_CLOSE_RANGES_A, *CHECK_CLOSE_RANGES_B, T); \
+        BOOST_CHECK_CLOSE_FRACTION(*CHECK_CLOSE_RANGES_A, *CHECK_CLOSE_RANGES_B, T); \
         ++CHECK_CLOSE_RANGES_A; \
         ++CHECK_CLOSE_RANGES_B; \
     } \
     } while(false) \
 /**/
 
+#ifndef BOOST_TEST_CONTEXT
 #define BOOST_TEST_CONTEXT(D) \
     if(true) \
 /**/
+#endif
 
+#ifndef BOOST_TEST_INFO
 #define BOOST_TEST_INFO(D) \
 /**/
+#endif
 
 #else
 // Version for modern Boost.Test
@@ -121,14 +125,19 @@ struct AutoTempFile {
 namespace {
 template<typename T>
 struct test_range {
+    using iterator = T;
     using const_iterator = T;
     using value_type = typename std::iterator_traits<T>::value_type;
-
+    using reference = typename std::iterator_traits<T>::reference;
+    using difference_type = typename std::iterator_traits<T>::difference_type;
+    using pointer = typename std::iterator_traits<T>::pointer;
+    using iterator_category = typename std::iterator_traits<T>::iterator_category;
+    
     test_range(T b, T e) : begin_{b}, end_{e} { }
 
     const_iterator begin() const { return begin_; }
     const_iterator end() const { return end_; }
-    size_t size() const { return std::distance(begin(),end()); }
+    difference_type size() const { return std::distance(begin(),end()); }
 
     const_iterator begin_;
     const_iterator end_;
