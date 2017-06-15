@@ -28,6 +28,7 @@
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
+#include <boost/range/size.hpp>
 
 #define GETTER1( C, V ) \
     static auto V(const C& x) -> const decltype(x.V##_)& { return x.V##_; } \
@@ -61,7 +62,7 @@
 /**/
 
 #define CHECK_CLOSE_RANGES( L, R, T )    do { \
-    BOOST_REQUIRE_EQUAL( ::std::size( L ), ::std::size( R ) ); \
+    BOOST_REQUIRE_EQUAL( ::boost::size( L ), ::boost::size( R ) ); \
     auto CHECK_CLOSE_RANGES_A = ::std::begin( L ); \
     auto CHECK_CLOSE_RANGES_B = ::std::begin( R ); \
     ::std::size_t CHECK_CLOSE_RANGES_N = 0; \
@@ -75,6 +76,9 @@
 
 #define BOOST_TEST_CONTEXT(D) \
     if(true) \
+/**/
+
+#define BOOST_TEST_INFO(D) \
 /**/
 
 #else
