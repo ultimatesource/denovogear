@@ -162,7 +162,10 @@ var vcfParserNew = (function() {
     var sampleInfo = {};
     for (var i = 0; i < format.length; i++) {
 
-      if (items[i].includes(",")) {
+      if (format[i] === "GT") {
+        sampleInfo[format[i]] = items[i];
+      }
+      else if (items[i].includes(",")) {
         sampleInfo[format[i]] = items[i].split(",");
 
         for (var j = 0; j < sampleInfo[format[i]].length; j++ ) {

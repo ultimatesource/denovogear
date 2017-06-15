@@ -220,54 +220,54 @@ var pedigreeView = (function(d3, PubSub) {
 
     switch(topic) {
 
-    case "DNG_OVERLAY_UPDATE":
-      this.update();
-      return;
-    case "ACTIVE_NODE_CHANGED":
-      this._activeNode = data.activeNode;
-      d3.selectAll(".node-symbol").classed("node-symbol--selected", false);
-      d3.select(data.activeNodeSelection)
-          .classed("node-symbol--selected", true);
-      return;
-    case "SAMPLE_TREE_TOGGLE":
+      case "DNG_OVERLAY_UPDATE":
+        this.update();
+        break;
+      case "ACTIVE_NODE_CHANGED":
+        this._activeNode = data.activeNode;
+        d3.selectAll(".node-symbol").classed("node-symbol--selected", false);
+        d3.select(data.activeNodeSelection)
+            .classed("node-symbol--selected", true);
+        break;
+      case "SAMPLE_TREE_TOGGLE":
 
-      this._showSampleTrees = !this._showSampleTrees;
+        this._showSampleTrees = !this._showSampleTrees;
 
-      // Set new variable to preserve 'this' context
-      var showSampleTrees = this._showSampleTrees;
+        // Set new variable to preserve 'this' context
+        var showSampleTrees = this._showSampleTrees;
 
-      d3.selectAll(".sampleTree")
-          .attr("visibility", function() {
-            if (showSampleTrees) {
-              return "visible";
-            }
-            else {
-              return "hidden";
-            }
-          });
+        d3.selectAll(".sampleTree")
+            .attr("visibility", function() {
+              if (showSampleTrees) {
+                return "visible";
+              }
+              else {
+                return "hidden";
+              }
+            });
 
-      d3.select("#sample_tree_toggle")
-          .attr("class", function() {
-            if (showSampleTrees) {
-              return "btn btn-danger";
-            }
-            else {
-              return "btn btn-success";
-            }
-          })
-          .text(function() {
-            if (showSampleTrees) {
-              return "Hide Trees";
-            }
-            else {
-              return "Show Trees";
-            }
-          });
+        d3.select("#sample_tree_toggle")
+            .attr("class", function() {
+              if (showSampleTrees) {
+                return "btn btn-danger";
+              }
+              else {
+                return "btn btn-success";
+              }
+            })
+            .text(function() {
+              if (showSampleTrees) {
+                return "Hide Trees";
+              }
+              else {
+                return "Show Trees";
+              }
+            });
 
-      return;
-    default:
-      console.log("unkown event");
-      return;
+        break;
+      default:
+        console.log("unknown event");
+        break;
     }
   };
 
