@@ -4,16 +4,24 @@
 /* global PubSub */
 /* global utils */
 /* global sampleTreeView */
-/* exported PedigreeView */
+/* exported pedigreeView */
 
-var PedigreeView = (function(d3, PubSub) {
+var pedigreeView = (function(d3, PubSub) {
   "use strict";
+
+  var optionsManager = utils.createOptionsManager();
 
   var format = d3.format(",.6e");
 
-  var PedigreeView = function(parentElement, graphData) {
-    this._graphData = graphData;
-    this._parentElement = parentElement;
+  var PedigreeView = function(options) {
+
+    optionsManager.checkOptions({
+      requiredOptions: ['renderInto', 'graphData'],
+      providedOptions: options
+    });
+
+    this._graphData = options.graphData;
+    this._parentElement = options.renderInto;
     this._create();
     this.update();
 
@@ -412,6 +420,12 @@ var PedigreeView = (function(d3, PubSub) {
     }
   }
 
-  return PedigreeView;
+  function createPedigreeView(options) {
+    return new PedigreeView(options);
+  }
+
+  return {
+    createPedigreeView: createPedigreeView
+  };
 
 }(d3, PubSub));

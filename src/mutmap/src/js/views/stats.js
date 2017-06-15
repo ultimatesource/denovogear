@@ -2,21 +2,29 @@
 //
 /* global d3 */
 /* global PubSub */
-/* exported StatsView */
+/* exported statsView */
 
 
-var StatsView = (function(d3, PubSub) {
+var statsView = (function(d3, PubSub) {
   "use strict";
 
   PubSub.subscribe("ACTIVE_NODE_CHANGED", stateChanged);
   PubSub.subscribe("PEDIGREE_VIEW_UPDATE", stateChanged);
 
+  var optionsManager = utils.createOptionsManager();
+
   var format = d3.format(",.6e");
 
   var stats = [ "ID", "GT", "GQ", "GP", "DP", "MUP", "MU1P" ];
 
-  var StatsView = function(selection) {
-    var stat = selection.selectAll(".stat")
+  var StatsView = function(options) {
+
+    optionsManager.checkOptions({
+      requiredOptions: ['renderInto'],
+      providedOptions: options
+    });
+
+    var stat = options.renderInto.selectAll(".stat")
         .data(stats)
       .enter().append("div")
         .attr("class", "stat");
@@ -67,6 +75,12 @@ var StatsView = (function(d3, PubSub) {
     }
   }
 
-  return StatsView;
+  function createStatsView(options) {
+    return new StatsView(options);
+  }
+
+  return {
+    createStatsView: createStatsView,
+  };
 
 }(d3, PubSub));

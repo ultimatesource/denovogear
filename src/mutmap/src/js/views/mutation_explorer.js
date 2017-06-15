@@ -3,12 +3,12 @@
 /* global d3 */
 /* global PubSub */
 /* global pedParser */
-/* global PedigreeView*/
+/* global pedigreeView*/
 /* global vcfParser */
 /* global pedigr */
 /* global utils */
 /* global contigView */
-/* global StatsView */
+/* global statsView */
 
 /* global pedigreeFileText */
 /* global layoutData */
@@ -92,8 +92,12 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
     var pedigreeContainer = pedigreeRow.append("div")
         .attr("class",
               "pedigree-container col-xs-12 col-md-8 panel panel-default"); 
-    // Create pedigree view
-    var pedView = new PedigreeView(pedigreeContainer, graphData);
+
+    var pedigreeViewOptions = {
+      renderInto: pedigreeContainer,
+      graphData: graphData,
+    };
+    var pedView = pedigreeView.createPedigreeView(pedigreeViewOptions);
 
     var statsColumn = pedigreeRow.append("div")
         .attr("class", "col-xs-4 col-md-4 stats-col");
@@ -101,8 +105,10 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
     var statsContainer = statsColumn.append("div")
         .attr("class", "stats-container panel panel-default");
 
-    // Create stats view
-    new StatsView(statsContainer);
+    var statsViewOptions = {
+      renderInto: statsContainer
+    };
+    statsView.createStatsView(statsViewOptions);
 
     statsColumn.append("button")
         .attr("id", "sample_tree_toggle")
