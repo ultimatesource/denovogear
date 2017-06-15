@@ -48,7 +48,6 @@
 #include <dng/seq.h>
 #include <dng/utility.h>
 #include <dng/hts/bcf.h>
-#include <dng/hts/extra.h>
 #include <dng/mutation.h>
 #include <dng/stats.h>
 #include <dng/io/utility.h>

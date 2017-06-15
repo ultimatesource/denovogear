@@ -32,7 +32,6 @@
 #include <dng/library.h>
 
 #include <dng/hts/bam.h>
-#include <dng/hts/extra.h>
 
 #include <dng/detail/unit_test.h>
 

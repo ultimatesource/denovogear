@@ -6,7 +6,6 @@
 #include <vector>
 #include <memory>
 
-#include <dng/hts/extra.h>
 #include <dng/app.h>
 #include <dng/task/dnm.h>
 #include "htslib/synced_bcf_reader.h"
