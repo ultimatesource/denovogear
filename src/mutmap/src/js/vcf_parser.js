@@ -41,17 +41,38 @@ var vcfParserNew = (function() {
         var columns = this._parseTSVLine(line);
         var chrom = this._parseChromosome(columns);
         var pos = this._parsePosition(columns);
-        var info = this._parseInfoColumn(columns);
-        var samples = this._parseSamples(columns);
+        //var info = this._parseInfoColumn(columns);
+        //var samples = this._parseSamples(columns);
         
+        var parser = this;
         var record = {
           CHROM: chrom,
           POS: pos,
-          INFO: info,
+          _INFO: null,
+          get INFO() {
+            if (this._INFO === null) {
+              this._INFO = parser._parseInfoColumn(columns);
+            }
+            return this._INFO;
+          },
         };
 
-        Object.keys(samples).forEach(function(sampleName) {
-          record[sampleName] = samples[sampleName];
+        this._vcfData.header.sampleNames.forEach(function(sampleName, i) {
+          var sampleIndex = i + FIRST_SAMPLE_INDEX;
+          var privateName = "_" + sampleName;
+          Object.defineProperty(record, sampleName, {
+            get: function() {
+              if (this[privateName] === undefined) {
+                var format = parser._parseFormat(columns[FORMAT_INDEX]);
+                this[privateName] =
+                  parser._parseSampleInfo(columns[sampleIndex], format);
+              }
+              return this[privateName];
+            },
+            set: function(x) {
+              this[privateName] = x;
+            }
+          });
         }, this);
 
         this._vcfData.records.push(record);
@@ -125,6 +146,12 @@ var vcfParserNew = (function() {
 
     return samples;
 
+  };
+
+  VcfParser.prototype._parseSample = function(column, format) {
+      var sampleName =
+        this._vcfData.header.sampleNames[i - FIRST_SAMPLE_INDEX];
+      samples[sampleName] = this._parseSampleInfo(columns, format);
   };
 
   VcfParser.prototype._parseSampleInfo = function(column, format) {
