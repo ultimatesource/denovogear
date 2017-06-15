@@ -40,37 +40,39 @@ var vcfParserNew = (function() {
 
         var columns = this._parseTSVLine(line);
         var chrom = this._parseChromosome(columns);
-        var pos = this._parsePosition(columns);
-        //var info = this._parseInfoColumn(columns);
-        //var samples = this._parseSamples(columns);
         
         var parser = this;
+        var cache = {};
+
         var record = {
+          // TODO: Cache the CHROM just like the other properties. For some
+          // reason this is currently very slow. I'm concerned there may be a
+          // more subtle bug occurring.
           CHROM: chrom,
-          POS: pos,
-          _INFO: null,
-          get INFO() {
-            if (this._INFO === null) {
-              this._INFO = parser._parseInfoColumn(columns);
+          get POS() {
+            if (cache.POS === undefined) {
+              cache.POS = parser._parsePosition(columns);
             }
-            return this._INFO;
+            return cache.POS;
+          },
+          get INFO() {
+            if (cache.INFO === undefined) {
+              cache.INFO = parser._parseInfoColumn(columns);
+            }
+            return cache.INFO;
           },
         };
 
         this._vcfData.header.sampleNames.forEach(function(sampleName, i) {
           var sampleIndex = i + FIRST_SAMPLE_INDEX;
-          var privateName = "_" + sampleName;
           Object.defineProperty(record, sampleName, {
             get: function() {
-              if (this[privateName] === undefined) {
+              if (cache[sampleName] === undefined) {
                 var format = parser._parseFormat(columns[FORMAT_INDEX]);
-                this[privateName] =
+                cache[sampleName] =
                   parser._parseSampleInfo(columns[sampleIndex], format);
               }
-              return this[privateName];
-            },
-            set: function(x) {
-              this[privateName] = x;
+              return cache[sampleName];
             }
           });
         }, this);
