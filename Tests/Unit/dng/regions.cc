@@ -101,7 +101,8 @@ bool region_bam_parsing_expect_fail(std::string input, hts::bam::File &file) {
     return false;
 }
 
-const char bamtext[]= "data:,"
+
+const char bamtext[]=
 "@HD\tVN:1.4\tGO:none\tSO:coordinate\n"
 "@SQ\tSN:1\tLN:249250621\n"
 "@SQ\tSN:2\tLN:243199373\n"
@@ -131,7 +132,14 @@ BOOST_AUTO_TEST_CASE(test_region_parsing) {
     BOOST_CHECK(region_parsing("\nchr1\t:\n10\f-\v1000\t\n \f\v3 ", {{"chr1",10,1000},{"3",1,INT_MAX}}));
     
     // Open Read our test data from Memory
-    hts::bam::File bamfile(bamtext, "r");
+    std::string bamstr = "data:";
+    if(hts::version() >= 10400 ) {
+        // data: url format changed in htslib 1.4
+        bamstr += ",";
+    }
+    bamstr += bamtext;
+
+    hts::bam::File bamfile(bamstr.c_str(), "r");
     // Sanity checks.  If these fail, then other tests will as well
     BOOST_CHECK(bamfile.is_open() && bamfile.header() != nullptr);
     BOOST_CHECK(bamfile.TargetNameToID("xyz") == -1);
@@ -183,7 +191,14 @@ bool bed_parsing(std::string input, hts::bam::File &file, hts::bam::regions_t b 
 
 BOOST_AUTO_TEST_CASE(test_bed_parsing) {
     // Open Read our test data from Memory
-    hts::bam::File bamfile(bamtext, "r");
+    std::string bamstr = "data:";
+    if(hts::version() >= 10400 ) {
+        // data: url format changed in htslib 1.4
+        bamstr += ",";
+    }
+    bamstr += bamtext;
+
+    hts::bam::File bamfile(bamstr.c_str(), "r");
     // Sanity checks.  If these fail, then other tests will as well
     BOOST_CHECK(bamfile.is_open() && bamfile.header() != nullptr);
     BOOST_CHECK(bamfile.TargetNameToID("xyz") == -1);
