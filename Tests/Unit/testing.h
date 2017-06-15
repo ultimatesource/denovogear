@@ -21,6 +21,7 @@
 #ifndef TESTS_UNIT_TESTING_H
 #define TESTS_UNIT_TESTING_H
 
+#include <cstddef>
 #include <type_traits>
 #include <boost/test/unit_test.hpp>
 #include <boost/preprocessor/seq/for_each.hpp>
@@ -50,21 +51,40 @@
     BOOST_PP_SEQ_FOR_EACH(GETTER1_ELEM, C, S) \
 /**/
 
-// #define CHECK_EQUAL_RANGES( L, R ) \
-//     BOOST_CHECK_EQUAL_COLLECTIONS( ::std::begin( L ), ::std::end( L ), \
-//                                    ::std::begin( R ), ::std::end( R )) \
-// /**/
 
+#if defined(BOOST_VERSION) && BOOST_VERSION < 105900
+// Version for Boost.Test 2
+
+#define CHECK_EQUAL_RANGES( L, R ) \
+    BOOST_CHECK_EQUAL_COLLECTIONS( ::std::begin( L ), ::std::end( L ), \
+                                   ::std::begin( R ), ::std::end( R )) \
+/**/
+
+#define CHECK_CLOSE_RANGES( L, R, T )    do { \
+    BOOST_REQUIRE_EQUAL( ::std::size( L ), ::std::size( R ) ); \
+    auto CHECK_CLOSE_RANGES_A = ::std::begin( L ); \
+    auto CHECK_CLOSE_RANGES_B = ::std::begin( R ); \
+    ::std::size_t CHECK_CLOSE_RANGES_N = 0; \
+    while(CHECK_CLOSE_RANGES_A < ::std::end( L )) { \
+        BOOST_CHECK_CLOSE(*CHECK_CLOSE_RANGES_A, *CHECK_CLOSE_RANGES_B, T); \
+        ++CHECK_CLOSE_RANGES_A; \
+        ++CHECK_CLOSE_RANGES_B; \
+    } \
+    } while(false) \
+/**/
+
+#else
+// Version for modern Boost.Test
 #define CHECK_EQUAL_RANGES( L, R ) \
     BOOST_TEST(L == R, ::boost::test_tools::per_element() ) \
 /**/
-
 
 #define CHECK_CLOSE_RANGES( L, R, T )    do { \
     ::boost::test_tools::local_fpc_tolerance<double> t_o_l( T ); \
     BOOST_TEST( L == R, ::boost::test_tools::per_element() ); \
     } while(false) \
 /**/
+#endif
 
 namespace dng {
 namespace detail {
