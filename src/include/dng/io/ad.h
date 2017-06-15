@@ -268,7 +268,7 @@ void Ad::CopyHeader(const Ad& ad) {
 
     contig_map_ = ad.contig_map_;
     extra_headers_ = ad.extra_headers_;
-    last_data_.assign(num_libraries_, 0);
+    last_data_.assign(output_libraries_.names.size(), 0);
 }
 
 inline
