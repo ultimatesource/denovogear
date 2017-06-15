@@ -73,6 +73,10 @@
     } while(false) \
 /**/
 
+#define BOOST_TEST_CONTEXT(D) \
+    if(true) \
+/**/
+
 #else
 // Version for modern Boost.Test
 #define CHECK_EQUAL_RANGES( L, R ) \

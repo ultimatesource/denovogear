@@ -146,7 +146,7 @@ hts::bam::regions_t dng::regions::bam_parse_region(const std::string &text, cons
     // Parse string
     auto raw_regions = parse_ranges(text);
     if(!raw_regions.second) {
-        throw std::runtime_error("Parsing of regions string failed.");
+        throw std::invalid_argument("Parsing of regions string failed.");
     }
     // Return quickly if there are no regions
     if(raw_regions.first.empty()) {
@@ -159,10 +159,10 @@ hts::bam::regions_t dng::regions::bam_parse_region(const std::string &text, cons
         int beg = r.beg-1;
         int end = r.end;
         if(tid < 0 ) {
-            throw std::runtime_error("Unknown contig name: '" + r.target + "'");
+            throw std::invalid_argument("Unknown contig name: '" + r.target + "'");
         }
         if(beg < 0 || end < 0 || beg >= end) {
-            throw std::runtime_error("Invalid region coordinates: '" +
+            throw std::invalid_argument("Invalid region coordinates: '" +
                 r.target + ":" + std::to_string(beg+1) + "-" + std::to_string(end) + "'" );
         }
         value.push_back({tid,beg,end});
@@ -176,7 +176,7 @@ hts::bam::region_t parse_bed_line(const std::string &target, const std::string &
     const hts::bam::File &file) {
     int tid = file.TargetNameToID(target.c_str());
     if(tid < 0 ) {
-        throw std::runtime_error("Unknown contig name: '" + target + "'");
+        throw std::invalid_argument("Unknown contig name: '" + target + "'");
     }
     size_t sz;
     int beg = stoi(beg_str, &sz);
@@ -191,7 +191,7 @@ hts::bam::region_t parse_bed_line(const std::string &target, const std::string &
     }    
     // check for valid coordinates
     if(beg < 0 || end < 0 || beg >= end) {
-        throw std::runtime_error("Invalid bed coordinates: '" + target + "\t" + beg_str +"\t" + end_str + "'");
+        throw std::invalid_argument("Invalid bed coordinates: '" + target + "\t" + beg_str +"\t" + end_str + "'");
     }
     return {tid,beg,end};
 }
@@ -201,7 +201,7 @@ hts::bam::regions_t dng::regions::bam_parse_bed(const std::string &path, const h
 	using hts::bam::regions_t;
 
     if(path.empty()) {
-        throw std::runtime_error("path to bed file was not specified or is blank.");
+        throw std::invalid_argument("path to bed file was not specified or is blank.");
     }
     std::ifstream bed_file(path);
     if(!bed_file.is_open()) {
@@ -216,7 +216,7 @@ hts::bam::regions_t dng::regions::bam_parse_bed(const std::string &path, const h
     for(auto tok_iter = tokens.begin(); tok_iter != tokens.end(); ++tok_iter) {
         if(*tok_iter == "\n") {
             if(column < 3 && !((column == 1 && col[0].empty()) || col[0][0] == '#')) {
-                throw std::runtime_error("line " + std::to_string(line_num) + " in bed file '"
+                throw std::invalid_argument("line " + std::to_string(line_num) + " in bed file '"
                 + path + "' has less than three columns." );
             }
             ++line_num;
