@@ -453,10 +453,7 @@ int process_ad(task::Call::argument_type &arg) {
     }
 
     // Select libraries in the input that are used in the pedigree
-    std::cerr << "before " << mpileup.libraries().names.size() << "\n";
-    std::cerr << relationship_graph.library_names().size() << "\n";
     mpileup.SelectLibraries(relationship_graph.library_names());
-    std::cerr << "after " << mpileup.libraries().names.size() << "\n";
 
     // Begin writing VCF header
     auto out_file = vcf_get_output_mode(arg);
