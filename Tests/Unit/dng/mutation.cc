@@ -17,7 +17,6 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-
 #define BOOST_TEST_MODULE dng::mutation
 
 #include <iostream>
