@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015 Reed A. Cartwright
+ * Copyright (c) 2014-2017 Reed A. Cartwright
  * Copyright (c) 2015 Kael Dai
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *           Kael Dai <kdai1@asu.edu>
@@ -22,6 +22,7 @@
 #include <string>
 #include <array>
 #include <climits>
+#include <limits>
 
 #include <boost/range/iterator_range_core.hpp>
 #include <boost/range/algorithm/find_if.hpp>
@@ -31,8 +32,7 @@
 #include <dng/task/pileup.h>
 #include <dng/io/fasta.h>
 #include <dng/io/ad.h>
-#include <dng/pileup.h>
-#include <dng/read_group.h>
+#include <dng/io/bam.h>
 #include <dng/seq.h>
 #include <dng/utility.h>
 #include <dng/depths.h>
@@ -77,41 +77,37 @@ int Pileup::operator()(Pileup::argument_type &arg) {
 // argument_type arg holds the processed command line arguments
 int process_bam(Pileup::argument_type &arg) {
     using dng::pileup::AlleleDepths;
+    using dng::io::BamPileup;
 
     // Open Reference
     io::Fasta reference{arg.fasta.c_str()};
 
     // Open input files
-    vector<hts::bam::File> bamdata;
+    BamPileup mpileup{arg.min_qlen, arg.rgtag};
     for(auto && str : arg.input) {
-        bamdata.emplace_back(str.c_str(), "r", arg.fasta.c_str(),
-                 arg.min_mapqual, arg.header.c_str());
-        if(bamdata.back().is_open()) {
-            continue;
+        // TODO: We put all this logic here to simplify the BamPileup construction
+        // TODO: However it might make sense to incorporate it into BamPileup::AddFile
+        hts::bam::File input{str.c_str(), "r", arg.fasta.c_str(), arg.min_mapqual, arg.header.c_str()};
+        if(!input.is_open()) {
+            throw std::runtime_error("ERROR: unable to open bam/sam/cram input file '" + str + "' for reading.");
         }
-        throw std::runtime_error("unable to open bam/sam/cram file '" + str + "' for reading.");
-    }
-
-    // replace arg.region with the contents of a file if needed
-    io::at_slurp(arg.region);
-    // parse region
-    if(!arg.region.empty()) {
-        for(auto && f : bamdata) {
-            auto r = regions::bam_parse_region(arg.region, f);
-            f.regions(std::move(r));
+        // add regions
+        if(!arg.region.empty()) {
+            if(arg.region.find(".bed") != std::string::npos) {
+                input.regions(regions::bam_parse_bed(arg.region, input));
+            } else {
+                input.regions(regions::bam_parse_region(arg.region, input));
+            }
         }
+        mpileup.AddFile(std::move(input));
     }
-
-    // Add each genotype/sample column
-    dng::ReadGroups rgs;
-    rgs.ParseHeaderText(bamdata, arg.rgtag);
 
     // Pileup data
-    std::vector<depth_t> read_depths(rgs.libraries().size());
+    dng::pileup::RawDepths read_depths(mpileup.num_libraries());
 
     const int min_basequal = arg.min_basequal;
     auto filter_read = [min_basequal](
-    dng::BamPileup::data_type::value_type::const_reference r) -> bool {
+    BamPileup::data_type::value_type::const_reference r) -> bool {
         return (r.is_missing
         || r.qual.first[r.pos] < min_basequal
         || seq::base_index(r.aln.seq_at(r.pos)) >= 4);
@@ -125,32 +121,22 @@ int process_bam(Pileup::argument_type &arg) {
 
     string dict = reference.FetchDictionary();
     if(dict.empty()) {
-        throw runtime_error("Error: Dictionary for reference " + reference.path() + " is missing.");
+        throw std::runtime_error("Error: Dictionary for reference " + reference.path() + " is missing.");
     }
     output.AddHeaderLines(dict);
 
     // Construct Library Information
-    {
-        vector<array<string,3>> libs;
-        libs.resize(rgs.libraries().size());
-        for(size_t u = 0; u < rgs.data().size(); ++u) {
-            auto &lib = libs[rgs.library_from_index(u)];
-            auto &rg = rgs.data().get<rg::nx>()[u];
-            if(!lib[0].empty()) {
-                // we have see this library
-                if(lib[1] != rg.sample) {
-                    throw runtime_error("Error: @AD ID:" + lib[0] + " is connected to multiple samples.");
-                }
-                lib[2] += "\tRG:" + rg.id;
-                continue;
+    for(size_t u=0; u < mpileup.num_libraries(); ++u) {
+        string attr;
+        for(auto &&a : mpileup.read_groups(u)) {
+            if(!attr.empty()) {
+                attr += '\t';
             }
-            lib[0] = rg.library;
-            lib[1] = rg.sample;
-            lib[2] = "RG:" + rg.id;
+            attr += "RG:";
+            attr += a;
         }
-        for(auto && l : libs) {
-            output.AddLibrary(std::move(l[0]), std::move(l[1]), std::move(l[2]));
-        }
+        output.AddHeaderLibrary(mpileup.libraries().names[u], mpileup.libraries().samples[u],
+            std::move(attr));
     }
 
     if(arg.body_only && output.format() == io::Ad::Format::AD) {
@@ -168,10 +154,10 @@ int process_bam(Pileup::argument_type &arg) {
 
     // setup initial line buffer
     AlleleDepths line;
-    line.resize(63,rgs.libraries().size());
+    line.resize(63,mpileup.num_libraries());
 
     // Do pileup
-    const bam_hdr_t *h = bamdata[0].header();
+    const bam_hdr_t *h = mpileup.header();
     assert(h != nullptr);
     if(h->n_targets != output.contigs().size()) {
         throw runtime_error("Different number of @SQ lines in reference dictionary and first sam/bam/cram file.");
@@ -183,8 +169,6 @@ int process_bam(Pileup::argument_type &arg) {
         }
     }
 
-    // Create a pileup object
-    dng::BamPileup mpileup{rgs.groups(), arg.min_qlen};
     // calculate maximum and minimum depths
     int min_dp = std::max(arg.min_dp,1);
     int max_dp = (arg.max_dp > 0) ? arg.max_dp : std::numeric_limits<int>::max();
@@ -192,7 +176,7 @@ int process_bam(Pileup::argument_type &arg) {
         throw runtime_error("Argument error: Calculated maximum depth '" + to_string(max_dp) +
             "' is less than calculated min depth '" + to_string(min_dp) + "'.");
     }
-    mpileup(bamdata, [&,h](const dng::BamPileup::data_type & data, utility::location_t loc) {
+    mpileup([&,h](const BamPileup::data_type & data, utility::location_t loc) {
         // Calculate target position and fetch sequence name
         int contig = utility::location_to_contig(loc);
         int pos = utility::location_to_position(loc);
@@ -204,28 +188,25 @@ int process_bam(Pileup::argument_type &arg) {
         read_depths.assign(read_depths.size(), {});
 
         // construct values for depth sorting
-        std::array<uint64_t,5> total_depths;
-        total_depths.fill(0);
+        dng::pileup::depth_t total_depths;
+
         // pileup on read counts
         for(std::size_t u = 0; u < data.size(); ++u) {
             for(auto && r : data[u]) {
                 if(filter_read(r)) {
                     continue;
                 }
-                std::size_t base = seq::base_index(r.aln.seq_at(r.pos));
-                total_depths[base] += 1;
-                read_depths[rgs.library_from_id(u)].counts[ base ] += 1;
+                size_t base = seq::base_index(r.aln.seq_at(r.pos));
+                total_depths.counts[base] += 1;
+                read_depths[u].counts[ base ] += 1;
                 // detect overflow of our signed number
-                assert(read_depths[rgs.library_from_id(u)].counts[ base ] >= 0);
+                assert(read_depths[u].counts[ base ] >= 0);
+                assert(total_depths.counts[ base ] >= 0);
             }
         }
-        // shift and pack the nucleotide number at the lowest bits
-        // In second lowest byte, pack 4-i to ensure that sorting in descending order
-        // doesn't change the order of ties.
-        uint64_t dp = 0;
-        for(int i=0;i<total_depths.size();++i) {
-            dp += total_depths[i];
-            total_depths[i] = (total_depths[i] << 16) | (((total_depths.size()-1-i) & 0xFF) << 8) | (i & 0xFF);
+        int dp = 0;
+        for(int i=0;i<4;++i) {
+            dp += total_depths.counts[i];
         }
         if(dp < min_dp || dp > max_dp) {
             return; // no data at this site
@@ -234,26 +215,19 @@ int process_bam(Pileup::argument_type &arg) {
         assert(dp > 0);
         
         // make sure the ref base will come first
-        total_depths[ref_index] |= (1ULL << 63);
-        // sort in decreasing order
-        boost::sort(total_depths,std::greater<uint64_t>{});
-        // find the color of the site
-        auto first = total_depths.begin();
-        auto last = boost::find_if(total_depths, [](uint64_t x) { return ((x >> 16) == 0);});
         int first_is_N = 0;
-        if( (*first & 0xFF) >= 4 ) {
+        if(ref_index < 4) {
+            total_depths.counts[ref_index] = utility::set_high_bit(total_depths.counts[ref_index]);
+        } else {
             first_is_N = 64;
-            ++first;
         }
-        string rng(first, last);
-        int color = AlleleDepths::MatchIndexes(rng)+first_is_N;
+        int color = dng::pileup::raw_counts_to_color(total_depths)+first_is_N;
         assert(0 <= color && color < 128);
         line.location(loc);
         line.resize(color);
-        int n=0;
-        for(auto it = rng.begin(); it != rng.end(); ++it,++n) {
-            for(int lib = 0; lib < line.num_libraries(); ++lib) {
-                line(n,lib) = read_depths[lib].counts[*it];
+        for(int lib = 0; lib < line.num_libraries(); ++lib) {
+            for(int n=0; n < line.type_info().width; ++n) {
+                line(lib,n) = read_depths[lib].counts[(int)line.type_info().indexes[n]];
             }
         }
         output.Write(line);
@@ -299,7 +273,7 @@ int process_ad(Pileup::argument_type &arg) {
 
     
     AlleleDepths line;
-    line.data().reserve(4*input.libraries().size());
+    line.data().reserve(4*input.libraries().names.size());
     while(input.Read(&line)) {
         output.Write(line);
     }

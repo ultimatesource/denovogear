@@ -1,0 +1,79 @@
+{
+	"folders":
+	[
+		{
+			"path": "../../",
+			"folder_exclude_patterns": ["build/"]
+		}
+	],
+	"settings": {
+    	"tab_size": 4,
+    	"translate_tabs_to_spaces": true
+	},
+    "SublimeLinter":
+    {
+        "linters":
+        {
+        	"clang": {
+				"extra_flags": "-Wall -std=c++11 -Wno-pragma-once-outside-header",
+            	"include_dirs": [
+                	"${project_folder}/../../src/include/",
+                	"${project_folder}/src",
+                	"/usr/include/eigen3",
+                	"/usr/include/eigen3/unsupported"
+            	]
+            }
+        }
+    },
+	"build_systems":
+	[
+		{
+			"name": "DeNovoGear - all",
+			"cmd": ["/usr/bin/ninja", "-f", "build.ninja", "all"],
+			"working_dir": "${project_path}",
+			"file_regex": "^(..[^:]*):([0-9]+):?([0-9]+)?:? (.*)$"
+		},
+		{
+			"name": "DeNovoGear - clean",
+			"cmd": ["/usr/bin/ninja", "-f", "build.ninja", "-v", "clean"],
+			"working_dir": "${project_path}",
+			"file_regex": "^(..[^:]*):([0-9]+):?([0-9]+)?:? (.*)$"
+		},
+		{
+			"name": "DeNovoGear - test",
+			"cmd": ["/usr/bin/ninja", "-f", "build.ninja", "-v", "test"],
+			"working_dir": "${project_path}",
+			"file_regex": "^(..[^:]*):([0-9]+):?([0-9]+)?:? (.*)$"
+		},
+		{
+			"name": "DeNovoGear - rebuild_cache",
+			"cmd": ["/usr/bin/ninja", "-f", "build.ninja", "-v", "rebuild_cache"],
+			"working_dir": "${project_path}",
+			"file_regex": "^(..[^:]*):([0-9]+):?([0-9]+)?:? (.*)$"
+		},
+		{
+			"name": "DeNovoGear - ext_projects",
+			"cmd": ["/usr/bin/ninja", "-f", "build.ninja", "-v", "ext_projects"],
+			"working_dir": "${project_path}",
+			"file_regex": "^(..[^:]*):([0-9]+):?([0-9]+)?:? (.*)$"
+		},
+		{
+			"name": "DeNovoGear - package_source",
+			"cmd": ["/usr/bin/ninja", "-f", "build.ninja", "-v", "package_source"],
+			"working_dir": "${project_path}",
+			"file_regex": "^(..[^:]*):([0-9]+):?([0-9]+)?:? (.*)$"
+		},
+		{
+			"name": "DeNovoGear - edit_cache",
+			"cmd": ["/usr/bin/ninja", "-f", "build.ninja", "-v", "edit_cache"],
+			"working_dir": "${project_path}",
+			"file_regex": "^(..[^:]*):([0-9]+):?([0-9]+)?:? (.*)$"
+		},
+		{
+			"name": "DeNovoGear - package",
+			"cmd": ["/usr/bin/ninja", "-f", "build.ninja", "-v", "package"],
+			"working_dir": "${project_path}",
+			"file_regex": "^(..[^:]*):([0-9]+):?([0-9]+)?:? (.*)$"
+		}
+	]
+	}

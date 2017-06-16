@@ -31,11 +31,30 @@
 namespace dng {
 namespace regions {
 
+// Parse a white-spaced separated list of regions
+// Formats of a region range is contig:from-to
+//   contig: name of contig/fragment/sequence
+//   from: beginning of range, 1-based inclusive
+//   to: end of range, 1-based inclusive
+// Format list:
+//   ctg ctg:from-to ctg:position ctg:from- ctg:-to
+//   ctg:from+length
+
+struct parsed_range_t {
+    std::string target;
+    int beg; // 1-based
+    int end; // 1-based
+};
+
+typedef std::vector<parsed_range_t> parsed_ranges_t;
+
+std::pair<parsed_ranges_t,bool> parse_ranges(const std::string &text);
+
 // 0-based region specification
-struct region_t {
-     region_t(location_t b, location_t e) : beg{b}, end{e} { }
-     region_t(int tid, int b, int e) : beg{utility::make_location(tid,b)}, end{utility::make_location(tid,e)} { }
-     region_t(hts::bam::region_t b) : region_t(b.tid, b.beg, b.end) { }
+struct location_range_t {
+     location_range_t(location_t b, location_t e) : beg{b}, end{e} { }
+     location_range_t(int tid, int b, int e) : beg{utility::make_location(tid,b)}, end{utility::make_location(tid,e)} { }
+     location_range_t(hts::bam::region_t b) : location_range_t(b.tid, b.beg, b.end) { }
      
      location_t beg;
      location_t end;
@@ -46,21 +65,6 @@ hts::bam::regions_t bam_parse_region(const std::string &text, const hts::bam::Fi
 
 // Parse dng region from bed into bam regions
 hts::bam::regions_t bam_parse_bed(const std::string &text, const hts::bam::File &file);
-
-int regions_parse_line(char *line, int ichr,int ifrom,int ito, char **chr,char **chr_end,int *from,int *to);
-
-namespace detail {
-struct raw_parsed_region_t {
-    std::string target;
-    int beg; // 1-based
-    int end; // 1-based
-};
-
-typedef std::vector<raw_parsed_region_t> raw_parsed_regions_t;
-std::pair<raw_parsed_regions_t,bool> parse_regions(const std::string &text);
-
-detail::raw_parsed_region_t parse_region_bed(char *line);
-} // namespace dng::regions::detail
 
 } // namespace dng::regions
 } // namespace dng

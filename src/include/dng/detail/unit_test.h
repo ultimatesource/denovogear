@@ -21,45 +21,16 @@
 #define DNG_DETAIL_UNIT_TEST_H
 
 #ifdef BOOST_TEST_MODULE
-#include <boost/test/unit_test.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/filesystem/fstream.hpp>
 
 // Declare a class capable of preforming unit tests on public, private, and protected members.
 #define DNG_UNIT_TEST(name) \
-    friend class name
+    friend class name \
+/**/
 
 // Declare a nullary function capable of preforming unit tests on public, private, and protected members.
 #define DNG_UNIT_TEST_FUNCTION(name) \
-    friend void name()
-
-
-namespace dng {
-namespace detail {
-
-	// RAII class that creates and opens a temporary file for reading and writing
-	// and deletes it when done.
-	struct AutoTempFile {
-    boost::filesystem::path path;
-    boost::filesystem::fstream file;
-
-    AutoTempFile() {
-        using namespace boost::filesystem;
-        path = temp_directory_path();
-        path /= unique_path();
-        file.open(path, std::ios::out); //create file
-        file.close();
-        file.open(path); // open rw
-    } 
-    ~AutoTempFile() {
-        using namespace boost::filesystem;
-        file.close();
-        remove(path);
-    }
-};
-
-}
-}
+    friend void name() \
+/**/
 
 #else
 

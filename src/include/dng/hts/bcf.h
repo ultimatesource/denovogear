@@ -26,6 +26,7 @@
 #include <string>
 #include <set>
 #include <htslib/vcf.h>
+#include <htslib/synced_bcf_reader.h>
 
 extern "C" {
     // The htslib header does not match the library
@@ -41,9 +42,22 @@ const float float_missing = []() -> float {
     bcf_float_set_missing(a);
     return a;
 }();
-const int32_t int32_missing = bcf_int32_missing;
-const int16_t int16_missing = bcf_int16_missing;
-const int8_t int8_missing = bcf_int8_missing;
+const float float_vector_end = []() -> float {
+    // We use a lambda function so the result can be constant.
+    float a;
+    bcf_float_set_vector_end(a);
+    return a;
+}();
+
+constexpr int32_t int32_missing = bcf_int32_missing;
+constexpr int32_t int32_vector_end = bcf_int32_vector_end;
+
+constexpr int16_t int16_missing = bcf_int16_missing;
+constexpr int16_t int16_vector_end = bcf_int16_vector_end;
+
+constexpr int8_t int8_missing = bcf_int8_missing;
+constexpr int8_t int8_vector_end = bcf_int8_vector_end;
+
 const std::string str_missing = ".";
 
 typedef bcf1_t BareVariant;
@@ -64,6 +78,10 @@ public:
         bcf_clear(base());
     }
 
+    // Turn these off until we figure out how to use bcf_copy
+    BareVariant& operator=(const BareVariant&) = delete;
+    Variant(const BareVariant&) = delete;
+
     // Getters
     int32_t target_id() const { return rid; }
     int32_t position() const { return pos; }
@@ -73,22 +91,22 @@ public:
     // Setters
     void quality(float q) { qual = q; }
     void target(const char *chrom) {
-        rid = (chrom != nullptr) ? bcf_hdr_name2id(hdr(), chrom) : -1;
+        rid = (chrom != nullptr) ? bcf_hdr_name2id(header(), chrom) : -1;
     }
     void position(int32_t p) { pos = p; }
     void id(const char *str) {
-        bcf_update_id(hdr(), base(), str);
+        bcf_update_id(header(), base(), str);
     }
     int filter(const char *str) {
         if(str == nullptr) {
             return 0;
         }
-        int32_t fid = bcf_hdr_id2int(hdr(), BCF_DT_ID, str);
-        return bcf_add_filter(hdr(), base(), fid);
+        int32_t fid = bcf_hdr_id2int(header(), BCF_DT_ID, str);
+        return bcf_add_filter(header(), base(), fid);
     }
     int filter(const std::string &str) {
-        int32_t fid = bcf_hdr_id2int(hdr(), BCF_DT_ID, str.c_str());
-        return bcf_add_filter(hdr(), base(), fid);
+        int32_t fid = bcf_hdr_id2int(header(), BCF_DT_ID, str.c_str());
+        return bcf_add_filter(header(), base(), fid);
     }
 
     /**
@@ -97,13 +115,13 @@ public:
      *       the first element is the REF value.
      */
     int alleles(const std::string &str) {
-        return bcf_update_alleles_str(hdr(), base(), str.c_str());
+        return bcf_update_alleles_str(header(), base(), str.c_str());
     }
     int alleles(const char *str) {
         if(str == nullptr) {
             return 0;
         }
-        return bcf_update_alleles_str(hdr(), base(), str);
+        return bcf_update_alleles_str(header(), base(), str);
     }
 
     /**
@@ -113,19 +131,19 @@ public:
      */
     int info(const char *key, const float *value, std::size_t count) {
         assert(key != nullptr);
-        return bcf_update_info_float(hdr(), base(), key, value, count);
+        return bcf_update_info_float(header(), base(), key, value, count);
     }
     int info(const char *key, const int32_t *value, std::size_t count) {
         assert(key != nullptr);
-        return bcf_update_info_int32(hdr(), base(), key, value, count);
+        return bcf_update_info_int32(header(), base(), key, value, count);
     }
     int info(const char *key, const std::string &value) {
         assert(key != nullptr);
-        return bcf_update_info_string(hdr(), base(), key, value.c_str());
+        return bcf_update_info_string(header(), base(), key, value.c_str());
     }
     int info(const char *key, const char *value) {
         assert(key != nullptr);
-        return bcf_update_info_string(hdr(), base(), key, value);
+        return bcf_update_info_string(header(), base(), key, value);
     }
 
     template<typename T>
@@ -154,15 +172,15 @@ public:
      */
     int samples(const char *name, const std::vector<float> &data) {
         assert(name != nullptr);
-        return bcf_update_format_float(hdr(), base(), name, &data[0], data.size());
+        return bcf_update_format_float(header(), base(), name, &data[0], data.size());
     }
     int samples(const char *name, const std::vector<int32_t> &data) {
         assert(name != nullptr);
-        return bcf_update_format_int32(hdr(), base(), name, &data[0], data.size());
+        return bcf_update_format_int32(header(), base(), name, &data[0], data.size());
     }
     int samples(const char *name, const std::vector<const char *> &data) {
         assert(name != nullptr);
-        return bcf_update_format_string(hdr(), base(), name,
+        return bcf_update_format_string(header(), base(), name,
                                         const_cast<const char **>(&data[0]), data.size());
     }
     int samples(const char *name, const std::vector<std::string> &data) {
@@ -173,21 +191,21 @@ public:
         return samples(name, v);
     }
     int sample_genotypes(const std::vector<int32_t> &data) {
-        return bcf_update_genotypes(hdr(), base(), &data[0], data.size());
+        return bcf_update_genotypes(header(), base(), &data[0], data.size());
     }
 
 protected:
     BareVariant *base() {return static_cast<BareVariant *>(this);}
     const BareVariant *base() const {return static_cast<const BareVariant *>(this);}
 
-    const bcf_hdr_t *hdr() {
+    const bcf_hdr_t *header() {
         // check if the header pointer has not been initialized
-        assert(hdr_);
-        return hdr_.get();
+        assert(header_);
+        return header_.get();
     }
 
 private:
-    std::shared_ptr<const bcf_hdr_t> hdr_;
+    std::shared_ptr<const bcf_hdr_t> header_;
 
     friend class File;
 };
@@ -216,14 +234,14 @@ public:
         }
 
         if(is_write()) {
-            hdr_ = std::shared_ptr<bcf_hdr_t>(bcf_hdr_init("w"), bcf_hdr_destroy);
+            header_ = std::shared_ptr<bcf_hdr_t>(bcf_hdr_init("w"), bcf_hdr_destroy);
         } else {
             if(format().category != variant_data)
                 throw std::runtime_error("file '" + std::string(name())
                                          + "' does not contain variant data (BCF/VCF).");
-            hdr_ = std::shared_ptr<bcf_hdr_t>(bcf_hdr_read(handle()), bcf_hdr_destroy);
+            header_ = std::shared_ptr<bcf_hdr_t>(bcf_hdr_read(handle()), bcf_hdr_destroy);
         }
-        if(!hdr_) {
+        if(!header_) {
             throw std::runtime_error("unable to access header in file '" + std::string(
                                          name()) + "'.");
         }
@@ -241,10 +259,10 @@ public:
         if(line == nullptr) {
             return -1;    //bcf_hdr_append returns if line cannot be processed
         }
-        return bcf_hdr_append(hdr(), line);
+        return bcf_hdr_append(header(), line);
     }
     int AddHeaderMetadata(const std::string &line) {
-        return bcf_hdr_append(hdr(), line.c_str());
+        return bcf_hdr_append(header(), line.c_str());
     }
 
     /** AddHeaderMetadata() - Adds a "##key=value" line to the VCF header */
@@ -253,7 +271,7 @@ public:
             return -1;
         }
         std::string line = std::string("##") + key + "=" + value;
-        return bcf_hdr_append(hdr(), line.c_str());
+        return bcf_hdr_append(header(), line.c_str());
     }
 
     int AddHeaderMetadata(const char *key, const std::string &value) {
@@ -267,7 +285,7 @@ public:
 
     /** Add another sample/genotype field to the VCF file. */
     int AddSample(const char *sample) {
-        return bcf_hdr_add_sample(hdr(), sample);
+        return bcf_hdr_add_sample(header(), sample);
     }
 
     /** Add a "#contig=" metadata entry to the VCF header. */
@@ -277,27 +295,35 @@ public:
         }
         std::string conv = std::string("##contig=<ID=") + contigid
                            + ",length=" + std::to_string(length) + ">";
-        return bcf_hdr_append(hdr(), conv.c_str());
+        return bcf_hdr_append(header(), conv.c_str());
     }
 
     /** Creates the header field. Call only after adding all the sample fields */
     int WriteHeader() {
         // htslib requires NULL sample before it will write out all the other samples
-        bcf_hdr_add_sample(hdr(), nullptr);
-        return bcf_hdr_write(handle(), hdr());
+        bcf_hdr_add_sample(header(), nullptr);
+        return bcf_hdr_write(handle(), header());
     }
 
     std::pair<char **, int> samples() const {
-        return {hdr_->samples, bcf_hdr_nsamples(header())};
+        return {header()->samples, bcf_hdr_nsamples(header())};
     }
 
-    const bcf_hdr_t *header() const { return hdr_.get(); }
+    std::vector<std::pair<const char *, int>> contigs() const;
+
+    const bcf_hdr_t *header() const { return header_.get(); }
 
     /** Writes out the up-to-date info in the record and prepares for the next line */
     void WriteRecord(Variant &rec) {
         // Add line to the body of the VCF
-        assert(rec.hdr() == hdr());
-        bcf_write(handle(), hdr(), &rec);
+        assert(rec.header() == header());
+        bcf_write(handle(), header(), &rec);
+    }
+
+    void WriteRecord(BareVariant *rec) {
+        // Add line to the body of the VCF
+        assert(rec != nullptr);
+        bcf_write(handle(), header(), rec);
     }
 
     /** Explicity closes the file and flushes the stream */
@@ -307,11 +333,11 @@ public:
 
 
 protected:
-    bcf_hdr_t *hdr() { return hdr_.get(); }
+    bcf_hdr_t *header() { return header_.get(); }
 
 private:
     //std::shared_ptr<bcf_hdr_t, void(*)(bcf_hdr_t *)> hdr_;
-    std::shared_ptr<bcf_hdr_t> hdr_;
+    std::shared_ptr<bcf_hdr_t> header_;
 
 public:
     // Indicates type of mutation in VCF record
@@ -324,44 +350,150 @@ public:
     friend class Variant;
 };
 
-inline Variant::Variant(const File &file) : BareVariant(), hdr_{file.hdr_} {
-    bcf_float_set_missing(qual);
+inline
+std::vector<std::pair<const char *, int>> contigs(const bcf_hdr_t *header) {
+    assert(header != nullptr);
+    const int num_contigs = header->n[BCF_DT_CTG];
+
+    std::vector<std::pair<const char *, int>> contigs;
+
+    for(int i=0;i<num_contigs;++i) {
+        const char *name = header->id[BCF_DT_CTG][i].key;
+        int length = header->id[BCF_DT_CTG][i].val->info[0];
+        contigs.emplace_back(name, length);
+    }
+    return contigs;
+}
+
+inline
+std::vector<std::pair<const char *, int>> File::contigs() const {
+    return bcf::contigs(header());
 }
 
 
+inline
+Variant::Variant(const File &file) : BareVariant(), header_{file.header_} {
+    bcf_float_set_missing(qual);
+}
+
+class SyncedReader {
+public:
+    enum struct Collapse {
+        None = COLLAPSE_NONE,
+        SNPs = COLLAPSE_SNPS,
+        Indels = COLLAPSE_INDELS,
+        Any = COLLAPSE_ANY,
+        Some = COLLAPSE_SOME,
+        Both = COLLAPSE_BOTH
+    };
+
+    SyncedReader(Collapse collapse = Collapse::None) : handle_{bcf_sr_init(), bcf_sr_destroy} {
+        handle()->collapse = static_cast<int>(collapse);
+    }
+
+    bcf_srs_t * handle() {
+        assert(handle_);
+        return handle_.get();
+    }
+    const bcf_srs_t * handle() const {
+        assert(handle_);
+        return handle_.get();
+    }
+
+    int SetRegions(const char* regions) {
+        assert(regions != nullptr);
+        assert(num_readers() == 0); // must be called before any readers are added
+        return bcf_sr_set_regions(handle(), regions, 0);
+    }
+
+    int AddReader(const char *filename) {
+        assert(filename != nullptr);
+        return bcf_sr_add_reader(handle(), filename);
+    }
+    void RemoveReader(int index) {
+        assert(0 <= index && index < handle()->nreaders);
+        bcf_sr_remove_reader(handle(), index);
+    }
+
+    int NextLine() {
+        return bcf_sr_next_line(handle());
+    }
+    bcf1_t* GetLine(int index) {
+        assert(0 <= index && index < handle()->nreaders);
+        return bcf_sr_get_line(handle(), index);
+    }
+
+    int SetSamples(const char* samples) {
+        assert(samples != nullptr);
+        return bcf_sr_set_samples(handle(), samples, 0);
+    }
+
+    int num_readers() const {
+        return handle()->nreaders;
+    }    
+    bcf_sr_t* reader(int index) {
+        assert(0 <= index && index < handle()->nreaders);
+        return bcf_sr_get_reader(handle(), index);    
+    }
+    const bcf_sr_t* reader(int index) const {
+        assert(0 <= index && index < handle()->nreaders);
+        return bcf_sr_get_reader(handle(), index);    
+    }
+    bcf_hdr_t* header(int index) {
+        assert(0 <= index && index < handle()->nreaders);
+        return bcf_sr_get_header(handle(), index);    
+    }
+    const bcf_hdr_t* header(int index) const {
+        assert(0 <= index && index < handle()->nreaders);
+        return bcf_sr_get_header(handle(), index);    
+    }
+
+    const char * const * samples() const {
+        return handle()->samples;
+    }
+    int num_samples() const {
+        return handle()->n_smpl;
+    }
+
+
+private:
+    std::unique_ptr<bcf_srs_t, void(*)(bcf_srs_t *)> handle_;
+};
+
+// Use a structure to have strongly-typed alleles
 struct allele_t {
-    operator int() {
+    constexpr operator int() const {
         return value;
     }
     int value;
 };
 
 // Wrappers for htslib "genotype" functions
-inline allele_t encode_allele_phased(int index) {
+constexpr inline allele_t encode_allele_phased(int index) {
     return {bcf_gt_phased(index)};
 }
 
-inline allele_t encode_allele_unphased(int index) {
+constexpr inline allele_t encode_allele_unphased(int index) {
     return {bcf_gt_unphased(index)};
 }
 
-inline constexpr allele_t encode_allele_missing() {
+constexpr inline allele_t encode_allele_missing() {
     return {bcf_gt_missing};
 }
 
-inline bool allele_is_missing(allele_t value) {
+constexpr inline bool allele_is_missing(allele_t value) {
     return bcf_gt_is_missing(value);
 }
 
-inline bool allele_is_phased(allele_t value) {
+constexpr inline bool allele_is_phased(allele_t value) {
     return bcf_gt_is_phased(value);
 }
 
-inline int decode_allele(allele_t value) {
+constexpr inline int decode_allele(allele_t value) {
     return bcf_gt_allele(value);
 }
 
-inline int genotype_from_alleles(int a, int b) {
+constexpr inline int genotype_from_alleles(int a, int b) {
     return bcf_alleles2gt(a, b);
 }
 

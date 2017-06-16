@@ -6,7 +6,6 @@
 #include <vector>
 #include <memory>
 
-#include <dng/hts/extra.h>
 #include <dng/app.h>
 #include <dng/task/dnm.h>
 #include "htslib/synced_bcf_reader.h"
@@ -293,8 +292,8 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
         writeVCFHeaderMD(*output_vcf, input_file, arg.ped, params);
 
         // Copy contigs from inputput file.
-        for(auto && contig : hts::extra::extract_contigs(hdr)) {
-        	output_vcf->AddHeaderMetadata(contig.c_str());
+        for(auto && contig : hts::bcf::contigs(hdr)) {
+        	output_vcf->AddContig(contig.first, contig.second);
         }
 
         // Sample/genotype columns.

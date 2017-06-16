@@ -1,8 +1,18 @@
 macro(ESCAPE_STRING STR)
+  string(REPLACE ";" "%3B" ${STR} "${${STR}}")
+  string(REPLACE "\\." "%2E" ${STR} "${${STR}}")
   string(REPLACE "\\" "\\\\" ${STR} "${${STR}}")
   string(REPLACE "\n" "\\n"  ${STR} "${${STR}}")
   string(REPLACE "\t" "\\t"  ${STR} "${${STR}}")  
 endmacro()
+
+set(failures)
+set(test_failed FALSE)
+
+function(ReportFailure MSG)
+  set(failures ${failures} ${MSG} PARENT_SCOPE)
+  set(test_failed TRUE PARENT_SCOPE)
+endfunction()
 
 function(CheckProcessTest PREFIX TEST)
   message(STATUS "Test ${PREFIX}.${TEST}...")
@@ -18,23 +28,13 @@ function(CheckProcessTest PREFIX TEST)
 
   if(DEFINED ${TEST}-RESULT)
     if(NOT "${result}" STREQUAL "${${TEST}-RESULT}")
-      message(FATAL_ERROR
-      "Test result does not match \"${${TEST}-RESULT}\".\n"
-      "Test result: ${result}\n"
-      "Test output:\n"
-      "${out}\n"
-      "${err}" )
+      ReportFailure("Test result does not match \"${${TEST}-RESULT}\".")
     endif()
   endif()
 
   if(DEFINED ${TEST}-RESULT-FAIL)
     if("${result}" STREQUAL "${${TEST}-RESULT-FAIL}")
-      message(FATAL_ERROR
-      "Test result unexpectedly matches \"${${TEST}-RESULT-FAIL}\".\n"
-      "Test result: ${result}\n"
-      "Test output:\n"
-      "${out}\n"
-      "${err}" )
+      ReportFailure("Test result unexpectedly matches \"${${TEST}-RESULT-FAIL}\".")
     endif()
   endif()
 
@@ -42,12 +42,7 @@ function(CheckProcessTest PREFIX TEST)
     foreach(test_str ${${TEST}-STDERR})
       if(NOT "${stderr}" MATCHES "${test_str}")
         ESCAPE_STRING(test_str)
-        message(FATAL_ERROR
-          "Test stderr does not match \"${test_str}\".\n"
-          "Test result: ${result}\n"
-          "Test output:\n"
-          "${out}\n"
-          "${err}" )
+        ReportFailure("Test stderr does not match \"${test_str}\".")
       endif()
     endforeach()
   endif()
@@ -56,12 +51,7 @@ function(CheckProcessTest PREFIX TEST)
     foreach(test_str ${${TEST}-STDERR-FAIL})
       if("${stderr}" MATCHES "${test_str}")
         ESCAPE_STRING(test_str)
-        message(FATAL_ERROR
-          "Test stderr unexpectedly matches \"${test_str}\".\n"
-          "Test result: ${result}\n"
-          "Test output:\n"
-          "${out}\n"
-          "${err}" )
+        ReportFailure("Test stderr unexpectedly matches \"${test_str}\".")
       endif()
     endforeach()
   endif()
@@ -70,12 +60,7 @@ function(CheckProcessTest PREFIX TEST)
     foreach(test_str ${${TEST}-STDOUT})
       if(NOT "${stdout}" MATCHES "${test_str}")
         ESCAPE_STRING(test_str)
-        message(FATAL_ERROR
-          "Test stdout does not match \"${test_str}\".\n"
-          "Test result: ${result}\n"
-          "Test output:\n"
-          "${out}\n"
-          "${err}" )
+        ReportFailure("Test stdout does not match \"${test_str}\".")
       endif()
     endforeach()
   endif()
@@ -84,16 +69,24 @@ function(CheckProcessTest PREFIX TEST)
     foreach(test_str ${${TEST}-STDOUT-FAIL})
       if("${stdout}" MATCHES "${test_str}")
         ESCAPE_STRING(test_str)
-        message(FATAL_ERROR
-          "Test stdout unexpectedly matches \"${test_str}\".\n"
-          "Test result: ${result}\n"
-          "Test output:\n"
-          "${out}\n"
-          "${err}" )
+        ReportFailure("Test stdout unexpectedly matches \"${test_str}\".")
       endif()
     endforeach()
   endif()
 
+  if(test_failed)
+    message(
+      " res> ${result}\n"
+      "${out}\n"
+      "${err}"
+    )
+    foreach(msg ${failures})
+      string(REPLACE "%3B" ";" msg "${msg}")
+      string(REPLACE "%2E" "." msg "${msg}")
+      message("  FAILURE: ${msg}")
+    endforeach()
+    message(SEND_ERROR "Test failed.")
+  endif()
 endfunction()
 
 function(CheckProcessTests PREFIX)

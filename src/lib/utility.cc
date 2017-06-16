@@ -26,33 +26,44 @@ namespace dng { namespace utility {
 // extracts extension and filename from both file.ext and ext:file.foo
 // returns {ext, filename.ext}
 // trims whitespace as well
-std::pair<std::string, std::string> extract_file_type(const std::string &path) {
-    if(path.empty())
-        return {};
+std::pair<std::string, std::string> extract_file_type(const char* path) {
+    assert(path != nullptr);
     std::locale loc;
 
-    auto last = path.length();
-    decltype(last) first = 0;
-    while(first < path.length() && std::isspace(path[first],loc)) {
-        ++first;
+    // trim initial whitespace
+    const char *sp = path;
+    while(*sp != 0 && std::isspace(*sp,loc)) {
+        ++sp;
     }
-    if(first == last) {
+    if(*sp == 0) {
         return {};
     }
-    while(std::isspace(path[last-1],loc)) {
-        --last;
-    }
-
-    auto x = last-1;
-    for(auto u = first; u < last; ++u) {
-        if(path[u] == ':' && u > first+1) { // u > 1 skips windows drive letters
-            return {path.substr(first, u-first), path.substr(u+1,last-(u+1))};
+    // Identify first colon, last dot, and last not whitespace
+    const char *colon = nullptr;
+    const char *dot = nullptr;
+    const char *ep = sp;
+    for(const char *p = sp; *p != 0; ++p) {
+        if(*p == ':' && colon == nullptr) {
+            colon = p;
+            ep = p;
+        } else if(*p == '.' && p != sp) {
+            dot = p;
+            ep = p;
+        } else if(!std::isspace(*p,loc)) {
+            ep = p;
         }
-        if(path[u] == '.' && u > first) { // u > 0 skips unix .hidden files
-            x = u;
-        }
     }
-    return {path.substr(x + 1, last - (x + 1)), path.substr(first,last-first)};
+    if(colon != nullptr) {
+        assert(sp <= colon);
+        assert(colon <= ep);
+        return {std::string{sp, colon}, std::string{colon+1,ep+1}};
+    } else if(dot != nullptr) {
+        assert(dot <= ep);
+        assert(sp <= ep);
+        return {std::string{dot+1,ep+1}, std::string{sp,ep+1}};
+    }
+    assert(sp <= ep);
+    return {{}, std::string{sp,ep+1}};
 }
 
 static const std::string file_category_keys[] = {

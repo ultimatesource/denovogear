@@ -153,6 +153,8 @@ ENDIF()
 
 MESSAGE(STATUS "${DNG_NAME} version: ${DNG_VERSION}.")
 
+configure_file(DeNovoGear.sublime-project DeNovoGear.sublime-project COPYONLY)
+
 ################################################################################
 # Packaging Information
 

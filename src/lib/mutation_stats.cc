@@ -33,15 +33,12 @@ bool MutationStats::CalculateMutationProb(
 	logdata_nomut_ = work_nomut.forward_result;
 	logdata_ = work_full.forward_result;
 	mup_ = static_cast<float>(-std::expm1(logdata_nomut_ - logdata_));
-
-
 	return mup_ < min_prob_;
 }
 
 void MutationStats::SetScaledLogLikelihood(double scale) {
 	lld_ = static_cast<float>((logdata_ + scale) / M_LN10);
 //    llh_ = static_cast<float>( logdata_ / M_LN10);
-
 }
 
 void MutationStats::SetGenotypeLikelihoods(
@@ -71,7 +68,7 @@ void MutationStats::SetPosteriorProbabilities(
 
 
 void MutationStats::CalculateExpectedMutation(dng::peel::workspace_t &work_full,
-                                              dng::TransitionVector &mean_matrices){
+                                              dng::TransitionMatrixVector &mean_matrices){
     mux_ = 0.0;
     for(size_t i = work_full.founder_nodes.second; i < work_full.num_nodes; ++i) {
         mux_ += (work_full.super[i] * (mean_matrices[i] *
@@ -81,7 +78,7 @@ void MutationStats::CalculateExpectedMutation(dng::peel::workspace_t &work_full,
 };
 
 void MutationStats::CalculateNodeMutation(dng::peel::workspace_t &work_full,
-                                          dng::TransitionVector &posmut_transition_matrices) {
+                                          dng::TransitionMatrixVector &posmut_transition_matrices) {
     std::vector<double> event (work_full.num_nodes, 0.0);
     for (size_t i = work_full.founder_nodes.second; i < work_full.num_nodes; ++i) {
         event[i] = (work_full.super[i] * (posmut_transition_matrices[i] *
@@ -95,7 +92,7 @@ void MutationStats::CalculateNodeMutation(dng::peel::workspace_t &work_full,
 }
 
 void MutationStats::CalculateDenovoMutation(dng::peel::workspace_t &work_nomut,
-                                            dng::TransitionVector &onemut_transition_matrices,
+                                            dng::TransitionMatrixVector &onemut_transition_matrices,
                                             const dng::RelationshipGraph &pedigree) {
     std::vector<double> event (work_nomut.num_nodes, 0.0);
     double total = 0.0, max_coeff = -1.0;
@@ -119,7 +116,7 @@ void MutationStats::CalculateDenovoMutation(dng::peel::workspace_t &work_nomut,
 
         dnq_ = dng::utility::lphred<int32_t>(1.0 - (max_coeff / total), 255);
         dnl_ = pedigree.labels()[dn_location];
-        if (pedigree.transitions()[dn_location].type == dng::RelationshipGraph::TransitionType::Germline) {
+        if (pedigree.transitions()[dn_location].type == dng::RelationshipGraph::TransitionType::Trio) {
             dnt_ = &dng::meiotic_diploid_mutation_labels[dn_row][dn_col][0];
         } else {
             dnt_ = &dng::mitotic_diploid_mutation_labels[dn_row][dn_col][0];
@@ -131,7 +128,7 @@ void MutationStats::CalculateDenovoMutation(dng::peel::workspace_t &work_nomut,
 
 #if CALCULATE_ENTROPY == 1
 void MutationStats::CalculateEntropy(dng::peel::workspace_t &work_nomut,
-                                     dng::TransitionVector &onemut_transition_matrices,
+                                     dng::TransitionMatrixVector &onemut_transition_matrices,
                                      std::array<double, 5> max_entropies,
                                      std::size_t ref_index) {
 

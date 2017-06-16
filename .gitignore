@@ -41,3 +41,6 @@ src/config.h
 build/*
 !build/.gitkeep
 
+# Ignore ctag output
+.tags
+.tags_sorted_by_file

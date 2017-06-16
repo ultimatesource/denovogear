@@ -27,6 +27,8 @@
 #include <istream>
 #include <fstream>
 
+#include <dng/utility.h>
+
 #include <boost/range/iterator_range.hpp>
 
 namespace dng {
@@ -76,12 +78,27 @@ istreambuf_range(std::basic_istream<Elem, Traits> &in) {
                std::istreambuf_iterator<Elem, Traits>());
 }
 
-inline bool at_slurp(std::string &ss, std::ios_base::openmode mode = std::ios_base::in) {
-    if(ss.empty() || ss[0] != '@')
-        return false;
-    std::ifstream in{ss.c_str()+1, mode};
+template<class Elem, class Traits> inline
+boost::iterator_range<std::istreambuf_iterator<Elem, Traits> >
+istreambuf_range(std::basic_streambuf<Elem, Traits> *in) {
+    return boost::iterator_range<std::istreambuf_iterator<Elem, Traits>>(
+               std::istreambuf_iterator<Elem, Traits>(in),
+               std::istreambuf_iterator<Elem, Traits>());
+}
+
+
+// if ss has format @filename.ext or @ext:filename slurp contents of
+// filename into ss and return ext.
+// if slurp does not occurs, returns extension of '.'
+
+inline std::string at_slurp(std::string &ss, std::ios_base::openmode mode = std::ios_base::in) {
+    if(ss.empty() || ss[0] != '@') {
+        return {'.'};
+    }
+    auto filename = utility::extract_file_type(ss.c_str()+1);
+    std::ifstream in{filename.second, mode};
     ss = slurp(in);
-    return true;
+    return filename.first;
 }
 
 }

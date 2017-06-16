@@ -1,13 +1,13 @@
 add_library(libdng STATIC
   ad.cc
-  find_mutations.cc
-  inheritance_model.cc
-  likelihood.cc
+  bam.cc
+  call_mutations.cc
+  genotyper.cc
+  probability.cc
   mutation_stats.cc
   mutation.cc
   newick.cc
   peeling.cc
-  read_group.cc
   regions.cc
   relationship_graph.cc
   stats.cc

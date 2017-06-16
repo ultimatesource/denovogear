@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015 Reed A. Cartwright
+ * Copyright (c) 2014-2017 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -16,9 +16,10 @@
  * You should have received a copy of the GNU General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
+ 
 #pragma once
-#ifndef DNG_LIKELIHOOD_H
-#define DNG_LIKELIHOOD_H
+#ifndef DNG_GENOTYPER_H
+#define DNG_GENOTYPER_H
 
 #include <array>
 #include <cmath>
@@ -32,47 +33,35 @@
 #include <dng/depths.h>
 
 namespace dng {
+
 namespace genotype {
 
 namespace detail {
 class log_pochhammer {
     typedef boost::math::lanczos::lanczos13m53 Lanczos;
 public:
-    static constexpr int kCacheSize{512};
-
     log_pochhammer() { }
 
-    log_pochhammer(double a) : cache_(kCacheSize) {
+    log_pochhammer(double a) {
         // store these values for later usage
+        assert(a > 0.0);
         a_ = a;
         ah_ = a - 0.5;
         loga_ = log(a);
         agh_ = a + Lanczos::g() - 0.5;
         la_ = log(Lanczos::lanczos_sum(a));
         logam1_ = loga_-1.0;
-        for(int i=0;i<kCacheSize;++i) {
-            cache_[i] = lnpoch_pos(i+1);
-        }
     }
 
     double operator()(int n) const {
-        assert(n >= 0);
-        assert(cache_.size() == kCacheSize); // Check for proper initialization
-        if(n <= 0) {
-            return 0.0;
-        } else if(n <= kCacheSize) {
-            return cache_[n-1];
-        }
         return lnpoch_pos(n);
     }
 private:
     // store these values for later usage
     double a_, loga_, agh_, ah_, la_, logam1_;
 
-    std::vector<double> cache_;
-
     double lnpoch_pos(double n) const {
-        assert(n >= 1.0);
+        assert(n >= 0.0);
         // if n is small relative to a, we can use a Sterling-derived approximation
         if(n < a_*sqrt(DBL_EPSILON)) {
             return n*logam1_ + (n+ah_)*log1p(n/a_);
@@ -87,11 +76,29 @@ private:
 
 }
 
+constexpr int folded_diploid_nucleotides[10][2] = {
+    {0, 0},
+    {0, 1}, {1, 1},
+    {0, 2}, {1, 2}, {2, 2},
+    {0, 3}, {1, 3}, {2, 3}, {3, 3}
+};
+
+// converts from unfolded genotype [0-15] to a folded genotype [0-10]
+constexpr int folded_diploid_genotypes_matrix[4][4] = {
+    {0, 1, 3, 6},
+    {1, 2, 4, 7},
+    {3, 4, 5, 8},
+    {6, 7, 8, 9}
+};
+
+constexpr int folded_diploid_genotypes[16] = {0, 1, 3, 6, 1, 2, 4, 7, 3, 4, 5, 8, 6, 7, 8, 9};
+
+// converts from a folded genotype to an unfolded genotype
+constexpr int unfolded_diploid_genotypes_upper[10] = {0, 1, 5, 2, 6,10, 3, 7,11,15};
+constexpr int unfolded_diploid_genotypes_lower[10] = {0, 4, 5, 8, 9,10,12,13,14,15};
+
 class DirichletMultinomialMixture {
 public:
-    // TODO: Make this configurable with a define
-    static const int kCacheSize = 512;
-
     struct params_t {
         double pi;      // probability of this component
         double phi;     // overdispersion parameter
@@ -114,27 +121,42 @@ public:
             epsilon = f.first[2];
             omega = f.first[3];
         }
+        params_t() { }
     };
 
-    std::pair<GenotypeArray, double> operator()(depth_t d, int ref_allele) const;
-    
-    double operator()(const pileup::AlleleDepths& depths, const std::vector<size_t> &indexes, IndividualVector::iterator output) const;
-
     DirichletMultinomialMixture(params_t model_a, params_t model_b);
+
+    std::pair<GenotypeArray, double> operator()(
+        const pileup::AlleleDepths& depths, size_t pos, int ploidy=2) const;
+
+    std::pair<GenotypeArray, double> operator()(
+        const pileup::RawDepths& depths, size_t pos, int ref_allele, int ploidy=2) const;
 
 protected:
 
     // NOTE: a = reference; b = genotype; c = nucleotide; d = depth
-    // NOTE: cache_[a][b][c].first(d)  = sum alpha1[a][b][c]+x for x in [0,d)
-    // NOTE: cache_[a][b][c].second(d) = sum alpha2[a][b][c]+x for x in [0,d)
-    typedef detail::log_pochhammer cache_type;
-    typedef std::vector<std::array<std::array<std::pair<cache_type,cache_type>, 5>, 10>> cache_t;
+    // NOTE: cache_[d][a][c][0][b]  = log_pochamer(alpha1[a][b][c],d)
+    // NOTE: cache_[d][a][c][1][b]  = log_pochamer(alpha2[a][b][c],d)
+    typedef double cache_type;
+    typedef std::vector<std::array<std::array<std::array<std::array<cache_type,10>, 2>, 5>,5>> cache_t;
 
-    cache_t cache_;
+    typedef detail::log_pochhammer model_type;
+
+    typedef std::vector<std::array<std::array<std::array<model_type,10>, 2>, 5>> model_cache_t;
+
+
+    static constexpr int kCacheSize = 512;
+
+    cache_t cache_{kCacheSize};
+    model_cache_t models_{5};
+
     double f1_, f2_; // log(f) and log(1-f)
 };
 
 } // namespace genotype
+
+using Genotyper = genotype::DirichletMultinomialMixture;
+
 } // namespace dng
 
 #endif // DNG_LIKELIHOOD_H

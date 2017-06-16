@@ -29,37 +29,31 @@
 #include <boost/range/algorithm/fill_n.hpp>
 
 #include <dng/matrix.h>
-#include <dng/likelihood.h>
+#include <dng/genotyper.h>
 #include <dng/detail/unit_test.h>
 
 namespace dng {
 namespace peel {
 
-namespace op {
-enum Type {
-    UP, DOWN, TOFATHER, TOMOTHER, TOCHILD,
-    UPFAST, DOWNFAST, TOFATHERFAST, TOMOTHERFAST,
-    TOCHILDFAST,
-    NUM // Total number of possible forward operations
-};
-} // namespace dng::peel::op
-
 struct workspace_t {
-    IndividualVector upper; // Holds P(~Descendent_Data & G=g)
-    IndividualVector lower; // Holds P( Descendent_Data | G=g)
-    ParentVector super; // Holds P(~Descendent_Data & G=g) for parent nodes
+    GenotypeArrayVector upper; // Holds P(~Descendent_Data & G=g)
+    GenotypeArrayVector lower; // Holds P( Descendent_Data | G=g)
+    ParentArrayVector super; // Holds P(~Descendent_Data & G=g) for parent nodes
 
     bool dirty_lower = false;
     double forward_result;
     // Temporary data used by some peeling ops
-    PairedGenotypeArray paired_buffer;
+    TemporaryMatrix temp_buffer;
 
     // Information about the pedigree
     std::size_t num_nodes = 0;
-    std::pair<std::size_t, std::size_t> founder_nodes;
-    std::pair<std::size_t, std::size_t> germline_nodes;
-    std::pair<std::size_t, std::size_t> somatic_nodes;
-    std::pair<std::size_t, std::size_t> library_nodes;
+    typedef std::pair<std::size_t, std::size_t> node_range_t;
+    node_range_t founder_nodes,
+                 germline_nodes,
+                 somatic_nodes,
+                 library_nodes;
+
+    std::vector<int> ploidies;
 
     // Resize the workspace to fit a pedigree with sz nodes
     void Resize(std::size_t sz) {
@@ -67,7 +61,7 @@ struct workspace_t {
         upper.resize(num_nodes);
         super.resize(num_nodes);
         lower.assign(num_nodes, DNG_INDIVIDUAL_BUFFER_ONES);
-        paired_buffer.resize(100, 1);
+        temp_buffer.resize(100, 1);
         dirty_lower = false;
     }
 
@@ -88,32 +82,50 @@ struct workspace_t {
 
     // Set the prior probability of the founders given the reference
     void SetFounders(const GenotypeArray &prior) {
-
         assert(founder_nodes.first <= founder_nodes.second);
         std::fill(upper.begin() + founder_nodes.first,
                   upper.begin() + founder_nodes.second, prior);
     }
 
-    template<typename T>
-    void SetLibraries(const T &range) {
-        assert(boost::size(range) == library_nodes.second - library_nodes.first);
-        boost::copy(range, lower.begin() + library_nodes.first);
+    void SetFounders(const GenotypeArray &diploid_prior, const GenotypeArray &haploid_prior) {
+        for(auto i = founder_nodes.first; i < founder_nodes.second; ++i) {
+            if(ploidies[i] == 2) {
+                upper[i] = diploid_prior;
+            } else if(ploidies[i] == 1) {
+                upper[i] = haploid_prior;                
+            } else {
+                assert(false); // should not be here
+            }
+        } 
     }
 
-    // Calculate genotype likelihoods and store in the lower library vector
-    double SetGenotypeLikelihood(
-            dng::genotype::DirichletMultinomialMixture &genotype_likelihood_,
-            const std::vector<depth_t> &depths, int ref_index) {
-
-        double scale = 0;
-        double temp;
+    inline
+    double SetGenotypeLikelihoods(const Genotyper &gt,
+        const pileup::RawDepths &depths, const int ref_index) {
+        double scale = 0.0, stemp;
         for(std::size_t u = 0; u < depths.size(); ++u) {
-            std::tie(lower[library_nodes.first + u], temp) =
-                    genotype_likelihood_(depths[u], ref_index);
-            scale += temp;
+            auto pos = library_nodes.first + u;
+            std::tie(lower[pos], stemp) =
+                gt(depths, u, ref_index, ploidies[pos]);
+            scale += stemp;
         }
         return scale;
     }
+
+    inline
+    double SetGenotypeLikelihoods(const Genotyper &gt,
+        const pileup::AlleleDepths &depths) {
+        double scale=0.0, stemp;
+        for(std::size_t u = 0; u < depths.num_libraries(); ++u) {
+            auto pos = library_nodes.first + u;
+            assert(pos < lower.size());
+            std::tie(lower[pos], stemp) =
+                gt(depths, u, ploidies[pos]);
+            scale += stemp;
+        }
+        return scale;
+}
+
 
 };
 
@@ -121,39 +133,39 @@ typedef std::vector<std::size_t> family_members_t;
 
 // Basic peeling operations
 void up(workspace_t &work, const family_members_t &family,
-        const TransitionVector &mat);
+        const TransitionMatrixVector &mat);
 void down(workspace_t &work, const family_members_t &family,
-          const TransitionVector &mat);
+          const TransitionMatrixVector &mat);
 void to_father(workspace_t &work, const family_members_t &family,
-               const TransitionVector &mat);
+               const TransitionMatrixVector &mat);
 void to_mother(workspace_t &work, const family_members_t &family,
-               const TransitionVector &mat);
+               const TransitionMatrixVector &mat);
 void to_child(workspace_t &work, const family_members_t &family,
-              const TransitionVector &mat);
+              const TransitionMatrixVector &mat);
 
 // Fast versions that can be used on "dirty" workspaces
 void up_fast(workspace_t &work, const family_members_t &family,
-             const TransitionVector &mat);
+             const TransitionMatrixVector &mat);
 void down_fast(workspace_t &work, const family_members_t &family,
-               const TransitionVector &mat);
+               const TransitionMatrixVector &mat);
 void to_father_fast(workspace_t &work, const family_members_t &family,
-                    const TransitionVector &mat);
+                    const TransitionMatrixVector &mat);
 void to_mother_fast(workspace_t &work, const family_members_t &family,
-                    const TransitionVector &mat);
+                    const TransitionMatrixVector &mat);
 void to_child_fast(workspace_t &work, const family_members_t &family,
-                   const TransitionVector &mat);
+                   const TransitionMatrixVector &mat);
 
 // Reverse versions that can be used for backwards algorithms
 void up_reverse(workspace_t &work, const family_members_t &family,
-                const TransitionVector &mat);
+                const TransitionMatrixVector &mat);
 void down_reverse(workspace_t &work, const family_members_t &family,
-                  const TransitionVector &mat);
+                  const TransitionMatrixVector &mat);
 void to_father_reverse(workspace_t &work, const family_members_t &family,
-                       const TransitionVector &mat);
+                       const TransitionMatrixVector &mat);
 void to_mother_reverse(workspace_t &work, const family_members_t &family,
-                       const TransitionVector &mat);
+                       const TransitionMatrixVector &mat);
 void to_child_reverse(workspace_t &work, const family_members_t &family,
-                      const TransitionVector &mat);
+                      const TransitionMatrixVector &mat);
 
 typedef decltype(&down) function_t;
 
@@ -162,7 +174,14 @@ struct info_t {
     int writes_to;
 };
 
-constexpr info_t info[op::NUM] = {
+enum struct Op { 
+    UP=0, DOWN, TOFATHER, TOMOTHER, TOCHILD,
+    UPFAST, DOWNFAST, TOFATHERFAST, TOMOTHERFAST,
+    TOCHILDFAST,
+    NUM // Total number of possible forward operations
+};
+
+constexpr info_t info[(int)Op::NUM] = {
     /* Up           */ {true,  0},
     /* Down         */ {false, 1},
     /* ToFather     */ {true,  0},
@@ -176,13 +195,13 @@ constexpr info_t info[op::NUM] = {
 };
 
 // TODO: Write test case to check that peeling ops are in the right order.
-constexpr function_t functions[op::NUM] = {
+constexpr function_t functions[(int)Op::NUM] = {
     &up, &down, &to_father, &to_mother, &to_child,
     &up_fast, &down_fast, &to_father_fast, &to_mother_fast,
     &to_child_fast
 };
 
-constexpr function_t reverse_functions[op::NUM] = {
+constexpr function_t reverse_functions[(int)Op::NUM] = {
     &up_reverse, &down_reverse, &to_father_reverse,
     &to_mother_reverse, &to_child_reverse,
     &up_reverse, &down_reverse, &to_father_reverse,

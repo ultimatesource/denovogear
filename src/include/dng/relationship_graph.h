@@ -22,54 +22,52 @@
 #ifndef DNG_RELATIONSHIP_GRAPH_H
 #define DNG_RELATIONSHIP_GRAPH_H
 
-
 #include <cmath>
 #include <string>
 #include <vector>
 
-#include <dng/io/ped.h>
 #include <dng/matrix.h>
-#include <dng/graph.h>
-#include <dng/newick.h>
-#include <dng/read_group.h>
+#include <dng/library.h>
 #include <dng/peeling.h>
+#include <dng/pedigree.h>
+#include <dng/detail/graph.h>
 #include <dng/detail/unit_test.h>
-#include <dng/inheritance_model.h>
-
-//#define DEBUG_RGRAPH 1
 
 namespace dng {
 
+enum struct InheritanceModel {
+    Autosomal,    // default option
+    Maternal,     // transmitted by mother to child
+    Paternal,     // transmitter by father to child
+    XLinked,     // females have 2 copies, males have 1; males transmit to daughters, not to sons
+    YLinked,     // males have 1 copy, only transmits it to sons
+    WLinked,     // females have 1 copy, only transmitted to daughters
+    ZLinked,      // males have 2 copies, females have 1; females transmit to sons, not to daughters
+    Unknown
+};
+
+InheritanceModel inheritance_model(const std::string &pattern);
+
+std::string to_string(InheritanceModel model);
+
 class RelationshipGraph {
 public:
+    template<typename T>
+    using property_t = typename boost::property_map<detail::graph::Graph, T>::type;
 
-    typedef boost::property_map<Graph, boost::edge_type_t>::type PropEdgeType;
-    typedef boost::property_map<Graph, boost::edge_length_t>::type PropEdgeLength;
-    typedef boost::property_map<Graph, boost::vertex_label_t>::type PropVertexLabel;
-    typedef boost::property_map<Graph, boost::vertex_group_t>::type PropVertexGroup;
-    typedef boost::property_map<Graph, boost::vertex_index_t>::type PropVertexIndex;
-    typedef boost::property_map<Graph, boost::vertex_sex_t>::type PropVertexSex;
+    typedef property_t<boost::edge_type_t> PropEdgeType;
+    typedef property_t<boost::edge_length_t> PropEdgeLength;
+    typedef property_t<boost::vertex_label_t> PropVertexLabel;
 
-    typedef boost::property_map<Graph, boost::vertex_index_t>::type IndexMap;
+    typedef property_t<boost::vertex_group_t> PropVertexGroup;
+    typedef property_t<boost::vertex_index_t> PropVertexIndex;
+    typedef property_t<boost::vertex_sex_t> PropVertexSex;
+    typedef property_t<boost::vertex_index_t> IndexMap;
 
-    typedef std::vector<std::vector<boost::graph_traits<dng::Graph>::edge_descriptor>> family_labels_t;
+    typedef std::vector<std::vector<boost::graph_traits<detail::graph::Graph>::edge_descriptor>> family_labels_t;
 
-    //TODO: struct FamilyInfo/Family structure.
-    //Op1: A struct to record info in each family. family_t and ops
-    //Op2: Another struct to group families together, include pivots and root?
-    enum class FamilyType : int {
-        PAIR = 2,
-        TRIO = 3
-    };
-
-    enum class TransitionType {
-        Founder, Germline, Somatic, Library
-    };
-
-    struct FamilyInfo {
-        FamilyType family_type;
-        family_labels_t family_labels;//(num_families);
-        std::vector<vertex_t> pivots;//(num_families, dummy_index);
+    enum struct TransitionType {
+        Founder, Pair, Trio
     };
 
     struct transition_t {
@@ -78,19 +76,17 @@ public:
         std::size_t parent2;
         double length1;
         double length2;
-        dng::io::Pedigree::Sex sex;
     };
 
-    //PR_NOTE(SW): Both constructor exist now to reduce the chance of merge conflict or breaking something
-    bool Construct(const io::Pedigree& pedigree, dng::ReadGroups& rgs,
-            InheritancePattern inheritance_pattern,
+    bool Construct(const Pedigree& pedigree, const libraries_t& libs,
+            InheritanceModel inheritance_model,
             double mu, double mu_somatic, double mu_library);
 
-    bool Construct(const io::Pedigree& pedigree, dng::ReadGroups& rgs,
+    bool Construct(const Pedigree& pedigree, const libraries_t& libs,
             double mu, double mu_somatic, double mu_library);
 
     double PeelForwards(peel::workspace_t &work,
-                        const TransitionVector &mat) const {
+                        const TransitionMatrixVector &mat) const {
         if(work.dirty_lower) {
             work.CleanupFast();
         }
@@ -105,12 +101,13 @@ public:
         for(auto r : roots_) {
             ret += log((work.lower[r] * work.upper[r]).sum());
         }
+
         work.forward_result = ret;
         return ret;
     }
 
     double PeelBackwards(peel::workspace_t &work,
-                         const TransitionVector &mat) const {
+                         const TransitionMatrixVector &mat) const {
         double ret = 0.0;
         // Divide by the log-likelihood
         for(auto r : roots_) {
@@ -135,6 +132,9 @@ public:
         work.germline_nodes = std::make_pair(first_founder_, first_somatic_);
         work.somatic_nodes = std::make_pair(first_somatic_, first_library_);
         work.library_nodes = std::make_pair(first_library_, num_nodes_);
+
+        work.ploidies = ploidies_;
+
         return work;
     }
 
@@ -145,14 +145,23 @@ public:
     std::vector<std::string> BCFHeaderLines() const;
 
     const std::vector<transition_t> &transitions() const { return transitions_; }
-
     const std::vector<std::string> &labels() const { return labels_; }
+    const std::vector<int> &ploidies() const { return ploidies_; }
+
+    const transition_t & transition(size_t pos) const { return transitions_[pos]; }
+    const std::string & label(size_t pos) const { return labels_[pos]; }
+    int ploidy(size_t pos) const { return ploidies_[pos]; }
 
     size_t num_nodes() const { return num_nodes_; }
     std::pair<size_t, size_t> library_nodes() const { return {first_library_, num_nodes_}; }
 
+    const std::vector<std::string> &library_names() const { return library_names_; }
 
 protected:
+    using Graph = dng::detail::graph::Graph;
+    using vertex_t = dng::detail::graph::vertex_t;
+
+    InheritanceModel inheritance_model_{InheritanceModel::Autosomal};
 
     // node structure:
     // founder germline, non-founder germline, somatic, library
@@ -166,12 +175,13 @@ protected:
 
     // Pedigree Structure
     std::vector<std::string> labels_;
+    std::vector<int> ploidies_;
     std::vector<transition_t> transitions_;
 
     // The original, simplified peeling operations
-    std::vector<decltype(peel::op::NUM)> peeling_ops_;
+    std::vector<peel::Op> peeling_ops_;
     // The modified, "faster" operations
-    std::vector<decltype(peel::op::NUM)> peeling_functions_ops_;
+    std::vector<peel::Op> peeling_functions_ops_;
     // Array of functions that will be called to perform the peeling
     std::vector<peel::function_t> peeling_functions_;
     std::vector<peel::function_t> peeling_reverse_functions_;
@@ -179,49 +189,26 @@ protected:
     // The arguments to a peeling operation
     std::vector<peel::family_members_t> family_members_;
 
+    std::vector<std::string> library_names_;
+
     void ConstructPeelingMachine();
 
-    void SetupFirstNodeIndex(const io::Pedigree &pedigree);
+    std::vector<size_t> ConstructNodes(const Graph &pedigree_graph);
 
-    void ParseIoPedigree(dng::Graph &pedigree_graph,
-            const dng::io::Pedigree &pedigree);
-
-
-    void AddLibrariesFromReadGroups(dng::Graph &pedigree_graph,
-            const dng::ReadGroups &rgs);
-
-
-    void UpdateEdgeLengths(dng::Graph &pedigree_graph, double mu_meiotic,
-            double mu_somatic, double mu_library);
-
-    void SimplifyPedigree(dng::Graph &pedigree_graph);
-
-    void UpdateLabelsNodeIds(dng::Graph &pedigree_graph, dng::ReadGroups &rgs,
-            std::vector<size_t> &node_ids);
-
-
-    void CreateFamiliesInfo(dng::Graph &pedigree_graph,
+    void CreateFamiliesInfo(Graph &pedigree_graph,
             family_labels_t &family_labels, std::vector<vertex_t> &pivots);
 
-    void CreatePeelingOps(dng::Graph &pedigree_graph,
+    void CreatePeelingOps(const Graph &pedigree_graph,
             const std::vector<size_t> &node_ids, family_labels_t &family_labels,
             std::vector<vertex_t> &pivots);
 
-
-
 private:
-    void ConnectSomaticToLibraries(dng::Graph &pedigree_graph,
-                const ReadGroups &rgs, const PropVertexLabel &labels);
-
-    void EraseRemovedLibraries(dng::ReadGroups &rgs,
-                std::vector<size_t> &node_ids);
-
-    void ResetFamilyInfo();
+    void ClearFamilyInfo();
 
     void PrintDebugEdges(const std::string &prefix,
-            const dng::Graph &pedigree_graph);
+            const Graph &pedigree_graph);
 
-    const vertex_t DUMMY_INDEX = 0;
+    DNG_UNIT_TEST(unittest_dng_relationship_graph);
 
     DNG_UNIT_TEST(test_pedigree_inspect);
     DNG_UNIT_TEST(test_parse_io_pedigree);
@@ -231,8 +218,9 @@ private:
     DNG_UNIT_TEST(test_update_labels_node_ids);
     DNG_UNIT_TEST(test_create_families_info);
     DNG_UNIT_TEST(test_create_peeling_ops);
-
+    DNG_UNIT_TEST(test_peeling_forward_each_op);
 };
+
 }; // namespace dng
 
 #endif // DNG_RELATIONSHIP_GRAPH_H

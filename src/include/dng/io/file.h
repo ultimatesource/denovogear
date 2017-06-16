@@ -31,12 +31,15 @@
 namespace dng {
 namespace io {
 
-class BinaryFile {
+class File {
 public:
-    BinaryFile() { }
+    File() = default;
 
-    void Open(const std::string &filename, std::ios_base::openmode mode = std::ios_base::in) {
-        mode |= std::ios::binary;
+    explicit File(const std::string &filename, std::ios_base::openmode mode = std::ios_base::in) {
+        Open(filename, mode);
+    }
+
+    bool Open(const std::string &filename, std::ios_base::openmode mode = std::ios_base::in) {
         std::tie(type_label_, path_) = utility::extract_file_type(filename);
         buffer_ = nullptr;
         if(path_.empty()) {
@@ -55,15 +58,16 @@ public:
         } else {
             buffer_ = std::cout.rdbuf();
         }
-        Attach();
+        return Attach();
     }
-    void Attach(std::streambuf *buffer) {
+    bool Attach(std::streambuf *buffer) {
         is_open_ = (buffer != nullptr);
         stream_.rdbuf(buffer);
         stream_.unsetf(std::ios_base::skipws);
+        return is_open_;
     }
-    void Attach() {
-        Attach(buffer_);
+    bool Attach() {
+        return Attach(buffer_);
     }
 
     bool is_open() const { return is_open_; }
@@ -80,6 +84,19 @@ protected:
 private:
     bool is_open_{false};
     boost::filesystem::fstream file_;
+};
+
+class BinaryFile : public File {
+public:
+    BinaryFile() = default;
+    
+    explicit BinaryFile(const std::string &filename, std::ios_base::openmode mode = std::ios_base::in) {
+        Open(filename, mode);
+    }
+
+    void Open(const std::string &filename, std::ios_base::openmode mode = std::ios_base::in) {
+        File::Open(filename, mode | std::ios::binary);
+    }
 };
 
 } // namespace io

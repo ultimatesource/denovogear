@@ -91,11 +91,6 @@ struct TestData {
 };
 
 
-void setup() { BOOST_TEST_MESSAGE("set up fun"); }
-
-void teardown() { BOOST_TEST_MESSAGE("tear down fun"); }
-
-
 // TODO: Example of BOOST_DATA_TEST_CASE and BOOST_PARAM_TEST_CASE.
 // TODO: Should be able to replace the for loop with these.
 
@@ -107,9 +102,9 @@ BOOST_FIXTURE_TEST_SUITE(test_peeling_suite, RandomFamily)
 //
 //            init_family();
 //
-//            PairedGenotypeArray expected = PairedGenotypeArray::Ones(100, 1);
+//            TemporaryMatrix expected = TemporaryMatrix::Ones(100, 1);
 //            for (int k = 2; k < total_family_size; ++k) {
-//                PairedGenotypeArray temp_array = PairedGenotypeArray::Zero(100, 1);
+//                TemporaryMatrix temp_array = TemporaryMatrix::Zero(100, 1);
 //
 //                for (int i = 0; i < trans_matrix[k].rows(); ++i) {
 //                    double x = 0;
@@ -124,12 +119,12 @@ BOOST_FIXTURE_TEST_SUITE(test_peeling_suite, RandomFamily)
 //
 //
 //            dng::peel::workspace_t workspace;
-//            dng::TransitionVector full_matrix;
+//            dng::TransitionMatrixVector full_matrix;
 //            copy_family_to_workspace(workspace, full_matrix, total_family_size,
 //                                     lower_array, upper_array,
 //                                     trans_matrix);
 //
-//            PairedGenotypeArray result = dng::peel::sum_over_child(workspace, family, full_matrix);
+//            TemporaryMatrix result = dng::peel::sum_over_child(workspace, family, full_matrix);
 //
 //            boost_check_matrix(expected, result, 100, 1);
 //        }
@@ -151,7 +146,7 @@ BOOST_FIXTURE_TEST_SUITE(test_peeling_suite, RandomFamily)
 //            //Done expected
 //
 //            dng::peel::workspace_t workspace;
-//            dng::TransitionVector full_matrix;
+//            dng::TransitionMatrixVector full_matrix;
 //            copy_family_to_workspace(workspace, full_matrix, total_family_size,
 //                                     lower_array, upper_array, trans_matrix);
 //
@@ -179,7 +174,7 @@ BOOST_FIXTURE_TEST_SUITE(test_peeling_suite, RandomFamily)
             //Done expected
 
             dng::peel::workspace_t workspace;
-            dng::TransitionVector full_matrix;
+            dng::TransitionMatrixVector full_matrix;
             copy_family_to_workspace(workspace, full_matrix, total_family_size,
                                      lower_array, upper_array, trans_matrix);
 
@@ -202,10 +197,10 @@ BOOST_FIXTURE_TEST_SUITE(test_peeling_suite, RandomFamily)
 
             init_family();
 
-            PairedGenotypeArray all_child_temp = PairedGenotypeArray::Ones(100, 1);
-            PairedGenotypeArray all_child = PairedGenotypeArray::Zero(10, 10);
+            TemporaryMatrix all_child_temp = TemporaryMatrix::Ones(100, 1);
+            TemporaryMatrix all_child = TemporaryMatrix::Zero(10, 10);
             for (int c = CHILD_OFFSET; c < total_family_size; ++c) {
-                PairedGenotypeArray one_child = PairedGenotypeArray::Zero(100, 1);
+                TemporaryMatrix one_child = TemporaryMatrix::Zero(100, 1);
                 for (int i = 0; i < 100; ++i) {
                     for (int j = 0; j < 10; ++j) {
                         one_child(i, 0) += trans_matrix[c](i, j) * lower_array[c][j];
@@ -237,7 +232,7 @@ BOOST_FIXTURE_TEST_SUITE(test_peeling_suite, RandomFamily)
             //Done expected
 
             dng::peel::workspace_t workspace;
-            dng::TransitionVector full_matrix;
+            dng::TransitionMatrixVector full_matrix;
             copy_family_to_workspace(workspace, full_matrix, total_family_size,
                                      lower_array, upper_array, trans_matrix);
 
@@ -263,10 +258,10 @@ BOOST_FIXTURE_TEST_SUITE(test_peeling_suite, RandomFamily)
 
             init_family();
 
-            PairedGenotypeArray all_child_temp = PairedGenotypeArray::Ones(100, 1);
-            PairedGenotypeArray all_child = PairedGenotypeArray::Zero(10, 10);
+            TemporaryMatrix all_child_temp = TemporaryMatrix::Ones(100, 1);
+            TemporaryMatrix all_child = TemporaryMatrix::Zero(10, 10);
             for (int c = CHILD_OFFSET; c < total_family_size; ++c) {
-                PairedGenotypeArray one_child = PairedGenotypeArray::Zero(100, 1);
+                TemporaryMatrix one_child = TemporaryMatrix::Zero(100, 1);
                 for (int i = 0; i < 100; ++i) {
                     for (int j = 0; j < 10; ++j) {
                         one_child(i, 0) += trans_matrix[c](i, j) * lower_array[c][j];
@@ -298,7 +293,7 @@ BOOST_FIXTURE_TEST_SUITE(test_peeling_suite, RandomFamily)
             //Done expected
 
             dng::peel::workspace_t workspace;
-            dng::TransitionVector full_matrix;
+            dng::TransitionMatrixVector full_matrix;
             copy_family_to_workspace(workspace, full_matrix, total_family_size,
                                      lower_array, upper_array, trans_matrix);
 
@@ -323,9 +318,9 @@ BOOST_FIXTURE_TEST_SUITE(test_peeling_suite, RandomFamily)
 
             init_family();
 
-            PairedGenotypeArray all_child = PairedGenotypeArray::Ones(100, 1);
+            TemporaryMatrix all_child = TemporaryMatrix::Ones(100, 1);
             for (int c = CHILD_OFFSET + 1; c < total_family_size; ++c) {
-                PairedGenotypeArray one_child = PairedGenotypeArray::Zero(100, 1);
+                TemporaryMatrix one_child = TemporaryMatrix::Zero(100, 1);
                 for (int i = 0; i < 100; ++i) {
                     for (int j = 0; j < 10; ++j) {
                         one_child(i, 0) += trans_matrix[c](i, j) * lower_array[c][j];
@@ -340,13 +335,13 @@ BOOST_FIXTURE_TEST_SUITE(test_peeling_suite, RandomFamily)
                 dad_array[j] = upper_array[0][j] * lower_array[0][j];
                 mom_array[j] = upper_array[1][j] * lower_array[1][j];
             }
-            PairedGenotypeArray parents_array = PairedGenotypeArray::Zero(100, 1);
+            TemporaryMatrix parents_array = TemporaryMatrix::Zero(100, 1);
             for (int d = 0; d < 10; ++d) {
                 for (int m = 0; m < 10; ++m) {
                     parents_array(d * 10 + m, 0) = dad_array[d] * mom_array[m];
                 }
             }
-            PairedGenotypeArray parents_children = parents_array * all_child;
+            TemporaryMatrix parents_children = parents_array * all_child;
 
             GenotypeArray expected = DNG_INDIVIDUAL_BUFFER_ZEROS;
             GenotypeArray expected_fast = DNG_INDIVIDUAL_BUFFER_ZEROS;
@@ -360,7 +355,7 @@ BOOST_FIXTURE_TEST_SUITE(test_peeling_suite, RandomFamily)
             //Done expected
 
             dng::peel::workspace_t workspace;
-            dng::TransitionVector full_matrix;
+            dng::TransitionMatrixVector full_matrix;
             copy_family_to_workspace(workspace, full_matrix, total_family_size,
                                      lower_array, upper_array, trans_matrix);
 
@@ -387,7 +382,7 @@ BOOST_AUTO_TEST_CASE(test_up_data) {
 
 
     dng::peel::workspace_t workspace;
-    dng::TransitionVector full_matrix;
+    dng::TransitionMatrixVector full_matrix;
     copy_family_to_workspace(workspace, full_matrix, total_family_size,
                              lower_array, upper_array, trans_matrix);
 
@@ -411,7 +406,7 @@ BOOST_AUTO_TEST_CASE(test_up_data) {
 BOOST_AUTO_TEST_CASE(test_to_father_data) {
 
     dng::peel::workspace_t workspace;
-    dng::TransitionVector full_matrix;
+    dng::TransitionMatrixVector full_matrix;
     copy_family_to_workspace(workspace, full_matrix, total_family_size,
                              lower_array, upper_array, trans_matrix);
 
@@ -435,7 +430,7 @@ BOOST_AUTO_TEST_CASE(test_to_father_data) {
 BOOST_AUTO_TEST_CASE(test_to_mother_data) {
 
     dng::peel::workspace_t workspace;
-    dng::TransitionVector full_matrix;
+    dng::TransitionMatrixVector full_matrix;
     copy_family_to_workspace(workspace, full_matrix, total_family_size,
                              lower_array, upper_array, trans_matrix);
 
@@ -461,7 +456,7 @@ BOOST_AUTO_TEST_CASE(test_to_child_data) {
 
 
         dng::peel::workspace_t workspace;
-        dng::TransitionVector full_matrix;
+        dng::TransitionMatrixVector full_matrix;
         copy_family_to_workspace(workspace, full_matrix, total_family_size,
                                  lower_array, upper_array, trans_matrix);
 

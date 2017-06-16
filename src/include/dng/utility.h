@@ -27,6 +27,7 @@
 #include <cstdint>
 #include <climits>
 #include <chrono>
+#include <limits>
 
 #include <boost/spirit/include/support_ascii.hpp>
 #include <boost/spirit/include/qi_real.hpp>
@@ -39,10 +40,22 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/tokenizer.hpp>
 
+#include <boost/container/flat_set.hpp>
+#include <boost/container/flat_map.hpp>
+
+#include <boost/range/iterator.hpp>
+#include <boost/range/distance.hpp>
+#include <boost/range/algorithm/find.hpp>
+#include <boost/range/algorithm/find_if.hpp>
+#include <boost/range/as_literal.hpp>
+
 #include <dng/detail/unit_test.h>
 
 namespace dng {
 namespace utility {
+
+using StringSet = boost::container::flat_set<std::string>;
+using StringMap = boost::container::flat_map<std::string, size_t>;
 
 template<typename E, typename = typename std::enable_if<std::is_enum<E>::value>::type>
 struct EnumFlags {
@@ -177,7 +190,23 @@ std::array<double, 4> parse_nuc_freqs(const std::string &str) {
                                  "Expected 4; found " + std::to_string(f.first.size()) + ".");
     }
     std::array<double,4> freqs;
-    std::copy(f.first.begin(), f.first.begin()+4, &freqs[0]);
+    std::copy(f.first.begin(), f.first.end(), &freqs[0]);
+
+    // Scale frequencies and makes sure they sum to 1.
+    double freqs_sum = 0.0;
+    for(int i=0;i<freqs.size();++i) {
+        if(freqs[i] < 0.0) {
+            throw std::runtime_error("Error: Nucleotide frequencies must be non-negative. "
+                "Parsing of '" + str + "' generated a frequency of " + std::to_string(freqs[i])
+                + " in position " + std::to_string(i) + "."
+                );
+        }
+        freqs_sum += freqs[i];
+    }
+    for(auto && a : freqs) {
+        a = a/freqs_sum;
+    }
+
     return freqs;
 }
 
@@ -185,6 +214,7 @@ template<typename T>
 std::string to_pretty(const T &value) {
     namespace karma = boost::spirit::karma;
     std::string str;
+    str.reserve(16);
     if(karma::generate(std::back_inserter(str), value)) {
         return str;
     }
@@ -202,10 +232,15 @@ inline T lphred(double p, T m = std::numeric_limits<T>::max()) {
     return (q > m) ? m : static_cast<T>(q);
 }
 
-// extracts extension and filename from both file.ext and ext:file.foo
-// returns {ext, filename.ext}
+// extracts extension and filename from both file.foo and ext:file.foo
+// returns {ext, file.foo}
 // trims whitespace as well
-std::pair<std::string, std::string> extract_file_type(const std::string &path);
+std::pair<std::string, std::string> extract_file_type(const char *path);
+
+inline
+std::pair<std::string, std::string> extract_file_type(const std::string &path) {
+    return extract_file_type(path.c_str());
+}
 
 // a strongly-typed enum for file category
 enum class FileCat {
@@ -255,7 +290,7 @@ std::string vcf_command_line_text(const char *arg, std::string val) {
 namespace detail {
     using token_function = boost::char_separator<char>;
     template<typename Range>
-    using char_tokenizer = boost::tokenizer<token_function, typename Range::const_iterator>;
+    using char_tokenizer = boost::tokenizer<token_function, typename boost::range_iterator<const Range>::type>;
 };
 
 template<typename Range>
@@ -263,7 +298,7 @@ inline
 detail::char_tokenizer<Range>
 make_tokenizer(const Range& text, const char *sep = "\t", const char *eol = "\n") {
     detail::token_function f(sep, eol, boost::keep_empty_tokens);
-    return {text,f};
+    return {boost::as_literal(text),f};
 }
 
 template<typename Range>
@@ -271,7 +306,26 @@ inline
 detail::char_tokenizer<Range>
 make_tokenizer_dropempty(const Range& text, const char *sep = "\t", const char *eol = "\n") {
     detail::token_function f(sep, eol, boost::drop_empty_tokens);
-    return {text,f};
+    return {boost::as_literal(text),f};
+}
+
+template<typename Range, typename Value>
+inline
+size_t find_position(const Range& r, const Value& v) {
+    return boost::distance(boost::find<boost::return_begin_found>(r, v));
+}
+
+template<typename Range, typename Pred>
+inline
+size_t find_position_if(const Range& r, Pred pred) {
+    return boost::distance(boost::find_if<boost::return_begin_found>(r, pred));
+}
+
+template<typename T>
+inline T set_high_bit(T x) {
+  T mask = 1;
+  mask <<= std::numeric_limits<typename std::make_signed<T>::type>::digits;
+  return x | mask;
 }
 
 } // namespace dng::utility

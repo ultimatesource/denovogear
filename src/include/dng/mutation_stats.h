@@ -17,14 +17,13 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 #pragma once
-#ifndef DENOVOGEAR_MUTATION_STATS_H
-#define DENOVOGEAR_MUTATION_STATS_H
+#ifndef DNG_MUTATION_STATS_H
+#define DNG_MUTATION_STATS_H
 
 #include <string>
 #include <vector>
 
 #include <dng/hts/bcf.h>
-#include <dng/matrix.h>
 #include <dng/peeling.h>
 #include <dng/relationship_graph.h>
 #include <dng/mutation.h>
@@ -51,13 +50,13 @@ public:
 
 
 	void CalculateExpectedMutation(dng::peel::workspace_t &work_full,
-			dng::TransitionVector &mean_matrices);
+			dng::TransitionMatrixVector &mean_matrices);
 
 	void CalculateNodeMutation(dng::peel::workspace_t &work_full,
-			dng::TransitionVector &posmut_transition_matrices);
+			dng::TransitionMatrixVector &posmut_transition_matrices);
 
 	void CalculateDenovoMutation(dng::peel::workspace_t &work_nomut,
-			dng::TransitionVector &onemut_transition_matrices,
+			dng::TransitionMatrixVector &onemut_transition_matrices,
 			const dng::RelationshipGraph &pedigree);
 
 
@@ -74,7 +73,6 @@ public:
 	//TODO(SW): think about whether these should be public or private?
 	float mup_;
 	float lld_;
-	[[deprecated]] float llh_;
 	float lls_;
 	float mux_;
 
@@ -84,10 +82,10 @@ public:
 	std::string dnt_;
 	std::string dnl_;
 	int32_t dnq_;
-	[[deprecated]]int32_t dnc_;
+	int32_t dnc_;
 
-	dng::IndividualVector posterior_probabilities_;
-	dng::IndividualVector genotype_likelihoods_;
+	dng::GenotypeArrayVector posterior_probabilities_;
+	dng::GenotypeArrayVector genotype_likelihoods_;
 	std::vector<float> node_mup_;
 	std::vector<float> node_mu1p_;
 
@@ -112,12 +110,11 @@ private:
 			double &max_coeff, size_t &dn_row, size_t &dn_col, size_t &dn_loc);
 #if CALCULATE_ENTROPY == 1
 public:
-	[[deprecated]]
 	void CalculateEntropy(dng::peel::workspace_t &work_nomut,
-			dng::TransitionVector &onemut_transition_matrices,
+			dng::TransitionMatrixVector &onemut_transition_matrices,
 			std::array<double, 5> max_entropies, std::size_t ref_index);
 #endif
 
 };
 
-#endif //DENOVOGEAR_MUTATION_STATS_H
+#endif //DNG_MUTATION_STATS_H

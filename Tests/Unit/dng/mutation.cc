@@ -1,6 +1,8 @@
 /*
  * Copyright (c) 2016 Steven H. Wu
+ * Copyright (c) 2017 Reed A. Cartwright
  * Authors:  Steven H. Wu <stevenwu@asu.edu>
+ *           Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
  *
@@ -19,196 +21,713 @@
 
 #define BOOST_TEST_MODULE dng::mutation
 
+#include <dng/mutation.h>
+
+#include <dng/detail/rangeio.h>
+
 #include <iostream>
 
-#include <dng/mutation.h>
+#include <boost/numeric/ublas/matrix.hpp>
+
+#include "../testing.h"
 
 #include "../boost_test_helper.h"
 
 using namespace dng;
+using namespace dng::genotype;
+using dng::detail::make_test_range;
+using d4 = std::array<double,4>;
 
-struct CreateMutationMatrix {
-
-    std::string fixture;
-
-    MutationMatrix equal_mutation_matrix;
-    MutationMatrix unequal_mutation_matrix;
-    std::array<double, 4> equal_freq = {{0.25, 0.25, 0.25, 0.25}};
-    std::array<double, 4> unequal_freq = {{0.1, 0.2, 0.3, 0.4}};
-
-
-    CreateMutationMatrix(std::string s = "CreateMutationMatrix") : fixture(s) {
-        BOOST_TEST_MESSAGE("set up fixture: " << fixture);
-
-        equal_mutation_matrix = f81::matrix(1e-6, equal_freq);
-        unequal_mutation_matrix = f81::matrix(1e-6, unequal_freq);
-
-    }
-
-    ~CreateMutationMatrix() {
-        BOOST_TEST_MESSAGE("tear down fixture: " << fixture);
-    }
-
-
-};
-
-void setup() { BOOST_TEST_MESSAGE("set up fun"); }
-
-void teardown() { BOOST_TEST_MESSAGE("tear down fun"); }
-
-
-BOOST_FIXTURE_TEST_SUITE(test_f81_suite, CreateMutationMatrix )
-
-BOOST_AUTO_TEST_CASE(test_f81_equal) {
-
-    auto diag = equal_mutation_matrix.diagonal();
-    std::vector<double> expected_diag = {0.999999, 0.999999, 0.999999, 0.999999};
-    std::vector<double> expected_off_diag = {3.333331111e-07, 3.333331111e-07, 3.333331111e-07, 3.333331111e-07};
-
-    boost_check_close_vector(expected_diag, diag);
-    for (int i = 0; i < 4; ++i) {
-        auto actual = equal_mutation_matrix.col(i);
-        Eigen::Array4d expected = Eigen::Array4d::Constant(expected_off_diag[i]);
-        expected(i) = expected_diag[i];
-        boost_check_close_vector(expected, actual);
-    }
-
+// This generic function allows us to test the same parameters
+// for different test functions
+template<typename F>
+void run_mutation_tests(F test, double prec = 2*DBL_EPSILON) {
+    test(0.0,  {0.25, 0.25, 0.25, 0.25}, prec);
+    test(1e-8, {0.25, 0.25, 0.25, 0.25}, prec);
+    test(1e-9, {0.3,0.2,0.2,0.3}, prec);
+    test(1e-6, {0.1, 0.2, 0.3, 0.4}, prec); 
+    test(1e-3, {0.01, 0.1, 0.19, 0.7}, prec);
 }
 
 BOOST_AUTO_TEST_CASE(test_f81) {
+    auto test = [](double mu, d4 freqs, double prec) -> void {
+        BOOST_TEST_CONTEXT("mu=" << mu << ", freqs=" << rangeio::wrap(freqs))
+    {
+        using namespace boost::numeric::ublas;
+        using mat = matrix<double,column_major,std::vector<double>>;
+        // Build matrix
+        mat Q(4,4);
+        for(int i=0;i<4;++i) {
+            for(int j=0;j<4;++j) {
+                Q(i,j) = freqs[j];
+            }
+            Q(i,i) = Q(i,i)-1.0;
+        }
+        // Scale matrix into substitution time
+        double scale = 0.0;
+        for(int i=0;i<4;++i) {
+            for(int j=0;j<4;++j) {
+                if(j != i) {
+                    scale += Q(i,j)*freqs[i];
+                }
+            }
+        }
+        Q /= scale;
 
-    auto diag = unequal_mutation_matrix.diagonal();
-    std::vector<double> expected_diag = {0.9999987143, 0.9999988571, 0.9999990000, 0.9999991429};
-    std::vector<double> expected_off_diag = {1.428570408e-07, 2.857140816e-07, 4.285711225e-07, 5.714281633e-07};
+        mat P = identity_matrix<double>(4);
+        mat m = P;
+        double u = 1.0;
+        double f = 1.0;
+        // Use the first 11 elements of the expm series 
+        for(int n=1;n <= 10; ++n) {
+            mat a = prec_prod(m,Q);
+            m = a;
+            u *= mu;
+            f *= n;
+            P += m * (u/f);
+        }
 
-
-    boost_check_close_vector(expected_diag, diag);
-    for (int i = 0; i < 4; ++i) {
-        auto actual = unequal_mutation_matrix.col(i);
-        Eigen::Array4d expected = Eigen::Array4d::Constant(expected_off_diag[i]);
-        expected(i) = expected_diag[i];
-        boost_check_close_vector(expected, actual);
+        auto expected_matrix = P.data();
+        auto test_matrix_ = f81::matrix(mu, freqs);
+        auto test_matrix = make_test_range(test_matrix_);
+        CHECK_CLOSE_RANGES( test_matrix, expected_matrix, prec);
     }
+    };
 
+    run_mutation_tests(test);
 }
-
-
-BOOST_AUTO_TEST_CASE(test_f81_random) {
-
-    auto matrix = f81::matrix(1e-3, {0.01, 0.1, 0.19, 0.7});
-    auto diag = matrix.diagonal();
-    std::vector<double> expected_diag = {0.9978677587, 0.9980615989, 0.9982554390, 0.9993538663};
-    std::vector<double> expected_off_diag = {0.0000215377905, 0.0002153779050, 0.0004092180195, 0.0015076453352};
-
-
-    boost_check_close_vector(expected_diag, diag);
-    for (int i = 0; i < 4; ++i) {
-        auto actual = matrix.col(i);
-        Eigen::Array4d expected = Eigen::Array4d::Constant(expected_off_diag[i]);
-        expected(i) = expected_diag[i];
-        boost_check_close_vector(expected, actual);
-    }
-
-}
-
-
-
-BOOST_AUTO_TEST_SUITE_END()
-
-
-
-BOOST_FIXTURE_TEST_SUITE(test_mutation_suite, CreateMutationMatrix )
 
 BOOST_AUTO_TEST_CASE(test_mitosis_haploid_matrix) {
+    auto test = [](double mu, d4 freqs, double prec) -> void {
+        BOOST_TEST_CONTEXT("mu=" << mu << ", freqs=" << rangeio::wrap(freqs))
+    {
+        auto m = f81::matrix(mu, freqs);
 
+        // Testing default
+        auto x_default = mitosis_haploid_matrix(m);
+        auto expected_default = make_test_range(m);
+        auto test_default = make_test_range(x_default);
+        CHECK_CLOSE_RANGES(test_default, expected_default, prec);
 
-    TransitionMatrix expected_transition_matrix_negative = TransitionMatrix::Zero(4, 4);
-    for (int i = 0; i < 4; ++i) {
-        for (int j = 0; j < 4; ++j) {
-            expected_transition_matrix_negative(i, j) = unequal_mutation_matrix(i, j);
+        // Test MUTATIONS_ALL
+        auto x_all = mitosis_haploid_matrix(m, MUTATIONS_ALL);
+        auto expected_all = make_test_range(m);
+        auto test_all = make_test_range(x_all);
+        CHECK_CLOSE_RANGES(test_all, expected_all, prec);
+
+        // Test 0 Mutations
+        auto x_0 = mitosis_haploid_matrix(m, 0);
+        auto m_0 = m;
+        for(int i=0;i<4;++i) {
+            for(int j=0;j<4;++j) {
+                if(i != j) {
+                    m_0(i,j) = 0.0;
+                }
+            }
         }
-    }
-    TransitionMatrix expected_copy_unequal_mutation_matrix = unequal_mutation_matrix;
+        auto expected_0 = make_test_range(m_0);
+        auto test_0 = make_test_range(x_0);
+        CHECK_CLOSE_RANGES(test_0, expected_0, prec);
 
+        // Test 1 Mutation
+        auto x_1 = mitosis_haploid_matrix(m, 1);
+        auto m_1 = m;
+        for(int i=0;i<4;++i) {
+            for(int j=0;j<4;++j) {
+                if(i == j) {
+                    m_1(i,j) = 0.0;
+                }
+            }
+        }
+        auto expected_1 = make_test_range(m_1);
+        auto test_1 = make_test_range(x_1);
+        CHECK_CLOSE_RANGES(test_1, expected_1, prec);
 
-    TransitionMatrix expected_transition_matrix_zero = TransitionMatrix::Zero(4, 4);
-    expected_transition_matrix_zero.diagonal() = unequal_mutation_matrix.diagonal();
+        // Test 2 Mutations
+        auto x_2 = mitosis_haploid_matrix(m, 2);
+        auto m_2 = m;
+        for(int i=0;i<4;++i) {
+            for(int j=0;j<4;++j) {
+                m_2(i,j) = 0.0;
+            }
+        }
+        auto expected_2 = make_test_range(m_2);
+        auto test_2 = make_test_range(x_2);
+        CHECK_CLOSE_RANGES(test_2, expected_2, prec);
 
+        // Test Mean Mutations
+        auto x_mean = mitosis_haploid_matrix(m, MUTATIONS_MEAN);
+        auto m_mean = m;
+        for(int i=0;i<4;++i) {
+            for(int j=0;j<4;++j) {
+                if(i == j) {
+                    m_mean(i,j) = 0.0;
+                }
+            }
+        }
+        auto expected_mean = make_test_range(m_mean);
+        auto test_mean = make_test_range(x_mean);
+        CHECK_CLOSE_RANGES(test_mean, expected_mean, prec);
+    }};
 
-    TransitionMatrix expected_transition_matrix_one = unequal_mutation_matrix;
-    expected_transition_matrix_one.diagonal() = Eigen::Vector4d::Zero(4);
-
-
-    auto actual_negative = mitosis_haploid_matrix(unequal_mutation_matrix, -1);
-    boost_check_matrix(expected_transition_matrix_negative, actual_negative);
-    boost_check_matrix(expected_copy_unequal_mutation_matrix, actual_negative);
-
-    auto actual_zero = mitosis_haploid_matrix(unequal_mutation_matrix, 0);
-    boost_check_matrix(expected_transition_matrix_zero, actual_zero);
-
-    auto actual_one = mitosis_haploid_matrix(unequal_mutation_matrix, 1);
-    boost_check_matrix(expected_transition_matrix_one, actual_one);
-
+    run_mutation_tests(test);
 }
 
 BOOST_AUTO_TEST_CASE(test_mitosis_diploid_matrix) {
-
-    TransitionMatrix ret = TransitionMatrix::Zero(10, 10);
-//    for(int i = 0; i < 10; ++i) {
-//        int h = unfolded_diploid_genotypes_upper[i];
-//        for(int j = 0; j < 16; ++j) {
-//            int k = folded_diploid_genotypes[j];
-//            ret(i, k) += (mutype < 0 || mutype == mitotic_diploid_mutation_counts[h][j]) ?
-//                         kronecker_product(m, m, h, j) : 0.0;
-//        }
-//    }
-    auto kp = kroneckerProduct(unequal_mutation_matrix, unequal_mutation_matrix);
-
-    TransitionMatrix expected_transition_matrix_negative = TransitionMatrix::Zero(10, 10);
-    for(int m = 0; m < 10; ++m) {
-        int i = unfolded_diploid_genotypes_upper[m];
-
-    for (int j = 0; j < 16; ++j) {
-            int n = folded_diploid_genotypes[j];
-            expected_transition_matrix_negative(m, n) += kp.coeff(i, j);
+    auto test = [](double mu, d4 freqs, double prec) -> void {
+        BOOST_TEST_CONTEXT("mu=" << mu << ", freqs=" << rangeio::wrap(freqs))
+    {
+        auto f = f81::matrix(mu, freqs);
+        
+        // compute 16 x 16 mutation matrix
+        double mk[4][4][4][4];
+        for(int a=0;a<4;++a) {
+            for(int b=0;b<4;++b) {
+                for(int x=0;x<4;++x) {
+                    for(int y=0;y<4;++y) {
+                        // a -> x and b -> y
+                        mk[a][b][x][y] = f(a,x)*f(b,y);
+                    }
+                }
+            }
         }
+        // fold the matrix
+        double m[100];
+        for(int x=0,z=0;x<4;++x) {
+            for(int y=0;y<=x;++y) {
+                for(int a=0,c=0;a<4;++a) {
+                    for(int b=0;b<=a;++b) {
+                        m[z] = mk[a][b][x][y];
+                        if( x != y) {
+                            m[z] += mk[a][b][y][x];
+                        }
+                        ++z;
+                    }
+                }
+            }
+        }
+
+        // Testing default
+        auto x_default = mitosis_diploid_matrix(f);
+        auto expected_default = make_test_range(m);
+        auto test_default = make_test_range(x_default);
+        CHECK_CLOSE_RANGES(test_default, expected_default, prec);
+
+        // Test MUTATIONS_ALL
+        auto x_all = mitosis_diploid_matrix(f, MUTATIONS_ALL);
+        auto expected_all = make_test_range(m);
+        auto test_all = make_test_range(x_all);
+        CHECK_CLOSE_RANGES(test_all, expected_all, prec);
+
+        // Test 0 Mutations
+        auto x_0 = mitosis_diploid_matrix(f, 0);
+        for(int x=0,z=0;x<4;++x) {
+            for(int y=0;y<=x;++y) {
+                for(int a=0;a<4;++a) {
+                    for(int b=0;b<=a;++b) {
+                        if(a == x && b == y) {
+                            m[z] = mk[a][b][x][y];
+                        } else {
+                            m[z] = 0.0;
+                        }
+                        ++z;
+                    }
+                }
+            }
+        }
+        auto expected_0 = make_test_range(m);
+        auto test_0 = make_test_range(x_0);
+        CHECK_CLOSE_RANGES(test_0, expected_0, prec);
+
+        // Test 1 Mutations
+        auto x_1 = mitosis_diploid_matrix(f, 1);
+        for(int x=0,z=0;x<4;++x) {
+            for(int y=0;y<=x;++y) {
+                for(int a=0;a<4;++a) {
+                    for(int b=0;b<=a;++b) {
+                        m[z] = 0.0;
+                        if(((a != x) + (b != y)) == 1) {
+                            m[z] += mk[a][b][x][y];
+                        }
+                        if(x != y && ((a != y) + (b != x)) == 1) {
+                            m[z] += mk[a][b][y][x];
+                        }
+                        ++z;
+                    }
+                }
+            }
+        }
+        auto expected_1 = make_test_range(m);
+        auto test_1 = make_test_range(x_1);
+        CHECK_CLOSE_RANGES(test_1, expected_1, prec);
+
+        // Test 2 Mutations
+        auto x_2 = mitosis_diploid_matrix(f, 2);
+        for(int x=0,z=0;x<4;++x) {
+            for(int y=0;y<=x;++y) {
+                for(int a=0;a<4;++a) {
+                    for(int b=0;b<=a;++b) {
+                        m[z] = 0.0;
+                        if(((a != x) + (b != y)) == 2) {
+                            m[z] += mk[a][b][x][y];
+                        }
+                        if(x != y && ((a != y) + (b != x)) == 2) {
+                            m[z] += mk[a][b][y][x];
+                        }
+                        ++z;
+                    }
+                }
+            }
+        }
+        auto expected_2 = make_test_range(m);
+        auto test_2 = make_test_range(x_2);
+        CHECK_CLOSE_RANGES(test_2, expected_2, prec);
+
+        // Test 3 Mutations
+        auto x_3 = mitosis_diploid_matrix(f, 3);
+        for(int x=0,z=0;x<4;++x) {
+            for(int y=0;y<=x;++y) {
+                for(int a=0;a<4;++a) {
+                    for(int b=0;b<=a;++b) {
+                        m[z] = 0.0;
+                        ++z;
+                    }
+                }
+            }
+        }
+        auto expected_3 = make_test_range(m);
+        auto test_3 = make_test_range(x_3);
+        CHECK_CLOSE_RANGES(test_3, expected_3, prec);
+
+        // Test Mean Mutations
+        auto x_mean = mitosis_diploid_matrix(f, MUTATIONS_MEAN);
+        for(int x=0,z=0;x<4;++x) {
+            for(int y=0;y<=x;++y) {
+                for(int a=0;a<4;++a) {
+                    for(int b=0;b<=a;++b) {
+                        m[z] = 0.0;
+                        m[z] += mk[a][b][x][y]*((a != x) + (b != y));
+                        if(x != y) {
+                            m[z] += mk[a][b][y][x]*((a != y) + (b != x));
+                        }
+                        ++z;
+                    }
+                }
+            }
+        }
+        auto expected_mean = make_test_range(m);
+        auto test_mean = make_test_range(x_mean);
+        CHECK_CLOSE_RANGES(test_mean, expected_mean, prec);
     }
+    };
 
-    TransitionMatrix expected_transition_matrix_zero = TransitionMatrix::Zero(10, 10);
-
-    TransitionMatrix expected_transition_matrix_one = TransitionMatrix::Zero(10, 10);
-
-    TransitionMatrix expected_transition_matrix_two = TransitionMatrix::Zero(10, 10);
-
-
-    auto actual_negative = mitosis_diploid_matrix(unequal_mutation_matrix, -1);
-    boost_check_matrix(expected_transition_matrix_negative, actual_negative);
-
-    auto actual_zero = mitosis_diploid_matrix(unequal_mutation_matrix, 0);
-//    boost_check_matrix(expected_transition_matrix_zero, actual_zero);
-
-    auto actual_one = mitosis_diploid_matrix(unequal_mutation_matrix, 1);
-//    boost_check_matrix(expected_transition_matrix_one, actual_one);
-
-    auto actual_two = mitosis_diploid_matrix(unequal_mutation_matrix, 2);
-//    boost_check_matrix(expected_transition_matrix_two, actual_two);
-
-
+    run_mutation_tests(test);
 }
 
-//TODO(SHW): Implement these tests
 BOOST_AUTO_TEST_CASE(test_meiosis_haploid_matrix) {
-}
-BOOST_AUTO_TEST_CASE(test_meiosis_diploid_matrix) {
-}
-BOOST_AUTO_TEST_CASE(test_mitosis_haploid_mean_matrix) {
-}
-BOOST_AUTO_TEST_CASE(test_mitosis_diploid_mean_matrix) {
-}
-BOOST_AUTO_TEST_CASE(test_meiosis_haploid_mean_matrix) {
-}
-BOOST_AUTO_TEST_CASE(test_meiosis_diploid_mean_matrix) {
+    auto test = [](double mu, d4 freqs, double prec) -> void {
+        BOOST_TEST_CONTEXT("mu=" << mu << ", freqs=" << rangeio::wrap(freqs))
+    {
+        auto f = f81::matrix(mu, freqs);
+        
+        // compute 10 x 4 mutation matrix
+        double m[40];
+        for(int x=0,z=0;x<4;++x) {
+            for(int a=0,c=0;a<4;++a) {
+                for(int b=0;b<=a;++b) {
+                    m[z] = 0.5*(f(a,x)+f(b,x));
+                    ++z;
+                }
+            }
+        }
+
+        // Testing default
+        auto x_default = meiosis_haploid_matrix(f);
+        auto expected_default = make_test_range(m);
+        auto test_default = make_test_range(x_default);
+        CHECK_CLOSE_RANGES(test_default, expected_default, prec);
+
+        // Test MUTATIONS_ALL
+        auto x_all = meiosis_haploid_matrix(f, MUTATIONS_ALL);
+        auto expected_all = make_test_range(m);
+        auto test_all = make_test_range(x_all);
+        CHECK_CLOSE_RANGES(test_all, expected_all, prec);
+
+        // Test 0 Mutations
+        auto x_0 = meiosis_haploid_matrix(f, 0);
+        for(int x=0,z=0;x<4;++x) {
+            for(int a=0,c=0;a<4;++a) {
+                for(int b=0;b<=a;++b) {
+                    m[z] = 0.0;
+                    m[z] += 0.5*f(a,x)*(a==x);
+                    m[z] += 0.5*f(b,x)*(b==x);
+                    ++z;
+                }
+            }
+        }
+        auto expected_0 = make_test_range(m);
+        auto test_0 = make_test_range(x_0);
+        CHECK_CLOSE_RANGES(test_0, expected_0, prec);
+
+        // Test 1 Mutation
+        auto x_1 = meiosis_haploid_matrix(f, 1);
+        for(int x=0,z=0;x<4;++x) {
+            for(int a=0,c=0;a<4;++a) {
+                for(int b=0;b<=a;++b) {
+                    m[z] = 0.0;
+                    m[z] += 0.5*f(a,x)*(a!=x);
+                    m[z] += 0.5*f(b,x)*(b!=x);
+                    ++z;
+                }
+            }
+        }
+        auto expected_1 = make_test_range(m);
+        auto test_1 = make_test_range(x_1);
+        CHECK_CLOSE_RANGES(test_1, expected_1, prec);
+
+        // Test 2 Mutations
+        auto x_2 = meiosis_haploid_matrix(f, 2);
+        for(int x=0,z=0;x<4;++x) {
+            for(int a=0,c=0;a<4;++a) {
+                for(int b=0;b<=a;++b) {
+                    m[z] = 0.0;
+                    ++z;
+                }
+            }
+        }
+        auto expected_2 = make_test_range(m);
+        auto test_2 = make_test_range(x_2);
+        CHECK_CLOSE_RANGES(test_2, expected_2, prec);
+
+        // Test Mean Mutations
+        auto x_mean = meiosis_haploid_matrix(f, MUTATIONS_MEAN);
+        for(int x=0,z=0;x<4;++x) {
+            for(int a=0,c=0;a<4;++a) {
+                for(int b=0;b<=a;++b) {
+                    m[z] = 0.0;
+                    m[z] += 0.5*f(a,x)*(a!=x);
+                    m[z] += 0.5*f(b,x)*(b!=x);
+                    ++z;
+                }
+            }
+        }
+        auto expected_mean = make_test_range(m);
+        auto test_mean = make_test_range(x_mean);
+        CHECK_CLOSE_RANGES(test_mean, expected_mean, prec);
+
+    }};
+
+    run_mutation_tests(test);
 }
 
-BOOST_AUTO_TEST_SUITE_END()
+BOOST_AUTO_TEST_CASE(test_mitosis_matrix) {
+    auto test = [](double mu, d4 freqs, double prec) -> void {
+        BOOST_TEST_CONTEXT("mu=" << mu << ", freqs=" << rangeio::wrap(freqs))
+    {
+        auto f = f81::matrix(mu, freqs);
+        // Ploidy 1
+        BOOST_TEST_CONTEXT("ploidy=1") {
+            auto m_default = mitosis_haploid_matrix(f);
+            auto x_default = mitosis_matrix(1, f);
+            auto expected_default = make_test_range(m_default);
+            auto test_default = make_test_range(x_default);
+            CHECK_CLOSE_RANGES(test_default, expected_default, prec);
 
+            for(int mutype : {0,1,2,MUTATIONS_ALL,MUTATIONS_MEAN}) {
+                BOOST_TEST_CONTEXT("mutype=" << mutype) {
+                    auto m_mutype = mitosis_haploid_matrix(f, mutype);
+                    auto x_mutype = mitosis_matrix(1, f, mutype);
+                    auto expected_mutype = make_test_range(m_mutype);
+                    auto test_mutype = make_test_range(x_mutype);
+                    CHECK_CLOSE_RANGES(test_mutype, expected_mutype, prec);
+                }
+            }
+        }
+        // Ploidy 2
+        BOOST_TEST_CONTEXT("ploidy=2") {
+            auto m_default = mitosis_diploid_matrix(f);
+            auto x_default = mitosis_matrix(2, f);
+            auto expected_default = make_test_range(m_default);
+            auto test_default = make_test_range(x_default);
+            CHECK_CLOSE_RANGES(test_default, expected_default, prec);
+
+            for(int mutype : {0,1,2,3,MUTATIONS_ALL,MUTATIONS_MEAN}) {
+                BOOST_TEST_CONTEXT("mutype=" << mutype) {
+                    auto m_mutype = mitosis_diploid_matrix(f, mutype);
+                    auto x_mutype = mitosis_matrix(2, f, mutype);
+                    auto expected_mutype = make_test_range(m_mutype);
+                    auto test_mutype = make_test_range(x_mutype);
+                    CHECK_CLOSE_RANGES(test_mutype, expected_mutype, prec);
+                }
+            }
+        }
+    }};
+
+    run_mutation_tests(test);
+}
+
+BOOST_AUTO_TEST_CASE(test_gamete_matrix) {
+    auto test = [](double mu, d4 freqs, double prec) -> void {
+        BOOST_TEST_CONTEXT("mu=" << mu << ", freqs=" << rangeio::wrap(freqs))
+    {
+        auto f = f81::matrix(mu, freqs);
+        // Ploidy 1
+        BOOST_TEST_CONTEXT("ploidy=1") {
+            auto m_default = mitosis_haploid_matrix(f);
+            auto x_default = gamete_matrix(1, f);
+            auto expected_default = make_test_range(m_default);
+            auto test_default = make_test_range(x_default);
+            CHECK_CLOSE_RANGES(test_default, expected_default, prec);
+
+            for(int mutype : {0,1,2,MUTATIONS_ALL,MUTATIONS_MEAN}) {
+                BOOST_TEST_CONTEXT("mutype=" << mutype) {
+                    auto m_mutype = mitosis_haploid_matrix(f, mutype);
+                    auto x_mutype = gamete_matrix(1, f, mutype);
+                    auto expected_mutype = make_test_range(m_mutype);
+                    auto test_mutype = make_test_range(x_mutype);
+                    CHECK_CLOSE_RANGES(test_mutype, expected_mutype, prec);
+                }
+            }
+        }
+        // Ploidy 2
+        BOOST_TEST_CONTEXT("ploidy=2") {
+            auto m_default = meiosis_haploid_matrix(f);
+            auto x_default = gamete_matrix(2, f);
+            auto expected_default = make_test_range(m_default);
+            auto test_default = make_test_range(x_default);
+            CHECK_CLOSE_RANGES(test_default, expected_default, prec);
+
+            for(int mutype : {0,1,2,3,MUTATIONS_ALL,MUTATIONS_MEAN}) {
+                BOOST_TEST_CONTEXT("mutype=" << mutype) {
+                    auto m_mutype = meiosis_haploid_matrix(f, mutype);
+                    auto x_mutype = gamete_matrix(2, f, mutype);
+                    auto expected_mutype = make_test_range(m_mutype);
+                    auto test_mutype = make_test_range(x_mutype);
+                    CHECK_CLOSE_RANGES(test_mutype, expected_mutype, prec);
+                }
+            }
+        }
+    }};
+
+    run_mutation_tests(test);
+}
+
+BOOST_AUTO_TEST_CASE(test_number_of_parent_genotypes) {
+    BOOST_CHECK_EQUAL(number_of_parent_genotypes(1), 4);
+    BOOST_CHECK_EQUAL(number_of_parent_genotypes(2), 10);
+
+    BOOST_CHECK_EQUAL(number_of_parent_genotype_pairs(1,1), 16);
+    BOOST_CHECK_EQUAL(number_of_parent_genotype_pairs(1,2), 40);
+    BOOST_CHECK_EQUAL(number_of_parent_genotype_pairs(2,1), 40);
+    BOOST_CHECK_EQUAL(number_of_parent_genotype_pairs(2,2), 100);    
+}
+
+BOOST_AUTO_TEST_CASE(test_meiosis_matrix) {
+    auto test_ploidy = [](const int dad_ploidy, const MutationMatrix &dad_m,
+    const int mom_ploidy, const MutationMatrix &mom_m, double prec) -> void {
+        BOOST_TEST_CONTEXT("dad_ploidy=" << dad_ploidy << ", mom_ploidy=" << mom_ploidy)
+    {
+        auto x_default = meiosis_matrix(dad_ploidy, dad_m, mom_ploidy, mom_m);
+        auto dad_g = gamete_matrix(dad_ploidy, dad_m);
+        auto mom_g = gamete_matrix(mom_ploidy, mom_m);
+
+        // Default Argument
+        std::vector<double> m;
+        for(int x=0;x<4;++x) {
+             for(int y=0;y<=x;++y) {
+                for(int a=0;a<number_of_parent_genotypes(dad_ploidy);++a) {
+                    for(int b=0;b<number_of_parent_genotypes(mom_ploidy);++b) {
+                        // {a,b} => {x,y}
+                        double d = 0.0;
+                        d += dad_g(a,x)*mom_g(b,y);
+                        if(x != y) {
+                            d += dad_g(a,y)*mom_g(b,x);
+                        }
+                        m.push_back(d);
+                    }
+                }
+            }
+        }
+        auto expected_default = m;
+        auto test_default = make_test_range(x_default);
+        CHECK_CLOSE_RANGES(test_default, expected_default, prec);
+
+        // All Mutations
+        auto x_all = meiosis_matrix(dad_ploidy, dad_m, mom_ploidy, mom_m, MUTATIONS_ALL);
+        auto expected_all = m;
+        auto test_all = make_test_range(x_all);
+        CHECK_CLOSE_RANGES(test_all, expected_all, prec);
+        
+        // Mean Mutations
+        auto x_mean = meiosis_matrix(dad_ploidy, dad_m, mom_ploidy, mom_m, MUTATIONS_MEAN);
+        auto dad_a = gamete_matrix(dad_ploidy, dad_m, MUTATIONS_MEAN);
+        auto mom_a = gamete_matrix(mom_ploidy, mom_m, MUTATIONS_MEAN);
+        for(int x=0,z=0;x<4;++x) {
+             for(int y=0;y<=x;++y) {
+                for(int a=0;a<number_of_parent_genotypes(dad_ploidy);++a) {
+                    for(int b=0;b<number_of_parent_genotypes(mom_ploidy);++b) {
+                        // {a,b} => {x,y}
+                        double d = 0.0;
+                        d += dad_a(a,x)*mom_g(b,y) + dad_g(a,x)*mom_a(b,y);
+                        if(x != y) {
+                            d += dad_a(a,y)*mom_g(b,x) + dad_g(a,y)*mom_a(b,x);
+                        }
+                        m[z++] = d;
+                    }
+                }
+            }
+        }
+        auto expected_mean = m;
+        auto test_mean = make_test_range(x_mean);
+        CHECK_CLOSE_RANGES(test_mean, expected_mean, prec);
+
+        // Check for number of mutations
+        for(int mutype : {0,1,2,3}) {
+        BOOST_TEST_CONTEXT("mutype=" << mutype) {
+            auto x_mutype = meiosis_matrix(dad_ploidy, dad_m, mom_ploidy, mom_m, mutype);
+            m.assign(m.size(),0.0);
+            for(int u=0;u<=mutype;++u) {
+                auto dad_u = gamete_matrix(dad_ploidy, dad_m, u);
+                auto mom_u = gamete_matrix(mom_ploidy, mom_m, mutype-u);
+                for(int x=0,z=0;x<4;++x) {
+                     for(int y=0;y<=x;++y) {
+                        for(int a=0;a<number_of_parent_genotypes(dad_ploidy);++a) {
+                            for(int b=0;b<number_of_parent_genotypes(mom_ploidy);++b) {
+                                // {a,b} => {x,y}
+                                double d = 0.0;
+                                d += dad_u(a,x)*mom_u(b,y);
+                                if(x != y) {
+                                    d += dad_u(a,y)*mom_u(b,x);
+                                }
+                                m[z++] += d;
+                            }
+                        }
+                    }
+                }
+            }
+            auto expected_mutype = m;
+            auto test_mutype = make_test_range(x_mutype);
+            CHECK_CLOSE_RANGES(test_mutype, expected_mutype, prec);            
+        }}
+    }};
+
+    auto test = [&](double dad_mu, d4 dad_freqs,
+                   double mom_mu, d4 mom_freqs, double prec) -> void {
+        BOOST_TEST_CONTEXT("dad_mu=" << dad_mu << ", dad_freqs=" << rangeio::wrap(dad_freqs)
+                      << ", mom_mu=" << mom_mu << ", mom_freqs=" << rangeio::wrap(mom_freqs) )
+    {
+        auto dad = f81::matrix(dad_mu, dad_freqs);
+        auto mom = f81::matrix(mom_mu, mom_freqs);
+
+        test_ploidy(2, dad, 2, mom, prec);
+        test_ploidy(1, dad, 2, mom, prec);
+        test_ploidy(1, dad, 1, mom, prec);
+        test_ploidy(2, dad, 1, mom, prec);
+    }};
+
+    double prec = 2*DBL_EPSILON;
+    test(0.0,  {0.25, 0.25, 0.25, 0.25}, 1e-8, {0.25, 0.25, 0.25, 0.25}, prec);
+    test(1e-9, {0.3,0.2,0.2,0.3}, 1e-9, {0.3,0.2,0.2,0.3}, prec);
+    test(1e-6, {0.1, 0.2, 0.3, 0.4}, 1e-3, {0.01, 0.1, 0.19, 0.7}, prec); 
+}
+
+template<typename F>
+void run_population_tests(F test, double prec = 2*DBL_EPSILON) {
+    auto test_prior = [&](d4 p) {
+        test(0.001,  {0.25, 0.25, 0.25, 0.25}, p, prec);
+        test(0.1, {0.25, 0.25, 0.25, 0.25}, p, prec);
+        test(1e-6, {0.3,0.2,0.2,0.3}, p, prec);
+        test(0.001, {0.1, 0.2, 0.3, 0.4}, p, prec); 
+        test(0.001, {0.01, 0.1, 0.19, 0.7}, p, prec);
+        test(1, {0.01, 0.1, 0.19, 0.7}, p, prec);
+        test(100, {0.01, 0.1, 0.19, 0.7}, p, prec);        
+        test(0.01,  {1, 1, 1, 1}, p, prec);
+        test(0.0,  {1, 1, 1, 1}, p, prec);
+        test(1e-9,  {4, 3, 2, 1}, p, prec);
+    };
+    test_prior({0.0,0,0,0});
+    for(double w : {1.0,1e5,1e-5}) {
+        test_prior({w,0,0,0});
+        test_prior({0,w,0,0});
+        test_prior({0,0,w,0});
+        test_prior({0,0,0,w});
+    }
+}
+
+BOOST_AUTO_TEST_CASE(test_population_alphas) {
+    auto test = [](double theta, d4 freqs, d4 prior, double prec) -> void {
+    BOOST_TEST_CONTEXT("theta=" << theta << ", freqs=" << rangeio::wrap(freqs)
+                    << ", prior=" << rangeio::wrap(prior)) {
+        auto test_alphas = population_alphas(theta, freqs, prior);
+        std::vector<double> expected_alphas;
+        double total = 0.0;
+        for(auto &&a : freqs) {
+            total += a;
+        }
+        for(auto &&a : freqs) {
+            a /= total;
+        }
+        for(int i=0; i<4; ++i) {
+            double d = theta*freqs[i]+prior[i];
+            expected_alphas.push_back(d);
+        }
+        CHECK_CLOSE_RANGES(test_alphas, expected_alphas, prec);
+    }};
+    run_population_tests(test);
+}
+
+BOOST_AUTO_TEST_CASE(test_population_prior_diploid) {
+    auto test = [](double theta, d4 freqs, d4 prior, double prec) -> void {
+    BOOST_TEST_CONTEXT("theta=" << theta << ", freqs=" << rangeio::wrap(freqs)
+                    << ", prior=" << rangeio::wrap(prior)) {
+        auto x_prior = population_prior_diploid(theta, freqs, prior);
+        auto alphas = population_alphas(theta, freqs, prior);
+        double alpha_sum = 0.0;
+        for(auto &&a : alphas) {
+            alpha_sum += a;
+        }
+        if(alpha_sum == 0.0) {
+            return;
+        }
+        std::vector<double> expected_prior;
+        for(int i=0; i < 4; ++i) {
+            for(int j=0; j <= i; ++j) {
+                double d;
+                if(i == j) {
+                    d = alphas[i]*(1.0+alphas[i])/alpha_sum/(1.0+alpha_sum);
+                } else {
+                    d = 2.0*alphas[i]*alphas[j]/alpha_sum/(1.0+alpha_sum);
+                }
+                expected_prior.push_back(d);
+            }
+        }
+        auto test_prior = make_test_range(x_prior);
+        CHECK_CLOSE_RANGES(test_prior, expected_prior, prec);
+
+    }};
+    run_population_tests(test);
+}
+
+BOOST_AUTO_TEST_CASE(test_population_prior_haploid) {
+    auto test = [](double theta, d4 freqs, d4 prior, double prec) -> void {
+    BOOST_TEST_CONTEXT("theta=" << theta << ", freqs=" << rangeio::wrap(freqs)
+                    << ", prior=" << rangeio::wrap(prior)) {
+        auto x_prior = population_prior_haploid(theta, freqs, prior);
+        auto alphas = population_alphas(theta, freqs, prior);
+        double alpha_sum = 0.0;
+        for(auto &&a : alphas) {
+            alpha_sum += a;
+        }
+        if(alpha_sum == 0.0) {
+            return;
+        }
+        std::vector<double> expected_prior;
+        for(int i=0; i < 4; ++i) {
+            expected_prior.push_back(alphas[i]/alpha_sum);
+        }
+        auto test_prior = make_test_range(x_prior);
+        CHECK_CLOSE_RANGES(test_prior, expected_prior, prec);
+
+    }};
+    run_population_tests(test);
+}

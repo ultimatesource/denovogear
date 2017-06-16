@@ -1,10 +1,31 @@
+/*
+ * Copyright (c) 2016 Reed A. Cartwright
+ * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
+ *
+ * This file is part of DeNovoGear.
+ *
+ * DeNovoGear is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation; either version 3 of the License, or (at your option) any later
+ * version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #define BOOST_TEST_MODULE dng::utility
+
+#include <dng/utility.h>
+
+#include "../testing.h"
 
 #include <vector>
 #include <string>
 #include <utility>
-
-#include <dng/utility.h>
 
 using namespace std;
 
@@ -60,9 +81,9 @@ BOOST_AUTO_TEST_CASE(test_extract_file_type) {
     BOOST_CHECK(dng::utility::extract_file_type("my:.foo.bar") == make_pair(string{"my"},string{".foo.bar"}));
     BOOST_CHECK(dng::utility::extract_file_type(".foo.bar") == make_pair(string{"bar"},string{".foo.bar"}));
     BOOST_CHECK(dng::utility::extract_file_type("") == make_pair(string{""},string{""}));
-    BOOST_CHECK(dng::utility::extract_file_type({}) == make_pair(string{},string{}));
-    BOOST_CHECK(dng::utility::extract_file_type("C:\\foo.bar") == make_pair(string{"bar"},string{"C:\\foo.bar"}));
-    BOOST_CHECK(dng::utility::extract_file_type("CC:C:\\foo.bar") == make_pair(string{"CC"},string{"C:\\foo.bar"}));
+    BOOST_CHECK(dng::utility::extract_file_type(std::string{}) == make_pair(string{},string{}));
+    //BOOST_CHECK(dng::utility::extract_file_type("C:\\foo.bar") == make_pair(string{"bar"},string{"C:\\foo.bar"}));
+    //BOOST_CHECK(dng::utility::extract_file_type("CC:C:\\foo.bar") == make_pair(string{"CC"},string{"C:\\foo.bar"}));
 
     BOOST_CHECK(dng::utility::extract_file_type("bcf:test") == make_pair(string{"bcf"},string{"test"}));
     BOOST_CHECK(dng::utility::extract_file_type("vcf:-") == make_pair(string{"vcf"},string{"-"}));

@@ -30,46 +30,30 @@
 #include <Eigen/Sparse>
 #include <Eigen/KroneckerProduct>
 
+#include <dng/detail/unit_test.h>
+
 namespace dng {
-
-struct depth_t {
-    int32_t counts[4]{0,0,0,0};
-};
-
 
 typedef Eigen::Array<double, Eigen::Dynamic, 1, 0, 10, 1> GenotypeArray;
 typedef std::vector<GenotypeArray, Eigen::aligned_allocator<GenotypeArray>>
-        IndividualVector;
+        GenotypeArrayVector;
 
 #define DNG_INDIVIDUAL_BUFFER_MIN DBL_MIN
-#define DNG_INDIVIDUAL_BUFFER_ONES IndividualVector::value_type::Ones(10)
-#define DNG_INDIVIDUAL_BUFFER_ZEROS IndividualVector::value_type::Zero(10)
+#define DNG_INDIVIDUAL_BUFFER_ONES GenotypeArrayVector::value_type::Ones(10)
+#define DNG_INDIVIDUAL_BUFFER_ZEROS GenotypeArrayVector::value_type::Zero(10)
 
 typedef Eigen::MatrixXd TransitionMatrix; // element (i,j) is the P(j|i)
-typedef std::vector<TransitionMatrix> TransitionVector;
+typedef std::vector<TransitionMatrix> TransitionMatrixVector;
 
-typedef Eigen::ArrayXXd PairedGenotypeArray;
+typedef Eigen::ArrayXXd TemporaryMatrix;
 
 typedef Eigen::ArrayXd ParentArray;
-typedef std::vector<ParentArray> ParentVector;
+typedef std::vector<ParentArray> ParentArrayVector;
 
 typedef Eigen::Matrix4d MutationMatrix;
 
-constexpr int folded_diploid_nucleotides[10][2] = {{0, 0}, {0, 1}, {0, 2}, {0, 3},
-    {1, 1}, {1, 2}, {1, 3}, {2, 2}, {2, 3}, {3, 3}
-};
-
-// converts from unfolded genotype [0-15] to a folded genotype [0-10]
-constexpr int folded_diploid_genotypes[16] = {0, 1, 2, 3, 1, 4, 5, 6, 2, 5, 7, 8, 3, 6, 8, 9};
-constexpr int folded_diploid_genotypes_matrix[4][4] = {{0, 1, 2, 3}, {1, 4, 5, 6}, {2, 5, 7, 8}, {3, 6, 8, 9}};
-
-// converts from a folded genotype to an unfolded genotype
-constexpr int unfolded_diploid_genotypes_upper[10] = {0, 1, 2, 3, 5, 6, 7, 10, 11, 15};
-constexpr int unfolded_diploid_genotypes_lower[10] = {0, 4, 8, 12, 5, 9, 13, 10, 14, 15};
-
-
 template<typename A, typename B>
-inline auto kronecker_product(const A &a, const B &b, std::size_t i,
+inline auto kronecker_product_coef(const A &a, const B &b, std::size_t i,
                               std::size_t j) -> decltype(a(0, 0)*b(0, 0)) {
     assert(i < a.rows()*b.rows() && j < a.cols()*b.cols());
     return a(i / b.rows(), j / b.cols()) * b(i % b.rows(), j % b.cols());

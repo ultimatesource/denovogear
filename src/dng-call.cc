@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015 Reed A. Cartwright
+ * Copyright (c) 2014-2017 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
     try {
         return CallApp(argc, argv)();
     } catch(std::exception &e) {
-        std::cerr << e.what() << std::endl;
+        std::cerr << "ERROR: " << e.what() << std::endl;
     }
     return EXIT_FAILURE;
 }
