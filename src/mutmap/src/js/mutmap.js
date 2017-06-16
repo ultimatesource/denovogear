@@ -19,31 +19,69 @@
   var kinshipPedigreeData = layoutData;
   var graphData = processPedigree(kinshipPedigreeData);
 
-  //$('.nav-tabs a[href="#mutation-distribution"]')
-  //  .on('shown.bs.tab', function(e) {
+  var startTime = new Date();
 
-  var options = {
+  var vcfData = vcfParser.VcfParser.create()
+    .parse({ vcfText: dngOutputFileText });
+
+  var endTime = new Date();
+  var elapsed = endTime - startTime;
+  console.log("Parsing time:", elapsed / 1000);
+
+  console.log(vcfData);
+ 
+  mutationDistributionView.createMutationDistributionView({
     renderInto: d3.select(".mutation-distribution-tab"),
     graphData: graphData,
     vcfText: dngOutputFileText,
-  };
-  mutationDistributionView.createMutationDistributionView(options);
+  });
 
-  //});
+  // Build mutation location data
+  var mutationLocationData = {};
+  vcfData.records.forEach(function(record) {
+    if (mutationLocationData[record.CHROM] === undefined) {
+      mutationLocationData[record.CHROM] = {};
+    }
+    if (mutationLocationData[record.CHROM][record.INFO.DNL] === undefined) {
+      mutationLocationData[record.CHROM][record.INFO.DNL] = [];
+    }
 
+    mutationLocationData[record.CHROM][record.INFO.DNL].push(record.POS);
+
+  });
+
+  var processed = {};
+  Object.keys(mutationLocationData).forEach(function(chromKey) {
+    processed[chromKey] = [];
+
+    Object.keys(mutationLocationData[chromKey]).forEach(function(sampleKey) {
+      processed[chromKey].push({
+        sampleName: sampleKey,
+        mutationLocations: mutationLocationData[chromKey][sampleKey]
+      });
+    });
+  });
+
+  console.log(mutationLocationData);
+  console.log(processed);
+
+  mutationLocationsView.createMutationLocationsView({
+    renderInto: d3.select(".mutation-locations-tab"),
+  });
+
+  // Conditionally render the explorer view only once it's selected
   var rendered = false;
-
   $('.nav-tabs a[href="#mutation-explorer"]').on('shown.bs.tab', function(e) {
 
     if (!rendered) {
       rendered = true;
 
-      var options = {
+      mutationExplorerView.createMutationExplorerView({
         renderInto: d3.select(".mutation-explorer-tab"),
         graphData: graphData,
         pedGraph: pedGraph,
-      };
-      mutationExplorerView.createMutationExplorerView(options);
+        vcfData: vcfData,
+      });
     }
 
   });

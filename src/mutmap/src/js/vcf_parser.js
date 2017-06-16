@@ -1,5 +1,5 @@
 
-var vcfParserNew = (function() {
+var vcfParser = (function() {
   "use strict";
 
   var optionsManager = utils.createOptionsManager();

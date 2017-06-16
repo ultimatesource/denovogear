@@ -18,6 +18,7 @@ if (Rscript_FOUND)
       ${VIEW_DIR}/sample_tree.js
       ${VIEW_DIR}/stats.js
       ${VIEW_DIR}/mutation_distribution.js
+      ${VIEW_DIR}/mutation_locations.js
       ${VIEW_DIR}/mutation_explorer.js
       ${VIEW_DIR}/pedigree.js
       ${JS_DIR}/mutmap.js)

@@ -12,7 +12,6 @@
 
 /* global pedigreeFileText */
 /* global layoutData */
-/* global dngOutputFileText */
 
 var mutationExplorerView = (function(d3, PubSub, utils) {
   "use strict";
@@ -21,27 +20,14 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
 
   function MutationExplorerView(options) {
     optionsManager.checkOptions({
-      requiredOptions: ['renderInto', 'graphData', 'pedGraph'],
+      requiredOptions: ['renderInto', 'graphData', 'pedGraph', 'vcfData'],
       providedOptions: options
     });
 
     var graphData = options.graphData;
     var pedGraph = options.pedGraph;
+    var vcfData = options.vcfData;
 
-
-
-    var startTime = new Date();
-
-    var vcfData = vcfParserNew.VcfParser.create()
-      .parse({ vcfText: dngOutputFileText });
-
-
-    var endTime = new Date();
-    var elapsed = endTime - startTime;
-    console.log("Parsing time:", elapsed / 1000);
-
-    console.log(vcfData);
-    
     // TODO: Using globals. Hack. Use a better method.
     var selectedContigIndex = 0;
     var selectedMutationIndex = 0;
