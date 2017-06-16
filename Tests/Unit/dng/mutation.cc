@@ -52,11 +52,6 @@ struct CreateMutationMatrix {
 
 };
 
-void setup() { BOOST_TEST_MESSAGE("set up fun"); }
-
-void teardown() { BOOST_TEST_MESSAGE("tear down fun"); }
-
-
 BOOST_FIXTURE_TEST_SUITE(test_f81_suite, CreateMutationMatrix )
 
 BOOST_AUTO_TEST_CASE(test_f81_equal) {
@@ -72,7 +67,6 @@ BOOST_AUTO_TEST_CASE(test_f81_equal) {
         expected(i) = expected_diag[i];
         boost_check_close_vector(expected, actual);
     }
-
 }
 
 BOOST_AUTO_TEST_CASE(test_f81) {
@@ -89,9 +83,7 @@ BOOST_AUTO_TEST_CASE(test_f81) {
         expected(i) = expected_diag[i];
         boost_check_close_vector(expected, actual);
     }
-
 }
-
 
 BOOST_AUTO_TEST_CASE(test_f81_random) {
 
@@ -108,11 +100,7 @@ BOOST_AUTO_TEST_CASE(test_f81_random) {
         expected(i) = expected_diag[i];
         boost_check_close_vector(expected, actual);
     }
-
 }
-
-
-
 BOOST_AUTO_TEST_SUITE_END()
 
 
@@ -122,85 +110,191 @@ BOOST_FIXTURE_TEST_SUITE(test_mutation_suite, CreateMutationMatrix )
 BOOST_AUTO_TEST_CASE(test_mitosis_haploid_matrix) {
 
 
-    TransitionMatrix expected_transition_matrix_negative = TransitionMatrix::Zero(4, 4);
+    TransitionMatrix expected_matrix_negative = TransitionMatrix::Zero(4, 4);
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
-            expected_transition_matrix_negative(i, j) = unequal_mutation_matrix(i, j);
+            expected_matrix_negative(i, j) = unequal_mutation_matrix(i, j);
         }
     }
+    TransitionMatrix expected_matrix_negative_r = TransitionMatrix::Zero(4, 4);
+    expected_matrix_negative_r <<
+#include "expected/mitosis_haploid_matrix_negative.incl"
+    ;
+
     TransitionMatrix expected_copy_unequal_mutation_matrix = unequal_mutation_matrix;
 
 
-    TransitionMatrix expected_transition_matrix_zero = TransitionMatrix::Zero(4, 4);
-    expected_transition_matrix_zero.diagonal() = unequal_mutation_matrix.diagonal();
+    TransitionMatrix expected_matrix_zero = TransitionMatrix::Zero(4, 4);
+    expected_matrix_zero.diagonal() = unequal_mutation_matrix.diagonal();
+    TransitionMatrix expected_matrix_zero_r = TransitionMatrix::Zero(4, 4);
+    expected_matrix_zero_r <<
+#include "expected/mitosis_haploid_matrix_zero.incl"
+    ;
 
+    TransitionMatrix expected_matrix_one = unequal_mutation_matrix;
+    expected_matrix_one.diagonal() = Eigen::Vector4d::Zero(4);
 
-    TransitionMatrix expected_transition_matrix_one = unequal_mutation_matrix;
-    expected_transition_matrix_one.diagonal() = Eigen::Vector4d::Zero(4);
+    TransitionMatrix expected_matrix_one_r = TransitionMatrix::Zero(4, 4);
+    expected_matrix_one_r <<
+#include "expected/mitosis_haploid_matrix_one.incl"
+    ;
 
+    TransitionMatrix expected_matrix_two =  TransitionMatrix::Zero(4, 4);
 
     auto actual_negative = mitosis_haploid_matrix(unequal_mutation_matrix, -1);
-    boost_check_matrix(expected_transition_matrix_negative, actual_negative);
+    boost_check_matrix(expected_matrix_negative, actual_negative);
+    boost_check_matrix(expected_matrix_negative_r, actual_negative);
     boost_check_matrix(expected_copy_unequal_mutation_matrix, actual_negative);
 
+    auto actual_neg_2 = mitosis_haploid_matrix(unequal_mutation_matrix, -2);
+    boost_check_matrix(expected_matrix_negative, actual_neg_2);
+    boost_check_matrix(expected_matrix_negative_r, actual_neg_2);
+    boost_check_matrix(expected_copy_unequal_mutation_matrix, actual_neg_2);
+
     auto actual_zero = mitosis_haploid_matrix(unequal_mutation_matrix, 0);
-    boost_check_matrix(expected_transition_matrix_zero, actual_zero);
+    boost_check_matrix(expected_matrix_zero, actual_zero);
+    boost_check_matrix(expected_matrix_zero_r, actual_zero);
 
     auto actual_one = mitosis_haploid_matrix(unequal_mutation_matrix, 1);
-    boost_check_matrix(expected_transition_matrix_one, actual_one);
+    boost_check_matrix(expected_matrix_one, actual_one);
+    boost_check_matrix(expected_matrix_one_r, actual_one);
+
+    auto actual_two = mitosis_haploid_matrix(unequal_mutation_matrix, 2);
+    boost_check_matrix(expected_matrix_two, actual_two);
 
 }
 
 BOOST_AUTO_TEST_CASE(test_mitosis_diploid_matrix) {
 
-    TransitionMatrix ret = TransitionMatrix::Zero(10, 10);
-//    for(int i = 0; i < 10; ++i) {
-//        int h = unfolded_diploid_genotypes_upper[i];
-//        for(int j = 0; j < 16; ++j) {
-//            int k = folded_diploid_genotypes[j];
-//            ret(i, k) += (mutype < 0 || mutype == mitotic_diploid_mutation_counts[h][j]) ?
-//                         kronecker_product(m, m, h, j) : 0.0;
-//        }
-//    }
-    auto kp = kroneckerProduct(unequal_mutation_matrix, unequal_mutation_matrix);
 
-    TransitionMatrix expected_transition_matrix_negative = TransitionMatrix::Zero(10, 10);
+    TransitionMatrix expected_matrix_negative_cpp = TransitionMatrix::Zero(10, 10);
+    auto kp = kroneckerProduct(unequal_mutation_matrix, unequal_mutation_matrix);
     for(int m = 0; m < 10; ++m) {
         int i = unfolded_diploid_genotypes_upper[m];
-
-    for (int j = 0; j < 16; ++j) {
+        for (int j = 0; j < 16; ++j) {
             int n = folded_diploid_genotypes[j];
-            expected_transition_matrix_negative(m, n) += kp.coeff(i, j);
+            expected_matrix_negative_cpp(m, n) += kp.coeff(i, j);
         }
     }
 
-    TransitionMatrix expected_transition_matrix_zero = TransitionMatrix::Zero(10, 10);
+    TransitionMatrix expected_matrix_negative = TransitionMatrix::Zero(10, 10);
+    expected_matrix_negative <<
+#include "expected/mitosis_diploid_matrix_negative.incl"
+    ;
 
-    TransitionMatrix expected_transition_matrix_one = TransitionMatrix::Zero(10, 10);
+    TransitionMatrix expected_matrix_zero = TransitionMatrix::Zero(10, 10);
+    expected_matrix_zero <<
+#include "expected/mitosis_diploid_matrix_zero.incl"
+    ;
 
-    TransitionMatrix expected_transition_matrix_two = TransitionMatrix::Zero(10, 10);
+    TransitionMatrix expected_matrix_one = TransitionMatrix::Zero(10, 10);
+    expected_matrix_one <<
+#include "expected/mitosis_diploid_matrix_one.incl"
+    ;
+
+    TransitionMatrix expected_matrix_two = TransitionMatrix::Zero(10, 10);
+    expected_matrix_two <<
+#include "expected/mitosis_diploid_matrix_two.incl"
+    ;
+
+    TransitionMatrix expected_matrix_three = TransitionMatrix::Zero(10, 10);
 
 
     auto actual_negative = mitosis_diploid_matrix(unequal_mutation_matrix, -1);
-    boost_check_matrix(expected_transition_matrix_negative, actual_negative);
+    boost_check_matrix(expected_matrix_negative_cpp, actual_negative);
+    boost_check_matrix(expected_matrix_negative, actual_negative);
 
     auto actual_zero = mitosis_diploid_matrix(unequal_mutation_matrix, 0);
-//    boost_check_matrix(expected_transition_matrix_zero, actual_zero);
+    boost_check_matrix(expected_matrix_zero, actual_zero);
 
     auto actual_one = mitosis_diploid_matrix(unequal_mutation_matrix, 1);
-//    boost_check_matrix(expected_transition_matrix_one, actual_one);
+    boost_check_matrix(expected_matrix_one, actual_one);
 
     auto actual_two = mitosis_diploid_matrix(unequal_mutation_matrix, 2);
-//    boost_check_matrix(expected_transition_matrix_two, actual_two);
+    boost_check_matrix(expected_matrix_two, actual_two);
 
-
+    auto actual_three = mitosis_diploid_matrix(unequal_mutation_matrix, 3);
+    boost_check_matrix(expected_matrix_three, actual_three);
 }
 
-//TODO(SHW): Implement these tests
 BOOST_AUTO_TEST_CASE(test_meiosis_haploid_matrix) {
+
+    TransitionMatrix expected_matrix_negative = TransitionMatrix::Zero(10, 4);
+    expected_matrix_negative <<
+#include "expected/meiosis_haploid_matrix_negative.incl"
+    ;
+
+    TransitionMatrix expected_matrix_zero = TransitionMatrix::Zero(10, 4);
+    expected_matrix_zero <<
+#include "expected/meiosis_haploid_matrix_zero.incl"
+    ;
+
+    TransitionMatrix expected_matrix_one = TransitionMatrix::Zero(10, 4);
+    expected_matrix_one <<
+#include "expected/meiosis_haploid_matrix_one.incl"
+    ;
+
+    TransitionMatrix expected_matrix_two = TransitionMatrix::Zero(10, 4);
+
+
+    auto actual_negative = meiosis_haploid_matrix(unequal_mutation_matrix, -1);
+    boost_check_matrix(expected_matrix_negative, actual_negative);
+
+    auto actual_zero = meiosis_haploid_matrix(unequal_mutation_matrix, 0);
+    boost_check_matrix(expected_matrix_zero, actual_zero);
+
+    auto actual_one = meiosis_haploid_matrix(unequal_mutation_matrix, 1);
+    boost_check_matrix(expected_matrix_one, actual_one);
+
+    auto actual_two = meiosis_haploid_matrix(unequal_mutation_matrix, 2);
+    boost_check_matrix(expected_matrix_two, actual_two);
 }
+
 BOOST_AUTO_TEST_CASE(test_meiosis_diploid_matrix) {
+    TransitionMatrix expected_matrix_negative = TransitionMatrix::Zero(100, 10);
+    expected_matrix_negative <<
+#include "expected/meiosis_diploid_matrix_negative.incl"
+    ;
+
+    TransitionMatrix expected_matrix_zero = TransitionMatrix::Zero(100, 10);
+    expected_matrix_zero <<
+#include "expected/meiosis_diploid_matrix_zero.incl"
+    ;
+
+    TransitionMatrix expected_matrix_one = TransitionMatrix::Zero(100, 10);
+    expected_matrix_one <<
+#include "expected/meiosis_diploid_matrix_one.incl"
+    ;
+
+    TransitionMatrix expected_matrix_two = TransitionMatrix::Zero(100, 10);
+    expected_matrix_two <<
+#include "expected/meiosis_diploid_matrix_two.incl"
+    ;
+
+    TransitionMatrix expected_matrix_three = TransitionMatrix::Zero(100, 10);
+
+    auto actual_negative = meiosis_diploid_matrix(unequal_mutation_matrix,
+                                                  unequal_mutation_matrix, -1);
+    boost_check_matrix(expected_matrix_negative, actual_negative);
+
+    auto actual_zero = meiosis_diploid_matrix(unequal_mutation_matrix,
+                                              unequal_mutation_matrix, 0);
+    boost_check_matrix(expected_matrix_zero, actual_zero);
+
+    auto actual_one = meiosis_diploid_matrix(unequal_mutation_matrix,
+                                             unequal_mutation_matrix, 1);
+    boost_check_matrix(expected_matrix_one, actual_one);
+
+    auto actual_two = meiosis_diploid_matrix(unequal_mutation_matrix,
+                                             unequal_mutation_matrix, 2);
+    boost_check_matrix(expected_matrix_two, actual_two);
+
+    auto actual_three = meiosis_diploid_matrix(unequal_mutation_matrix,
+                                               unequal_mutation_matrix, 3);
+    boost_check_matrix(expected_matrix_three, actual_three);
 }
+
+//TODO(SW): Implement the following tests
 BOOST_AUTO_TEST_CASE(test_mitosis_haploid_mean_matrix) {
 }
 BOOST_AUTO_TEST_CASE(test_mitosis_diploid_mean_matrix) {

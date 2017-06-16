@@ -231,7 +231,7 @@ private:
     DNG_UNIT_TEST(test_update_labels_node_ids);
     DNG_UNIT_TEST(test_create_families_info);
     DNG_UNIT_TEST(test_create_peeling_ops);
-
+    DNG_UNIT_TEST(test_peeling_forward_each_op);
 };
 }; // namespace dng
 

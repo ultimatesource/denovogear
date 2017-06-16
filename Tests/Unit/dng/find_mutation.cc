@@ -35,7 +35,7 @@ namespace dng {
 
 BOOST_FIXTURE_TEST_CASE(test_constructor, TrioWorkspace) {
 
-    FindMutations find_mutation{min_prob, pedigree, test_param_1};
+    FindMutations find_mutation{min_prob, r_graph, test_param_1};
 
     BOOST_CHECK_EQUAL(find_mutation.min_prob_, 0.01);
     BOOST_CHECK_EQUAL(find_mutation.params_.theta, 0.001);
@@ -80,7 +80,7 @@ BOOST_FIXTURE_TEST_CASE(test_prior, TrioWorkspace) {
         {0.29979020979021, 0.00011988011988012, 0.00011988011988012, 0.00017982017982018, 0.19984015984016, 7.99200799200799e-05, 0.00011988011988012, 0.19984015984016, 0.00011988011988012, 0.29979020979021 }
     };
 
-    FindMutations find_mutation {min_prob, pedigree, test_param_1};
+    FindMutations find_mutation {min_prob, r_graph, test_param_1};
     auto *pArray = find_mutation.genotype_prior_;
 
     for (int i = 0; i < 5; ++i) {
@@ -118,7 +118,7 @@ BOOST_FIXTURE_TEST_CASE(test_full_transition, TrioWorkspace) {
     std::vector<TransitionMatrix> exp_onemut {{},{},exp_germline_onemut, exp_somatic_onemut, exp_somatic_onemut};
     std::vector<TransitionMatrix> exp_mean {{},{},exp_germline_mean, exp_somatic_mean, exp_somatic_mean};
 
-    FindMutations find_mutation {min_prob, pedigree, test_param_1};
+    FindMutations find_mutation {min_prob, r_graph, test_param_1};
     auto full_matrices = find_mutation.full_transition_matrices_;
     auto nomut_matrices = find_mutation.nomut_transition_matrices_;
     auto posmut_matrices = find_mutation.posmut_transition_matrices_;
@@ -144,7 +144,7 @@ BOOST_FIXTURE_TEST_CASE(test_operator, TrioWorkspace) {
     };
     FindMutations::stats_t mutation_stats;
 //    MutationStats stats(min_prob);
-    FindMutations find_mutation{min_prob, pedigree, test_param_1};
+    FindMutations find_mutation{min_prob, r_graph, test_param_1};
     find_mutation(read_depths, ref_index, &mutation_stats);
 
 
@@ -203,7 +203,7 @@ BOOST_FIXTURE_TEST_CASE(test_operator, TrioWorkspace) {
 
 BOOST_FIXTURE_TEST_CASE(test_calculate_mutation_expected, TrioWorkspace) {
 
-    FindMutations find_mutation{min_prob, pedigree, test_param_1};
+    FindMutations find_mutation{min_prob, r_graph, test_param_1};
 
     FindMutations::stats_t mutation_stats;
 //    MutationStats mutation_stats(min_prob);
