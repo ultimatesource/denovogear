@@ -47,7 +47,7 @@ set(TagID-STDOUT
 
 
 ###############################################################################
-# Test if dng-call -/Header works properly
+# Test if dng-call --header works properly
 
 set(SepHeader1-CMD @DNG_CALL_EXE@ -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0.001 --header test1_hdr.sam test1_nohdr.sam)
 set(SepHeader1-WD "@TESTDATA_DIR@/sep_header/")
