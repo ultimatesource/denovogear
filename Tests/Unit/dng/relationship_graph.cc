@@ -33,6 +33,7 @@
 #include <boost/range/algorithm/sort.hpp>
 #include <boost/range/algorithm/remove_copy.hpp>
 #include <boost/range/irange.hpp>
+#include <boost/mem_fn.hpp>
 
 #include "../testing.h"
 
@@ -220,40 +221,40 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
         CHECK_EQUAL_RANGES(u::roots(test), expected_roots);
 
         // Check Labels and Ploidies
-        auto expected_labels = make_test_range(expected | transformed(std::mem_fn(&graph_node_t::label)));
+        auto expected_labels = make_test_range(expected | transformed(boost::mem_fn(&graph_node_t::label)));
         CHECK_EQUAL_RANGES(test.labels(), expected_labels);
 
-        auto expected_ploidies = make_test_range(expected | transformed(std::mem_fn(&graph_node_t::ploidy)));
+        auto expected_ploidies = make_test_range(expected | transformed(boost::mem_fn(&graph_node_t::ploidy)));
         CHECK_EQUAL_RANGES(test.ploidies(), expected_ploidies);
 
         // Check Library names
         std::vector<std::string> test_library_names = test.library_names();
         boost::sort(test_library_names);
         std::vector<std::string> expected_library_names;
-        boost::remove_copy(expected | transformed(std::mem_fn(&graph_node_t::library_name)),
+        boost::remove_copy(expected | transformed(boost::mem_fn(&graph_node_t::library_name)),
             std::back_inserter(expected_library_names), "");
         boost::sort(expected_library_names);
         CHECK_EQUAL_RANGES(test_library_names, expected_library_names);
 
         // Check Transitions
-        auto test_transition_types = make_test_range(test.transitions() | transformed(std::mem_fn(&transition_t::type)));
-        auto expected_transition_types = make_test_range(expected | transformed(std::mem_fn(&graph_node_t::transition_type)));
+        auto test_transition_types = make_test_range(test.transitions() | transformed(boost::mem_fn(&transition_t::type)));
+        auto expected_transition_types = make_test_range(expected | transformed(boost::mem_fn(&graph_node_t::transition_type)));
         CHECK_EQUAL_RANGES(test_transition_types, expected_transition_types);
 
-        auto test_parent1 = make_test_range(test.transitions() | transformed(std::mem_fn(&transition_t::parent1)));
-        auto expected_parent1 = make_test_range(expected | transformed(std::mem_fn(&graph_node_t::parent1)));
+        auto test_parent1 = make_test_range(test.transitions() | transformed(boost::mem_fn(&transition_t::parent1)));
+        auto expected_parent1 = make_test_range(expected | transformed(boost::mem_fn(&graph_node_t::parent1)));
         CHECK_EQUAL_RANGES(test_parent1, expected_parent1);
 
-        auto test_parent2 = make_test_range(test.transitions() | transformed(std::mem_fn(&transition_t::parent2)));
-        auto expected_parent2 = make_test_range(expected | transformed(std::mem_fn(&graph_node_t::parent2)));
+        auto test_parent2 = make_test_range(test.transitions() | transformed(boost::mem_fn(&transition_t::parent2)));
+        auto expected_parent2 = make_test_range(expected | transformed(boost::mem_fn(&graph_node_t::parent2)));
         CHECK_EQUAL_RANGES(test_parent2, expected_parent2);
 
-        auto test_length1 = make_test_range(test.transitions() | transformed(std::mem_fn(&transition_t::length1)));
-        auto expected_length1 = make_test_range(expected | transformed(std::mem_fn(&graph_node_t::length1)));
+        auto test_length1 = make_test_range(test.transitions() | transformed(boost::mem_fn(&transition_t::length1)));
+        auto expected_length1 = make_test_range(expected | transformed(boost::mem_fn(&graph_node_t::length1)));
         CHECK_EQUAL_RANGES(test_length1, expected_length1);
 
-        auto test_length2 = make_test_range(test.transitions() | transformed(std::mem_fn(&transition_t::length2)));
-        auto expected_length2 = make_test_range(expected | transformed(std::mem_fn(&graph_node_t::length2)));
+        auto test_length2 = make_test_range(test.transitions() | transformed(boost::mem_fn(&transition_t::length2)));
+        auto expected_length2 = make_test_range(expected | transformed(boost::mem_fn(&graph_node_t::length2)));
         CHECK_EQUAL_RANGES(test_length2, expected_length2);
     };
 
@@ -715,7 +716,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_peeler) {
         using function_t = peel::function_t;
 
         auto test_fastops = u::peeling_functions_ops(test);
-        auto expected_fastops = make_test_range(expected | transformed(std::mem_fn(&peeling_node_t::op)));
+        auto expected_fastops = make_test_range(expected | transformed(boost::mem_fn(&peeling_node_t::op)));
         CHECK_EQUAL_RANGES(test_fastops, expected_fastops);
 
         auto test_origops = u::peeling_ops(test);
@@ -783,7 +784,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_peeler) {
         CHECK_EQUAL_RANGES(test_reverse, expected_reverse);
 
         auto test_families = u::family_members(test); 
-        auto expected_families = expected | transformed(std::mem_fn(&peeling_node_t::family));
+        auto expected_families = expected | transformed(boost::mem_fn(&peeling_node_t::family));
         BOOST_REQUIRE_EQUAL(test_families.size(), expected_families.size());
         for(int family_number=0; family_number < test_families.size(); ++family_number){
             BOOST_TEST_INFO("family_number=" << family_number);

@@ -26,6 +26,7 @@
 #include <fstream>
 
 #include <boost/range/adaptor/transformed.hpp>
+#include <boost/mem_fn.hpp>
 
 using namespace dng::regions;
 using dng::detail::make_test_range;
@@ -71,16 +72,16 @@ BOOST_AUTO_TEST_CASE(test_region_parsing) {
         auto result = parse_ranges(region_string);
         BOOST_CHECK(result.second);
 
-        auto test_targets = make_test_range(result.first | transformed(std::mem_fn(&parsed_range_t::target)));
-        auto expected_targets = make_test_range(expected | transformed(std::mem_fn(&parsed_range_t::target)));
+        auto test_targets = make_test_range(result.first | transformed(boost::mem_fn(&parsed_range_t::target)));
+        auto expected_targets = make_test_range(expected | transformed(boost::mem_fn(&parsed_range_t::target)));
         CHECK_EQUAL_RANGES(test_targets, expected_targets);
 
-        auto test_begs = make_test_range(result.first | transformed(std::mem_fn(&parsed_range_t::beg)));
-        auto expected_begs = make_test_range(expected | transformed(std::mem_fn(&parsed_range_t::beg)));
+        auto test_begs = make_test_range(result.first | transformed(boost::mem_fn(&parsed_range_t::beg)));
+        auto expected_begs = make_test_range(expected | transformed(boost::mem_fn(&parsed_range_t::beg)));
         CHECK_EQUAL_RANGES(test_begs, expected_begs);
 
-        auto test_ends = make_test_range(result.first | transformed(std::mem_fn(&parsed_range_t::end)));
-        auto expected_ends = make_test_range(expected | transformed(std::mem_fn(&parsed_range_t::end)));
+        auto test_ends = make_test_range(result.first | transformed(boost::mem_fn(&parsed_range_t::end)));
+        auto expected_ends = make_test_range(expected | transformed(boost::mem_fn(&parsed_range_t::end)));
         CHECK_EQUAL_RANGES(test_ends, expected_ends);
     }};
 
@@ -134,16 +135,16 @@ BOOST_AUTO_TEST_CASE(test_region_parsing_with_bam) {
         hts::bam::regions_t test;
         BOOST_REQUIRE_NO_THROW(test = bam_parse_region(region_string, file));
 
-        auto test_tids = make_test_range(test | transformed(std::mem_fn(&region_t::tid)));
-        auto expected_tids = make_test_range(expected | transformed(std::mem_fn(&region_t::tid)));
+        auto test_tids = make_test_range(test | transformed(boost::mem_fn(&region_t::tid)));
+        auto expected_tids = make_test_range(expected | transformed(boost::mem_fn(&region_t::tid)));
         CHECK_EQUAL_RANGES(test_tids, expected_tids);
 
-        auto test_begs = make_test_range(test | transformed(std::mem_fn(&region_t::beg)));
-        auto expected_begs = make_test_range(expected | transformed(std::mem_fn(&region_t::beg)));
+        auto test_begs = make_test_range(test | transformed(boost::mem_fn(&region_t::beg)));
+        auto expected_begs = make_test_range(expected | transformed(boost::mem_fn(&region_t::beg)));
         CHECK_EQUAL_RANGES(test_begs, expected_begs);
 
-        auto test_ends = make_test_range(test | transformed(std::mem_fn(&region_t::end)));
-        auto expected_ends = make_test_range(expected | transformed(std::mem_fn(&region_t::end)));
+        auto test_ends = make_test_range(test | transformed(boost::mem_fn(&region_t::end)));
+        auto expected_ends = make_test_range(expected | transformed(boost::mem_fn(&region_t::end)));
         CHECK_EQUAL_RANGES(test_ends, expected_ends);
     }};
 
@@ -229,16 +230,16 @@ BOOST_AUTO_TEST_CASE(test_bed_parsing) {
         hts::bam::regions_t test;
         BOOST_REQUIRE_NO_THROW(test = bam_parse_bed(output.path.string(), file));
 
-        auto test_tids = make_test_range(test | transformed(std::mem_fn(&region_t::tid)));
-        auto expected_tids = make_test_range(expected | transformed(std::mem_fn(&region_t::tid)));
+        auto test_tids = make_test_range(test | transformed(boost::mem_fn(&region_t::tid)));
+        auto expected_tids = make_test_range(expected | transformed(boost::mem_fn(&region_t::tid)));
         CHECK_EQUAL_RANGES(test_tids, expected_tids);
 
-        auto test_begs = make_test_range(test | transformed(std::mem_fn(&region_t::beg)));
-        auto expected_begs = make_test_range(expected | transformed(std::mem_fn(&region_t::beg)));
+        auto test_begs = make_test_range(test | transformed(boost::mem_fn(&region_t::beg)));
+        auto expected_begs = make_test_range(expected | transformed(boost::mem_fn(&region_t::beg)));
         CHECK_EQUAL_RANGES(test_begs, expected_begs);
 
-        auto test_ends = make_test_range(test | transformed(std::mem_fn(&region_t::end)));
-        auto expected_ends = make_test_range(expected | transformed(std::mem_fn(&region_t::end)));
+        auto test_ends = make_test_range(test | transformed(boost::mem_fn(&region_t::end)));
+        auto expected_ends = make_test_range(expected | transformed(boost::mem_fn(&region_t::end)));
         CHECK_EQUAL_RANGES(test_ends, expected_ends);
     }};
 
