@@ -174,4 +174,30 @@ auto make_test_range(const T (&a)[N]) -> test_range<const T*>
 } // namespace dng::detail
 } // namespace dng
 
+namespace dng {
+namespace detail {
+namespace io {
+// allow enum's to be printed
+template<typename CharType, typename CharTrait, typename E>
+inline
+typename std::enable_if<std::is_enum<E>::value, std::basic_ostream<CharType, CharTrait> >::type&
+operator<<(std::basic_ostream<CharType, CharTrait>& o, E m) {
+    // This will probably not do what we want if enum's int type is char.
+    o << static_cast<typename std::underlying_type<E>::type>(m);
+    return o;
+}
+
+}}}
+
+namespace std {
+template<typename CharType, typename CharTrait>
+inline
+typename std::basic_ostream<CharType, CharTrait>&
+operator<<(std::basic_ostream<CharType, CharTrait>& o, const std::pair<std::string,std::string>& m) {
+    o << "{'" << m.first << "', '" << m.second << "'}";
+    return o;
+}
+
+}
+
 #endif
