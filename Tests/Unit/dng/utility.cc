@@ -248,8 +248,8 @@ BOOST_AUTO_TEST_CASE(test_tokenizer) {
 }
 
 BOOST_AUTO_TEST_CASE(test_set_high_bit) {
-    BOOST_CHECK_EQUAL(set_high_bit(static_cast<uint8_t>(0)),  0x80u);
-    BOOST_CHECK_EQUAL(set_high_bit(static_cast<uint16_t>(0)), 0x8000u);
-    BOOST_CHECK_EQUAL(set_high_bit(static_cast<uint32_t>(0)), 0x80000000u);
-    BOOST_CHECK_EQUAL(set_high_bit(static_cast<uint64_t>(0)), 0x8000000000000000llu);
+    BOOST_CHECK_EQUAL(set_high_bit<uint8_t>(0),  0x80u);
+    BOOST_CHECK_EQUAL(set_high_bit<uint16_t>(0), 0x8000u);
+    BOOST_CHECK_EQUAL(set_high_bit<uint32_t>(0), 0x80000000u);
+    BOOST_CHECK_EQUAL(set_high_bit<uint64_t>(0), 0x8000000000000000llu);
 }
