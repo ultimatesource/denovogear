@@ -148,34 +148,6 @@ BOOST_AUTO_TEST_CASE(test_region_parsing_with_bam) {
     test_fail("", bamfile);
 }
 
-bool bed_parsing(std::string input, hts::bam::File &file, hts::bam::regions_t b ) {
-    hts::bam::regions_t a;
-
-    dng::detail::AutoTempFile output;
-
-    if(!output.file.is_open()) {
-        std::cerr << "    Failed to open temporary file '" + output.path.string() + "'\n";
-        return false;
-    }
-    output.file.write(input.c_str(),input.size());
-    output.file.flush();
-
-    try {
-        a = bam_parse_bed(output.path.string(), file);
-    } catch(std::exception &e) {
-        std::cerr << e.what() << "\n";
-        return false;
-    }
-    if(a == b) {
-        return true;
-    }
-    for(auto &&aa : a) {
-        std::cerr << "    Parsing result: " << aa.tid << "\t" << aa.beg << "\t" << aa.end << "\n";
-    }
-
-    return false;
-}
-
 BOOST_AUTO_TEST_CASE(test_bed_parsing) {
     using region_t = hts::bam::region_t;
 
