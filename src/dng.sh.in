@@ -97,7 +97,7 @@ dng_help() {
 	    return $?
     fi
 
-    ext_cmds=`find $DNG_LIBEXEC_DIR -maxdepth 1 -type f -perm +111 -name "dng-*" -print | sed -e 's/.*dng-//'`
+    ext_cmds=`find $DNG_LIBEXEC_DIR -maxdepth 1 -type f -perm /111 -name "dng-*" -print | sed -e 's/.*dng-//'`
     cmds="$int_cmds $ext_cmds"
     sorted=`echo $cmds | tr ' ' '\n' | sort | tr '\n' ' '`
 
