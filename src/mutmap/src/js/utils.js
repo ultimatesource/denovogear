@@ -5,6 +5,8 @@
 var utils = (function() {
   "use strict";
 
+  var optionsManager = createOptionsManager();
+
   function halfwayBetween(a, b) {
     if (a > b) {
       return a + ((b - a) / 2);
@@ -56,13 +58,38 @@ var utils = (function() {
     //});
   }
 
+  function createOptionsManager() {
+    return new OptionsManager();
+  }
+
+  function sortByKey(options) {
+
+    optionsManager.checkOptions({
+      requiredOptions: ['array', 'sortKey', 'descending'],
+      providedOptions: options
+    });
+
+    var array = options.array;
+    var key = options.sortKey;
+    var descending = options.descending;
+
+    return array.sort(function(a, b) {
+      if (a[key] < b[key]) {
+        return descending ? 1 : -1;
+      }
+      if (a[key] > b[key]) {
+        return descending ? -1 : 1;
+      }
+      return 0;
+    });
+  }
+
   return {
     halfwayBetween: halfwayBetween,
     distanceBetweenPoints: distanceBetweenPoints,
     svgTranslateString: svgTranslateString,
-    createOptionsManager: function() {
-      return new OptionsManager();
-    }
+    createOptionsManager: createOptionsManager,
+    sortByKey: sortByKey,
   };
 
 }());

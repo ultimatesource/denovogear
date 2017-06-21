@@ -1,4 +1,4 @@
-(function() {
+(function(utils) {
 
   // The placeholder tags below will be replaced with the correct data objects
   // by the build system. See mutmap/tools/layout_and_template.R
@@ -13,6 +13,7 @@
   window.pedigreeFileText = pedigreeFileText;
   window.layoutData = layoutData;
   window.dngOutputFileText = dngOutputFileText;
+  window.optionsManager = utils.createOptionsManager();
 
   var pedigreeData = pedParser.parsePedigreeFile(pedigreeFileText);
   var pedGraph = buildGraphFromPedigree(pedigreeData);
@@ -36,37 +37,15 @@
     vcfText: dngOutputFileText,
   });
 
-  // Build mutation location data
-  var mutationLocationData = {};
-  vcfData.records.forEach(function(record) {
-    if (mutationLocationData[record.CHROM] === undefined) {
-      mutationLocationData[record.CHROM] = {};
-    }
-    if (mutationLocationData[record.CHROM][record.INFO.DNL] === undefined) {
-      mutationLocationData[record.CHROM][record.INFO.DNL] = [];
-    }
-
-    mutationLocationData[record.CHROM][record.INFO.DNL].push(record.POS);
-
-  });
-
-  var processed = {};
-  Object.keys(mutationLocationData).forEach(function(chromKey) {
-    processed[chromKey] = [];
-
-    Object.keys(mutationLocationData[chromKey]).forEach(function(sampleKey) {
-      processed[chromKey].push({
-        sampleName: sampleKey,
-        mutationLocations: mutationLocationData[chromKey][sampleKey]
+  var mutationLocationsRendered = false;
+  $('.nav-tabs a[href="#mutation-locations"]').on('shown.bs.tab', function(e) {
+    if (!mutationLocationsRendered) {
+      mutationLocationsRendered = true;
+      mutationLocationsView.createMutationLocationsView({
+        renderInto: d3.select(".mutation-locations-tab"),
+        mutationLocationData: buildMutationLocationData(vcfData)
       });
-    });
-  });
-
-  console.log(mutationLocationData);
-  console.log(processed);
-
-  mutationLocationsView.createMutationLocationsView({
-    renderInto: d3.select(".mutation-locations-tab"),
+    }
   });
 
   // Conditionally render the explorer view only once it's selected
@@ -85,6 +64,9 @@
     }
 
   });
+
+  // TODO: DEV, switch to mutation locations tab
+  $('.nav-tabs a[href="#mutation-locations"]').tab('show')
 
   function processPedigree(kinshipPedigreeData) {
 
@@ -282,5 +264,69 @@
     return utils.distanceBetweenPoints(nodeA.x, nodeA.y, nodeB.x, nodeB.y);
   }
 
+  function buildMutationLocationData(vcfData) {
 
-}());
+    // Build mutation location data
+    var mutationLocationData = {};
+    vcfData.records.forEach(function(record) {
+      if (mutationLocationData[record.CHROM] === undefined) {
+        mutationLocationData[record.CHROM] = {};
+      }
+
+      // Find chromosome length
+      for (var i = 0; i < vcfData.header.contig.length; i++) {
+        var contig = vcfData.header.contig[i];
+        if (contig.ID === record.CHROM) {
+          mutationLocationData[record.CHROM].length = contig.length;
+          break;
+        }
+      }
+
+      if (mutationLocationData[record.CHROM][record.INFO.DNL] === undefined) {
+        mutationLocationData[record.CHROM][record.INFO.DNL] = [];
+      }
+
+      mutationLocationData[record.CHROM][record.INFO.DNL].push(record.POS);
+
+    });
+
+    var processed = [];
+    Object.keys(mutationLocationData).forEach(function(chromKey) {
+
+      var chrom = [];
+
+      Object.keys(mutationLocationData[chromKey]).forEach(function(sampleKey) {
+        chrom.push({
+          sampleName: sampleKey,
+          mutationLocations: mutationLocationData[chromKey][sampleKey]
+        });
+      });
+
+      chrom = utils.sortByKey({
+        array: chrom,
+        sortKey: 'sampleName',
+        descending: false
+      });
+
+      processed.push({
+        chrom: chromKey,
+        samples: chrom,
+        length: mutationLocationData[chromKey].length
+      });
+    });
+
+    //processed = utils.sortByKey({
+    //  array: processed,
+    //  sortKey: 'chrom',
+    //  descending: false
+    //});
+
+    console.log(mutationLocationData);
+    console.log(processed);
+
+    return processed;
+
+  }
+
+
+}(utils));
