@@ -27,8 +27,12 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
 
     var margins = {
       left: 20,
-      top: 20
+      top: 20,
+      right: 20,
+      bottom: 20
     };
+
+    var chromWidth = width - (margins.left + margins.right);
 
     var g = svg.append("g")
         .attr("transform",
@@ -39,7 +43,7 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
     SampleMutationListView.create({
       renderInto: g,
       data: options.mutationLocationData[0],
-      width,
+      width: chromWidth,
     });
 
   }
@@ -52,7 +56,7 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
 
     var renderInto = options.renderInto;
     var data = options.data;
-    var rowHeight = 40;
+    var rowHeight = 30;
     var rowHeightMargin = 5;
 
     var g = renderInto.append("g")
@@ -69,7 +73,7 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
           .attr("class", "sample-mutation-list__row")
           .attr("transform", translateString);
       
-      SampleMutation.create({
+      SampleMutationsView.create({
         renderInto: rowContainer,
         data: data.samples[index],
         width: options.width,
@@ -83,7 +87,7 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
     return new SampleMutationListView(options);
   };
 
-  function SampleMutation(options) {
+  function SampleMutationsView(options) {
     optionsManager.checkOptions({
       requiredOptions: ['renderInto', 'data', 'width', 'height',
         'chromLength'],
@@ -92,7 +96,8 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
 
     var renderInto = options.renderInto;
     var data = options.data;
-    var width = options.width;
+    var textWidth = 150;
+    var width = options.width - textWidth;
     var height = options.height;
     var chromLength = options.chromLength;
 
@@ -100,11 +105,16 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
       .domain([0, chromLength])
       .range([0, width]);
 
-    console.log(data);
     var g = renderInto.append("g")
         .attr("class", "sample");
 
+    var label = g.append("text")
+        .attr("alignment-baseline", "middle")
+        .attr("y", height / 2)
+        .text(data.sampleName);
+
     var background = g.append("rect")
+        .attr("transform", utils.svgTranslateString(textWidth, 0))
         .attr("class", "genome-browser__background")
         .attr("width", width)
         .attr("height", height);
@@ -113,43 +123,15 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
         .data(data.mutationLocations)
       .enter().append("rect")
         .attr("class", "genome-browser__mutation")
-        .attr("width", 6)
+        .attr("width", 3)
         .attr("height", height)
-        .attr("x", function(d) { return xScale(d); })
+        .attr("x", function(d) { return xScale(d) + textWidth; })
         .attr("y", 0);
   }
 
-  SampleMutation.create = function(options) {
-    return new SampleMutation(options);
+  SampleMutationsView.create = function(options) {
+    return new SampleMutationsView(options);
   };
-
-  //function sampleMutationList() {
-
-  //  var data;
-
-  //  var muts = sampleMutation();
-
-  //  function my(selection) {
-  //    selection.append("g")
-  //        .attr("class", "sample-mutations")
-  //        .selectAll(".mutation")
-  //        .data(data).enter()
-  //      .call(muts.data(
-  //      //.append("g")
-  //      //  .attr("class", "mutation");
-  //  }
-
-  //  my.data = function(value) {
-  //    if (!arguments.length) return data;
-  //    data = value;
-  //    return my;
-  //  };
-
-  //  return my;
-  //}
-
-  //function sampleMutation() {
-  //}
 
   return {
     createMutationLocationsView: function(options) {

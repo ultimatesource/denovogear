@@ -267,38 +267,40 @@
   function buildMutationLocationData(vcfData) {
 
     // Build mutation location data
-    var mutationLocationData = {};
+    var data = {};
     vcfData.records.forEach(function(record) {
-      if (mutationLocationData[record.CHROM] === undefined) {
-        mutationLocationData[record.CHROM] = {};
+      if (data[record.CHROM] === undefined) {
+        data[record.CHROM] = {
+          samples: {}
+        };
       }
 
       // Find chromosome length
       for (var i = 0; i < vcfData.header.contig.length; i++) {
         var contig = vcfData.header.contig[i];
         if (contig.ID === record.CHROM) {
-          mutationLocationData[record.CHROM].length = contig.length;
+          data[record.CHROM].length = contig.length;
           break;
         }
       }
 
-      if (mutationLocationData[record.CHROM][record.INFO.DNL] === undefined) {
-        mutationLocationData[record.CHROM][record.INFO.DNL] = [];
+      if (data[record.CHROM].samples[record.INFO.DNL] === undefined) {
+        data[record.CHROM].samples[record.INFO.DNL] = [];
       }
 
-      mutationLocationData[record.CHROM][record.INFO.DNL].push(record.POS);
+      data[record.CHROM].samples[record.INFO.DNL].push(record.POS);
 
     });
 
     var processed = [];
-    Object.keys(mutationLocationData).forEach(function(chromKey) {
+    Object.keys(data).forEach(function(chromKey) {
 
       var chrom = [];
 
-      Object.keys(mutationLocationData[chromKey]).forEach(function(sampleKey) {
+      Object.keys(data[chromKey].samples).forEach(function(sampleKey) {
         chrom.push({
           sampleName: sampleKey,
-          mutationLocations: mutationLocationData[chromKey][sampleKey]
+          mutationLocations: data[chromKey].samples[sampleKey]
         });
       });
 
@@ -311,21 +313,11 @@
       processed.push({
         chrom: chromKey,
         samples: chrom,
-        length: mutationLocationData[chromKey].length
+        length: data[chromKey].length
       });
     });
 
-    //processed = utils.sortByKey({
-    //  array: processed,
-    //  sortKey: 'chrom',
-    //  descending: false
-    //});
-
-    console.log(mutationLocationData);
-    console.log(processed);
-
     return processed;
-
   }
 
 
