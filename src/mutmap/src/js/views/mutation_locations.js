@@ -27,9 +27,6 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
       selectedEvent: 'CHROM_SELECTED'
     });
 
-    PubSub.subscribe('CHROM_SELECTED', function(topic, data) {
-      console.log(topic, data);
-    });
 
     var svg = container.append("svg")
         .style("width", "100%")
@@ -51,10 +48,18 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
     var g = svg.append("g")
         .attr("transform",
               utils.svgTranslateString(margins.left, margins.top));
-       SampleMutationsListView.create({
+
+    var listView = SampleMutationsListView.create({
       renderInto: g,
       data: options.mutationLocationData[0],
       width: chromWidth,
+    });
+
+    PubSub.subscribe('CHROM_SELECTED', function(topic, index) {
+      console.log(topic, index);
+      listView.update({
+        data: options.mutationLocationData[index]
+      });
     });
 
   }
@@ -67,7 +72,7 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
 
     var renderInto = options.renderInto;
     var data = options.data;
-    var rowHeight = 30;
+    this._rowHeight = 30;
     var rowHeightMargin = 5;
 
     var g = renderInto.append("g")
@@ -76,7 +81,8 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
     this._rows = [];
     data.samples.forEach(function(sample, index) {
       var translateString =
-        utils.svgTranslateString(0, (rowHeight + rowHeightMargin) * index);
+        utils.svgTranslateString(0,
+          (this._rowHeight + rowHeightMargin) * index);
 
       var rowContainer = g.append("g")
           .attr("class", "sample-mutation-list__row")
@@ -86,7 +92,7 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
         renderInto: rowContainer,
         data: data.samples[index],
         width: options.width,
-        height: rowHeight,
+        height: this._rowHeight,
         chromLength: data.length,
       }));
     }, this);
@@ -99,11 +105,15 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
       providedOptions: options
     });
 
+    console.log(options.data.samples.length);
     this._rows.forEach(function(sample, index) {
-      row.update({
-        data: data.samples[index]
+      console.log("sample", options.data.samples[index]);
+      sample.update({
+        data: options.data.samples[index],
+        height: this._rowHeight,
+        chromLength: options.data.length
       });
-    });
+    }, this);
   };
 
   SampleMutationsListView.create = function(options) {
@@ -159,15 +169,14 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
     var mutationsUpdate = this._g.selectAll(".genome-browser__mutation")
         .data(data.mutationLocations);
 
-    var mutationsEnter = mutationsUpdate.enter();
-
-    mutationsUpdate.exit().remove();
-    
-    mutationsEnter.append("rect")
+    var mutationsEnter = mutationsUpdate.enter().append("rect")
         .attr("class", "genome-browser__mutation")
         .attr("width", 3)
         .attr("height", height)
         .attr("y", 0);
+
+    mutationsUpdate.exit().remove();
+    
 
     var mutationsEnterUpdate = mutationsEnter.merge(mutationsUpdate);
 
