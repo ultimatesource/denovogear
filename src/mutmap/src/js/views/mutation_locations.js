@@ -24,7 +24,8 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
       renderInto: chromSelectorContainer,
       list: options.mutationLocationData,
       selector: 'chrom',
-      selectedEvent: 'CHROM_SELECTED'
+      selectedEvent: 'CHROM_SELECTED',
+      itemName: 'Chromosome'
     });
 
 
@@ -56,7 +57,6 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
     });
 
     PubSub.subscribe('CHROM_SELECTED', function(topic, index) {
-      console.log(topic, index);
       listView.update({
         data: options.mutationLocationData[index]
       });
@@ -70,12 +70,31 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
       providedOptions: options
     });
 
-    var renderInto = options.renderInto;
+    this._renderInto = options.renderInto;
+    this._width = options.width;
+
+    this.update(options);
+  }
+
+  SampleMutationsListView.prototype.update = function(options) {
+
+    optionsManager.checkOptions({
+      requiredOptions: ['data'],
+      providedOptions: options
+    });
+
     var data = options.data;
     this._rowHeight = 30;
     var rowHeightMargin = 5;
 
-    var g = renderInto.append("g")
+    // TODO: This is a hack. The object-oriented approach I'm taking doesn't
+    // really work with d3 all that well. I'm forcing a complete re-render
+    // when the data changes. d3 can do more efficient updates, as well as
+    // fancy transitions if you stay with d3's model. This works fine for now
+    // but might need to be redesigned in the future.
+    this._renderInto.selectAll("g").remove();
+
+    var g = this._renderInto.append("g")
         .attr("class", "sample-mutation-list");
 
     this._rows = [];
@@ -91,23 +110,13 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
       this._rows.push(SampleMutationsView.create({
         renderInto: rowContainer,
         data: data.samples[index],
-        width: options.width,
+        width: this._width,
         height: this._rowHeight,
         chromLength: data.length,
       }));
     }, this);
-  }
 
-  SampleMutationsListView.prototype.update = function(options) {
-
-    optionsManager.checkOptions({
-      requiredOptions: ['data'],
-      providedOptions: options
-    });
-
-    console.log(options.data.samples.length);
     this._rows.forEach(function(sample, index) {
-      console.log("sample", options.data.samples[index]);
       sample.update({
         data: options.data.samples[index],
         height: this._rowHeight,
@@ -192,13 +201,15 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
 
   function ListSelectorView(options) {
     optionsManager.checkOptions({
-      requiredOptions: ['renderInto', 'list', 'selector', 'selectedEvent'],
+      requiredOptions: ['renderInto', 'list', 'selector', 'selectedEvent',
+        'itemName'],
       providedOptions: options
     });
 
     var renderInto = options.renderInto;
     var list = options.list;
     var selector = options.selector;
+    var itemName = options.itemName;
 
     var currentChromIndex = 0;
 
@@ -224,7 +235,7 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
         .attr("id", "dropdownMenu1")
         .attr("type", "button")
         .attr("data-toggle", "dropdown")
-        .text("Select");
+        .text("Select " + itemName);
 
     dropdown.append("ul")
         .attr("class", "dropdown-menu")
