@@ -200,6 +200,7 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
   };
 
   function ListSelectorView(options) {
+
     optionsManager.checkOptions({
       requiredOptions: ['renderInto', 'list', 'selector', 'selectedEvent',
         'itemName'],
@@ -213,7 +214,14 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
 
     var currentChromIndex = 0;
 
-    var prevButton = renderInto.append("button")
+    var container = renderInto.append("div")
+        .attr("class", "list-selector");
+
+    container.append("div")
+      .append("text")
+        .text(currentItem);
+
+    var prevButton = container.append("button")
         .attr("class", "btn btn-default")
         .on("click", function() {
           currentChromIndex--;
@@ -228,7 +236,7 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
     prevButton.append("span")
         .text(" Previous");
 
-    var dropdown = renderInto.append("div")
+    var dropdown = container.append("div")
         .attr("class", "dropdown")
     dropdown.append("button")
         .attr("class", "btn btn-default dropdown-toggle")
@@ -258,13 +266,14 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
           PubSub.publish(options.selectedEvent, currentChromIndex);
         });
 
-      var nextButton = renderInto.append("button")
+      var nextButton = container.append("button")
           .attr("class", "btn btn-default")
           .on("click", function() {
             currentChromIndex++;
             if (currentChromIndex === list.length) {
               currentChromIndex = 0;
             }
+
             PubSub.publish(options.selectedEvent, currentChromIndex);
           });
       nextButton.append("span")
@@ -272,6 +281,20 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
       nextButton.append("span")
           .attr("class", "glyphicon glyphicon-arrow-right");
 
+    function currentItem() {
+        if (selector !== undefined) {
+          return list[currentChromIndex][selector];
+        }
+        else {
+          return list[currentChromIndex];
+        }
+    }
+
+    // Self-subscribe to changes made to the selection, in order to update
+    // the displayed text
+    PubSub.subscribe(options.selectedEvent, function() {
+        container.select("text").text(currentItem);
+    });
 
   }
 
