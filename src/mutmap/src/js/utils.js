@@ -5,6 +5,8 @@
 var utils = (function() {
   "use strict";
 
+  window.mutmap = {};
+
   var optionsManager = createOptionsManager();
 
   function halfwayBetween(a, b) {
@@ -90,6 +92,7 @@ var utils = (function() {
     svgTranslateString: svgTranslateString,
     createOptionsManager: createOptionsManager,
     sortByKey: sortByKey,
+    optionsManager: optionsManager
   };
 
 }());

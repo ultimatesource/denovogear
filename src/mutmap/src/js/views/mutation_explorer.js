@@ -16,10 +16,9 @@
 var mutationExplorerView = (function(d3, PubSub, utils) {
   "use strict";
 
-  var optionsManager = utils.createOptionsManager();
-
   function MutationExplorerView(options) {
-    optionsManager.checkOptions({
+
+    utils.optionsManager.checkOptions({
       requiredOptions: ['renderInto', 'graphData', 'pedGraph', 'vcfData'],
       providedOptions: options
     });

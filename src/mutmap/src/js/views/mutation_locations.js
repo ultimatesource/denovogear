@@ -4,7 +4,7 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
 
   function MutationLocationsView(options) {
 
-    optionsManager.checkOptions({
+    utils.optionsManager.checkOptions({
       requiredOptions: ['renderInto', 'mutationLocationData'],
       providedOptions: options
     });
@@ -20,7 +20,7 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
     var chromSelectorContainer = container.append("div")
         .attr("class", "chrom-selector");
 
-    ListSelectorView.create({
+    mutmap.ListSelectorView.create({
       renderInto: chromSelectorContainer,
       list: options.mutationLocationData,
       selector: 'chrom',
@@ -65,7 +65,8 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
   }
 
   function SampleMutationsListView(options) {
-    optionsManager.checkOptions({
+
+    utils.optionsManager.checkOptions({
       requiredOptions: ['renderInto', 'data', 'width'],
       providedOptions: options
     });
@@ -78,7 +79,7 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
 
   SampleMutationsListView.prototype.update = function(options) {
 
-    optionsManager.checkOptions({
+    utils.optionsManager.checkOptions({
       requiredOptions: ['data'],
       providedOptions: options
     });
@@ -130,7 +131,8 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
   };
 
   function SampleMutationsView(options) {
-    optionsManager.checkOptions({
+
+    utils.optionsManager.checkOptions({
       requiredOptions: ['renderInto', 'data', 'width', 'height',
         'chromLength'],
       providedOptions: options
@@ -158,7 +160,7 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
 
   SampleMutationsView.prototype.update = function(options) {
 
-    optionsManager.checkOptions({
+    utils.optionsManager.checkOptions({
       requiredOptions: ['data', 'height',
         'chromLength'],
       providedOptions: options
@@ -197,109 +199,6 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
 
   SampleMutationsView.create = function(options) {
     return new SampleMutationsView(options);
-  };
-
-  function ListSelectorView(options) {
-
-    optionsManager.checkOptions({
-      requiredOptions: ['renderInto', 'list', 'selector', 'selectedEvent',
-        'itemName'],
-      providedOptions: options
-    });
-
-    var renderInto = options.renderInto;
-    var list = options.list;
-    var selector = options.selector;
-    var itemName = options.itemName;
-
-    var currentChromIndex = 0;
-
-    var container = renderInto.append("div")
-        .attr("class", "list-selector");
-
-    container.append("div")
-      .append("text")
-        .text(currentItem);
-
-    var prevButton = container.append("button")
-        .attr("class", "btn btn-default")
-        .on("click", function() {
-          currentChromIndex--;
-          if (currentChromIndex < 0) {
-            currentChromIndex = list.length - 1;
-          }
-
-          PubSub.publish(options.selectedEvent, currentChromIndex);
-        });
-    prevButton.append("span")
-        .attr("class", "glyphicon glyphicon-arrow-left");
-    prevButton.append("span")
-        .text(" Previous");
-
-    var dropdown = container.append("div")
-        .attr("class", "dropdown")
-    dropdown.append("button")
-        .attr("class", "btn btn-default dropdown-toggle")
-        .attr("id", "dropdownMenu1")
-        .attr("type", "button")
-        .attr("data-toggle", "dropdown")
-        .text("Select " + itemName);
-
-    dropdown.append("ul")
-        .attr("class", "dropdown-menu")
-      .selectAll(".mutation")
-        .data(list)
-      .enter().append("li")
-        .attr("class", "mutation")
-      .append("a")
-        .attr("href", "#")
-        .text(function(d) {
-          if (selector !== undefined) {
-            return d[selector];
-          }
-          else {
-            return d;
-          }
-        })
-        .on("click", function(d, i) {
-          currentChromIndex = i;
-          PubSub.publish(options.selectedEvent, currentChromIndex);
-        });
-
-      var nextButton = container.append("button")
-          .attr("class", "btn btn-default")
-          .on("click", function() {
-            currentChromIndex++;
-            if (currentChromIndex === list.length) {
-              currentChromIndex = 0;
-            }
-
-            PubSub.publish(options.selectedEvent, currentChromIndex);
-          });
-      nextButton.append("span")
-          .text("Next ");
-      nextButton.append("span")
-          .attr("class", "glyphicon glyphicon-arrow-right");
-
-    function currentItem() {
-        if (selector !== undefined) {
-          return list[currentChromIndex][selector];
-        }
-        else {
-          return list[currentChromIndex];
-        }
-    }
-
-    // Self-subscribe to changes made to the selection, in order to update
-    // the displayed text
-    PubSub.subscribe(options.selectedEvent, function() {
-        container.select("text").text(currentItem);
-    });
-
-  }
-
-  ListSelectorView.create = function(options) {
-    return new ListSelectorView(options);
   };
 
   return {

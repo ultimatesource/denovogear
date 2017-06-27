@@ -13,7 +13,7 @@
   window.pedigreeFileText = pedigreeFileText;
   window.layoutData = layoutData;
   window.dngOutputFileText = dngOutputFileText;
-  window.optionsManager = utils.createOptionsManager();
+  //window.optionsManager = utils.createOptionsManager();
 
   var pedigreeData = pedParser.parsePedigreeFile(pedigreeFileText);
   var pedGraph = buildGraphFromPedigree(pedigreeData);
