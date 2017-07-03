@@ -47,6 +47,12 @@ inline void add_app_args(po::options_description &desc, arg_t &arg) {
 #undef XM
     ;
 }
+// define macros for BCF parsing error handling
+#define missing_PL -6
+#define non_existent_ALT -11
+#define missing_member_1 -1
+#define missing_member_2 -2
+#define missing_member_3 -3
 
 } // namespace dnm
 
