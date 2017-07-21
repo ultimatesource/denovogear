@@ -1,5 +1,5 @@
 
-var mutationLocationsView = (function(d3, PubSub, utils) {
+var mutationLocationsView = (function(d3, utils) {
   "use strict";
 
   function MutationLocationsView(options) {
@@ -20,14 +20,27 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
     var chromSelectorContainer = container.append("div")
         .attr("class", "chrom-selector");
 
-    mutmap.ListSelectorView.create({
-      renderInto: chromSelectorContainer,
+    var SelectedChromosomeModel = Backbone.Model.extend({
+      defaults: {
+        index: 0
+      }
+    });
+
+    var selectedChromosome = new SelectedChromosomeModel();
+
+    var chromSelector = new mutmap.ListSelectorView({
+      el: chromSelectorContainer,
+      model: selectedChromosome,
       list: options.mutationLocationData,
       selector: 'chrom',
-      selectedEvent: 'CHROM_SELECTED',
       itemName: 'Chromosome'
     });
 
+    selectedChromosome.on('change', function() {
+      listView.update({
+        data: options.mutationLocationData[selectedChromosome.get('index')]
+      });
+    });
 
     var svg = container.append("svg")
         .style("width", "100%")
@@ -54,12 +67,6 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
       renderInto: g,
       data: options.mutationLocationData[0],
       width: chromWidth,
-    });
-
-    PubSub.subscribe('CHROM_SELECTED', function(topic, index) {
-      listView.update({
-        data: options.mutationLocationData[index]
-      });
     });
 
   }
@@ -207,4 +214,4 @@ var mutationLocationsView = (function(d3, PubSub, utils) {
     }
   };
 
-}(d3, PubSub, utils));
+}(d3, utils));

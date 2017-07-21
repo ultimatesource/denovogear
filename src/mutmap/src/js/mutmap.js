@@ -66,7 +66,7 @@
   });
 
   // TODO: DEV, switch to mutation locations tab
-  //$('.nav-tabs a[href="#mutation-locations"]').tab('show')
+  $('.nav-tabs a[href="#mutation-locations"]').tab('show')
 
   function processPedigree(kinshipPedigreeData) {
 
