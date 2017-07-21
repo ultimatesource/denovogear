@@ -5,8 +5,6 @@
 var utils = (function() {
   "use strict";
 
-  window.mutmap = {};
-
   var optionsManager = createOptionsManager();
 
   function halfwayBetween(a, b) {

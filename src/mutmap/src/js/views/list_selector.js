@@ -1,7 +1,9 @@
-mutmap.ListSelectorView = (function(d3, utils) {
+var mutmap = mutmap || {};
+
+(function(d3, utils) {
   "use strict";
   
-  var ListSelectorView = Backbone.View.extend({
+  mutmap.ListSelectorView = Backbone.View.extend({
     
     initialize: function(options) {
 
@@ -103,7 +105,5 @@ mutmap.ListSelectorView = (function(d3, utils) {
       }
     }
   });
-
-  return ListSelectorView;
 
 }(d3, utils));

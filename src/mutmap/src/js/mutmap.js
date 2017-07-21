@@ -40,8 +40,10 @@
   var mutationLocationsRendered = false;
   $('.nav-tabs a[href="#mutation-locations"]').on('shown.bs.tab', function(e) {
     if (!mutationLocationsRendered) {
+
       mutationLocationsRendered = true;
-      mutationLocationsView.createMutationLocationsView({
+
+      new mutmap.MutationLocationsView({
         el: d3.select(".mutation-locations-tab"),
         mutationLocationData: buildMutationLocationData(vcfData)
       });

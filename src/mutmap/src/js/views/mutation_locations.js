@@ -1,8 +1,9 @@
+var mutmap = mutmap || {};
 
-var mutationLocationsView = (function(d3, utils) {
+(function(d3, utils) {
   "use strict";
 
-  var MutationLocationsView = Backbone.View.extend({
+  mutmap.MutationLocationsView = Backbone.View.extend({
     initialize: function(options) {
       this.render(options);
     },
@@ -207,12 +208,6 @@ var mutationLocationsView = (function(d3, utils) {
 
   SampleMutationsView.create = function(options) {
     return new SampleMutationsView(options);
-  };
-
-  return {
-    createMutationLocationsView: function(options) {
-      return new MutationLocationsView(options);
-    }
   };
 
 }(d3, utils));

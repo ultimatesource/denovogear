@@ -1,3 +1,5 @@
+var mutmap = mutmap || {};
+
 mutmap.View = (function(d3, PubSub, utils) {
   "use strict";
 
