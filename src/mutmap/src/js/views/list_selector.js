@@ -4,102 +4,103 @@ mutmap.ListSelectorView = (function(d3, utils) {
   var ListSelectorView = Backbone.View.extend({
     
     initialize: function(options) {
-      this.render(options);
-    },
 
-    render: function(options) {
+      this.list = options.list;
+      this.selector = options.selector;
+      this.itemName = options.itemName;
 
-      var model = this.model;
+      this.currentChromIndex = 0;
 
-      var list = options.list;
-      var selector = options.selector;
-      var itemName = options.itemName;
-
-      var currentChromIndex = 0;
-
-      this._renderInto = this.el;
-
-      var container = this._renderInto.append("div")
+      this.container = options.el.append("div")
           .attr("class", "list-selector");
 
-      container.append("div")
-        .append("text")
-          .text(currentItem);
+      this.model.on('change', function() {
+          this.container.select("text").text(this.currentItem.bind(this));
+      }, this);
 
-      var prevButton = container.append("button")
+      this.render();
+    },
+
+    render: function() {
+
+      // Preserve this context for use in anonymous functions
+      var self = this;
+
+      this.container.append("div")
+        .append("text")
+          .text(this.currentItem.bind(this));
+
+      var prevButton = this.container.append("button")
           .attr("class", "btn btn-default")
           .on("click", function() {
-            currentChromIndex--;
-            if (currentChromIndex < 0) {
-              currentChromIndex = list.length - 1;
+            self.currentChromIndex--;
+            if (self.currentChromIndex < 0) {
+              self.currentChromIndex = self.list.length - 1;
             }
 
-            model.set('index', currentChromIndex);
+            self.model.set('index', self.currentChromIndex);
           });
       prevButton.append("span")
           .attr("class", "glyphicon glyphicon-arrow-left");
       prevButton.append("span")
           .text(" Previous");
 
-      var dropdown = container.append("div")
+      var dropdown = this.container.append("div")
           .attr("class", "dropdown")
       dropdown.append("button")
           .attr("class", "btn btn-default dropdown-toggle")
           .attr("id", "dropdownMenu1")
           .attr("type", "button")
           .attr("data-toggle", "dropdown")
-          .text("Select " + itemName);
+          .text("Select " + this.itemName);
 
       dropdown.append("ul")
           .attr("class", "dropdown-menu")
         .selectAll(".mutation")
-          .data(list)
+          .data(this.list)
         .enter().append("li")
           .attr("class", "mutation")
         .append("a")
           .attr("href", "#")
           .text(function(d) {
-            if (selector !== undefined) {
-              return d[selector];
+            if (self.selector !== undefined) {
+              return d[self.selector];
             }
             else {
               return d;
             }
           })
           .on("click", function(d, i) {
-            currentChromIndex = i;
-            model.set('index', currentChromIndex);
+            self.currentChromIndex = i;
+            self.model.set('index', self.currentChromIndex);
           });
 
-        var nextButton = container.append("button")
+        var nextButton = this.container.append("button")
             .attr("class", "btn btn-default")
             .on("click", function() {
-              currentChromIndex++;
-              if (currentChromIndex === list.length) {
-                currentChromIndex = 0;
+              self.currentChromIndex++;
+              if (self.currentChromIndex === self.list.length) {
+                self.currentChromIndex = 0;
               }
 
-              model.set('index', currentChromIndex);
+              self.model.set('index', self.currentChromIndex);
             });
         nextButton.append("span")
             .text("Next ");
         nextButton.append("span")
             .attr("class", "glyphicon glyphicon-arrow-right");
 
-      function currentItem() {
-          if (selector !== undefined) {
-            return list[currentChromIndex][selector];
-          }
-          else {
-            return list[currentChromIndex];
-          }
-      }
-
-      model.on('change', function() {
-          container.select("text").text(currentItem);
-      });
 
       return this;
+    },
+
+    currentItem: function() {
+      if (this.selector !== undefined) {
+        return this.list[this.currentChromIndex][this.selector];
+      }
+      else {
+        return this.list[this.currentChromIndex];
+      }
     }
   });
 

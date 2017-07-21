@@ -42,7 +42,7 @@
     if (!mutationLocationsRendered) {
       mutationLocationsRendered = true;
       mutationLocationsView.createMutationLocationsView({
-        renderInto: d3.select(".mutation-locations-tab"),
+        el: d3.select(".mutation-locations-tab"),
         mutationLocationData: buildMutationLocationData(vcfData)
       });
     }

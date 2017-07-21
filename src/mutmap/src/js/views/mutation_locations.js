@@ -2,74 +2,75 @@
 var mutationLocationsView = (function(d3, utils) {
   "use strict";
 
-  function MutationLocationsView(options) {
+  var MutationLocationsView = Backbone.View.extend({
+    initialize: function(options) {
+      this.render(options);
+    },
 
-    utils.optionsManager.checkOptions({
-      requiredOptions: ['renderInto', 'mutationLocationData'],
-      providedOptions: options
-    });
+    render: function(options) {
 
-    var parent = options.renderInto;
+      var parent = options.el;
 
-    var container = parent.append("div")
-        .attr("class", "row")
-      .append("div")
-        .attr("class",
-              "mutation-location-container col-xs-12 panel panel-default")
- 
-    var chromSelectorContainer = container.append("div")
-        .attr("class", "chrom-selector");
+      var container = parent.append("div")
+          .attr("class", "row")
+        .append("div")
+          .attr("class",
+                "mutation-location-container col-xs-12 panel panel-default")
+   
+      var chromSelectorContainer = container.append("div")
+          .attr("class", "chrom-selector");
 
-    var SelectedChromosomeModel = Backbone.Model.extend({
-      defaults: {
-        index: 0
-      }
-    });
-
-    var selectedChromosome = new SelectedChromosomeModel();
-
-    var chromSelector = new mutmap.ListSelectorView({
-      el: chromSelectorContainer,
-      model: selectedChromosome,
-      list: options.mutationLocationData,
-      selector: 'chrom',
-      itemName: 'Chromosome'
-    });
-
-    selectedChromosome.on('change', function() {
-      listView.update({
-        data: options.mutationLocationData[selectedChromosome.get('index')]
+      var SelectedChromosomeModel = Backbone.Model.extend({
+        defaults: {
+          index: 0
+        }
       });
-    });
 
-    var svg = container.append("svg")
-        .style("width", "100%")
-        .style("height", "100%");
+      var selectedChromosome = new SelectedChromosomeModel();
 
-    var boundingRect = parent.node().getBoundingClientRect();
-    var width = boundingRect.width;
-    var height = boundingRect.height;
+      var chromSelector = new mutmap.ListSelectorView({
+        el: chromSelectorContainer,
+        model: selectedChromosome,
+        list: options.mutationLocationData,
+        selector: 'chrom',
+        itemName: 'Chromosome'
+      });
 
-    var margins = {
-      left: 20,
-      top: 20,
-      right: 20,
-      bottom: 20
-    };
+      selectedChromosome.on('change', function() {
+        listView.update({
+          data: options.mutationLocationData[selectedChromosome.get('index')]
+        });
+      });
 
-    var chromWidth = width - (margins.left + margins.right);
+      var svg = container.append("svg")
+          .style("width", "100%")
+          .style("height", "100%");
 
-    var g = svg.append("g")
-        .attr("transform",
-              utils.svgTranslateString(margins.left, margins.top));
+      var boundingRect = parent.node().getBoundingClientRect();
+      var width = boundingRect.width;
+      var height = boundingRect.height;
 
-    var listView = SampleMutationsListView.create({
-      renderInto: g,
-      data: options.mutationLocationData[0],
-      width: chromWidth,
-    });
+      var margins = {
+        left: 20,
+        top: 20,
+        right: 20,
+        bottom: 20
+      };
 
-  }
+      var chromWidth = width - (margins.left + margins.right);
+
+      var g = svg.append("g")
+          .attr("transform",
+                utils.svgTranslateString(margins.left, margins.top));
+
+      var listView = SampleMutationsListView.create({
+        renderInto: g,
+        data: options.mutationLocationData[0],
+        width: chromWidth,
+      });
+
+    }
+  });
 
   function SampleMutationsListView(options) {
 
