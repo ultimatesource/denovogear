@@ -1,6 +1,6 @@
 var mutmap = mutmap || {};
 
-(function(d3, utils) {
+(function() {
   "use strict";
   
   mutmap.ListSelectorView = Backbone.View.extend({
@@ -106,4 +106,4 @@ var mutmap = mutmap || {};
     }
   });
 
-}(d3, utils));
+}());
