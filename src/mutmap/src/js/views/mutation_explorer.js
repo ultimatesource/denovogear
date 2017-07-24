@@ -8,7 +8,6 @@
 /* global pedigr */
 /* global utils */
 /* global contigView */
-/* global statsView */
 
 /* global pedigreeFileText */
 /* global layoutData */
@@ -90,10 +89,9 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
     var statsContainer = statsColumn.append("div")
         .attr("class", "stats-container panel panel-default");
 
-    var statsViewOptions = {
-      renderInto: statsContainer
-    };
-    statsView.createStatsView(statsViewOptions);
+    new mutmap.StatsView({
+      el: statsContainer
+    });
 
     statsColumn.append("button")
         .attr("id", "sample_tree_toggle")

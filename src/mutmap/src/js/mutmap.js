@@ -31,7 +31,7 @@
 
   console.log(vcfData);
  
-  mutationDistributionView.createMutationDistributionView({
+  new mutmap.MutationDistributionView({
     renderInto: d3.select(".mutation-distribution-tab"),
     graphData: graphData,
     vcfText: dngOutputFileText,
@@ -68,7 +68,8 @@
   });
 
   // TODO: DEV, switch to mutation locations tab
-  $('.nav-tabs a[href="#mutation-locations"]').tab('show')
+  //$('.nav-tabs a[href="#mutation-locations"]').tab('show')
+  $('.nav-tabs a[href="#mutation-explorer"]').tab('show')
 
   function processPedigree(kinshipPedigreeData) {
 
