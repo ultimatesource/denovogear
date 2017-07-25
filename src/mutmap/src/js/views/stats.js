@@ -1,12 +1,11 @@
 // eslint exceptions
 //
+/* global Backbone */
 /* global d3 */
-/* global PubSub */
-/* exported statsView */
 
 var mutmap = mutmap || {};
 
-(function(d3, PubSub) {
+(function(Backbone, d3) {
   "use strict";
 
   var format = d3.format(",.6e");
@@ -15,61 +14,72 @@ var mutmap = mutmap || {};
 
   mutmap.StatsView = Backbone.View.extend({
 
-    initialize: function(options) {
+    initialize: function() {
 
-      PubSub.subscribe("ACTIVE_NODE_CHANGED", this.stateChanged.bind(this));
-      PubSub.subscribe("PEDIGREE_VIEW_UPDATE", this.stateChanged.bind(this));
+      this.model.on('change', this.render.bind(this));
 
-      var stat = options.el.selectAll(".stat")
-          .data(stats)
-        .enter().append("div")
-          .attr("class", "stat");
-
-      stat.append("div")
-          .attr("class", "stat__label")
-          .text(function(d) { return d + ":"; });
-
-      stat.append("input")
-          .attr("class", "stat__text form-control")
-          .attr("id", function(d) { return d.toLowerCase() + "_display"; })
-          .attr("type", "text")
-          .attr("placeholder", function(d) { return d; });
+      this.render();
     },
 
     render: function() {
+
+      var statsUpdate = this.el.selectAll(".stat")
+          .data(stats);
+
+      var statsEnter = statsUpdate.enter().append("div")
+          .attr("class", "stat");
+
+      statsEnter.append("div")
+          .attr("class", "stat__label")
+          .text(function(d) { return d + ":"; });
+
+      statsEnter.append("input")
+          .attr("class", function(d) {
+            return "stat__text form-control " + d.toLowerCase() + "_display"
+          })
+          .attr("type", "text")
+          .attr("placeholder", function(d) { return d; });
+
+      var statsEnterUpdate = statsEnter.merge(statsUpdate);
+
+      this._textBoxes = statsEnterUpdate.selectAll('.stat__text');
+     
+      var dataNode = this.model.get('dataNode');
+
+      if (dataNode) {
+
+        var dngData = dngDataFromDataNode(dataNode);
+
+        this.el.select(".id_display").attr("value", dataNode.id);
+        this.el.select(".gt_display").attr("value", dngData.GT);
+        this.el.select(".gq_display").attr("value", dngData.GQ);
+        this.el.select(".gp_display").attr("value", dngData.GP);
+        this.el.select(".dp_display").attr("value", dngData.DP);
+        this.el.select(".mup_display").attr("value", format(dngData.MUP));
+        this.el.select(".mu1p_display").attr("value", format(dngData.MU1P));
+      }
     },
+  });
 
-    stateChanged: function(topic, data) {
+  function dngDataFromDataNode(dataNode) {
 
-      if (data.activeNode) {
+    var dngData = null;
 
-        var dngData = null;
-
-        var d = data.activeNode;
-        if (d.dataNode.data.dngOutputData !== undefined) {
-          dngData = d.dataNode.data.dngOutputData;
-        }
-        else {
-          // TODO: should probably be some sort of search for the correct
-          // child, rather than assuming it's the first one.
-          if (d.dataNode.data.sampleIds.children[0]) {
-            dngData = d.dataNode.data.sampleIds.children[0].dngOutputData;
-          }
-          else {
-            dngData = d.dataNode.data.sampleIds.dngOutputData;
-          }
-        }
-
-        d3.select("#id_display").attr("value", d.dataNode.id);
-        d3.select("#gt_display").attr("value", dngData.GT);
-        d3.select("#gq_display").attr("value", dngData.GQ);
-        d3.select("#gp_display").attr("value", dngData.GP);
-        d3.select("#dp_display").attr("value", dngData.DP);
-        d3.select("#mup_display").attr("value", format(dngData.MUP));
-        d3.select("#mu1p_display").attr("value", format(dngData.MU1P));
-
+    if (dataNode.data.dngOutputData !== undefined) {
+      dngData = dataNode.data.dngOutputData;
+    }
+    else {
+      // TODO: should probably be some sort of search for the correct
+      // child, rather than assuming it's the first one.
+      if (dataNode.data.sampleIds.children[0]) {
+        dngData = dataNode.data.sampleIds.children[0].dngOutputData;
+      }
+      else {
+        dngData = dataNode.data.sampleIds.dngOutputData;
       }
     }
 
-  });
-}(d3, PubSub));
+    return dngData;
+  }
+
+}(Backbone, d3));

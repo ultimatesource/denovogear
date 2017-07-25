@@ -20,6 +20,8 @@ var pedigreeView = (function(d3, PubSub) {
       providedOptions: options
     });
 
+    this.activeNodeModel = options.activeNodeModel;
+
     this._graphData = options.graphData;
     this._parentElement = options.renderInto;
     this._create();
@@ -82,7 +84,10 @@ var pedigreeView = (function(d3, PubSub) {
     this._updateLinks();
     this._updateNodes();
 
-    PubSub.publish("PEDIGREE_VIEW_UPDATE", { activeNode: this._activeNode });
+    // TODO: I don't really like this. Used trigger instead of .on() because
+    // it wasn't working. Maybe something to do with Backbone's diffing
+    // algorithm knowing the dataNode hasn't changed.
+    this.activeNodeModel.trigger('change')
   };
 
   PedigreeView.prototype._updateLinks = function() {
@@ -191,7 +196,8 @@ var pedigreeView = (function(d3, PubSub) {
         }
       });
 
-    visualNodesEnterUpdate.call(gpNode());
+    visualNodesEnterUpdate.call(
+      gpNode().activeNodeModel(this.activeNodeModel));
     
     visualNodesEnter.append("text")
       .attr("dx", 15)
@@ -209,13 +215,6 @@ var pedigreeView = (function(d3, PubSub) {
     });
   };
 
-  function nodeClicked(d) {
-    if (d.type !== "marriage") {
-      PubSub.publish("ACTIVE_NODE_CHANGED",
-        { activeNode: d, activeNodeSelection: this });
-    }
-  }
-
   PedigreeView.prototype._stateUpdate = function(topic, data) {
 
     switch(topic) {
@@ -228,6 +227,11 @@ var pedigreeView = (function(d3, PubSub) {
         d3.selectAll(".node-symbol").classed("node-symbol--selected", false);
         d3.select(data.activeNodeSelection)
             .classed("node-symbol--selected", true);
+
+        this.activeNodeModel.set({
+          dataNode: data.activeNode
+        });
+
         break;
       case "SAMPLE_TREE_TOGGLE":
 
@@ -291,6 +295,7 @@ var pedigreeView = (function(d3, PubSub) {
 
   function gpNode() {
 
+    var activeNodeModel = null;
 
     var color = d3.scaleOrdinal(d3.schemeCategory10);
     var pie = d3.pie()
@@ -298,6 +303,13 @@ var pedigreeView = (function(d3, PubSub) {
     var piePath = d3.arc()
       .outerRadius(15)
       .innerRadius(0);
+
+    function nodeClicked(d) {
+      if (d.type !== "marriage") {
+        PubSub.publish("ACTIVE_NODE_CHANGED",
+          { activeNode: d.dataNode, activeNodeSelection: this });
+      }
+    }
 
     function my(selection) {
 
@@ -364,6 +376,12 @@ var pedigreeView = (function(d3, PubSub) {
 
       });
     }
+
+    my.activeNodeModel = function(value) {
+      if (!arguments.length) return activeNodeModel;
+      activeNodeModel = value;
+      return my;
+    };
 
     return my;
 

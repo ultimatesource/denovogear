@@ -70,6 +70,14 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
 
     dngOverlay(vcfData.header, vcfData.records[0]);
 
+    var ActiveNodeModel = Backbone.Model.extend({
+      defaults: {
+        activeNode: null,
+      }
+    });
+
+    var activeNode = new ActiveNodeModel();
+
     var pedigreeRow = parent.append("div")
         .attr("class", "row pedigree-row");
 
@@ -80,6 +88,7 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
     var pedigreeViewOptions = {
       renderInto: pedigreeContainer,
       graphData: graphData,
+      activeNodeModel: activeNode,
     };
     var pedView = pedigreeView.createPedigreeView(pedigreeViewOptions);
 
@@ -90,7 +99,8 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
         .attr("class", "stats-container panel panel-default");
 
     new mutmap.StatsView({
-      el: statsContainer
+      el: statsContainer,
+      model: activeNode,
     });
 
     statsColumn.append("button")
