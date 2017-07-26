@@ -217,7 +217,7 @@
           }
         });
 
-      visualNodesEnterUpdate.call(
+      visualNodesEnter.call(
         gpNode().activeNodeModel(this.activeNodeModel));
       
       visualNodesEnter.append("text")
