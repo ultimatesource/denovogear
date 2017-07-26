@@ -175,7 +175,9 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
         selectedContigIndex: selectedContigIndex,
         selectedMutationIndex: selectedMutationIndex
       });
+      // TODO: This feels like a hack. At least having both of them does.
       pedigreeModel.trigger('change');
+      activeNodeModel.trigger('change');
     }
 
     PubSub.subscribe("MUTATION_SELECTED", function(topic, data) {

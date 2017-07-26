@@ -1,12 +1,10 @@
 // eslint exceptions
 //
 /* global d3 */
-/* global PubSub */
 /* global utils */
 /* global sampleTreeView */
-/* exported pedigreeView */
 
-(function(Backbone, d3, PubSub) {
+(function(Backbone, d3, utils) {
   "use strict";
 
   var format = d3.format(",.6e");
@@ -18,6 +16,7 @@
       this.activeNodeModel = this.model.get('activeNodeModel');
 
       this.model.on('change', this.render.bind(this));
+      this.activeNodeModel.on('change', this._updateActiveNode.bind(this));
 
       this._create();
       this.render();
@@ -41,13 +40,10 @@
 
       var transition = this._svg.transition().duration(750);
       zoom.scaleTo(transition, 1.0);
-
-      PubSub.subscribe("ACTIVE_NODE_CHANGED", this._stateUpdate.bind(this));
     },
 
     _create: function() {
 
-      this._activeNode = null;
       this._showSampleTrees = false;
 
       this.el.append("svg")
@@ -72,42 +68,9 @@
 
       this._updateLinks();
       this._updateNodes();
+      this._updateSampleTrees();
+      this._updateActiveNode();
 
-      var showSampleTrees = this.model.get('showSampleTrees');
-
-      d3.selectAll(".sampleTree")
-          .attr("visibility", function() {
-            if (showSampleTrees) {
-              return "visible";
-            }
-            else {
-              return "hidden";
-            }
-          });
-
-      d3.select("#sample_tree_toggle")
-          .attr("class", function() {
-            if (showSampleTrees) {
-              return "btn btn-danger";
-            }
-            else {
-              return "btn btn-success";
-            }
-          })
-          .text(function() {
-            if (showSampleTrees) {
-              return "Hide Trees";
-            }
-            else {
-              return "Show Trees";
-            }
-          });
-
-
-      // TODO: I don't really like this. Used trigger instead of .on() because
-      // it wasn't working. Maybe something to do with Backbone's diffing
-      // algorithm knowing the dataNode reference hasn't changed.
-      this.activeNodeModel.trigger('change')
     },
 
     _updateLinks: function() {
@@ -236,26 +199,54 @@
       });
     },
 
-    _stateUpdate: function(topic, data) {
+    _updateSampleTrees: function() {
 
-      switch(topic) {
+      var showSampleTrees = this.model.get('showSampleTrees');
 
-        case "ACTIVE_NODE_CHANGED":
-          this._activeNode = data.activeNode;
-          d3.selectAll(".node-symbol").classed("node-symbol--selected", false);
-          d3.select(data.activeNodeSelection)
-              .classed("node-symbol--selected", true);
-
-          this.activeNodeModel.set({
-            dataNode: data.activeNode
+      d3.selectAll(".sampleTree")
+          .attr("visibility", function() {
+            if (showSampleTrees) {
+              return "visible";
+            }
+            else {
+              return "hidden";
+            }
           });
 
-          break;
-        default:
-          console.log("unknown event");
-          break;
-      }
-    }
+      d3.select("#sample_tree_toggle")
+          .attr("class", function() {
+            if (showSampleTrees) {
+              return "btn btn-danger";
+            }
+            else {
+              return "btn btn-success";
+            }
+          })
+          .text(function() {
+            if (showSampleTrees) {
+              return "Hide Trees";
+            }
+            else {
+              return "Show Trees";
+            }
+          });
+
+
+    },
+
+    _updateActiveNode: function() {
+
+      // Create variable to preserve 'this' context
+      var activeNodeModel = this.activeNodeModel;
+      d3.selectAll(".node-symbol").each(function(d) {
+        if (d.dataNode === activeNodeModel.get('dataNode')) {
+          d3.select(this).classed("node-symbol--selected", true);
+        }
+        else {
+          d3.select(this).classed("node-symbol--selected", false);
+        }
+      });
+    },
   });
 
   function zoomed() {
@@ -293,8 +284,9 @@
 
     function nodeClicked(d) {
       if (d.type !== "marriage") {
-        PubSub.publish("ACTIVE_NODE_CHANGED",
-          { activeNode: d.dataNode, activeNodeSelection: this });
+        activeNodeModel.set({
+          dataNode: d.dataNode
+        });
       }
     }
 
@@ -433,4 +425,4 @@
     createPedigreeView: createPedigreeView
   };
 
-}(Backbone, d3, PubSub));
+}(Backbone, d3, utils));
