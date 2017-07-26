@@ -22,7 +22,6 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
       providedOptions: options
     });
 
-    var graphData = options.graphData;
     var pedGraph = options.pedGraph;
     var vcfData = options.vcfData;
 
@@ -76,7 +75,7 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
       }
     });
 
-    var activeNode = new ActiveNodeModel();
+    var activeNodeModel = new ActiveNodeModel();
 
     var pedigreeRow = parent.append("div")
         .attr("class", "row pedigree-row");
@@ -85,12 +84,20 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
         .attr("class",
               "pedigree-container col-xs-12 col-md-8 panel panel-default"); 
 
-    var pedigreeViewOptions = {
-      renderInto: pedigreeContainer,
-      graphData: graphData,
-      activeNodeModel: activeNode,
-    };
-    var pedView = pedigreeView.createPedigreeView(pedigreeViewOptions);
+    var PedigreeModel = Backbone.Model.extend({
+      defaults: {
+        activeNodeModel: activeNodeModel,
+        graphData: options.graphData,
+        showSampleTrees: false
+      }
+    });
+
+    var pedigreeModel = new PedigreeModel();
+
+    new mutmap.PedigreeView({
+      el: pedigreeContainer,
+      model: pedigreeModel,
+    });
 
     var statsColumn = pedigreeRow.append("div")
         .attr("class", "col-xs-4 col-md-4 stats-col");
@@ -100,7 +107,7 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
 
     new mutmap.StatsView({
       el: statsContainer,
-      model: activeNode,
+      model: activeNodeModel,
     });
 
     statsColumn.append("button")
@@ -109,7 +116,8 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
         .attr("class", "btn btn-success")
         .text("Show Trees")
         .on("click", function() {
-          PubSub.publish("SAMPLE_TREE_TOGGLE");
+          pedigreeModel.set('showSampleTrees',
+            !pedigreeModel.get('showSampleTrees'));
         });
 
 
@@ -167,7 +175,7 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
         selectedContigIndex: selectedContigIndex,
         selectedMutationIndex: selectedMutationIndex
       });
-      PubSub.publish("DNG_OVERLAY_UPDATE");
+      pedigreeModel.trigger('change');
     }
 
     PubSub.subscribe("MUTATION_SELECTED", function(topic, data) {

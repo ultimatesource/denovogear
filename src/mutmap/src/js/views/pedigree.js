@@ -6,274 +6,261 @@
 /* global sampleTreeView */
 /* exported pedigreeView */
 
-var pedigreeView = (function(d3, PubSub) {
+(function(Backbone, d3, PubSub) {
   "use strict";
-
-  var optionsManager = utils.createOptionsManager();
 
   var format = d3.format(",.6e");
 
-  var PedigreeView = function(options) {
+  mutmap.PedigreeView = Backbone.View.extend({
+    
+    initialize: function() {
 
-    optionsManager.checkOptions({
-      requiredOptions: ['renderInto', 'graphData'],
-      providedOptions: options
-    });
+      this.activeNodeModel = this.model.get('activeNodeModel');
 
-    this.activeNodeModel = options.activeNodeModel;
+      this.model.on('change', this.render.bind(this));
 
-    this._graphData = options.graphData;
-    this._parentElement = options.renderInto;
-    this._create();
-    this.update();
+      this._create();
+      this.render();
 
-    // bounding box of the links in the graph serves as a heuristic for
-    // calculating the center of the graph
-    var boundingBox = this._links_container.node().getBBox();
-    var centerX = boundingBox.width / 2;
-    var centerY = boundingBox.height / 2;
-    var width = parseInt(this._svg.style("width"));
-    var height = parseInt(this._svg.style("height"));
-    var xCorrection = (width / 2) - centerX;
-    var yCorrection = (height / 2) - centerY;
+      // bounding box of the links in the graph serves as a heuristic for
+      // calculating the center of the graph
+      var boundingBox = this._links_container.node().getBBox();
+      var centerX = boundingBox.width / 2;
+      var centerY = boundingBox.height / 2;
+      var width = parseInt(this._svg.style("width"));
+      var height = parseInt(this._svg.style("height"));
+      var xCorrection = (width / 2) - centerX;
+      var yCorrection = (height / 2) - centerY;
 
-    var zoom = d3.zoom()
-      .on("zoom", zoomed.bind(this));
-    this._svg.call(zoom);
+      var zoom = d3.zoom()
+        .on("zoom", zoomed.bind(this));
+      this._svg.call(zoom);
 
-    zoom.translateBy(this._svg, xCorrection, yCorrection);
-    zoom.scaleBy(this._svg, 0.1, 0.1);
+      zoom.translateBy(this._svg, xCorrection, yCorrection);
+      zoom.scaleBy(this._svg, 0.1, 0.1);
 
-    var transition = this._svg.transition().duration(750);
-    zoom.scaleTo(transition, 1.0);
+      var transition = this._svg.transition().duration(750);
+      zoom.scaleTo(transition, 1.0);
 
-    PubSub.subscribe("DNG_OVERLAY_UPDATE", this._stateUpdate.bind(this));
-    PubSub.subscribe("ACTIVE_NODE_CHANGED", this._stateUpdate.bind(this));
-    PubSub.subscribe("SAMPLE_TREE_TOGGLE", this._stateUpdate.bind(this));
-  };
+      PubSub.subscribe("ACTIVE_NODE_CHANGED", this._stateUpdate.bind(this));
+    },
 
-  PedigreeView.prototype._create = function() {
+    _create: function() {
 
-    this._activeNode = null;
-    this._showSampleTrees = false;
+      this._activeNode = null;
+      this._showSampleTrees = false;
 
-    this._parentElement.append("svg")
-        .attr("class", "pedigree-svg");
+      this.el.append("svg")
+          .attr("class", "pedigree-svg");
 
-    this._svg = this._parentElement.select(".pedigree-svg");
+      this._svg = this.el.select(".pedigree-svg");
 
-    this._svg.style("height", "100%").style("width", "100%");
+      this._svg.style("height", "100%").style("width", "100%");
 
-    this._container = this._svg.append("g")
-        .attr("class", "pedigree-container");
+      this._container = this._svg.append("g")
+          .attr("class", "pedigree-container");
 
-    this._links_container = this._container.append("g")
-        .attr("class", "links-container");
+      this._links_container = this._container.append("g")
+          .attr("class", "links-container");
 
-    this._nodes_container = this._container.append("g")
-        .attr("class", "nodes-container");
+      this._nodes_container = this._container.append("g")
+          .attr("class", "nodes-container");
 
-  };
- 
+    },
+   
+    render: function() {
+
+      this._updateLinks();
+      this._updateNodes();
+
+      var showSampleTrees = this.model.get('showSampleTrees');
+
+      d3.selectAll(".sampleTree")
+          .attr("visibility", function() {
+            if (showSampleTrees) {
+              return "visible";
+            }
+            else {
+              return "hidden";
+            }
+          });
+
+      d3.select("#sample_tree_toggle")
+          .attr("class", function() {
+            if (showSampleTrees) {
+              return "btn btn-danger";
+            }
+            else {
+              return "btn btn-success";
+            }
+          })
+          .text(function() {
+            if (showSampleTrees) {
+              return "Hide Trees";
+            }
+            else {
+              return "Show Trees";
+            }
+          });
+
+
+      // TODO: I don't really like this. Used trigger instead of .on() because
+      // it wasn't working. Maybe something to do with Backbone's diffing
+      // algorithm knowing the dataNode reference hasn't changed.
+      this.activeNodeModel.trigger('change')
+    },
+
+    _updateLinks: function() {
+
+      var links = this.model.get('graphData').links;
+
+      var visualLinksUpdate = this._links_container.selectAll(".link")
+          .data(links);
+
+      var visualLinksEnter = visualLinksUpdate.enter()
+        .append("g")
+          .attr("class", "link");
+
+      var visualLinksEnterUpdate = visualLinksEnter.merge(visualLinksUpdate);
+
+      visualLinksEnter.append("path")
+          .attr("d", function(d) {
+            if (d.type == "child" || d.type == "spouse") {
+              return "M" + d.source.x + "," + d.source.y +
+                "L" + d.target.x + "," + d.target.y;
+            }
+            else {
+              var controlX = utils.halfwayBetween(d.source.x, d.target.x);
+              // TODO: parameterize the control point Y value by the distance
+              // between the nodes, rather than hard coding
+              var controlY = d.source.y - 100;
+              return "M" + d.source.x + "," + d.source.y
+                + "Q" + controlX + "," + controlY + ","
+                + d.target.x + "," + d.target.y;
+            }
+          })
+          .attr("fill", "transparent")
+          .attr("stroke-dasharray", function(d) {
+            if (d.type == "duplicate") {
+              return "5, 5";
+            }
+          })
+          .attr("x1", function(d) { return d.source.x; })
+          .attr("y1", function(d) { return d.source.y; })
+          .attr("x2", function(d) { return d.target.x; })
+          .attr("y2", function(d) { return d.target.y; });
+
+      visualLinksEnter.append("text")
+        .attr("text-anchor", "middle")
+        .attr("dx", function(d) {
+          return utils.halfwayBetween(d.source.x, d.target.x);
+        })
+        .attr("dy", function(d) {
+          return utils.halfwayBetween(d.source.y, d.target.y);
+        });
+
+      visualLinksEnterUpdate.select("text")
+        .text(function(d) {
+          if (linkHasMutation(d)) {
+            return d.dataLink.data.mutation;
+          }
+        });
+
+      visualLinksEnterUpdate.select("path")
+          .attr("stroke-width", function(d) {
+            if (linkHasMutation(d)) {
+              return 5;
+            }
+            return 1;
+          })
+          .attr("stroke", function(d) {
+            if (linkHasMutation(d)) {
+              return d3.schemeCategory20[7];
+            }
+
+            return "#999";
+          });
+
+      function linkHasMutation(d) {
+        return d.dataLink !== undefined && d.dataLink.data !== undefined &&
+          d.dataLink.data.mutation !== undefined;
+      }
+    },
+
+    _updateNodes: function() {
+
+      var visualNodesUpdate = this._nodes_container.selectAll(".node")
+          .data(this.model.get('graphData').nodes);
+
+      var visualNodesEnter = visualNodesUpdate.enter()
+        .append("g")
+          .attr("class", "node");
+
+      var visualNodesEnterUpdate = visualNodesEnter.merge(visualNodesUpdate);
+
+      var tree = sampleTreeView.createSampleTree();
+
+      // TODO: this is a hack. I don't even really know why it works...
+      visualNodesEnter.selectAll(".yolo")
+          .data(function(d) {
+            if (d.type == "person") {
+              return [d];
+            }
+            else {
+              return [null];
+            }
+          })
+        .enter().each(function(d) {
+          if (d) {
+            var selection = d3.select(this);
+            tree.node(d)(selection);
+          }
+        });
+
+      visualNodesEnterUpdate.call(
+        gpNode().activeNodeModel(this.activeNodeModel));
+      
+      visualNodesEnter.append("text")
+        .attr("dx", 15)
+        .attr("dy", 15)
+        .text(function(d) { 
+          if (d.type !== "marriage") {
+            return d.dataNode.id;
+          }
+        })
+        .style("pointer-events", "none")
+        .style("font", "10px sans-serif");
+
+      visualNodesEnter.attr("transform", function(d) {
+        return svgTranslateString(d.x, d.y);
+      });
+    },
+
+    _stateUpdate: function(topic, data) {
+
+      switch(topic) {
+
+        case "ACTIVE_NODE_CHANGED":
+          this._activeNode = data.activeNode;
+          d3.selectAll(".node-symbol").classed("node-symbol--selected", false);
+          d3.select(data.activeNodeSelection)
+              .classed("node-symbol--selected", true);
+
+          this.activeNodeModel.set({
+            dataNode: data.activeNode
+          });
+
+          break;
+        default:
+          console.log("unknown event");
+          break;
+      }
+    }
+  });
+
   function zoomed() {
     this._container.attr("transform", d3.event.transform);
   }
-
-  PedigreeView.prototype.update = function() {
-
-    this._updateLinks();
-    this._updateNodes();
-
-    // TODO: I don't really like this. Used trigger instead of .on() because
-    // it wasn't working. Maybe something to do with Backbone's diffing
-    // algorithm knowing the dataNode hasn't changed.
-    this.activeNodeModel.trigger('change')
-  };
-
-  PedigreeView.prototype._updateLinks = function() {
-
-    var links = this._graphData.links;
-
-    var visualLinksUpdate = this._links_container.selectAll(".link")
-        .data(links);
-
-    var visualLinksEnter = visualLinksUpdate.enter()
-      .append("g")
-        .attr("class", "link");
-
-    var visualLinksEnterUpdate = visualLinksEnter.merge(visualLinksUpdate);
-
-    visualLinksEnter.append("path")
-        .attr("d", function(d) {
-          if (d.type == "child" || d.type == "spouse") {
-            return "M" + d.source.x + "," + d.source.y +
-              "L" + d.target.x + "," + d.target.y;
-          }
-          else {
-            var controlX = utils.halfwayBetween(d.source.x, d.target.x);
-            // TODO: parameterize the control point Y value by the distance
-            // between the nodes, rather than hard coding
-            var controlY = d.source.y - 100;
-            return "M" + d.source.x + "," + d.source.y
-              + "Q" + controlX + "," + controlY + ","
-              + d.target.x + "," + d.target.y;
-          }
-        })
-        .attr("fill", "transparent")
-        .attr("stroke-dasharray", function(d) {
-          if (d.type == "duplicate") {
-            return "5, 5";
-          }
-        })
-        .attr("x1", function(d) { return d.source.x; })
-        .attr("y1", function(d) { return d.source.y; })
-        .attr("x2", function(d) { return d.target.x; })
-        .attr("y2", function(d) { return d.target.y; });
-
-    visualLinksEnter.append("text")
-      .attr("text-anchor", "middle")
-      .attr("dx", function(d) {
-        return utils.halfwayBetween(d.source.x, d.target.x);
-      })
-      .attr("dy", function(d) {
-        return utils.halfwayBetween(d.source.y, d.target.y);
-      });
-
-    visualLinksEnterUpdate.select("text")
-      .text(function(d) {
-        if (linkHasMutation(d)) {
-          return d.dataLink.data.mutation;
-        }
-      });
-
-    visualLinksEnterUpdate.select("path")
-        .attr("stroke-width", function(d) {
-          if (linkHasMutation(d)) {
-            return 5;
-          }
-          return 1;
-        })
-        .attr("stroke", function(d) {
-          if (linkHasMutation(d)) {
-            return d3.schemeCategory20[7];
-          }
-
-          return "#999";
-        });
-
-    function linkHasMutation(d) {
-      return d.dataLink !== undefined && d.dataLink.data !== undefined &&
-        d.dataLink.data.mutation !== undefined;
-    }
-  };
-
-  PedigreeView.prototype._updateNodes = function() {
-    var visualNodesUpdate = this._nodes_container.selectAll(".node")
-        .data(this._graphData.nodes);
-
-    var visualNodesEnter = visualNodesUpdate.enter()
-      .append("g")
-        .attr("class", "node");
-
-    var visualNodesEnterUpdate = visualNodesEnter.merge(visualNodesUpdate);
-
-    var tree = sampleTreeView.createSampleTree();
-
-    // TODO: this is a hack. I don't even really know why it works...
-    visualNodesEnter.selectAll(".yolo")
-        .data(function(d) {
-          if (d.type == "person") {
-            return [d];
-          }
-          else {
-            return [null];
-          }
-        })
-      .enter().each(function(d) {
-        if (d) {
-          var selection = d3.select(this);
-          tree.node(d)(selection);
-        }
-      });
-
-    visualNodesEnterUpdate.call(
-      gpNode().activeNodeModel(this.activeNodeModel));
-    
-    visualNodesEnter.append("text")
-      .attr("dx", 15)
-      .attr("dy", 15)
-      .text(function(d) { 
-        if (d.type !== "marriage") {
-          return d.dataNode.id;
-        }
-      })
-      .style("pointer-events", "none")
-      .style("font", "10px sans-serif");
-
-    visualNodesEnter.attr("transform", function(d) {
-      return svgTranslateString(d.x, d.y);
-    });
-  };
-
-  PedigreeView.prototype._stateUpdate = function(topic, data) {
-
-    switch(topic) {
-
-      case "DNG_OVERLAY_UPDATE":
-        this.update();
-        break;
-      case "ACTIVE_NODE_CHANGED":
-        this._activeNode = data.activeNode;
-        d3.selectAll(".node-symbol").classed("node-symbol--selected", false);
-        d3.select(data.activeNodeSelection)
-            .classed("node-symbol--selected", true);
-
-        this.activeNodeModel.set({
-          dataNode: data.activeNode
-        });
-
-        break;
-      case "SAMPLE_TREE_TOGGLE":
-
-        this._showSampleTrees = !this._showSampleTrees;
-
-        // Set new variable to preserve 'this' context
-        var showSampleTrees = this._showSampleTrees;
-
-        d3.selectAll(".sampleTree")
-            .attr("visibility", function() {
-              if (showSampleTrees) {
-                return "visible";
-              }
-              else {
-                return "hidden";
-              }
-            });
-
-        d3.select("#sample_tree_toggle")
-            .attr("class", function() {
-              if (showSampleTrees) {
-                return "btn btn-danger";
-              }
-              else {
-                return "btn btn-success";
-              }
-            })
-            .text(function() {
-              if (showSampleTrees) {
-                return "Hide Trees";
-              }
-              else {
-                return "Show Trees";
-              }
-            });
-
-        break;
-      default:
-        console.log("unknown event");
-        break;
-    }
-  };
 
   function svgTranslateString(x, y) {
     return "translate(" + x + "," + y + ")";
@@ -446,4 +433,4 @@ var pedigreeView = (function(d3, PubSub) {
     createPedigreeView: createPedigreeView
   };
 
-}(d3, PubSub));
+}(Backbone, d3, PubSub));
