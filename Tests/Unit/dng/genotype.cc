@@ -66,3 +66,16 @@ BOOST_AUTO_TEST_CASE(test_log_pochhammer) {
     double low_phi = DBL_EPSILON/2.0;
     test((1.0 - low_phi) / low_phi);
 }
+
+BOOST_AUTO_TEST_CASE(test_DirichletMultinomial) {
+    double prec = 2*DBL_EPSILON;
+
+    auto test = [prec](double over_disp, double error_rate, double ref_bias) -> void {
+    BOOST_TEST_CONTEXT("over_disp=" << over_disp
+        << ", error_rate=" << error_rate << ", ref_bias=" << ref_bias) {
+        using dng::genotype::DirichletMultinomial;
+        DirichletMultinomial gt(over_disp, error_rate, ref_bias);
+        
+    }
+    };
+}
