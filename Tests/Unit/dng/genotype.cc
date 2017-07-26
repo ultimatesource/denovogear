@@ -304,4 +304,7 @@ BOOST_AUTO_TEST_CASE(test_DirichletMultinomial_AlleleDepths) {
     };
 
     test({0.0005, 0.0005, 1.02});
+    test({0.0, 0.0, 1});
+    test({0.1, 0.01, 1.1});
+    test({0.001, 1e-4, 0.8});    
 }

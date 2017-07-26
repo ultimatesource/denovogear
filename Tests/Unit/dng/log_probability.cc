@@ -37,8 +37,7 @@ namespace dng {
         GETTER2(LogProbability, params, theta)
         GETTER2(LogProbability, params, ref_weight)
         GETTER2(LogProbability, params, nuc_freq)
-        GETTER2(LogProbability, params, params_a)
-        GETTER2(LogProbability, params, params_b)
+        GETTER2(LogProbability, params, genotyper_params)
         GETTER1(LogProbability, haploid_prior);
         GETTER1(LogProbability, diploid_prior);
     };
@@ -73,8 +72,7 @@ BOOST_AUTO_TEST_CASE(test_constructor_1) {
         0.001, // Theta
         {0.3,0.2,0.2,0.3}, // Nucleotide Frequencies
         1.0,   // Reference Weight
-        std::string{"0.98,0.00001,0.0005,1"}, // Genotype Likelihood
-        std::string{"0.02,0.01,0.005,1.1"}
+        {0.0005, 0.0005, 1.02} // Genotype Likelihood
     };
 
     LogProbability log_probability{rel_graph, params};
@@ -83,41 +81,9 @@ BOOST_AUTO_TEST_CASE(test_constructor_1) {
     CHECK_EQUAL_RANGES(u::nuc_freq(log_probability), params.nuc_freq);
     BOOST_CHECK_EQUAL(u::ref_weight(log_probability), params.ref_weight);
 
-    BOOST_CHECK_EQUAL(u::params_a(log_probability).pi, 0.98);
-    BOOST_CHECK_EQUAL(u::params_a(log_probability).phi, 0.00001);
-    BOOST_CHECK_EQUAL(u::params_a(log_probability).epsilon, 0.0005);
-    BOOST_CHECK_EQUAL(u::params_a(log_probability).omega, 1.0);
-
-    BOOST_CHECK_EQUAL(u::params_b(log_probability).pi, 0.02);
-    BOOST_CHECK_EQUAL(u::params_b(log_probability).phi, 0.01);
-    BOOST_CHECK_EQUAL(u::params_b(log_probability).epsilon, 0.005);
-    BOOST_CHECK_EQUAL(u::params_b(log_probability).omega, 1.1);
-}
-
-BOOST_AUTO_TEST_CASE(test_constructor_2) {    
-    LogProbability::params_t params = {
-        0.01, // Theta
-        {0.25,0.25,0.25,0.25}, // Nucleotide Frequencies
-        0.0,   // Reference Weight
-        std::string{"0.5,0.01,0.02,1"}, // Genotype Likelihood
-        std::string{"0.5,0.01,0.02,1"}
-    };
-
-    LogProbability log_probability{rel_graph, params};
-
-    BOOST_CHECK_EQUAL(u::theta(log_probability), params.theta);
-    CHECK_EQUAL_RANGES(u::nuc_freq(log_probability), params.nuc_freq);
-    BOOST_CHECK_EQUAL(u::ref_weight(log_probability), params.ref_weight);
-
-    BOOST_CHECK_EQUAL(u::params_a(log_probability).pi, 0.5);
-    BOOST_CHECK_EQUAL(u::params_a(log_probability).phi, 0.01);
-    BOOST_CHECK_EQUAL(u::params_a(log_probability).epsilon, 0.02);
-    BOOST_CHECK_EQUAL(u::params_a(log_probability).omega, 1.0);
-
-    BOOST_CHECK_EQUAL(u::params_b(log_probability).pi, 0.5);
-    BOOST_CHECK_EQUAL(u::params_b(log_probability).phi, 0.01);
-    BOOST_CHECK_EQUAL(u::params_b(log_probability).epsilon, 0.02);
-    BOOST_CHECK_EQUAL(u::params_b(log_probability).omega, 1.0);
+    BOOST_CHECK_EQUAL(u::genotyper_params(log_probability).over_dispersion, 0.0005);
+    BOOST_CHECK_EQUAL(u::genotyper_params(log_probability).error_rate, 0.0005);
+    BOOST_CHECK_EQUAL(u::genotyper_params(log_probability).ref_bias, 1.02);
 }
 
 // BOOST_FIXTURE_TEST_CASE(test_full_transition, TrioWorkspace) {
