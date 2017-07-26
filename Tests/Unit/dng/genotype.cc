@@ -131,7 +131,7 @@ BOOST_AUTO_TEST_CASE(test_make_alphas) {
     test(0.001, 1e-4, 0.8);
 }
 
-BOOST_AUTO_TEST_CASE(test_DirichletMultinomial) {
+BOOST_AUTO_TEST_CASE(test_DirichletMultinomial_RawDepths) {
     using dng::genotype::detail::make_alphas;
     using dng::genotype::detail::log_pochhammer;
 
@@ -175,7 +175,7 @@ BOOST_AUTO_TEST_CASE(test_DirichletMultinomial) {
                     auto results = dm(depths, pos, ref, 2);
                     double test_scale = results.second;
                     auto test = make_test_range(results.first);
-                    BOOST_CHECK_CLOSE(test_scale, expected_scale, prec);
+                    BOOST_CHECK_CLOSE_FRACTION(test_scale, expected_scale, prec);
                     CHECK_CLOSE_RANGES(test, expected, prec);
                 }
                 // ploidy = 1
@@ -192,7 +192,7 @@ BOOST_AUTO_TEST_CASE(test_DirichletMultinomial) {
                     auto results = dm(depths, pos, ref, 1);
                     double test_scale = results.second;
                     auto test = make_test_range(results.first);
-                    BOOST_CHECK_CLOSE(test_scale, expected_scale, prec);
+                    BOOST_CHECK_CLOSE_FRACTION(test_scale, expected_scale, prec);
                     CHECK_CLOSE_RANGES(test, expected, prec);
                 }
             }
@@ -221,4 +221,87 @@ BOOST_AUTO_TEST_CASE(test_DirichletMultinomial) {
     test({0.0, 0.0, 1}, data);
     test({0.1, 0.01, 1.1}, data);
     test({0.001, 1e-4, 0.8}, data);
+}
+
+BOOST_AUTO_TEST_CASE(test_DirichletMultinomial_AlleleDepths) {
+    using dng::pileup::AlleleDepths;
+    using dng::pileup::RawDepths;
+
+    // The order of addition is different when working
+    // on AlleleDepths than RawDepths. This causes loss
+    // of precision when counts vary in magnitude.
+    // Only validate to FLT_EPSILON precision.
+    double prec = FLT_EPSILON;
+
+    xorshift64 xrand(++g_seed_counter);
+
+    auto test = [prec,&xrand](const DirichletMultinomial& dm) -> void {
+    BOOST_TEST_CONTEXT("over_dispersion=" << dm.parameters().over_dispersion
+         << ", error_rate=" << dm.parameters().error_rate
+         << ", ref_bias=" << dm.parameters().ref_bias) {
+        for(int color=0; color < AlleleDepths::type_info_table_length; ++color) {
+            AlleleDepths data;
+            RawDepths raw;
+            data.resize(color, 10);
+            raw.resize(10);
+            for(auto &&a : data.data()) {
+                if(xrand.get_double53() < 0.5) {
+                    a = xrand.get_uint64(100);
+                } else if(xrand.get_double53() < 0.75) {
+                    a = xrand.get_uint64(1000);
+                } else if(xrand.get_double53() < 0.9) {
+                    a = xrand.get_uint64(10000);
+                } else {
+                    a = 0;
+                }
+            }
+            for(size_t pos=0; pos < data.num_libraries(); ++pos) {
+                boost::fill(raw[pos].counts, 0);
+                for(int i=0; i < data.num_nucleotides(); ++i) {
+                    raw[pos].counts[data.type_info().indexes[i]] = data(pos, i);
+                }
+            }
+
+            for(size_t pos=0; pos < data.num_libraries(); ++pos) {
+                // ploidy=2
+                BOOST_TEST_CONTEXT("ploidy=2, color=" << color
+                    << ", raw_depths=" << rangeio::wrap(raw[pos].counts)) {
+
+                    auto test_results = dm(data, pos, 2);
+                    double test_scale = test_results.second;
+                    auto test = make_test_range(test_results.first);
+
+                    auto expected_results = dm(raw, pos, data.type_info().reference, 2);
+                    double expected_scale = expected_results.second;
+                    std::vector<double> expected(data.type_gt_info().width);
+                    for(int i=0; i < expected.size(); ++i) {
+                        expected[i] = expected_results.first[data.type_gt_info().indexes[i]];
+                    }
+                    BOOST_CHECK_CLOSE_FRACTION(test_scale, expected_scale, prec);
+                    CHECK_CLOSE_RANGES(test, expected, prec);
+                }
+                // ploidy=1
+                BOOST_TEST_CONTEXT("ploidy=1, color=" << color
+                    << ", raw_depths=" << rangeio::wrap(raw[pos].counts)) {
+
+                    auto test_results = dm(data, pos, 1);
+                    double test_scale = test_results.second;
+                    auto test = make_test_range(test_results.first);
+
+                    auto expected_results = dm(raw, pos, data.type_info().reference, 1);
+                    double expected_scale = expected_results.second;
+                    std::vector<double> expected(data.type_info().width);
+                    for(int i=0; i < expected.size(); ++i) {
+                        expected[i] = expected_results.first[data.type_info().indexes[i]];
+                    }
+
+                    BOOST_CHECK_CLOSE_FRACTION(test_scale, expected_scale, prec);
+                    CHECK_CLOSE_RANGES(test, expected, prec);
+                }
+            }
+        }
+    }
+    };
+
+    test({0.0005, 0.0005, 1.02});
 }

@@ -66,6 +66,7 @@ public:
         char color; // binary id of the type
         char width; // the number of nucleotides in the type
         char indexes[10]; // the value of the genotypes. Only use .width many.
+        char haploid_indexes[4]; // location of homozygotes that are compatible with type
     };
 
     static constexpr int type_info_table_length = 128;

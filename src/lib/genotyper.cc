@@ -227,13 +227,16 @@ std::pair<GenotypeArray, double> DirichletMultinomial::operator()(
 
 std::pair<GenotypeArray, double> DirichletMultinomial::operator()(
         const pileup::AlleleDepths& depths, size_t pos, int ploidy) const {
+    assert(ploidy==1 || ploidy==2);
+
     int ref_allele = depths.type_info().reference;
     int width = depths.type_info().width;
     int sz = (ploidy == 2) ? depths.type_gt_info().width : depths.type_info().width;
-    const char *indexes = (ploidy == 2) ? &depths.type_gt_info().indexes[0] : &depths.type_info().indexes[0];
+    const char *indexes = (ploidy == 2) ? &depths.type_gt_info().indexes[0]
+                                        : &depths.type_gt_info().haploid_indexes[0];
 
     // Our return variable
-    GenotypeArray log_ret{sz};
+    GenotypeArray log_ret = GenotypeArray::Zero(sz);
 
     int total = 0;
     for(int i = 0; i < width; ++i) {
@@ -271,6 +274,7 @@ std::pair<GenotypeArray, double> DirichletMultinomial::operator()(
             log_ret[j] -= model[genotype](count);
         }         
     }
+
     // Scale and calculate likelihoods
     double scale = log_ret.maxCoeff();
     return {(log_ret - scale).exp(), scale};
