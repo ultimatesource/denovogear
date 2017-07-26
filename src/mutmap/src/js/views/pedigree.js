@@ -4,6 +4,8 @@
 /* global utils */
 /* global sampleTreeView */
 
+var mutmap = mutmap || {};
+
 (function(Backbone, d3, utils) {
   "use strict";
 

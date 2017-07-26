@@ -26,8 +26,6 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
     var vcfData = options.vcfData;
 
     // TODO: Using globals. Hack. Use a better method.
-    var selectedContigIndex = 0;
-    var selectedMutationIndex = 0;
     var ownerParentageLink;
 
     // transform contigs to hierarchical format
@@ -56,13 +54,23 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
         .attr("id", "genome_browser_wrapper")
         .attr("class", "genome-browser-container");
 
+    var ContigModel = Backbone.Model.extend({
+      defaults: {
+        selectedContigIndex: 0,
+        selectedMutationIndex: 0
+      }
+    });
+
+    var contigModel = new ContigModel();
+
     // Create genome browser view
-    var v = contigView.createContigView({
-      renderInto: genomeBrowserRenderElement,
+    new mutmap.ContigView({
+      el: genomeBrowserRenderElement,
+      model: contigModel,
       vcfData: vcfData,
       contigData: contigData,
-      selectedContigIndex: selectedContigIndex,
-      selectedMutationIndex: selectedMutationIndex
+      selectedContigIndex: contigModel.get('selectedContigIndex'),
+      selectedMutationIndex: contigModel.get('selectedMutationIndex')
     });
 
     //console.log(vcfData);
@@ -132,6 +140,9 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
     });
 
     PubSub.subscribe("PREV_MUTATION_BUTTON_CLICKED", function(topic, data) {
+
+      var selectedContigIndex = contigModel.get('selectedContigIndex');
+      var selectedMutationIndex = contigModel.get('selectedMutationIndex');
       
       selectedMutationIndex--;
       if (selectedMutationIndex === -1) {
@@ -146,10 +157,16 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
           contigData[selectedContigIndex].records.length - 1;
       }
 
+      contigModel.set('selectedContigIndex', selectedContigIndex);
+      contigModel.set('selectedMutationIndex', selectedMutationIndex);
+
       updateMutation();
     });
 
     PubSub.subscribe("NEXT_MUTATION_BUTTON_CLICKED", function(topic, data) {
+
+      var selectedContigIndex = contigModel.get('selectedContigIndex');
+      var selectedMutationIndex = contigModel.get('selectedMutationIndex');
 
       selectedMutationIndex++;
       if (selectedMutationIndex ===
@@ -164,10 +181,16 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
         }
       }
 
+      contigModel.set('selectedContigIndex', selectedContigIndex);
+      contigModel.set('selectedMutationIndex', selectedMutationIndex);
+
       updateMutation();
     });
 
     function updateMutation() {
+      var selectedContigIndex = contigModel.get('selectedContigIndex');
+      var selectedMutationIndex = contigModel.get('selectedMutationIndex');
+
       ownerParentageLink.getData().mutation = undefined;
       dngOverlay(vcfData.header,
         contigData[selectedContigIndex].records[selectedMutationIndex]);
@@ -182,6 +205,9 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
 
     PubSub.subscribe("MUTATION_SELECTED", function(topic, data) {
 
+      var selectedContigIndex = contigModel.get('selectedContigIndex');
+      var selectedMutationIndex = contigModel.get('selectedMutationIndex');
+
       // find matching contig and mutation indexes
       for (var i = 0; i < contigData.length; i++) {
         if (contigData[i].id === data.CHROM) {
@@ -191,6 +217,9 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
             if (contigData[i].records[j].POS === data.POS) {
               selectedContigIndex = i;
               selectedMutationIndex = j;
+
+              contigModel.set('selectedContigIndex', selectedContigIndex);
+              contigModel.set('selectedMutationIndex', selectedMutationIndex);
               updateMutation();
               break;
             }
