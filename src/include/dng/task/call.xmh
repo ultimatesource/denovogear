@@ -28,14 +28,14 @@
  ***************************************************************************/
 
 XM((fasta), (f), "faidx indexed reference sequence file", std::string, "")
-XM((gamma), , "genotype likelihood parameters",
-   std::vector<std::string>, DL(std::vector<std::string>({"0.98,0.00001,0.0005,1", "0.02,0.01,0.005,1.1"}),
-                                "see docs"))
 XM((header), (h), "Location of separate bam header file for read-groups.", 
    std::string, "")
 XM((min)(qlen), (l), "minimum query length", int, 0)
 XM((min)(prob), (m), "minimum probability for reporting a mutation", double,
    DL(0.01, "0.01"))
+XM((lib)(bias), , "library/sequencing reference bias (ref/alt ratio)", double, 1.02)
+XM((lib)(overdisp), , "library/sequencing overdispersion (pairwise correlation of errors)", double, 0.0005)
+XM((lib)(error), , "library/sequencing error rate (per base-call)", double, 0.0005)
 XM((mu), , "the germline mutation rate", double, DL(1e-8, "1e-8"))
 XM((mu)(somatic), , "the somatic mutation rate", double, DL(1e-8, "1e-8"))
 XM((mu)(library), , "the library prep mutation rate", double, DL(1e-8, "1e-8"))

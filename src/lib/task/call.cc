@@ -152,12 +152,6 @@ using namespace task;
 // The main loop for dng-call application
 // argument_type arg holds the processed command line arguments
 int task::Call::operator()(Call::argument_type &arg) {
-	// Check gamma parameter
-    if(arg.gamma.size() < 2) {
-        throw std::runtime_error("Unable to construct genotype-likelihood model; "
-                                 "Gamma needs to be specified at least twice to change model from default.");
-    }
-
     // replace arg.region with the contents of a file if needed
     io::at_slurp(arg.region);
 
@@ -259,7 +253,7 @@ int process_bam(task::Call::argument_type &arg) {
     // Construct Calling Object
     const double min_prob = arg.min_prob;
     CallMutations do_call(min_prob, relationship_graph, {arg.theta, freqs,
-            arg.ref_weight, arg.gamma[0], arg.gamma[1]});
+            arg.ref_weight, {arg.lib_overdisp, arg.lib_error, arg.lib_bias} });
 
     // Pileup data
     dng::pileup::RawDepths read_depths(mpileup.num_libraries());
@@ -477,7 +471,7 @@ int process_ad(task::Call::argument_type &arg) {
     // Construct Calling Object
     const double min_prob = arg.min_prob;
     CallMutations do_call(min_prob, relationship_graph, {arg.theta, freqs,
-            arg.ref_weight, arg.gamma[0], arg.gamma[1]});
+            arg.ref_weight, {arg.lib_overdisp, arg.lib_error, arg.lib_bias} });
 
     // Calculated stats
     CallMutations::stats_t stats;
@@ -606,7 +600,7 @@ int process_bcf(task::Call::argument_type &arg) {
 
     double min_prob = arg.min_prob;
     CallMutations do_call(min_prob, relationship_graph, {arg.theta, freqs,
-            arg.ref_weight, arg.gamma[0], arg.gamma[1]});
+            arg.ref_weight, {arg.lib_overdisp, arg.lib_error, arg.lib_bias} });
 
     // Calculated stats
     CallMutations::stats_t stats;
