@@ -31,29 +31,6 @@
 using namespace dng::regions;
 using dng::detail::make_test_range;
 
-namespace dng { namespace regions {
-bool operator==(const parsed_range_t &a, const parsed_range_t &b) {
-    return std::tie(a.target,a.beg,a.end) == std::tie(b.target,b.beg,b.end);
-}
-}}
-
-namespace hts { namespace bam {
-bool operator==(const region_t &a, const region_t &b) {
-    return std::tie(a.tid,a.beg,a.end) == std::tie(b.tid,b.beg,b.end);
-}
-}}
-
-
-bool region_bam_parsing_expect_fail(std::string input, hts::bam::File &file) {
-    try {
-        bam_parse_region(input, file);
-    } catch(std::exception &e) {
-        std::cerr << "    Expected exception: " << e.what() << "\n";
-        return true;
-    }
-    return false;
-}
-
 BOOST_AUTO_TEST_CASE(test_region_parsing) {
     auto test_fail = [](std::string region_string) -> void {
     BOOST_TEST_CONTEXT("region_string='" << region_string << "'") {
@@ -169,34 +146,6 @@ BOOST_AUTO_TEST_CASE(test_region_parsing_with_bam) {
     test_fail("1:1000-999", bamfile);
     // Check empty file
     test_fail("", bamfile);
-}
-
-bool bed_parsing(std::string input, hts::bam::File &file, hts::bam::regions_t b ) {
-    hts::bam::regions_t a;
-
-    dng::detail::AutoTempFile output;
-
-    if(!output.file.is_open()) {
-        std::cerr << "    Failed to open temporary file '" + output.path.string() + "'\n";
-        return false;
-    }
-    output.file.write(input.c_str(),input.size());
-    output.file.flush();
-
-    try {
-        a = bam_parse_bed(output.path.string(), file);
-    } catch(std::exception &e) {
-        std::cerr << e.what() << "\n";
-        return false;
-    }
-    if(a == b) {
-        return true;
-    }
-    for(auto &&aa : a) {
-        std::cerr << "    Parsing result: " << aa.tid << "\t" << aa.beg << "\t" << aa.end << "\n";
-    }
-
-    return false;
 }
 
 BOOST_AUTO_TEST_CASE(test_bed_parsing) {

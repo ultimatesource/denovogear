@@ -21,25 +21,230 @@
 
 #define BOOST_TEST_MODULE dng::peel
 
+#include <dng/peeling.h>
+
 #include <string>
 #include <cstdlib>
 #include <ctime>
 #include <iostream>
 #include <random>
+#include <vector>
 
-#include <dng/peeling.h>
+#include <boost/range/algorithm/generate.hpp>
+#include <boost/range/algorithm/copy.hpp>
+
 #include <dng/mutation.h>
+
+#include "../testing.h"
+#include "../xorshift64.h"
 
 #include "../boost_test_helper.h"
 #include "fixture_random_family.h"
 
 using namespace dng;
+using namespace dng::peel;
+using dng::detail::make_test_range;
+
+std::mt19937_64 rand_gen;
 
 const int NUM_TEST = 100;
+int g_seed_counter = 0;
+
+BOOST_AUTO_TEST_CASE(test_peel_up_fast) {
+    const double prec = 4.0*DBL_EPSILON;
+    using boost::copy;
+    using boost::generate;
+
+    xorshift64 xrand(++g_seed_counter);
+
+    for(int test_num=0; test_num < NUM_TEST; ++test_num) {
+    BOOST_TEST_CONTEXT("test_num=" << test_num) {
+        auto m = f81::matrix(1e-6, {0.4, 0.2, 0.1, 0.3});
+
+        // setup data
+        std::vector<double> lower0(10), lower1(10), expected_lower0(10);
+        generate(lower0, [&](){ return xrand.get_double52(); });
+        generate(lower1, [&](){ return xrand.get_double52(); });
+        TransitionMatrixVector mats(2);
+        mats[1] = mitosis_diploid_matrix(m);
+
+        // Calculated expected value
+        for(int i=0;i<10;++i) {
+            expected_lower0[i] = 0.0;
+            for(int j=0;j<10;++j) {
+                expected_lower0[i] += mats[1](i,j) * lower1[j];
+            }
+        }
+
+        // setup the workspace and peeling operations
+        workspace_t workspace;
+        workspace.lower.resize(2);
+        workspace.lower[0].resize(10);
+        workspace.lower[1].resize(10);
+        copy(lower0, workspace.lower[0].data());
+        copy(lower1, workspace.lower[1].data());
+
+        // do the peeling
+        up_fast(workspace, {0,1}, mats);
+
+        auto expected_lower1 = lower1;
+        auto test_lower1 = make_test_range(workspace.lower[1]);
+        CHECK_EQUAL_RANGES(test_lower1, expected_lower1);
+
+        auto test_lower0 = make_test_range(workspace.lower[0]);
+        CHECK_CLOSE_RANGES(test_lower0, expected_lower0, prec);        
+    }}
+}
+
+BOOST_AUTO_TEST_CASE(test_peel_up) {
+    const double prec = 4.0*DBL_EPSILON;
+    using boost::copy;
+    using boost::generate;
+
+    xorshift64 xrand(++g_seed_counter);
+
+    for(int test_num=0; test_num < NUM_TEST; ++test_num) {
+    BOOST_TEST_CONTEXT("test_num=" << test_num) {
+        auto m = f81::matrix(1e-6, {0.4, 0.2, 0.1, 0.3});
+
+        // setup data
+        std::vector<double> lower0(10), lower1(10), expected_lower0(10);
+        generate(lower0, [&](){ return xrand.get_double52(); });
+        generate(lower1, [&](){ return xrand.get_double52(); });
+        TransitionMatrixVector mats(2);
+        mats[1] = mitosis_diploid_matrix(m);
+
+        // Calculated expected value
+        for(int i=0;i<10;++i) {
+            expected_lower0[i] = 0.0;
+            for(int j=0;j<10;++j) {
+                expected_lower0[i] += mats[1](i,j) * lower1[j];
+            }
+            expected_lower0[i] *= lower0[i];
+        }
+
+        // setup the workspace and peeling operations
+        workspace_t workspace;
+        workspace.lower.resize(2);
+        workspace.lower[0].resize(10);
+        workspace.lower[1].resize(10);
+        copy(lower0, workspace.lower[0].data());
+        copy(lower1, workspace.lower[1].data());
+
+        // do the peeling
+        up(workspace, {0,1}, mats);
+
+        auto expected_lower1 = lower1;
+        auto test_lower1 = make_test_range(workspace.lower[1]);
+        CHECK_EQUAL_RANGES(test_lower1, expected_lower1);
+
+        auto test_lower0 = make_test_range(workspace.lower[0]);
+        CHECK_CLOSE_RANGES(test_lower0, expected_lower0, prec);
+    }}
+}
+
+BOOST_AUTO_TEST_CASE(test_peel_down_fast) {
+    const double prec = 4.0*DBL_EPSILON;
+    using boost::copy;
+    using boost::generate;
+
+    xorshift64 xrand(++g_seed_counter);
+
+    for(int test_num=0; test_num < NUM_TEST; ++test_num) {
+    BOOST_TEST_CONTEXT("test_num=" << test_num) {
+        auto m = f81::matrix(1e-6, {0.4, 0.2, 0.1, 0.3});
+
+        // setup data
+        std::vector<double> upper0(10), upper1(10), expected_upper1(10);
+        generate(upper0, [&](){ return xrand.get_double52(); });
+        generate(upper1, [&](){ return xrand.get_double52(); });
+        TransitionMatrixVector mats(2);
+        mats[1] = mitosis_diploid_matrix(m);
+
+        // Calculated expected value
+        for(int i=0;i<10;++i) {
+            expected_upper1[i] = 0.0;
+            for(int j=0;j<10;++j) {
+                expected_upper1[i] += mats[1](j,i) * upper0[j];
+            }
+        }
+
+        // setup the workspace and peeling operations
+        workspace_t workspace;
+        workspace.upper.resize(2);
+        workspace.upper[0].resize(10);
+        workspace.upper[1].resize(10);
+        copy(upper0, workspace.upper[0].data());
+        copy(upper1, workspace.upper[1].data());
+
+        // do the peeling
+        down_fast(workspace, {0,1}, mats);
+
+        auto expected_upper0 = upper0;
+        auto test_upper0 = make_test_range(workspace.upper[0]);
+        CHECK_EQUAL_RANGES(test_upper0, expected_upper0);
+
+        auto test_upper1 = make_test_range(workspace.upper[1]);
+        CHECK_CLOSE_RANGES(test_upper1, expected_upper1, prec);        
+    }}
+}
+
+BOOST_AUTO_TEST_CASE(test_peel_down) {
+    const double prec = 4.0*DBL_EPSILON;
+    using boost::copy;
+    using boost::generate;
+
+    xorshift64 xrand(++g_seed_counter);
+
+    for(int test_num=0; test_num < NUM_TEST; ++test_num) {
+    BOOST_TEST_CONTEXT("test_num=" << test_num) {
+        auto m = f81::matrix(1e-6, {0.4, 0.2, 0.1, 0.3});
+
+        // setup data
+        std::vector<double> lower0(10), upper0(10), upper1(10), expected_upper1(10);
+        generate(lower0, [&](){ return xrand.get_double52(); });
+        generate(upper0, [&](){ return xrand.get_double52(); });
+        generate(upper1, [&](){ return xrand.get_double52(); });
+        TransitionMatrixVector mats(2);
+        mats[1] = mitosis_diploid_matrix(m);
+
+        // Calculated expected value
+        for(int i=0;i<10;++i) {
+            expected_upper1[i] = 0.0;
+            for(int j=0;j<10;++j) {
+                expected_upper1[i] += mats[1](j,i) * upper0[j]*lower0[j];
+            }
+        }
+
+        // setup the workspace and peeling operations
+        workspace_t workspace;
+        workspace.lower.resize(1);
+        workspace.lower[0].resize(10);
+        copy(lower0, workspace.lower[0].data());
+        workspace.upper.resize(2);
+        workspace.upper[0].resize(10);
+        workspace.upper[1].resize(10);
+        copy(upper0, workspace.upper[0].data());
+        copy(upper1, workspace.upper[1].data());
+
+        // do the peeling
+        down(workspace, {0,1}, mats);
+
+        auto expected_lower0 = lower0;
+        auto test_lower0 = make_test_range(workspace.lower[0]);
+        CHECK_EQUAL_RANGES(test_lower0, expected_lower0);
+
+        auto expected_upper0 = upper0;
+        auto test_upper0 = make_test_range(workspace.upper[0]);
+        CHECK_EQUAL_RANGES(test_upper0, expected_upper0);
+
+        auto test_upper1 = make_test_range(workspace.upper[1]);
+        CHECK_CLOSE_RANGES(test_upper1, expected_upper1, prec);        
+    }}
+}
+
 
 std::random_device rd;
-std::mt19937 random_gen_mt(rd());
-
 
 struct TestData {
 
