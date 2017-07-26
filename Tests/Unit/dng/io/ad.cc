@@ -22,6 +22,7 @@
 #include <dng/detail/varint.h>
 
 #include "../../testing.h"
+#include "../../xorshift64.h"
 
 #include <sstream>
 #include <iostream>
@@ -32,6 +33,8 @@ using namespace dng::io;
 using namespace dng::pileup;
 using namespace dng::utility;
 using namespace std;
+
+int g_seed_counter = 0;
 
 namespace dng { namespace io {
 struct unittest_dng_io_ad {
@@ -126,19 +129,11 @@ bool varint_convert(uint64_t u) {
 }
 
 BOOST_AUTO_TEST_CASE(test_varint) {
+    xorshift64 xrand(++g_seed_counter);
+
     std::vector<uint64_t> numbers;
-    {
-        // use the lab's xorshift64 random generator
-        uint64_t u = 15191868757011070976ULL;
-        uint64_t w = 0x61C8864680B583EBLL;
-        for(int i=0;i<10100;++i) {
-            u ^= (u << 5); u ^= (u >> 15); u ^= (u << 27);
-            w += 0x61C8864680B583EBLL;
-            if(i < 100) {
-                continue; //burnin 
-            }
-            numbers.push_back(u+(w^(w>>27)));
-        }
+    for(int i=0;i<10100;++i) {
+        numbers.push_back(xrand.get_uint64());
     }
 
     for(int i=0;i<65536;++i) {
