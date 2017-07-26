@@ -45,8 +45,6 @@ using namespace dng;
 using namespace dng::peel;
 using dng::detail::make_test_range;
 
-std::mt19937_64 rand_gen;
-
 const int NUM_TEST = 100;
 int g_seed_counter = 0;
 

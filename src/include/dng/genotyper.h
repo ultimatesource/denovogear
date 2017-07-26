@@ -74,6 +74,8 @@ private:
     }
 };
 
+std::array<double,5>
+make_alphas(int reference, int genotype, double phi, double epsilon, double omega);
 }
 
 constexpr int folded_diploid_nucleotides[10][2] = {
@@ -117,6 +119,8 @@ public:
     std::pair<GenotypeArray, double> operator()(
         const pileup::RawDepths& depths, size_t pos, int ref_allele, int ploidy=2) const;
 
+    const params_t & parameters() const { return params_; }
+
 protected:
 
     // NOTE: a = reference; b = genotype; c = nucleotide; d = depth
@@ -132,6 +136,8 @@ protected:
 
     cache_t cache_{kCacheSize};
     model_cache_t models_{5};
+
+    params_t params_;
 };
 
 class DirichletMultinomialMixture {

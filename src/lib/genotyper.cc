@@ -20,14 +20,20 @@
 
 #include <dng/genotyper.h>
 
-//  The smallest positive value such that (1-phi)/phi + 1 != (1-phi)/phi
+// The smallest positive value such that (1-phi)/phi + 1 != (1-phi)/phi
 #ifndef DNG_LIKLIHOOD_PHI_MIN
 #   define DNG_LIKLIHOOD_PHI_MIN (DBL_EPSILON/2.0)
 #endif
+// Use ups for lowest error rate, which prevents alpha=0 for log_pochhammer
+#ifndef DNG_LIKLIHOOD_EPSILON_MIN
+#   define DNG_LIKLIHOOD_EPSILON_MIN (DBL_EPSILON/2.0)
+#endif
+
 
 namespace dng {
 namespace genotype {
 
+namespace detail {
 // lookup table is stored in another file
 #include "log1p_exp_neg_table.tcc"
 
@@ -77,6 +83,11 @@ std::array<double,5> make_alphas(int reference, int genotype, double phi, double
     if(phi < DNG_LIKLIHOOD_PHI_MIN) {
         phi = DNG_LIKLIHOOD_PHI_MIN;
     }
+    // Same for epsilon
+    if(epsilon < DNG_LIKLIHOOD_EPSILON_MIN) {
+        epsilon = DNG_LIKLIHOOD_EPSILON_MIN;
+    }
+
     double a = (1.0 - phi) / phi;
     double u = omega;
     double e = epsilon/3.0;
@@ -106,8 +117,12 @@ std::array<double,5> make_alphas(int reference, int genotype, double phi, double
     ret[4] = a;
     return ret;
 }
+}
 
-DirichletMultinomial::DirichletMultinomial(params_t params) {
+using detail::make_alphas;
+using detail::log_sum;
+
+DirichletMultinomial::DirichletMultinomial(params_t params) : params_{params} {
     // Construct our log_pochhammer functors and cache some of their outputs
     for(int reference=0; reference<5; ++reference) {
         for(int genotype=0; genotype<10; ++genotype) {
@@ -137,14 +152,15 @@ DirichletMultinomial::DirichletMultinomial(params_t params) {
 
 std::pair<GenotypeArray, double> DirichletMultinomial::operator()(
         const pileup::RawDepths& depths, size_t pos, int ref_allele, int ploidy) const {
+    assert(ploidy==1 || ploidy==2);
+
     auto d = depths[pos];
 
     // how many genotypes will we calculate based on ploidy?
     const int sz = (ploidy==2) ? 10 : 4;
-    const int step = (ploidy==2) ? 1 : 5;
     
     // Our return variable
-    GenotypeArray log_ret{sz};
+    GenotypeArray log_ret = GenotypeArray::Zero(sz);
 
     const int read_count = d.counts[0] + d.counts[1] +
             d.counts[2] + d.counts[3];
@@ -152,30 +168,60 @@ std::pair<GenotypeArray, double> DirichletMultinomial::operator()(
     // Loop through the depths and add log_gamma(a+n)-log_gamma(a) to each temporary genotype
     // The order that this loop proceeds has been chosen to hopefully
     // utilize cache/memory effectively.
-    for(int nucleotide = 0; nucleotide < 5; ++nucleotide) {
-        int count = (nucleotide < 4) ? d.counts[nucleotide] : read_count;
-        if(count < cache_.size()) {
-            // If count is reasonable, use cached constants
-            const auto &cache = cache_[count][ref_allele][nucleotide];
-            for(int genotype = 0; genotype < sz; genotype += step) {
-                log_ret[genotype] += cache[genotype];
-            }
-        } else if(nucleotide < 4) {
-            // If count is big, use our model functor
-            const auto &model = models_[ref_allele][nucleotide];
-            for(int genotype = 0,u=0; genotype < sz; genotype += step) {
-                log_ret[genotype] += model[genotype](count);
-            }
-        } else {
-            // If nucleotide == 4, we have to use a subtraction
-            const auto &model = models_[ref_allele][nucleotide];
-            for(int genotype = 0,u=0; genotype < sz; genotype += step) {
-                log_ret[genotype] -= model[genotype](count);
+    if(ploidy == 2) {
+        for(int nucleotide = 0; nucleotide < 5; ++nucleotide) {
+            int count = (nucleotide < 4) ? d.counts[nucleotide] : read_count;
+            if(count < cache_.size()) {
+                // If count is reasonable, use cached constants
+                const auto &cache = cache_[count][ref_allele][nucleotide];
+                for(int u=0,genotype = 0; u < sz; ++u) {
+                    log_ret[u] += cache[u];
+                }
+            } else if(nucleotide < 4) {
+                // If count is big, use our model functor
+                const auto &model = models_[ref_allele][nucleotide];
+                for(int u=0; u < sz; ++u) {
+                    log_ret[u] += model[u](count);
+                }
+            } else {
+                // If nucleotide == 4, we have to use a subtraction
+                const auto &model = models_[ref_allele][nucleotide];
+                for(int u=0; u < sz; ++u) {
+                    log_ret[u] -= model[u](count);
+                }
             }
         }
+    } else {
+        // haploid
+        for(int nucleotide = 0; nucleotide < 5; ++nucleotide) {
+            int count = (nucleotide < 4) ? d.counts[nucleotide] : read_count;
+            if(count < cache_.size()) {
+                // If count is reasonable, use cached constants
+                const auto &cache = cache_[count][ref_allele][nucleotide];
+                log_ret[0] += cache[0];
+                log_ret[1] += cache[2];
+                log_ret[2] += cache[5];
+                log_ret[3] += cache[9];
+            } else if(nucleotide < 4) {
+                // If count is big, use our model functor
+                const auto &model = models_[ref_allele][nucleotide];
+                log_ret[0] += model[0](count);
+                log_ret[1] += model[2](count);
+                log_ret[2] += model[5](count);
+                log_ret[3] += model[9](count);
+            } else {
+                // If nucleotide == 4, we have to use a subtraction
+                const auto &model = models_[ref_allele][nucleotide];
+                log_ret[0] -= model[0](count);
+                log_ret[1] -= model[2](count);
+                log_ret[2] -= model[5](count);
+                log_ret[3] -= model[9](count);
+            }
+        }        
     }
     // Scale and calculate likelihoods
     double scale = log_ret.maxCoeff();
+
     return {(log_ret - scale).exp(), scale};
 }
 
@@ -279,6 +325,7 @@ std::pair<GenotypeArray, double> DirichletMultinomialMixture::operator()(
     // how many genotypes will we calculate based on ploidy?
     const int sz = (ploidy==2) ? 10 : 4;
     const int step = (ploidy==2) ? 1 : 5;
+    assert(false); // This function is broken for haploid data because the step logic is wrong
     
     // Our return variable
     GenotypeArray log_ret{sz};
@@ -299,29 +346,33 @@ std::pair<GenotypeArray, double> DirichletMultinomialMixture::operator()(
         if(count < cache_.size()) {
             // If count is reasonable, use cached constants
             const auto &cache = cache_[count][ref_allele][nucleotide];
-            for(int genotype = 0,u=0; genotype < sz; genotype += step) {
-                temp[u++] += cache[0][genotype];
+            for(int u=0,genotype = 0; u < sz; ++u) {
+                temp[u] += cache[0][genotype];
+                genotype += step;
             }
-            for(int genotype = 0,u=10; genotype < sz; genotype += step) {
-                temp[u++] += cache[1][genotype];
+            for(int u=0,genotype = 0; u < sz; ++u) {
+                temp[10+u] += cache[1][genotype];
+                genotype += step;
             }
         } else if(nucleotide < 4) {
             // If count is big, use our model functor
             const auto &model = models_[ref_allele][nucleotide];
-            for(int genotype = 0,u=0; genotype < sz; genotype += step) {
-                temp[u++] += model[0][genotype](count);
+            for(int u=0,genotype = 0; u < sz; ++u) {
+                temp[u] += model[0][genotype](count);
+                genotype += step;
             }
-            for(int genotype = 0,u=10; genotype < sz; genotype += step) {
-                temp[u++] += model[1][genotype](count);
+            for(int u=0,genotype = 0; u < sz; ++u) {
+                temp[10+u] += model[1][genotype](count);
+                genotype += step;
             }
         } else {
             // If nucleotide == 4, we have to use a subtraction
             const auto &model = models_[ref_allele][nucleotide];
-            for(int genotype = 0,u=0; genotype < sz; genotype += step) {
-                temp[u++] -= model[0][genotype](count);
+            for(int u=0,genotype = 0; u < sz; ++u) {
+                temp[u] -= model[0][genotype](count);
             }
-            for(int genotype = 0,u=10; genotype < sz; genotype += step) {
-                temp[u++] -= model[1][genotype](count);
+            for(int u=0,genotype = 0; u < sz; ++u) {
+                temp[10+u] -= model[1][genotype](count);
             }
         }
     }

@@ -61,7 +61,6 @@ http://www.iro.umontreal.ca/~panneton/These.pdf
 
 #if defined(_WIN64) || defined(_WIN32)
 #   include <process.h>
-    inline int getpid() { return _getpid(); }
 #else
 #   include <unistd.h>
 #endif
@@ -70,7 +69,7 @@ http://www.iro.umontreal.ca/~panneton/These.pdf
 #include <cstdint>
 #include <algorithm>
 
-#if __cpluscplus >= 201103L
+#if __cplusplus >= 201103L
 #   include <chrono>
 #   include <random>
 #else
@@ -240,7 +239,7 @@ private:
 inline unsigned int xorshift64::create_random_seed() {
     // start with some well mixed bits
     unsigned int v = 0x6BA658B3;    
-#if __cpluscplus >= 201103L
+#if __cplusplus >= 201103L
     // if properly implemented, this will produce 32 random bits
     v += std::random_device{}();
 #endif
@@ -255,7 +254,7 @@ inline unsigned int xorshift64::create_random_seed() {
     v^=(v<<17); v^=(v>>13); v^=(v<<5);
     
     // use current time for more randomness
-#if __cpluscplus >= 201103L
+#if __cplusplus >= 201103L
     v += static_cast<unsigned int>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
 #else
     v += static_cast<unsigned int>(time(NULL));
