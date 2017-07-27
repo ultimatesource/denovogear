@@ -74,6 +74,8 @@ private:
     }
 };
 
+std::array<double,5>
+make_alphas(int reference, int genotype, double phi, double epsilon, double omega);
 }
 
 constexpr int folded_diploid_nucleotides[10][2] = {
@@ -96,6 +98,47 @@ constexpr int folded_diploid_genotypes[16] = {0, 1, 3, 6, 1, 2, 4, 7, 3, 4, 5, 8
 // converts from a folded genotype to an unfolded genotype
 constexpr int unfolded_diploid_genotypes_upper[10] = {0, 1, 5, 2, 6,10, 3, 7,11,15};
 constexpr int unfolded_diploid_genotypes_lower[10] = {0, 4, 5, 8, 9,10,12,13,14,15};
+
+class DirichletMultinomial {
+public:
+    struct params_t {
+        double over_dispersion;     // overdispersion parameter
+        double error_rate; // prob of error when homozygote is sequenced
+        double ref_bias;   // bias towards reference when heterozygote is sequenced
+    };
+    explicit DirichletMultinomial(params_t params);
+
+    DirichletMultinomial(double over_dispersion, double error_rate, double ref_bias) :
+        DirichletMultinomial(params_t{over_dispersion, error_rate, ref_bias}) {
+
+    }
+
+    std::pair<GenotypeArray, double> operator()(
+        const pileup::AlleleDepths& depths, size_t pos, int ploidy=2) const;
+
+    std::pair<GenotypeArray, double> operator()(
+        const pileup::RawDepths& depths, size_t pos, int ref_allele, int ploidy=2) const;
+
+    const params_t & parameters() const { return params_; }
+
+protected:
+
+    // NOTE: a = reference; b = genotype; c = nucleotide; d = depth
+    // NOTE: cache_[d][a][c][b]  = log_pochamer(alpha1[a][b][c],d)
+    typedef double cache_type;
+    typedef std::vector<std::array<std::array<std::array<cache_type,10>, 5>,5>> cache_t;
+
+    typedef detail::log_pochhammer model_type;
+
+    typedef std::vector<std::array<std::array<model_type,10>, 5>> model_cache_t;
+
+    static constexpr int kCacheSize = 512;
+
+    cache_t cache_{kCacheSize};
+    model_cache_t models_{5};
+
+    params_t params_;
+};
 
 class DirichletMultinomialMixture {
 public:
@@ -155,7 +198,7 @@ protected:
 
 } // namespace genotype
 
-using Genotyper = genotype::DirichletMultinomialMixture;
+using Genotyper = genotype::DirichletMultinomial;
 
 } // namespace dng
 

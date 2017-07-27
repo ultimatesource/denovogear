@@ -48,6 +48,8 @@
 #include <boost/range/algorithm/find.hpp>
 #include <boost/range/algorithm/find_if.hpp>
 #include <boost/range/as_literal.hpp>
+#include <boost/range/reference.hpp>
+#include <boost/range/size.hpp>
 
 #include <dng/detail/unit_test.h>
 
@@ -113,37 +115,45 @@ inline int location_to_position(location_t u) {
     return x;
 }
 
-template<class A, class B, std::size_t N>
-std::size_t key_switch(A &ss, const B(&key)[N]) {
-    using boost::algorithm::istarts_with;
-    for(std::size_t i = 0; i < N; ++i) {
-        if(istarts_with(key[i], ss)) {
-            return i;
-        }
-    }
-    return static_cast<std::size_t>(-1);
+template<typename Range, typename Value>
+inline
+size_t find_position(const Range& r, const Value& v) {
+    return boost::distance(boost::find<boost::return_begin_found>(r, v));
 }
 
-template<class A, class B, std::size_t N>
-const B &key_switch_tuple(A &ss, const B(&key)[N], const B &default_value) {
-    using boost::algorithm::istarts_with;
-    for(std::size_t i = 0; i < N; ++i) {
-        if(istarts_with(std::get<0>(key[i]), ss)) {
-            return key[i];
-        }
-    }
-    return default_value;
+template<typename Range, typename Pred>
+inline
+size_t find_position_if(const Range& r, Pred pred) {
+    return boost::distance(boost::find_if<boost::return_begin_found>(r, pred));
 }
 
-template<class A, class B, std::size_t N>
-std::size_t key_switch_iequals(A &ss, const B(&key)[N]) {
-    using boost::algorithm::iequals;
-    for(std::size_t i = 0; i < N; ++i) {
-        if(iequals(key[i], ss)) {
-            return i;
-        }
-    }
-    return static_cast<std::size_t>(-1);
+template<typename A, typename B>
+std::size_t key_switch(const A &ss, const B &keys) {
+    std::size_t ret = find_position_if(keys,
+        [&](typename boost::range_reference<const B>::type k) {
+            return boost::algorithm::istarts_with(k, ss);
+        });
+    return (ret != boost::size(keys)) ? ret : static_cast<std::size_t>(-1);
+}
+
+template<typename A, typename B>
+std::size_t key_switch_iequals(const A &ss, const B &keys) {
+    std::size_t ret = find_position_if(keys,
+        [&](typename boost::range_reference<const B>::type k) {
+            return boost::algorithm::iequals(k, ss);
+        });
+    return (ret != boost::size(keys)) ? ret : static_cast<std::size_t>(-1);
+}
+
+template<typename A, typename B>
+typename boost::range_reference<const B>::type
+key_switch_tuple(const A &ss, const B &keys,
+    typename boost::range_reference<const B>::type &default_value) {
+    auto it = boost::find_if<boost::return_found>(keys,
+        [&](typename boost::range_reference<const B>::type k) {
+            return boost::algorithm::istarts_with(std::get<0>(k), ss);
+        });
+    return (it != boost::end(keys)) ? *it : default_value;
 }
 
 // TODO: make the separator more generic
@@ -182,11 +192,11 @@ inline
 std::array<double, 4> parse_nuc_freqs(const std::string &str) {
     auto f = utility::parse_double_list(str, ',', 4);
     if(!f.second) {
-        throw std::runtime_error("Unable to parse nuc-freq option. "
+        throw std::invalid_argument("Unable to parse nuc-freq option. "
                                  "It must be a comma separated list of floating-point numbers.");
     }
     if(f.first.size() != 4) {
-        throw std::runtime_error("Wrong number of values passed to nuc-freq. "
+        throw std::invalid_argument("Wrong number of values passed to nuc-freq. "
                                  "Expected 4; found " + std::to_string(f.first.size()) + ".");
     }
     std::array<double,4> freqs;
@@ -196,7 +206,7 @@ std::array<double, 4> parse_nuc_freqs(const std::string &str) {
     double freqs_sum = 0.0;
     for(int i=0;i<freqs.size();++i) {
         if(freqs[i] < 0.0) {
-            throw std::runtime_error("Error: Nucleotide frequencies must be non-negative. "
+            throw std::invalid_argument("Nucleotide frequencies must be non-negative. "
                 "Parsing of '" + str + "' generated a frequency of " + std::to_string(freqs[i])
                 + " in position " + std::to_string(i) + "."
                 );
@@ -307,18 +317,6 @@ detail::char_tokenizer<Range>
 make_tokenizer_dropempty(const Range& text, const char *sep = "\t", const char *eol = "\n") {
     detail::token_function f(sep, eol, boost::drop_empty_tokens);
     return {boost::as_literal(text),f};
-}
-
-template<typename Range, typename Value>
-inline
-size_t find_position(const Range& r, const Value& v) {
-    return boost::distance(boost::find<boost::return_begin_found>(r, v));
-}
-
-template<typename Range, typename Pred>
-inline
-size_t find_position_if(const Range& r, Pred pred) {
-    return boost::distance(boost::find_if<boost::return_begin_found>(r, pred));
 }
 
 template<typename T>

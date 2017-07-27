@@ -168,17 +168,13 @@ int process_bam(LogLike::argument_type &arg) {
     // Print header to output
     cout_add_header_text(arg);
 
-    if(arg.gamma.size() < 2) {
-        throw std::runtime_error("Error: Unable to construct genotype-likelihood model; "
-                                 "Gamma needs to be specified at least twice to change model from default.");
-    }
-
     for(auto && line : relationship_graph.BCFHeaderLines()) {
         std::cout << line << "\n";
     }
 
     LogProbability calculate (relationship_graph,
-        { arg.theta, freqs, arg.ref_weight, arg.gamma[0], arg.gamma[1] } );
+            { arg.theta, freqs, arg.ref_weight,
+            {arg.lib_overdisp, arg.lib_error, arg.lib_bias} } );
 
     // Pileup data
     dng::pileup::RawDepths read_depths(mpileup.num_libraries());
@@ -277,18 +273,14 @@ int process_ad(LogLike::argument_type &arg) {
     // Select libraries in the input that are used in the pedigree
     input.SelectLibraries(graph.library_names());
 
-    if(arg.gamma.size() < 2) {
-        throw runtime_error("Error: Unable to construct genotype-likelihood model; "
-                            "Gamma needs to be specified at least twice to change model from default.");
-    }
-
     for(auto && line : graph.BCFHeaderLines()) {
         cout << line << "\n";
     }
 
     // Construct function object to calculate log likelihoods
     LogProbability calculate (graph,
-        { arg.theta, freqs, arg.ref_weight, arg.gamma[0], arg.gamma[1] } );
+        { arg.theta, freqs, arg.ref_weight,
+        {arg.lib_overdisp, arg.lib_error, arg.lib_bias} } );
 
     stats::ExactSum sum_data, sum_scale;
 

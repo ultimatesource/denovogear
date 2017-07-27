@@ -46,7 +46,6 @@ sub gt10 {
 	return @r;
 }
 
-
 my @types = ();
 my @types4 = ();
 my @genotypes10 = ();
@@ -116,8 +115,10 @@ if($command eq 'tsv' ) {
 		$num = sprintf("% -3s","$num,");
 		my $id = sprintf("% -4s","$u,");
 
+        my $gt4 = join(",", grep {$_ == 0 || $_ == 2 || $_ == 5 || $_ == 9 } @{$genotypes10[$u % 64]});
+
 		my $gt10 = join(",", @{$genotypes10[$u % 64]});
-		say("    {$id $num {$gt10}}$comma");
+		say("    {$id $num {$gt10}, {$gt4}}$comma");
 	}
 	say("");
 	for(my $u=0;$u<256;$u+=32) {

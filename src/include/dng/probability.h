@@ -38,8 +38,7 @@ public:
         std::array<double, 4> nuc_freq;
         double ref_weight;
 
-        Genotyper::params_t params_a;
-        Genotyper::params_t params_b;
+        Genotyper::params_t genotyper_params;
     };
 
     struct value_t {

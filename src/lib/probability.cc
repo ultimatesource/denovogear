@@ -30,7 +30,7 @@ LogProbability::LogProbability(RelationshipGraph graph, params_t params) :
     graph_{std::move(graph)},
     params_(std::move(params)),
     work_{graph_.CreateWorkspace()},
-    genotyper_{params.params_a, params.params_b}
+    genotyper_{params.genotyper_params}
     {
 
     using namespace dng;
