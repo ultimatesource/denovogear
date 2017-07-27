@@ -27,77 +27,11 @@
 #include <fstream>
 #include <string>
 
+#include <dng/task.h>
+
 #include <boost/filesystem.hpp>
 
-#include <boost/logic/tribool.hpp>
-#include <boost/logic/tribool_io.hpp>
-#include <boost/program_options.hpp>
-namespace po = boost::program_options;
-
 #include "version.h"
-
-// Support the use of tribools in boost::program_options
-namespace boost {
-void validate(boost::any &v, const std::vector<std::string> &xs,
-              boost::tribool *, int) {
-    using namespace boost::program_options;
-    validators::check_first_occurrence(v);
-    std::string s(validators::get_single_string(xs, true));
-
-    for(size_t i = 0; i < s.size(); ++i) {
-        s[i] = char(tolower(s[i]));
-    }
-
-    if(s.empty() || s == "on" || s == "yes" || s == "1" || s == "true") {
-        v = boost::any(boost::tribool(true));
-    } else if(s == "off" || s == "no" || s == "0" || s == "false") {
-        v = boost::any(boost::tribool(false));
-    } else if(s == "null" || s == "maybe" || s == "2" || s == "indeterminate") {
-        v = boost::any(boost::tribool(boost::indeterminate));
-    } else {
-        boost::throw_exception(validation_error(validation_error::invalid_option_value,
-                                                s));
-    }
-}
-#if !defined(BOOST_NO_STD_WSTRING)
-void validate(boost::any &v, const std::vector<std::wstring> &xs,
-              boost::tribool *, int) {
-    using namespace boost::program_options;
-    validators::check_first_occurrence(v);
-    std::wstring s(validators::get_single_string(xs, true));
-
-    for(size_t i = 0; i < s.size(); ++i) {
-        s[i] = char(tolower(s[i]));
-    }
-
-    if(s.empty() || s == L"on" || s == L"yes" || s == L"1" || s == L"true") {
-        v = boost::any(boost::tribool(true));
-    } else if(s == L"off" || s == L"no" || s == L"0" || s == L"false") {
-        v = boost::any(boost::tribool(false));
-    } else if(s == L"null" || s == L"maybe" || s == L"2" || s == L"indeterminate") {
-        v = boost::any(boost::tribool(boost::indeterminate));
-    } else {
-        boost::throw_exception(validation_error(
-                                   validation_error::invalid_option_value));
-    }
-}
-#endif
-}
-
-namespace boost {
-namespace program_options {
-template<>
-typed_value<bool> *value(bool *v) {
-    return bool_switch(v);
-}
-template<>
-typed_value<boost::tribool> *value(boost::tribool *v) {
-    typed_value<boost::tribool> *r = new typed_value<boost::tribool>(v);
-    r->implicit_value(true, "on");
-    return r;
-}
-}
-}
 
 namespace dng {
 
@@ -200,7 +134,7 @@ protected:
         }
 
         cerr << usage_name << " v" PACKAGE_VERSION << "\n";
-        cerr << "Copyright (c) 2014-2015 Reed A. Cartwright, Kael Dai, et al.\n";
+        cerr << "Copyright (c) 2014-2017\n";
         return EXIT_SUCCESS;
     }
 

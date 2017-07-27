@@ -1,4 +1,4 @@
-set(Trio-CMD @DNG_CALL_EXE@ -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0 test1.vcf)
+set(Trio-CMD @DNG_CALL_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0 test1.vcf)
 set(Trio-WD "@TESTDATA_DIR@/sample_5_3/")
 set(Trio-RESULT 0)
 set(Trio-STDOUT
@@ -12,7 +12,7 @@ set(Trio-STDOUT
 "0/0:147:1,1\\.99685e-15,0,1\\.99954e-26,0,0:3\\.33278e-05:3\\.33278e-05:0,-18\\.4896,-138\\.087,-21\\.9623,-138\\.388,-141\\.865:77:76,1,0"
 )
 
-set(TrioAlt-CMD @DNG_CALL_EXE@ -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0.001 test2.vcf)
+set(TrioAlt-CMD @DNG_CALL_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0.001 test2.vcf)
 set(TrioAlt-WD "@TESTDATA_DIR@/sample_5_3/")
 set(TrioAlt-RESULT 0)
 set(TrioAlt-STDOUT
@@ -26,7 +26,7 @@ set(TrioAlt-STDOUT-FAIL
   "5\t126385929\t\\.\tG\tX"
 )
 
-set(TrioAltRegions-CMD @DNG_CALL_EXE@ -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0.001 -r 5:126385921-126385925 test2.vcf.gz)
+set(TrioAltRegions-CMD @DNG_CALL_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0.001 -r 5:126385921-126385925 test2.vcf.gz)
 set(TrioAltRegions-WD "@TESTDATA_DIR@/sample_5_3/")
 set(TrioAltRegions-RESULT 0)
 set(TrioAltRegions-STDOUT
@@ -40,7 +40,7 @@ set(TrioAltRegions-STDOUT-FAIL
   "5\t126385929\t\\.\tG\tX"
 )
 
-set(TrioExtraCol-CMD @DNG_CALL_EXE@ -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0.001 test1_extra.vcf)
+set(TrioExtraCol-CMD @DNG_CALL_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0.001 test1_extra.vcf)
 set(TrioExtraCol-WD "@TESTDATA_DIR@/sample_5_3/")
 set(TrioExtraCol-RESULT 0)
 set(TrioExtraCol-STDOUT

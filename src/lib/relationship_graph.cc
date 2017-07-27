@@ -30,7 +30,8 @@ namespace dng {
 namespace detail {
 using namespace dng::detail::graph;
 
-vertex_t parse_pedigree_table(Graph &pedigree_graph, const dng::Pedigree &pedigree);
+vertex_t parse_pedigree_table(Graph &pedigree_graph, const dng::Pedigree &pedigree,
+        bool normalize_somatic_trees);
 void add_libraries_to_graph(Graph &pedigree_graph, const libraries_t &libs);
 void update_edge_lengths(Graph &pedigree_graph,
         double mu_meiotic, double mu_somatic, double mu_library);
@@ -110,15 +111,16 @@ RULES FOR LINKING READ GROUPS TO PEOPLE.
 */
 
 bool dng::RelationshipGraph::Construct(const Pedigree& pedigree,
-        const libraries_t& libs, double mu, double mu_somatic, double mu_library) {
+        const libraries_t& libs, double mu, double mu_somatic, double mu_library,
+        bool normalize_somatic_trees) {
     return Construct(pedigree, libs, InheritanceModel::Autosomal, mu,
-                     mu_somatic, mu_library);
+                     mu_somatic, mu_library, normalize_somatic_trees);
 }
 
 bool dng::RelationshipGraph::Construct(const Pedigree& pedigree,
         const libraries_t& libs, InheritanceModel model,
-        double mu, double mu_somatic, double mu_library) {
-
+        double mu, double mu_somatic, double mu_library,
+        bool normalize_somatic_trees) {
     using namespace std;
 
     inheritance_model_ = model;
@@ -127,7 +129,8 @@ bool dng::RelationshipGraph::Construct(const Pedigree& pedigree,
     Graph pedigree_graph;
 
     first_founder_ = 0;
-    first_somatic_ = parse_pedigree_table(pedigree_graph, pedigree);
+    first_somatic_ = parse_pedigree_table(pedigree_graph, pedigree,
+        normalize_somatic_trees);
  
     // Find first germline node that is not a child of DUMMY_INDEX
     for(first_nonfounder_ = 1; first_nonfounder_ < first_somatic_; ++first_nonfounder_) {
@@ -589,7 +592,8 @@ void prune_pedigree_paternal(Graph &pedigree_graph) {
 }
 
 
-vertex_t parse_pedigree_table(Graph &pedigree_graph, const dng::Pedigree &pedigree) {
+vertex_t parse_pedigree_table(Graph &pedigree_graph,
+        const dng::Pedigree &pedigree, bool normalize_somatic_trees) {
     using namespace std;
     using Sex = dng::Pedigree::Sex;
     using member_t = unsigned int;
@@ -717,7 +721,8 @@ vertex_t parse_pedigree_table(Graph &pedigree_graph, const dng::Pedigree &pedigr
                 if(pedchild.id < pedigree_dummy) {
                     // Process newick file
                     std::size_t current_index = num_vertices(pedigree_graph);
-                    int res = parse_newick(pedigree.GetMember(pedchild.id).attribute, child, pedigree_graph);
+                    int res = parse_newick(pedigree.GetMember(pedchild.id).attribute,
+                            child, pedigree_graph, normalize_somatic_trees);
                     if (res == 0) {
                         // this line has a blank somatic line, so use the name from the pedigree
                         vertex_t v = add_vertex({labels[child], VertexType::Somatic}, pedigree_graph);
