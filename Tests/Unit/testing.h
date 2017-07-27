@@ -67,7 +67,13 @@
     auto CHECK_CLOSE_RANGES_B = ::std::begin( R ); \
     ::std::size_t CHECK_CLOSE_RANGES_N = 0; \
     while(CHECK_CLOSE_RANGES_A < ::std::end( L )) { \
-        BOOST_CHECK_CLOSE_FRACTION(*CHECK_CLOSE_RANGES_A, *CHECK_CLOSE_RANGES_B, T); \
+        if(*CHECK_CLOSE_RANGES_A == 0) { \
+            BOOST_CHECK_SMALL(*CHECK_CLOSE_RANGES_B, T); \
+        } else if(*CHECK_CLOSE_RANGES_B == 0 ) { \
+            BOOST_CHECK_SMALL(*CHECK_CLOSE_RANGES_A, T); \
+        } else { \
+            BOOST_CHECK_CLOSE_FRACTION(*CHECK_CLOSE_RANGES_A, *CHECK_CLOSE_RANGES_B, T); \
+        } \
         ++CHECK_CLOSE_RANGES_A; \
         ++CHECK_CLOSE_RANGES_B; \
     } \
