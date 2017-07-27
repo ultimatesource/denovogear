@@ -241,15 +241,6 @@ var mutationExplorerView = (function(d3, utils) {
             personNode.data.dngOutputData = format;
           }
 
-          //if (isPersonNode(sampleName)) {
-          //  var id = getIdFromSampleName(sampleName);
-          //  var personNode = pedGraph.getPerson(id);
-          //  personNode.data.dngOutputData = format;
-          //}
-          //else {
-          //  var sampleNode = findMatchingSampleNode(sampleName);
-          //  sampleNode.dngOutputData = format;
-          //}
         });
       }
       else {
@@ -257,8 +248,6 @@ var mutationExplorerView = (function(d3, utils) {
       }
     }
 
-    // TODO this and findMatchingSampleNode have almost the same logic. Find a
-    // way to extract the duplication
     function findOwnerNode(sampleName) {
       //var strippedName = getStrippedName(sampleName);
       var persons = pedGraph.getPersons();
@@ -268,19 +257,6 @@ var mutationExplorerView = (function(d3, utils) {
         var sampleNode = findInTree(person.data.sampleIds, sampleName);
         if (sampleNode !== undefined) {
           return person;
-        }
-      }
-      return undefined;
-    }
-
-    function findMatchingSampleNode(sampleName) {
-      var strippedName = getStrippedName(sampleName);
-      var persons = pedGraph.getPersons();
-      for (var index = 0; index < persons.length; index++) {
-        var person = persons[index];
-        var sampleNode = findInTree(person.data.sampleIds, strippedName);
-        if (sampleNode !== undefined) {
-          return sampleNode;
         }
       }
       return undefined;
@@ -333,18 +309,6 @@ var mutationExplorerView = (function(d3, utils) {
       //return Number(sampleName.slice(-3));
       return sampleName.slice(3, 10);
     }
-
-    function windowDimensions() {
-      var w = window,
-          d = document,
-          e = d.documentElement,
-          g = d.getElementsByTagName('body')[0],
-          x = w.innerWidth || e.clientWidth || g.clientWidth,
-          y = w.innerHeight|| e.clientHeight|| g.clientHeight;
-
-      return { x: x, y: y };
-    }
-
   }
 
   function createMutationExplorerView(options) {
