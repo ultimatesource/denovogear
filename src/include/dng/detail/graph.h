@@ -85,7 +85,7 @@ typedef boost::graph_traits<Graph>::edge_descriptor edge_t;
 static_assert(std::is_integral<vertex_t>::value,
 	"vertex_t is not an integral type, this violates many assumptions that have been made.");
 
-int parse_newick(const std::string &text, vertex_t root, Graph &graph);
+int parse_newick(const std::string &text, vertex_t root, Graph &graph, bool normalize);
 
 } // namespace graph
 } // namespace detail

@@ -114,9 +114,26 @@ qi::grammar<Iterator, void(tree_t &), standard::space_type> {
     qi::rule<Iterator, double(), standard::space_type> length;
 };
 
+void normalize(newick::tree_t &tree) {
+    float max_height = 0.0;
+    std::vector<float> heights(tree.size(), 0.0f);
+    for(std::size_t i = tree.size(); i > 0; --i) {
+        auto &&a = tree[i - 1];
+        heights[i-1] = (a.parent == -1) ? a.length : a.length + heights[a.parent];
+        if(heights[i-1] > max_height) {
+            max_height = heights[i-1];
+        }
+    }
+    float scale = (max_height == 0.0f) ? 0.0f : 1.0f/max_height;
+    for(auto &&a : tree) {
+        a.length *= scale;
+    }
+}
+
 }} // namespace dng::newick
 
-int dng::detail::graph::parse_newick(const std::string &text, vertex_t root, Graph &graph) {
+int dng::detail::graph::parse_newick(const std::string &text, vertex_t root, Graph &graph,
+    bool normalize) {
     using standard::space; using phoenix::ref;
     newick::grammar<std::string::const_iterator> newick_parser;
     std::string::const_iterator first = text.begin();
@@ -130,7 +147,13 @@ int dng::detail::graph::parse_newick(const std::string &text, vertex_t root, Gra
     if(first != text.end() || !r) {
         return -1;
     }
+    float scale = 1.0;
+    if(normalize) {
+        newick::normalize(tree);
+    }
+
     std::size_t offset = num_vertices(graph) + tree.size() - 1;
+    // insert nodes in reverse order so that parents come before children
     for(std::size_t i = tree.size(); i > 0; --i) {
         auto &&a = tree[i - 1];
         boost::trim_fill(a.label, "_");

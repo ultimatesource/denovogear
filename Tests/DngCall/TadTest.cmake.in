@@ -1,4 +1,4 @@
-set(Trio-CMD @DNG_CALL_EXE@ -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0.001 test1.tad)
+set(Trio-CMD @DNG_CALL_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0.001 test1.tad)
 set(Trio-WD "@TESTDATA_DIR@/sample_5_3/")
 set(Trio-RESULT 0)
 set(Trio-STDOUT
@@ -12,7 +12,7 @@ set(Trio-STDOUT
   "0/0:147:1,1\\.99685e-15,0,1\\.99954e-26,0,0:3\\.33278e-05:3\\.33278e-05:0,-18\\.4896,-138\\.087,-21\\.9623,-138\\.388,-141\\.865:77:76,1,0"
 )
 
-set(TrioExtraCol-CMD @DNG_CALL_EXE@ -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0.001 test1_extra.tad)
+set(TrioExtraCol-CMD @DNG_CALL_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0.001 test1_extra.tad)
 set(TrioExtraCol-WD "@TESTDATA_DIR@/sample_5_3/")
 set(TrioExtraCol-RESULT 0)
 set(TrioExtraCol-STDOUT
@@ -26,7 +26,7 @@ set(TrioExtraCol-STDOUT
   "0/0:147:1,1\\.99685e-15,0,1\\.99954e-26,0,0:3\\.33278e-05:3\\.33278e-05:0,-18\\.4896,-138\\.087,-21\\.9623,-138\\.388,-141\\.865:77:76,1,0"
   )
 
-set(Ceph-CMD @DNG_CALL_EXE@ -p ceph_trio.ped ceph_trio.tad)
+set(Ceph-CMD @DNG_CALL_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -p ceph_trio.ped ceph_trio.tad)
 set(Ceph-WD "@TESTDATA_DIR@/ceph1463/")
 set(Ceph-RESULT 0)
 set(Ceph-STDOUT

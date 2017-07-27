@@ -1,7 +1,7 @@
 ###############################################################################
 # Test if dng-call can identify mutations correctly from a bam file
 
-set(Trio-CMD @DNG_CALL_EXE@ -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0.001 test1.bam)
+set(Trio-CMD @DNG_CALL_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0.001 test1.bam)
 set(Trio-WD "@TESTDATA_DIR@/sample_5_3/")
 set(Trio-RESULT 0)
 set(Trio-STDOUT

@@ -63,7 +63,7 @@ RelationshipGraph rel_graph = []() -> RelationshipGraph {
     ped.AddMember("Eve","Dad","Mom",Sex::Female,"");
 
     RelationshipGraph g;
-    g.Construct(ped, libs, 1e-8, 1e-8, 1e-8);
+    g.Construct(ped, libs, 1e-8, 1e-8, 1e-8,true);
     return g;
 }();
 

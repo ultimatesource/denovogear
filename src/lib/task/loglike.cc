@@ -157,7 +157,8 @@ int process_bam(LogLike::argument_type &arg) {
     // Construct peeling algorithm from parameters and pedigree information
     RelationshipGraph relationship_graph;
     if (!relationship_graph.Construct(ped, mpileup.libraries(), inheritance_model(arg.model),
-                                      arg.mu, arg.mu_somatic, arg.mu_library)) {
+                                      arg.mu, arg.mu_somatic, arg.mu_library,
+                                      arg.normalize_somatic_trees)) {
         throw std::runtime_error("Unable to construct peeler for pedigree; "
                                  "possible non-zero-loop relationship_graph.");
     }
@@ -266,7 +267,8 @@ int process_ad(LogLike::argument_type &arg) {
     InheritanceModel model = inheritance_model(arg.model);
 
     RelationshipGraph graph;
-    if(!graph.Construct(ped, input.libraries(), model, arg.mu, arg.mu_somatic, arg.mu_library)) {
+    if(!graph.Construct(ped, input.libraries(), model, arg.mu, arg.mu_somatic, arg.mu_library,
+        arg.normalize_somatic_trees)) {
         throw runtime_error("Error: Unable to construct peeler for pedigree; "
                             "possible non-zero-loop pedigree.");
     }

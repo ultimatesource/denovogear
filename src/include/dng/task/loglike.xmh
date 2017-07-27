@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Reed A. Cartwright
+ * Copyright (c) 2017 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -27,31 +27,10 @@
  * XM((long)(name), (shortname), "description", typename, defaultvalue)    *
  ***************************************************************************/
 
-XM((fasta), (f), "faidx indexed reference sequence file", std::string, "")
-XM((header), (h), "Location of separate bam header file for read-groups.", 
-   std::string, "")
-XM((min)(qlen), (l), "minimum query length", int, 0)
-XM((lib)(bias), , "library/sequencing reference bias (ref/alt ratio)", double, 1.02)
-XM((lib)(overdisp), , "library/sequencing overdispersion (pairwise correlation of errors)", double, 0.0005)
-XM((lib)(error), , "library/sequencing error rate (per base-call)", double, 0.0005)
-XM((mu), , "the germline mutation rate", double, DL(1e-8, "1e-8"))
-XM((mu)(somatic), , "the somatic mutation rate", double, DL(1e-8, "1e-8"))
-XM((mu)(library), , "the library prep mutation rate", double, DL(1e-8, "1e-8"))
-XM((nuc)(freqs), , "nucleotide frequencies in ACGT order", std::string,
-   "0.3,0.2,0.2,0.3")
-XM((output), (o), "output file", std::string, "-")
-XM((ped), (p), "the pedigree file", std::string, "")
-XM((min)(basequal), (Q), "minimum base quality", int, 13)
-XM((min)(mapqual), (q), "minimum mapping quality", int, 0)
-XM((model), (M), "Inheritance model", std::string, "autosomal")
-XM((region), (r), "chromosomal region", std::string, "")
-XM((ref)(weight), (R), "weight given to reference base for population prior",
-   double, DL(1.0, "1"))
-XM((rgtag), , "combine read groups using @RG tags, e.g. ID, SM, LB, or DS.",
-   std::string, "LB")
-XM((sam)(files), (s), "file containing a list of input filenames, one per line",
-   std::string, "")
-XM((theta), , "the population diversity", double, DL(0.001, "0.001"))
+#include "model.xm"
+
+#include "input.xm"
+
 XM((threads), (t), "the number of worker threads to use", int, 0)
 XM((batch)(size), , "the number of sites to process at a time", int, 100000)
 

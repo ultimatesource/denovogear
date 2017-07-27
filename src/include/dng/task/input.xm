@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014,2015 Reed A. Cartwright
+ * Copyright (c) 2017 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -17,35 +17,25 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "../detail/xm.h"
-
 /***************************************************************************
  *    X-Macro List                                                         *
- *                                                                         *
- * Defines options for dng-call                                            *
  *                                                                         *
  * XM((long)(name), (shortname), "description", typename, defaultvalue)    *
  ***************************************************************************/
 
-XM((body)(only),  (B), "only print body of tad file.", bool_switch_t, DL(bool_switch_t{false}, "off"))
 XM((fasta), (f), "faidx indexed reference sequence file", std::string, "")
 XM((header), (h), "Location of separate bam header file for read-groups.", 
    std::string, "")
-XM((header)(only),  (H), "only print header of tad file.", bool_switch_t, DL(bool_switch_t{false}, "off"))
-XM((max)(dp), , "maximum depth", int, 0)
-XM((min)(dp), , "minimum depth", int, 0)
+XM((ped), (p), "the pedigree file", std::string, "")
+XM((region), (r), "chromosomal region", std::string, "")
+XM((rgtag), , "combine read groups using @RG tags, e.g. ID, SM, LB, or DS.",
+   std::string, "LB")
+XM((sam)(files), (s), "file containing a list of input filenames, one per line",
+   std::string, "")
+
+XM((output), (o), "output file", std::string, "-")
+
 XM((min)(qlen), (l), "minimum query length", int, 0)
 XM((min)(basequal), (Q), "minimum base quality", int, 13)
 XM((min)(mapqual), (q), "minimum mapping quality", int, 0)
-XM((region), (r), "chromosomal region", std::string, "")
-XM((sam)(files), (s), "file containing a list of input filenames, one per line",
-   std::string, "")
-XM((output), (o), "output AD/TAD file", std::string, "-")
-XM((rgtag), , "combine read groups using @RG tags, e.g. ID, SM, LB, or DS.",
-   std::string, "LB")
-
-/***************************************************************************
- *    cleanup                                                              *
- ***************************************************************************/
-#include "../detail/xm.h"
-
+XM((normalize)(somatic)(trees), , "scale somatic trees to a height of 1", bool, DL(true, "on"))

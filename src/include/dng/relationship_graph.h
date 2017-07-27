@@ -80,10 +80,12 @@ public:
 
     bool Construct(const Pedigree& pedigree, const libraries_t& libs,
             InheritanceModel inheritance_model,
-            double mu, double mu_somatic, double mu_library);
+            double mu, double mu_somatic, double mu_library,
+            bool normalize_somatic_trees);
 
     bool Construct(const Pedigree& pedigree, const libraries_t& libs,
-            double mu, double mu_somatic, double mu_library);
+            double mu, double mu_somatic, double mu_library,
+            bool normalize_somatic_trees);
 
     double PeelForwards(peel::workspace_t &work,
                         const TransitionMatrixVector &mat) const {

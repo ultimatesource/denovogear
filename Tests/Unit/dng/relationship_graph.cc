@@ -273,7 +273,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
         //Construct Graph
         RelationshipGraph graph;
         BOOST_REQUIRE_NO_THROW(graph.Construct(quad_ped, quad_libs,
-            InheritanceModel::Autosomal, 1e-8, 3e-8, 5e-8));
+            InheritanceModel::Autosomal, 1e-8, 3e-8, 5e-8, true));
 
         float lsg = 9e-8f; // library-somatic-germline
         float ls  = 8e-8f; // library-somatic
@@ -294,7 +294,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
         //Construct Graph
         RelationshipGraph graph;
         BOOST_REQUIRE_NO_THROW(graph.Construct(quad_ped, quad_libs,
-            InheritanceModel::XLinked, 1e-8, 3e-8, 5e-8));
+            InheritanceModel::XLinked, 1e-8, 3e-8, 5e-8, true));
 
         float lsg = 9e-8f; // library-somatic-germline
         float ls  = 8e-8f; // library-somatic
@@ -315,7 +315,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
         //Construct Graph
         RelationshipGraph graph;
         BOOST_REQUIRE_NO_THROW(graph.Construct(quad_ped, quad_libs,
-            InheritanceModel::YLinked, 1e-8, 3e-8, 5e-8));
+            InheritanceModel::YLinked, 1e-8, 3e-8, 5e-8, true));
 
         float lsg = 9e-8f; // library-somatic-germline
         float ls  = 8e-8f; // library-somatic
@@ -333,7 +333,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
         //Construct Graph
         RelationshipGraph graph;
         BOOST_REQUIRE_NO_THROW(graph.Construct(quad_ped, quad_libs,
-            InheritanceModel::ZLinked, 1e-8, 3e-8, 5e-8));
+            InheritanceModel::ZLinked, 1e-8, 3e-8, 5e-8, true));
 
         float lsg = 9e-8f; // library-somatic-germline
         float ls  = 8e-8f; // library-somatic
@@ -354,7 +354,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
         //Construct Graph
         RelationshipGraph graph;
         BOOST_REQUIRE_NO_THROW(graph.Construct(quad_ped, quad_libs,
-            InheritanceModel::WLinked, 1e-8, 3e-8, 5e-8));
+            InheritanceModel::WLinked, 1e-8, 3e-8, 5e-8, true));
 
         float lsg = 9e-8f; // library-somatic-germline
         float ls  = 8e-8f; // library-somatic
@@ -372,7 +372,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
         //Construct Graph
         RelationshipGraph graph;
         BOOST_REQUIRE_NO_THROW(graph.Construct(quad_ped, quad_libs,
-            InheritanceModel::Maternal, 1e-8, 3e-8, 5e-8));
+            InheritanceModel::Maternal, 1e-8, 3e-8, 5e-8, true));
 
         float lsg = 9e-8f; // library-somatic-germline
         float ls  = 8e-8f; // library-somatic
@@ -393,7 +393,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
         //Construct Graph
         RelationshipGraph graph;
         BOOST_REQUIRE_NO_THROW(graph.Construct(quad_ped, quad_libs,
-            InheritanceModel::Paternal, 1e-8, 3e-8, 5e-8));
+            InheritanceModel::Paternal, 1e-8, 3e-8, 5e-8, true));
 
         float lsg = 9e-8f; // library-somatic-germline
         float ls  = 8e-8f; // library-somatic
@@ -413,7 +413,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
 
     //////////////////////////////////////////////////////////////////////////////////////////////
 
-    BOOST_TEST_CONTEXT("graph=somatic_graph") {
+    BOOST_TEST_CONTEXT("graph=somatic_graph_normalized") {
         libraries_t somatic_libs = {
             {"M1A", "M1B", "M2", "M3A", "M3B"},
             {"M1", "M1", "M2", "M3", "M3"}
@@ -427,7 +427,41 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
         //Construct Graph
         RelationshipGraph graph;
         BOOST_REQUIRE_NO_THROW(graph.Construct(somatic_ped, somatic_libs,
-            InheritanceModel::Autosomal, g, s, l));
+            InheritanceModel::Autosomal, g, s, l, true));
+
+        const expected_graph_nodes_t expected = {
+            {"GL/M", DIPLOID, GERMLINE,  ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
+            {"SM/unnamed_node_1", DIPLOID, SOMATIC, !ROOT, PAIR, 0, s/3, -1, 0.0f, ""},
+            {"SM/M3", DIPLOID, SOMATIC, !ROOT, PAIR, 1, s/3, -1, 0.0f, ""},
+            {"SM/M12", DIPLOID, SOMATIC, !ROOT, PAIR, 1, s/3, -1, 0.0f, ""},
+            {"SM/M1", DIPLOID, SOMATIC, !ROOT, PAIR, 3, s/3, -1, 0.0f, ""},
+            {"LB/M1/M1A", DIPLOID, LIBRARY, !ROOT, PAIR, 4, l, -1, 0.0f, "M1A"},
+            {"LB/M1/M1B", DIPLOID, LIBRARY, !ROOT, PAIR, 4, l, -1, 0.0f, "M1B"},            
+            {"LB/M2", DIPLOID, LIBRARY, !ROOT, PAIR, 3, l+s/3, -1, 0.0f, "M2"},
+            {"LB/M3/M3A", DIPLOID, LIBRARY, !ROOT, PAIR, 2, l, -1, 0.0f, "M3A"},
+            {"LB/M3/M3B", DIPLOID, LIBRARY, !ROOT, PAIR, 2, l, -1, 0.0f, "M3B"},
+          };
+
+        test(graph, expected);
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    BOOST_TEST_CONTEXT("graph=somatic_graph_unnormalized") {
+        libraries_t somatic_libs = {
+            {"M1A", "M1B", "M2", "M3A", "M3B"},
+            {"M1", "M1", "M2", "M3", "M3"}
+        };
+
+        Pedigree somatic_ped;
+        somatic_ped.AddMember("M","0","0",Sex::Female,"((M1,M2)M12,M3);");
+
+        constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
+
+        //Construct Graph
+        RelationshipGraph graph;
+        BOOST_REQUIRE_NO_THROW(graph.Construct(somatic_ped, somatic_libs,
+            InheritanceModel::Autosomal, g, s, l, false));
 
         const expected_graph_nodes_t expected = {
             {"GL/M", DIPLOID, GERMLINE,  ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
@@ -460,7 +494,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
 
         //Construct Graph
         RelationshipGraph graph;
-        BOOST_REQUIRE_NO_THROW(graph.Construct(ped, libs, InheritanceModel::Autosomal, g, s, l));
+        BOOST_REQUIRE_NO_THROW(graph.Construct(ped, libs, InheritanceModel::Autosomal, g, s, l, true));
 
         const expected_graph_nodes_t expected = {
             {"GL/Mom", DIPLOID, GERMLINE, ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
@@ -487,7 +521,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
 
         //Construct Graph
         RelationshipGraph graph;
-        BOOST_REQUIRE_NO_THROW(graph.Construct(ped, libs, InheritanceModel::Autosomal, g, s, l));
+        BOOST_REQUIRE_NO_THROW(graph.Construct(ped, libs, InheritanceModel::Autosomal, g, s, l, true));
 
         const expected_graph_nodes_t expected = {
             {"GL/Dad", DIPLOID, GERMLINE, ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
@@ -514,7 +548,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
 
         //Construct Graph
         RelationshipGraph graph;
-        BOOST_REQUIRE_NO_THROW(graph.Construct(ped, libs, InheritanceModel::Autosomal, g, s, l));
+        BOOST_REQUIRE_NO_THROW(graph.Construct(ped, libs, InheritanceModel::Autosomal, g, s, l, true));
 
         const expected_graph_nodes_t expected = {
             {"GL/Dad", DIPLOID, GERMLINE, ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
@@ -541,7 +575,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
 
         //Construct Graph
         RelationshipGraph graph;
-        BOOST_REQUIRE_NO_THROW(graph.Construct(ped, libs, InheritanceModel::Autosomal, g, s, l));
+        BOOST_REQUIRE_NO_THROW(graph.Construct(ped, libs, InheritanceModel::Autosomal, g, s, l, true));
 
         const expected_graph_nodes_t expected = {
             {"GL/Mom", DIPLOID, GERMLINE, ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
@@ -568,7 +602,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
 
         //Construct Graph
         RelationshipGraph graph;
-        BOOST_REQUIRE_NO_THROW(graph.Construct(ped, libs, InheritanceModel::Autosomal, g, s, l));
+        BOOST_REQUIRE_NO_THROW(graph.Construct(ped, libs, InheritanceModel::Autosomal, g, s, l, true));
 
         const expected_graph_nodes_t expected = {
             {"GL/Mom", DIPLOID, GERMLINE, ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
@@ -595,7 +629,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
 
         //Construct Graph
         RelationshipGraph graph;
-        BOOST_REQUIRE_NO_THROW(graph.Construct(ped, libs, InheritanceModel::Autosomal, g, s, l));
+        BOOST_REQUIRE_NO_THROW(graph.Construct(ped, libs, InheritanceModel::Autosomal, g, s, l, true));
 
         const expected_graph_nodes_t expected = {
             {"GL/Mom", DIPLOID, GERMLINE, ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
@@ -622,7 +656,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
 
         //Construct Graph
         RelationshipGraph graph;
-        BOOST_REQUIRE_NO_THROW(graph.Construct(ped, libs, InheritanceModel::Autosomal, g, s, l));
+        BOOST_REQUIRE_NO_THROW(graph.Construct(ped, libs, InheritanceModel::Autosomal, g, s, l, true));
 
         const expected_graph_nodes_t expected = {
             {"GL/Mom", DIPLOID, GERMLINE, ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
@@ -651,7 +685,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
 
         //Construct Graph
         RelationshipGraph graph;
-        BOOST_REQUIRE_NO_THROW(graph.Construct(ped, libs, InheritanceModel::Autosomal, g, s, l));
+        BOOST_REQUIRE_NO_THROW(graph.Construct(ped, libs, InheritanceModel::Autosomal, g, s, l, true));
 
         const expected_graph_nodes_t expected = {
             {"GL/Dad", DIPLOID, GERMLINE,  ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
@@ -817,6 +851,6 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_peeler) {
 
     RelationshipGraph graph;
     BOOST_REQUIRE_NO_THROW(graph.Construct(quad_ped, quad_libs,
-        InheritanceModel::Autosomal, g, s, l));
+        InheritanceModel::Autosomal, g, s, l, true));
     test(graph, expected);
 }
