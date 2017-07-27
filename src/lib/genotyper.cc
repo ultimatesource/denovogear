@@ -122,7 +122,7 @@ std::array<double,5> make_alphas(int reference, int genotype, double phi, double
 using detail::make_alphas;
 using detail::log_sum;
 
-DirichletMultinomial::DirichletMultinomial(params_t params) : params_{params} {
+DirichletMultinomial::DirichletMultinomial(params_t params) : params_(params) {
     // Construct our log_pochhammer functors and cache some of their outputs
     for(int reference=0; reference<5; ++reference) {
         for(int genotype=0; genotype<10; ++genotype) {
