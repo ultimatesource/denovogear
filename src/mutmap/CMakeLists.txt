@@ -14,7 +14,6 @@ if (Rscript_FOUND)
       ${JS_DIR}/vcf_parser.js
       ${JS_DIR}/ped_parser.js
       ${JS_DIR}/pedigr.js
-      ${VIEW_DIR}/view.js
       ${VIEW_DIR}/list_selector.js
       ${VIEW_DIR}/contig.js
       ${VIEW_DIR}/sample_tree.js
