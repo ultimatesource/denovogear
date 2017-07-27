@@ -1,29 +1,47 @@
 // eslint exceptions
 //
 /* global d3 */
-/* global PubSub */
 /* global utils */
 /* exported GenomeBrowserView */
 
 var mutmap = mutmap || {};
 
-(function(d3, PubSub, utils) {
+(function(d3, utils) {
   "use strict";
 
   mutmap.ContigView = Backbone.View.extend({
 
+    events: {
+      'click .prev-mutation-button': 'onPrevMutationButtonClicked',
+      'click .next-mutation-button': 'onNextMutationButtonClicked',
+      'click .genome-browser__mutation': 'onMutationClicked'
+    },
+
+    onPrevMutationButtonClicked: function() {
+      this.prevMutationButtonClicked();
+    },
+
+    onNextMutationButtonClicked: function() {
+      this.nextMutationButtonClicked();
+    },
+
+    onMutationClicked: function(e) {
+
+      var selection = d3.select(e.target);
+      var d = selection.datum();
+
+      this.mutationClicked(d);
+    },
+
     initialize: function(options) {
-      this._vcfData = options.vcfData;
-      this._contigData = options.contigData;
-      this._selectedContigIndex = options.selectedContigIndex;
-      this._selectedMutationIndex = options.selectedMutationIndex;
 
-      this.model.on('change', function() {
-      });
+      this.d3el = d3.select(this.el);
 
-      PubSub.subscribe("WINDOW_RESIZE", this._onWindowResize.bind(this));
-      PubSub.subscribe("MUTATION_INDEX_UPDATED",
-        this._selectedMutationIndexChanged.bind(this));
+      this.model.on('change', this.render.bind(this));
+
+      this.prevMutationButtonClicked = options.prevMutationButtonClicked;
+      this.nextMutationButtonClicked = options.nextMutationButtonClicked;
+      this.mutationClicked = options.mutationClicked;
 
       this._create();
       this.render();
@@ -38,10 +56,10 @@ var mutmap = mutmap || {};
         bottom: 60
       };
 
-      var mutationSelector = mutationSelectorMaker().vcfData(this._vcfData);
-      this.el.call(mutationSelector);
+      var mutationSelector = mutationSelectorMaker();
+      this.d3el.call(mutationSelector);
 
-      this._browser = this.el.append("svg")
+      this._browser = this.d3el.append("svg")
           .attr("class", "genome-browser");
 
       this._browser.style("width", "100%").style("height", "100%");
@@ -59,7 +77,7 @@ var mutmap = mutmap || {};
 
     render: function() {
 
-      var boundingRect = this.el.node().getBoundingClientRect();
+      var boundingRect = this.d3el.node().getBoundingClientRect();
       var width = boundingRect.width;
       var height = boundingRect.height;
 
@@ -77,7 +95,7 @@ var mutmap = mutmap || {};
           .attr("width", genomeWidth)
           .attr("height", genomeHeight);
 
-      var contigLength = this._contigData[this._selectedContigIndex].length;
+      var contigLength = this.model.get('contigData').length;
       this._xFocusScale = d3.scaleLinear()
         .domain([0, contigLength])
         .range([0, genomeWidth]);
@@ -98,10 +116,10 @@ var mutmap = mutmap || {};
 
       //this._mutationContainer.selectAll(".genome-browser__mutation").remove();
       this._mutations
-        .vcfData(this._contigData[this._selectedContigIndex])
+        .vcfData(this.model.get('contigData'))
         .scale(this._xFocusScale)
         .height(genomeHeight)
-        .selectedMutationIndex(this._selectedMutationIndex);
+        .selectedMutationIndex(this.model.get('selectedMutationIndex'));
       this._mutationContainer.call(this._mutations);
 
     },
@@ -109,13 +127,6 @@ var mutmap = mutmap || {};
     _onWindowResize: function() {
       this.render();
     },
-
-    _selectedMutationIndexChanged: function(topic, data) {
-
-      this._selectedContigIndex = data.selectedContigIndex;
-      this._selectedMutationIndex = data.selectedMutationIndex;
-      this.render();
-    }
 
   });
 
@@ -136,8 +147,7 @@ var mutmap = mutmap || {};
 
       var mutationEnter = mutationUpdate.enter().append("rect")
           .attr("width", mutationWidth)
-          .attr("height", height)
-          .on("click", mutationClicked)
+          .attr("height", height);
 
       var mutationExit = mutationUpdate.exit();
       mutationExit.remove();
@@ -196,66 +206,24 @@ var mutmap = mutmap || {};
 
   function mutationSelectorMaker() {
 
-    var vcfData;
-
     function my(selection) {
 
       var prevButton = selection.append("button")
-          .attr("class", "btn btn-default")
-          .on("click", function() {
-            PubSub.publish("PREV_MUTATION_BUTTON_CLICKED");
-          });
+          .attr("class", "prev-mutation-button btn btn-default")
       prevButton.append("span")
           .attr("class", "glyphicon glyphicon-arrow-left");
       prevButton.append("span")
           .text(" Previous Mutation");
 
-      var dropdown = selection.append("div")
-          .attr("class", "dropdown")
-      dropdown.append("button")
-          .attr("class", "btn btn-default dropdown-toggle")
-          .attr("id", "dropdownMenu1")
-          .attr("type", "button")
-          .attr("data-toggle", "dropdown")
-          .text("Select");
-
-      dropdown.append("ul")
-          .attr("class", "dropdown-menu")
-        .selectAll(".mutation")
-          .data(vcfData.records)
-        .enter().append("li")
-          .attr("class", "mutation")
-        .append("a")
-          .attr("href", "#")
-          .text(function(d) {
-            return "Contig: " + d.CHROM + ", Position: " + d.POS;
-          })
-          .on("click", function(d) {
-            PubSub.publish("MUTATION_SELECTED", d);
-          });
-
       var nextButton = selection.append("button")
-          .attr("class", "btn btn-default")
-          .on("click", function() {
-            PubSub.publish("NEXT_MUTATION_BUTTON_CLICKED");
-          });
+          .attr("class", "next-mutation-button btn btn-default")
       nextButton.append("span")
           .text("Next Mutation ");
       nextButton.append("span")
           .attr("class", "glyphicon glyphicon-arrow-right");
     }
 
-    my.vcfData = function(value) {
-      if (!arguments.length) return vcfData;
-      vcfData = value;
-      return my;
-    };
-
     return my;
   }
 
-  function mutationClicked(d, i) {
-    PubSub.publish("MUTATION_SELECTED", d);
-  };
-
-}(d3, PubSub, utils));
+}(d3, utils));

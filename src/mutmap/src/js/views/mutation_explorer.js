@@ -1,7 +1,6 @@
 // eslint exceptions
 //
 /* global d3 */
-/* global PubSub */
 /* global pedParser */
 /* global pedigreeView*/
 /* global vcfParser */
@@ -12,7 +11,7 @@
 /* global pedigreeFileText */
 /* global layoutData */
 
-var mutationExplorerView = (function(d3, PubSub, utils) {
+var mutationExplorerView = (function(d3, utils) {
   "use strict";
 
   function MutationExplorerView(options) {
@@ -57,7 +56,8 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
     var ContigModel = Backbone.Model.extend({
       defaults: {
         selectedContigIndex: 0,
-        selectedMutationIndex: 0
+        selectedMutationIndex: 0,
+        contigData: contigData[0]
       }
     });
 
@@ -65,12 +65,11 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
 
     // Create genome browser view
     new mutmap.ContigView({
-      el: genomeBrowserRenderElement,
+      el: genomeBrowserRenderElement.node(),
       model: contigModel,
-      vcfData: vcfData,
-      contigData: contigData,
-      selectedContigIndex: contigModel.get('selectedContigIndex'),
-      selectedMutationIndex: contigModel.get('selectedMutationIndex')
+      prevMutationButtonClicked: prevMutationButtonClicked,
+      nextMutationButtonClicked: nextMutationButtonClicked,
+      mutationClicked: mutationClicked
     });
 
     //console.log(vcfData);
@@ -128,18 +127,7 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
             !pedigreeModel.get('showSampleTrees'));
         });
 
-
-    window.addEventListener("resize", function() {
-      var dimensions = windowDimensions();
-
-      PubSub.publish("WINDOW_RESIZE");
-    });
-
-    PubSub.subscribe("MUTATION_CLICKED", function(topic, data) {
-      updateMutation();
-    });
-
-    PubSub.subscribe("PREV_MUTATION_BUTTON_CLICKED", function(topic, data) {
+    function prevMutationButtonClicked() {
 
       var selectedContigIndex = contigModel.get('selectedContigIndex');
       var selectedMutationIndex = contigModel.get('selectedMutationIndex');
@@ -159,11 +147,12 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
 
       contigModel.set('selectedContigIndex', selectedContigIndex);
       contigModel.set('selectedMutationIndex', selectedMutationIndex);
+      contigModel.set('contigData', contigData[selectedContigIndex]);
 
       updateMutation();
-    });
+    }
 
-    PubSub.subscribe("NEXT_MUTATION_BUTTON_CLICKED", function(topic, data) {
+    function nextMutationButtonClicked() {
 
       var selectedContigIndex = contigModel.get('selectedContigIndex');
       var selectedMutationIndex = contigModel.get('selectedMutationIndex');
@@ -183,9 +172,10 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
 
       contigModel.set('selectedContigIndex', selectedContigIndex);
       contigModel.set('selectedMutationIndex', selectedMutationIndex);
+      contigModel.set('contigData', contigData[selectedContigIndex]);
 
       updateMutation();
-    });
+    }
 
     function updateMutation() {
       var selectedContigIndex = contigModel.get('selectedContigIndex');
@@ -194,16 +184,13 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
       ownerParentageLink.getData().mutation = undefined;
       dngOverlay(vcfData.header,
         contigData[selectedContigIndex].records[selectedMutationIndex]);
-      PubSub.publish("MUTATION_INDEX_UPDATED", { 
-        selectedContigIndex: selectedContigIndex,
-        selectedMutationIndex: selectedMutationIndex
-      });
+
       // TODO: This feels like a hack. At least having both of them does.
       pedigreeModel.trigger('change');
       activeNodeModel.trigger('change');
     }
 
-    PubSub.subscribe("MUTATION_SELECTED", function(topic, data) {
+    function mutationClicked(data) {
 
       var selectedContigIndex = contigModel.get('selectedContigIndex');
       var selectedMutationIndex = contigModel.get('selectedMutationIndex');
@@ -227,7 +214,7 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
           break;
         }
       }
-    });
+    }
 
     function dngOverlay(header, record) {
 
@@ -368,4 +355,4 @@ var mutationExplorerView = (function(d3, PubSub, utils) {
     createMutationExplorerView: createMutationExplorerView
   };
  
-}(d3, PubSub, utils));
+}(d3, utils));
