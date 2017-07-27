@@ -55,6 +55,7 @@
 #include <dng/io/ad.h>
 #include <dng/io/ped.h>
 #include <dng/io/bam.h>
+#include <dng/io/bcf.h>
 #include <dng/depths.h>
 #include <dng/multithread.h>
 
@@ -93,6 +94,7 @@ void cout_add_header_text(task::LogLike::argument_type &arg) {
 // Sub-tasks
 int process_bam(LogLike::argument_type &arg);
 int process_ad(LogLike::argument_type &arg);
+int process_bcf(LogLike::argument_type &arg);
 
 // The main loop for dng-loglike application
 // argument_type arg holds the processed command line arguments
@@ -106,17 +108,24 @@ int task::LogLike::operator()(task::LogLike::argument_type &arg) {
 
     // Check that all input formats are of same category
     auto it = arg.input.begin();
-    FileCat mode = utility::input_category(*it, FileCat::Sequence|FileCat::Pileup, FileCat::Sequence);
+    FileCat mode = utility::input_category(*it, FileCat::Sequence|FileCat::Pileup|FileCat::Variant, FileCat::Sequence);
     for(++it; it != arg.input.end(); ++it) {
-        if(utility::input_category(*it, FileCat::Sequence|FileCat::Pileup, FileCat::Sequence) != mode) {
-            throw runtime_error("Argument error: mixing sam/bam/cram and tad/ad input files is not supported.");
+        if(utility::input_category(*it, FileCat::Sequence|FileCat::Pileup|FileCat::Variant, FileCat::Sequence) != mode) {
+            throw std::invalid_argument("Mixing sam/bam/cram, vcf/bcf, and tad/ad input files is not supported.");
         }
     }
     // Execute sub tasks based on input type
     if(mode == FileCat::Pileup) {
         return process_ad(arg);
+    } else if(mode == FileCat::Variant) {
+        // vcf, bcf
+        return process_bcf(arg);
+    } else if(mode == FileCat::Sequence) {
+        return process_bam(arg);
+    } else {
+        throw std::invalid_argument("Unknown input data file type.");
     }
-    return process_bam(arg);
+    return EXIT_FAILURE;
 }
 
 int process_bam(LogLike::argument_type &arg) {
@@ -372,6 +381,142 @@ int process_ad(LogLike::argument_type &arg) {
             worker_pool.Enqueue(std::move(b));
         }
     }
+    // output results
+    cout << "log_likelihood\tlog_hidden\tlog_observed\n";
+    cout << setprecision(std::numeric_limits<double>::max_digits10)
+        << sum_data.result()+sum_scale.result() << "\t"
+        << sum_data.result() << "\t" << sum_scale.result() << "\n";
+
+    return EXIT_SUCCESS;
+}
+
+int process_bcf(LogLike::argument_type &arg) {
+    // Parse the pedigree file
+    Pedigree ped = io::parse_ped(arg.ped);
+
+    // Parse Nucleotide Frequencies
+    auto freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
+
+    // Read input data
+    if(arg.input.size() > 1) {
+        throw std::runtime_error("dng call can only handle one variant file at a time.");
+    }
+
+    using dng::io::BcfPileup;
+    BcfPileup mpileup;
+
+    // Fetch the selected regions
+    auto region_ext = io::at_slurp(arg.region); // replace arg.region with the contents of a file if needed
+    if(!arg.region.empty()) {
+        auto ranges = regions::parse_ranges(arg.region);
+        if(ranges.second == false) {
+            throw std::runtime_error("unable to parse the format of '--region' argument.");
+        }
+        mpileup.SetRegions(ranges.first);
+    }
+
+    if(mpileup.AddFile(arg.input[0].c_str()) == 0) {
+        int errnum = mpileup.reader().handle()->errnum;
+        throw std::runtime_error(bcf_sr_strerror(errnum));
+    }
+
+    // Construct peeling algorithm from parameters and pedigree information
+    InheritanceModel model = inheritance_model(arg.model);
+
+    dng::RelationshipGraph relationship_graph;
+    if (!relationship_graph.Construct(ped, mpileup.libraries(), model,
+                                      arg.mu, arg.mu_somatic, arg.mu_library,
+                                      arg.normalize_somatic_trees)) {
+        throw std::runtime_error("Unable to construct peeler for pedigree; "
+                                 "possible non-zero-loop relationship_graph.");
+    }
+    mpileup.SelectLibraries(relationship_graph.library_names());
+
+    // Read header from first file
+    const bcf_hdr_t *header = mpileup.reader().header(0); // TODO: fixthis
+    const int num_libs = mpileup.num_libraries();
+
+    // Print header to output
+    cout_add_header_text(arg);
+
+    for(auto && line : relationship_graph.BCFHeaderLines()) {
+        std::cout << line << "\n";
+    }
+
+    LogProbability calculate (relationship_graph,
+            { arg.theta, freqs, arg.ref_weight,
+            {arg.lib_overdisp, arg.lib_error, arg.lib_bias} } );
+
+    const size_t num_nodes = relationship_graph.num_nodes();
+    const size_t library_start = relationship_graph.library_nodes().first;
+
+    using pileup::AlleleDepths;
+
+    AlleleDepths data;
+
+    // allocate space for ad. bcf_get_format_int32 uses realloc internally
+    int n_ad_capacity = num_libs*5;
+    std::unique_ptr<int[],decltype(std::free)*> ad{
+        reinterpret_cast<int*>(std::malloc(sizeof(int)*n_ad_capacity)), std::free};
+    if(!ad) {
+        throw std::bad_alloc{};
+    }
+
+    // Treat sequence_data and variant data separately
+    dng::stats::ExactSum sum_data;
+    dng::stats::ExactSum sum_scale;
+    
+    // run calculation based on the depths at each site.
+    mpileup([&](const BcfPileup::data_type & rec) {
+        data.location(rec->rid, rec->pos);
+
+        // Identify site
+        std::string allele_str;
+        std::vector<char> allele_indexes;
+        std::vector<int>  allele_list;
+        const int num_alleles = rec->n_allele;
+        int first_is_n = 0;
+        for(int a = 0; a < num_alleles; ++a) {
+            int n = AlleleDepths::MatchAlleles(rec->d.allele[a]);
+            if(0 <= n && n <= 3) {
+                allele_indexes.push_back(n);
+                allele_list.push_back(a);
+            } else if(a == 0 && n == 4) {
+                first_is_n = 64;
+            }
+        }
+        int color = AlleleDepths::MatchIndexes(allele_indexes);
+        assert(color != -1);
+        data.resize(color+first_is_n, rec->n_sample);
+
+        // Read all the Allele Depths for every sample into an AD array
+        int *pad = ad.get();
+        int n_ad = bcf_get_format_int32(header, rec, "AD", &pad, &n_ad_capacity);
+        if(n_ad == -4) {
+            throw std::bad_alloc{};
+        } else if(pad != ad.get()) {
+            // update pointer
+            ad.release();
+            ad.reset(pad);
+        }
+        if(n_ad <= 0) {
+            // AD tag is missing, so we do nothing at this time
+            // TODO: support using calculated genotype likelihoods
+            return;
+        }
+
+        assert(n_ad >= data.data_size());
+        for(int i=0;i<num_libs;++i) {
+            int offset = i*num_alleles;
+            for(int a=0; a<allele_indexes.size();++a) {
+                data(i,a) = ad[offset+allele_list[a]];
+            }
+        }
+
+        auto loglike = calculate(data);
+        sum_data += loglike.log_data;
+        sum_scale += loglike.log_scale;
+    });
     // output results
     cout << "log_likelihood\tlog_hidden\tlog_observed\n";
     cout << setprecision(std::numeric_limits<double>::max_digits10)

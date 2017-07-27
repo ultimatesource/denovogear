@@ -161,7 +161,7 @@ int task::Call::operator()(Call::argument_type &arg) {
     for(++it; it != arg.input.end(); ++it) {
     	// Make sure different types of input files aren't mixed together
         if(utility::input_category(*it, FileCat::Sequence|FileCat::Pileup|FileCat::Variant, FileCat::Sequence) != mode) {
-            throw std::runtime_error("Mixing pileup, sequencing, and variant file types is not supported.");
+            throw std::invalid_argument("Mixing pileup, sequencing, and variant file types is not supported.");
         }
     }
 
@@ -175,7 +175,7 @@ int task::Call::operator()(Call::argument_type &arg) {
     	// tad, ad
     	return process_ad(arg);
     } else {
-    	throw std::runtime_error("Unknown input data file type.");
+    	throw std::invalid_argument("Unknown input data file type.");
     }
     return EXIT_FAILURE;
 }
