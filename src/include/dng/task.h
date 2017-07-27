@@ -55,7 +55,6 @@ std::ostream& operator<<(std::ostream& os, bool_switch_t b) {
 }
 
 struct arg_t {
-    using bool_switch_t = bool_switch_t;
     std::vector< std::string > input;
 };
 }
@@ -149,7 +148,7 @@ namespace boost {
 namespace program_options {
 template<>
 inline
-typed_value<::dng::task::arg_t::bool_switch_t>*
+typed_value<::dng::task::bool_switch_t>*
 value(::dng::task::bool_switch_t *v) {
     using bool_switch_t = ::dng::task::bool_switch_t;  
     typed_value<bool_switch_t>* r = new typed_value<bool_switch_t>(v);
