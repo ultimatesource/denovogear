@@ -1,234 +1,224 @@
-// eslint exceptions
-//
-/* global d3 */
-/* global pedParser */
-/* global pedigreeView*/
-/* global vcfParser */
-/* global pedigr */
-/* global utils */
-/* global contigView */
+var mutmap = mutmap || {};
 
-/* global pedigreeFileText */
-/* global layoutData */
-
-var mutationExplorerView = (function(d3, utils) {
+(function() {
   "use strict";
 
-  function MutationExplorerView(options) {
+  mutmap.MutationExplorerView = Backbone.View.extend({
+    initialize: function(options) {
 
-    utils.optionsManager.checkOptions({
-      requiredOptions: ['renderInto', 'graphData', 'pedGraph', 'vcfData'],
-      providedOptions: options
-    });
+      this.pedGraph = options.pedGraph;
+      this.vcfData = options.vcfData;
 
-    var pedGraph = options.pedGraph;
-    var vcfData = options.vcfData;
+      this.ownerParentageLink;
 
-    // TODO: Using globals. Hack. Use a better method.
-    var ownerParentageLink;
+      // transform contigs to hierarchical format
+      this.contigData = [];
+      this.vcfData.header.contig.forEach(function(contig) {
+        var id = contig.ID;
+        var contig = {
+          id: id,
+          length: contig.length,
+          records: []
+        };
 
-    // transform contigs to hierarchical format
-    var contigData = [];
-    vcfData.header.contig.forEach(function(contig) {
-      var id = contig.ID;
-      var contig = {
-        id: id,
-        length: contig.length,
-        records: []
-      };
+        this.vcfData.records.forEach(function(record) {
+          if (id === record.CHROM) {
+            contig.records.push(record);
+          }
+        });
 
-      vcfData.records.forEach(function(record) {
-        if (id === record.CHROM) {
-          contig.records.push(record);
+        this.contigData.push(contig);
+      }, this);
+
+      var parent = options.renderInto;
+      var genomeBrowserRenderElement = parent.append("div")
+          .attr("class", "row")
+        .append("div")
+          .attr("id", "genome_browser_wrapper")
+          .attr("class", "genome-browser-container");
+
+      var ContigModel = Backbone.Model.extend({
+        defaults: {
+          selectedContigIndex: 0,
+          selectedMutationIndex: 0,
+          contigData: this.contigData[0]
         }
       });
 
-      contigData.push(contig);
-    });
+      this.contigModel = new ContigModel();
 
-    var parent = options.renderInto;
-    var genomeBrowserRenderElement = parent.append("div")
-        .attr("class", "row")
-      .append("div")
-        .attr("id", "genome_browser_wrapper")
-        .attr("class", "genome-browser-container");
+      // Create genome browser view
+      new mutmap.ContigView({
+        el: genomeBrowserRenderElement.node(),
+        model: this.contigModel,
+        prevMutationButtonClicked: this.prevMutationButtonClicked.bind(this),
+        nextMutationButtonClicked: this.nextMutationButtonClicked.bind(this),
+        mutationClicked: this.mutationClicked.bind(this)
+      });
 
-    var ContigModel = Backbone.Model.extend({
-      defaults: {
-        selectedContigIndex: 0,
-        selectedMutationIndex: 0,
-        contigData: contigData[0]
-      }
-    });
+      //console.log(vcfData);
 
-    var contigModel = new ContigModel();
+      this.dngOverlay(this.vcfData.records[0]);
 
-    // Create genome browser view
-    new mutmap.ContigView({
-      el: genomeBrowserRenderElement.node(),
-      model: contigModel,
-      prevMutationButtonClicked: prevMutationButtonClicked,
-      nextMutationButtonClicked: nextMutationButtonClicked,
-      mutationClicked: mutationClicked
-    });
+      var ActiveNodeModel = Backbone.Model.extend({
+        defaults: {
+          activeNode: null,
+        }
+      });
 
-    //console.log(vcfData);
+      this.activeNodeModel = new ActiveNodeModel();
 
-    dngOverlay(vcfData.header, vcfData.records[0]);
+      var pedigreeRow = parent.append("div")
+          .attr("class", "row pedigree-row");
 
-    var ActiveNodeModel = Backbone.Model.extend({
-      defaults: {
-        activeNode: null,
-      }
-    });
+      var pedigreeContainer = pedigreeRow.append("div")
+          .attr("class",
+                "pedigree-container col-xs-12 col-md-8 panel panel-default"); 
 
-    var activeNodeModel = new ActiveNodeModel();
+      var PedigreeModel = Backbone.Model.extend({
+        defaults: {
+          activeNodeModel: this.activeNodeModel,
+          graphData: options.graphData,
+          showSampleTrees: false
+        }
+      });
 
-    var pedigreeRow = parent.append("div")
-        .attr("class", "row pedigree-row");
+      this.pedigreeModel = new PedigreeModel();
 
-    var pedigreeContainer = pedigreeRow.append("div")
-        .attr("class",
-              "pedigree-container col-xs-12 col-md-8 panel panel-default"); 
+      new mutmap.PedigreeView({
+        el: pedigreeContainer,
+        model: this.pedigreeModel,
+      });
 
-    var PedigreeModel = Backbone.Model.extend({
-      defaults: {
-        activeNodeModel: activeNodeModel,
-        graphData: options.graphData,
-        showSampleTrees: false
-      }
-    });
+      var statsColumn = pedigreeRow.append("div")
+          .attr("class", "col-xs-4 col-md-4 stats-col");
 
-    var pedigreeModel = new PedigreeModel();
+      var statsContainer = statsColumn.append("div")
+          .attr("class", "stats-container panel panel-default");
 
-    new mutmap.PedigreeView({
-      el: pedigreeContainer,
-      model: pedigreeModel,
-    });
+      new mutmap.StatsView({
+        el: statsContainer,
+        model: this.activeNodeModel,
+      });
 
-    var statsColumn = pedigreeRow.append("div")
-        .attr("class", "col-xs-4 col-md-4 stats-col");
+      var context = this;
+      statsColumn.append("button")
+          .attr("id", "sample_tree_toggle")
+          .attr("type", "button")
+          .attr("class", "btn btn-success")
+          .text("Show Trees")
+          .on("click", function() {
+            context.pedigreeModel.set('showSampleTrees',
+              !context.pedigreeModel.get('showSampleTrees'));
+          });
+    },
 
-    var statsContainer = statsColumn.append("div")
-        .attr("class", "stats-container panel panel-default");
+    prevMutationButtonClicked: function() {
 
-    new mutmap.StatsView({
-      el: statsContainer,
-      model: activeNodeModel,
-    });
-
-    statsColumn.append("button")
-        .attr("id", "sample_tree_toggle")
-        .attr("type", "button")
-        .attr("class", "btn btn-success")
-        .text("Show Trees")
-        .on("click", function() {
-          pedigreeModel.set('showSampleTrees',
-            !pedigreeModel.get('showSampleTrees'));
-        });
-
-    function prevMutationButtonClicked() {
-
-      var selectedContigIndex = contigModel.get('selectedContigIndex');
-      var selectedMutationIndex = contigModel.get('selectedMutationIndex');
+      var selectedContigIndex = this.contigModel.get('selectedContigIndex');
+      var selectedMutationIndex = this.contigModel.get('selectedMutationIndex');
       
       selectedMutationIndex--;
       if (selectedMutationIndex === -1) {
 
         selectedContigIndex--;
         if (selectedContigIndex === -1) {
-          selectedContigIndex = contigData.length - 1;
+          selectedContigIndex = this.contigData.length - 1;
           selectedMutationIndex = 0;
         }
 
         selectedMutationIndex =
-          contigData[selectedContigIndex].records.length - 1;
+          this.contigData[selectedContigIndex].records.length - 1;
       }
 
-      contigModel.set('selectedContigIndex', selectedContigIndex);
-      contigModel.set('selectedMutationIndex', selectedMutationIndex);
-      contigModel.set('contigData', contigData[selectedContigIndex]);
+      this.contigModel.set('selectedContigIndex', selectedContigIndex);
+      this.contigModel.set('selectedMutationIndex', selectedMutationIndex);
+      this.contigModel.set('contigData', this.contigData[selectedContigIndex]);
 
-      updateMutation();
-    }
+      this.updateMutation();
+    },
 
-    function nextMutationButtonClicked() {
+    nextMutationButtonClicked: function() {
 
-      var selectedContigIndex = contigModel.get('selectedContigIndex');
-      var selectedMutationIndex = contigModel.get('selectedMutationIndex');
+      var selectedContigIndex = this.contigModel.get('selectedContigIndex');
+      var selectedMutationIndex =
+        this.contigModel.get('selectedMutationIndex');
 
       selectedMutationIndex++;
       if (selectedMutationIndex ===
-          contigData[selectedContigIndex].records.length) {
+          this.contigData[selectedContigIndex].records.length) {
 
         selectedMutationIndex = 0;
 
         selectedContigIndex++;
-        if (selectedContigIndex === contigData.length) {
+        if (selectedContigIndex === this.contigData.length) {
           selectedContigIndex = 0;
           selectedMutationIndex = 0;
         }
       }
 
-      contigModel.set('selectedContigIndex', selectedContigIndex);
-      contigModel.set('selectedMutationIndex', selectedMutationIndex);
-      contigModel.set('contigData', contigData[selectedContigIndex]);
+      this.contigModel.set('selectedContigIndex', selectedContigIndex);
+      this.contigModel.set('selectedMutationIndex', selectedMutationIndex);
+      this.contigModel.set('contigData', this.contigData[selectedContigIndex]);
 
-      updateMutation();
-    }
+      this.updateMutation();
+    },
 
-    function updateMutation() {
-      var selectedContigIndex = contigModel.get('selectedContigIndex');
-      var selectedMutationIndex = contigModel.get('selectedMutationIndex');
+    updateMutation: function() {
+      var selectedContigIndex = this.contigModel.get('selectedContigIndex');
+      var selectedMutationIndex =
+        this.contigModel.get('selectedMutationIndex');
 
-      ownerParentageLink.getData().mutation = undefined;
-      dngOverlay(vcfData.header,
-        contigData[selectedContigIndex].records[selectedMutationIndex]);
+      this.ownerParentageLink.getData().mutation = undefined;
+      this.dngOverlay(
+        this.contigData[selectedContigIndex].records[selectedMutationIndex]);
 
       // TODO: This feels like a hack. At least having both of them does.
-      pedigreeModel.trigger('change');
-      activeNodeModel.trigger('change');
-    }
+      this.pedigreeModel.trigger('change');
+      this.activeNodeModel.trigger('change');
+    },
 
-    function mutationClicked(data) {
+    mutationClicked: function(data) {
 
-      var selectedContigIndex = contigModel.get('selectedContigIndex');
-      var selectedMutationIndex = contigModel.get('selectedMutationIndex');
+      var selectedContigIndex = this.contigModel.get('selectedContigIndex');
+      var selectedMutationIndex =
+        this.contigModel.get('selectedMutationIndex');
 
       // find matching contig and mutation indexes
-      for (var i = 0; i < contigData.length; i++) {
-        if (contigData[i].id === data.CHROM) {
+      for (var i = 0; i < this.contigData.length; i++) {
+        if (this.contigData[i].id === data.CHROM) {
 
           var contigIndex = i;
-          for (var j = 0; j < contigData[i].records.length; j++) {
-            if (contigData[i].records[j].POS === data.POS) {
+          for (var j = 0; j < this.contigData[i].records.length; j++) {
+            if (this.contigData[i].records[j].POS === data.POS) {
               selectedContigIndex = i;
               selectedMutationIndex = j;
 
-              contigModel.set('selectedContigIndex', selectedContigIndex);
-              contigModel.set('selectedMutationIndex', selectedMutationIndex);
-              updateMutation();
+              this.contigModel.set('selectedContigIndex', selectedContigIndex);
+              this.contigModel.set('selectedMutationIndex',
+                selectedMutationIndex);
+              this.updateMutation();
               break;
             }
           }
           break;
         }
       }
-    }
+    },
 
-    function dngOverlay(header, record) {
+    dngOverlay: function(record) {
 
       var mutationLocation = record.INFO.DNL.slice(3);
-      var owner = findOwnerNode(mutationLocation);
+      var owner = findOwnerNode(this.pedGraph, mutationLocation);
 
       if (owner !== undefined) {
-        ownerParentageLink = owner.getParentageLink();
+        this.ownerParentageLink = owner.getParentageLink();
         var parentageLinkData = {
           mutation: record.INFO.DNT
         };
-        ownerParentageLink.setData(parentageLinkData);
+        this.ownerParentageLink.setData(parentageLinkData);
 
-        header.sampleNames.forEach(function(sampleName) {
+        this.vcfData.header.sampleNames.forEach(function(sampleName) {
           var format = record[sampleName];
 
 
@@ -237,78 +227,79 @@ var mutationExplorerView = (function(d3, utils) {
           if (isLibraryNode(sampleName)) {
 
             var id = getIdFromLibraryName(sampleName);
-            var personNode = pedGraph.getPerson(id);
+            var personNode = this.pedGraph.getPerson(id);
             personNode.data.dngOutputData = format;
           }
 
-        });
+        }, this);
       }
       else {
         throw "No mutation found";
       }
+    },
+
+  });
+
+  function findOwnerNode(pedGraph, sampleName) {
+    //var strippedName = getStrippedName(sampleName);
+    var persons = pedGraph.getPersons();
+    for (var index = 0; index < persons.length; index++) {
+      var person = persons[index];
+      //var sampleNode = findInTree(person.data.sampleIds, strippedName);
+      var sampleNode = findInTree(person.data.sampleIds, sampleName);
+      if (sampleNode !== undefined) {
+        return person;
+      }
+    }
+    return undefined;
+  }
+
+  function findInTree(tree, sampleName) {
+
+    // TODO: This seems very likely to break in the future. Need to find a
+    // robust way of matching up sample names and libraries.
+    if (tree.name != "" && tree.name.includes(sampleName)) {
+      return tree;
     }
 
-    function findOwnerNode(sampleName) {
-      //var strippedName = getStrippedName(sampleName);
-      var persons = pedGraph.getPersons();
-      for (var index = 0; index < persons.length; index++) {
-        var person = persons[index];
-        //var sampleNode = findInTree(person.data.sampleIds, strippedName);
-        var sampleNode = findInTree(person.data.sampleIds, sampleName);
-        if (sampleNode !== undefined) {
-          return person;
-        }
+    if (tree.children !== undefined) {
+      if (tree.children.length === 0) {
+        return undefined;
       }
-      return undefined;
-    }
-
-    function findInTree(tree, sampleName) {
-
-      // TODO: This seems very likely to break in the future. Need to find a
-      // robust way of matching up sample names and libraries.
-      if (tree.name != "" && tree.name.includes(sampleName)) {
-        return tree;
-      }
-
-      if (tree.children !== undefined) {
-        if (tree.children.length === 0) {
-          return undefined;
-        }
-        else {
-          for (var index = 0; index < tree.children.length; index++) {
-            var child = tree.children[index];
-            var inChild = findInTree(child, sampleName);
-            if (inChild !== undefined) {
-              return inChild;
-            }
+      else {
+        for (var index = 0; index < tree.children.length; index++) {
+          var child = tree.children[index];
+          var inChild = findInTree(child, sampleName);
+          if (inChild !== undefined) {
+            return inChild;
           }
         }
       }
-
-      return undefined;
     }
 
-    function getStrippedName(sampleName) {
-      var stripped = sampleName.slice(3, sampleName.indexOf(":"));
-      return stripped;
-    }
+    return undefined;
+  }
 
-    function isPersonNode(sampleName) {
-      return sampleName.startsWith("GL-");
-    }
+  function getStrippedName(sampleName) {
+    var stripped = sampleName.slice(3, sampleName.indexOf(":"));
+    return stripped;
+  }
 
-    function isLibraryNode(sampleName) {
-      return sampleName.startsWith("LB/");
-    }
+  function isPersonNode(sampleName) {
+    return sampleName.startsWith("GL-");
+  }
 
-    function getIdFromSampleName(sampleName) {
-      return sampleName.slice(3);
-    }
+  function isLibraryNode(sampleName) {
+    return sampleName.startsWith("LB/");
+  }
 
-    function getIdFromLibraryName(sampleName) {
-      //return Number(sampleName.slice(-3));
-      return sampleName.slice(3, 10);
-    }
+  function getIdFromSampleName(sampleName) {
+    return sampleName.slice(3);
+  }
+
+  function getIdFromLibraryName(sampleName) {
+    //return Number(sampleName.slice(-3));
+    return sampleName.slice(3, 10);
   }
 
   function createMutationExplorerView(options) {
@@ -319,4 +310,4 @@ var mutationExplorerView = (function(d3, utils) {
     createMutationExplorerView: createMutationExplorerView
   };
  
-}(d3, utils));
+}());

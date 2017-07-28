@@ -57,7 +57,7 @@
     if (!rendered) {
       rendered = true;
 
-      mutationExplorerView.createMutationExplorerView({
+      new mutmap.MutationExplorerView({
         renderInto: d3.select(".mutation-explorer-tab"),
         graphData: graphData,
         pedGraph: pedGraph,
