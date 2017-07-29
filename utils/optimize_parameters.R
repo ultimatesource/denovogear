@@ -6,13 +6,16 @@ registerDoParallel()
 
 DNGLL_BIN = "dng"
 
+fixed_pars = c(
+    "theta" = 0.001
+)
+
 init_pars = c(
         "lib-bias" = 1.009997e+00,
         "lib-error" =  3.200240e-03,
         "lib-overdisp" = 2.526826e-02,
         "mu-somatic" = 3.276369e-04,
-        "theta" = 1,
-        "ref-weight" = 1000
+        "ref-weight" = 1
 )
 
 upper_pars = c(
@@ -35,6 +38,7 @@ lower_pars = c(
 
 # Run dng loglike and extract the log like
 run_once = function(pars,input) {
+    pars = c(pars,fixed_pars)
     args = paste("--", names(pars), "=", pars,sep="")
     if(grepl("dng$",DNGLL_BIN)) {
         args = c("loglike",args)
@@ -52,8 +56,7 @@ loglike = function(pars,peds,inputs) {
     if(any(pars < lower_pars[n] | pars > upper_pars[n])) {
         return(NA)
     }
-    print(pars)
-    pars["ref-weight"] = pars["ref-weight"]*pars["theta"]
+    #print(pars)
     results = foreach(i=seq_along(inputs),.combine=c) %dopar% run_once(c(pars, ped=peds[i]),inputs[i])
     total = sum(results)
     total
