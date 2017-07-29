@@ -32,7 +32,7 @@
   console.log(vcfData);
  
   new mutmap.MutationDistributionView({
-    renderInto: d3.select(".mutation-distribution-tab"),
+    el: d3.select(".mutation-distribution-tab"),
     graphData: graphData,
     vcfText: dngOutputFileText,
   });
@@ -58,7 +58,7 @@
       rendered = true;
 
       new mutmap.MutationExplorerView({
-        renderInto: d3.select(".mutation-explorer-tab"),
+        el: d3.select(".mutation-explorer-tab"),
         graphData: graphData,
         pedGraph: pedGraph,
         vcfData: vcfData,
