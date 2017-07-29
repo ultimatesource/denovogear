@@ -1,11 +1,44 @@
 #! Rscript --vanilla
 
-DNGLL_BIN = "dng loglike"
-DNGLL_BIN = "./src/dng-loglike"
+library(doParallel)
+
+registerDoParallel()
+
+DNGLL_BIN = "dng"
+
+init_pars = c(
+        "lib-bias" = 1.009997e+00,
+        "lib-error" =  3.200240e-03,
+        "lib-overdisp" = 2.526826e-02,
+        "mu-somatic" = 3.276369e-04,
+        "theta" = 1,
+        "ref-weight" = 1000
+)
+
+upper_pars = c(
+    "lib-bias" = 1.01,
+    "lib-error" = 0.1,
+    "lib-overdisp" = 0.5,
+    "mu-somatic" = 0.1,
+    "theta" = 10,
+    "ref-weight" = 10000
+)
+
+lower_pars = c(
+    "lib-bias" = 0.5,
+    "lib-error" = 1e-10,
+    "lib-overdisp" = 1e-10,
+    "mu-somatic" = 1e-15,
+    "theta" = 1e-10,
+    "ref-weight" = 1e-10
+)
 
 # Run dng loglike and extract the log like
 run_once = function(pars,input) {
     args = paste("--", names(pars), "=", pars,sep="")
+    if(grepl("dng$",DNGLL_BIN)) {
+        args = c("loglike",args)
+    }
     out = system2(DNGLL_BIN, args=c(args,input),stdout=TRUE,stderr=FALSE)
     if(is.numeric(out)) {
         return(NA)
@@ -15,30 +48,21 @@ run_once = function(pars,input) {
 }
 
 loglike = function(pars,peds,inputs) {
-    total = c()
-    for(i in seq_along(inputs)) {
-        p = c(pars, ped=peds[i])
-        score = run_once(p,inputs[i])
-        total = c(total,score)
+    n = names(pars)
+    if(any(pars < lower_pars[n] | pars > upper_pars[n])) {
+        return(NA)
     }
-    print(total)
-    total = sum(total)
-    print(c(total,pars))
-
+    print(pars)
+    pars["ref-weight"] = pars["ref-weight"]*pars["theta"]
+    results = foreach(i=seq_along(inputs),.combine=c) %dopar% run_once(c(pars, ped=peds[i]),inputs[i])
+    total = sum(results)
     total
 }
 
 main = function(peds,inputs) {
-    pars = make_pars(c(
-        "lib-bias" = 1.01,
-        "lib-error" = 0.0036,
-        "lib-overdisp" = 0.038,
-        "mu-somatic" = 0.00055,
-        "theta" = 0.054,
-        "ref-weight" = 1.01
-    ))
+    pars = init_pars
     o = optim(pars,loglike,peds=peds,inputs=inputs,method="Nelder-Mead",control=list(
-        trace=6,REPORT=1,reltol=1e-4
+         trace=6,REPORT=1,reltol=1e-8
     ))
     o
 }
@@ -46,5 +70,6 @@ main = function(peds,inputs) {
 if(!interactive()) {
     ARGS = commandArgs(trailingOnly=TRUE)
     data = read.csv(ARGS[1],header=F,stringsAsFactors=FALSE)
-    main(data$V1,data$V2)
+    o = main(data$V1,data$V2)
+    print(o)
 }
