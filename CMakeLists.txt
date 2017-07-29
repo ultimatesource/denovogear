@@ -62,7 +62,7 @@ ENDIF()
 ################################################################################
 # Always make a full statement RPATH
 # See http://www.itk.org/Wiki/CMake_RPATH_handling
-
+SET(LIB_INSTALL_DIR "lib/${CMAKE_STATIC_LIBRARY_PREFIX}dng${CMAKE_STATIC_LIBRARY_SUFFIX}")
 SET(CMAKE_SKIP_BUILD_RPATH FALSE)
 SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${LIB_INSTALL_DIR}")
