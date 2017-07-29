@@ -293,7 +293,7 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
 
         // Copy contigs from inputput file.
         for(auto && contig : hts::bcf::contigs(hdr)) {
-        	output_vcf->AddContig(contig.first, contig.second);
+            output_vcf->AddContig(contig.first, contig.second);
         }
 
         // Sample/genotype columns.
@@ -336,8 +336,22 @@ int DNM::operator()(std::string &model, DNM::argument_type &arg) {
                                 	tgtIndel, lookupIndel, output_vcf.get(), params, trios[j]);
 
             } else if(is_indel < 0) {
-                printf("\n BCF PARSING ERROR - Trios!  %d\n Exiting !\n", is_indel);
-                exit(1);
+                // error handling messages
+        	    switch(is_indel) {
+            	    case MISSING_PL:
+            	        printf("\n BCF PARSING ERROR - Trios - PL fields missing!\n Skipping site %d\n", rec->pos+1);
+            	        break;
+            	    case NON_EXISTENT_ALT:
+            	        printf("\n BCF PARSING ERROR - Trios - ALT alleles non existent!\n Skipping site %d\n", rec->pos+1);
+            	        break;
+            	    case MISSING_MEMBER_1:
+            	    case MISSING_MEMBER_2:
+            	    case MISSING_MEMBER_3:
+            	        printf("\n\n BCF PARSING ERROR - Unable to find trio!\n Members missing: %d!\n Skipping site%d\n", std::abs(is_indel), rec->pos+1);
+            	        break;
+            	    default:
+            	        printf("\n BCF PARSING ERROR - Trios!\n Skipping site %d !\n", rec->pos+1);
+        	    };
             }
         }
 

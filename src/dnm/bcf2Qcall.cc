@@ -269,8 +269,7 @@ int bcf_2qcall(const bcf_hdr_t *hdr, bcf1_t *rec, Trio t, qcall_t *mom_snp,
     if(found_trio == 0) {
         return indel;
     } else {
-        printf("\n\nUnable to find trio. Code %d:%d ", found_trio, i);
-        return -3; //missing member
+    	return -std::abs(found_trio); //missing member
     }
 
 
