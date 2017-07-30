@@ -816,3 +816,167 @@ BOOST_AUTO_TEST_CASE(test_peel_tochild) {
     test(1,2,2,2);
     test(1,1,2,2);
 }
+
+BOOST_AUTO_TEST_CASE(test_peel_up_reverse) {
+    const double prec = 4.0*DBL_EPSILON;
+    using boost::copy;
+    using boost::generate;
+
+    xorshift64 xrand(++g_seed_counter);
+
+    auto test = [&xrand,prec](int ploidy0, int ploidy1) {
+        const int sz0 = (ploidy0 == 1) ? 4 : 10;
+        const int sz1 = (ploidy1 == 1) ? 4 : 10;
+        for(int test_num=0; test_num < NUM_TEST; ++test_num) {
+        BOOST_TEST_CONTEXT("ploidy0=" << ploidy0
+                        << ", ploidy1=" << ploidy1
+                        << ", test_num=" << test_num) {
+            auto m = f81::matrix(1e-6, {0.4, 0.2, 0.1, 0.3});
+
+            // setup data
+            std::vector<double> lower0(sz0), lower1(sz1), upper0(sz0),
+                                expected_super1(sz0), expected_upper1(sz1);
+            generate(lower0, [&](){ return xrand.get_double52(); });
+            generate(lower1, [&](){ return xrand.get_double52(); });
+            generate(upper0, [&](){ return xrand.get_double52(); });
+            TransitionMatrixVector mats(2);
+            if(ploidy0 == ploidy1) {
+                mats[1] = mitosis_matrix(ploidy0, m);
+            } else {
+                mats[1] = gamete_matrix(ploidy0, m);
+            }
+
+            // Calculated expected value
+            for(int i=0;i<sz0;++i) {
+                double d = 0.0;
+                for(int j=0;j<sz1;++j) {
+                    d += mats[1](i,j) * lower1[j];
+                }
+                d = lower0[i]/d;
+                expected_super1[i] = upper0[i]*d;
+            }
+            for(int j=0;j<sz1;++j) {
+                expected_upper1[j] = 0.0;
+                for(int i=0;i<sz0;++i) {
+                    expected_upper1[j] += mats[1](i,j)*expected_super1[i];
+                }
+            }           
+
+            // setup the workspace and peeling operations
+            workspace_t workspace;
+            workspace.lower.resize(2);
+            workspace.lower[0].resize(sz0);
+            workspace.lower[1].resize(sz1);
+            workspace.upper.resize(2);
+            workspace.upper[0].resize(sz0);
+            workspace.upper[1].resize(sz1);
+            workspace.super.resize(2);
+            workspace.super[1].resize(sz0);
+            copy(lower0, workspace.lower[0].data());
+            copy(lower1, workspace.lower[1].data());
+            copy(upper0, workspace.upper[0].data());
+
+            // do the peeling
+            up_reverse(workspace, {0,1}, mats);
+
+            auto expected_lower0 = lower0;
+            auto test_lower0 = make_test_range(workspace.lower[0]);
+            CHECK_EQUAL_RANGES(test_lower0, expected_lower0);
+
+            auto expected_upper0 = upper0;
+            auto test_upper0 = make_test_range(workspace.upper[0]);
+            CHECK_EQUAL_RANGES(test_upper0, expected_upper0);
+
+            auto expected_lower1 = lower1;
+            auto test_lower1 = make_test_range(workspace.lower[1]);
+            CHECK_EQUAL_RANGES(test_lower1, expected_lower1);
+
+            auto test_super1 = make_test_range(workspace.super[1]);
+            CHECK_CLOSE_RANGES(test_super1, expected_super1, prec);
+
+            auto test_upper1 = make_test_range(workspace.upper[1]);
+            CHECK_CLOSE_RANGES(test_upper1, expected_upper1, prec);
+        }}
+    };
+
+    test(2,2);
+    test(2,1);
+    test(1,1);
+}
+
+BOOST_AUTO_TEST_CASE(test_peel_down_reverse) {
+    const double prec = 4.0*DBL_EPSILON;
+    using boost::copy;
+    using boost::generate;
+
+    xorshift64 xrand(++g_seed_counter);
+
+    auto test = [&xrand,prec](int ploidy0, int ploidy1) {
+        const int sz0 = (ploidy0 == 1) ? 4 : 10;
+        const int sz1 = (ploidy1 == 1) ? 4 : 10;
+        for(int test_num=0; test_num < NUM_TEST; ++test_num) {
+        BOOST_TEST_CONTEXT("ploidy0=" << ploidy0
+                        << ", ploidy1=" << ploidy1
+                        << ", test_num=" << test_num) {
+            auto m = f81::matrix(1e-6, {0.4, 0.2, 0.1, 0.3});
+
+            // setup data
+            std::vector<double> lower0(sz0), lower1(sz1), upper0(sz0),
+                                expected_super1(sz0), expected_lower0(sz0);
+            generate(lower0, [&](){ return xrand.get_double52(); });
+            generate(lower1, [&](){ return xrand.get_double52(); });
+            generate(upper0, [&](){ return xrand.get_double52(); });
+            TransitionMatrixVector mats(2);
+            if(ploidy0 == ploidy1) {
+                mats[1] = mitosis_matrix(ploidy0, m);
+            } else {
+                mats[1] = gamete_matrix(ploidy0, m);
+            }
+
+            // Calculated expected value
+            expected_super1 = upper0;
+            for(int i=0;i<sz0;++i) {
+                expected_lower0[i] = 0.0;
+                for(int j=0;j<sz1;++j) {
+                    expected_lower0[i] += mats[1](i,j)*lower1[j];
+                }
+                expected_lower0[i] *= lower0[i];
+            }           
+
+            // setup the workspace and peeling operations
+            workspace_t workspace;
+            workspace.lower.resize(2);
+            workspace.lower[0].resize(sz0);
+            workspace.lower[1].resize(sz1);
+            workspace.upper.resize(2);
+            workspace.upper[0].resize(sz0);
+            workspace.upper[1].resize(sz1);
+            workspace.super.resize(2);
+            workspace.super[1].resize(sz0);
+            copy(lower0, workspace.lower[0].data());
+            copy(lower1, workspace.lower[1].data());
+            copy(upper0, workspace.upper[0].data());
+
+            // do the peeling
+            down_reverse(workspace, {0,1}, mats);
+
+            auto expected_upper0 = upper0;
+            auto test_upper0 = make_test_range(workspace.upper[0]);
+            CHECK_EQUAL_RANGES(test_upper0, expected_upper0);
+
+            auto expected_lower1 = lower1;
+            auto test_lower1 = make_test_range(workspace.lower[1]);
+            CHECK_EQUAL_RANGES(test_lower1, expected_lower1);
+
+            auto test_super1 = make_test_range(workspace.super[1]);
+            CHECK_CLOSE_RANGES(test_super1, expected_super1, prec);
+
+            auto test_lower0 = make_test_range(workspace.lower[0]);
+            CHECK_CLOSE_RANGES(test_lower0, expected_lower0, prec);
+        }}
+    };
+
+    test(2,2);
+    test(2,1);
+    test(1,1);
+}
