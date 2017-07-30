@@ -181,7 +181,7 @@ void dng::peel::down_reverse(workspace_t &work, const family_members_t &family,
     auto parent = family[0];
     auto child = family[1];
 
-    work.super[child] = work.upper[parent];
+    work.super[child] = work.upper[parent]*work.lower[parent];
     work.lower[parent] *= (mat[child] * work.lower[child].matrix()).array();
 }
 
@@ -255,11 +255,11 @@ void dng::peel::to_mother_reverse(workspace_t &work,
 
     auto mom_width = work.upper[mom].size();
     auto dad_width = work.upper[dad].size();
-    work.temp_buffer.resize(mom_width, dad_width); //TODO: FIXME: add transpose()
+    work.temp_buffer.resize(mom_width, dad_width);
     GenotypeArrayVector::value_type mom_v = work.upper[mom] * (work.lower[mom] /
-                                         ((work.temp_buffer.matrix().transpose() * dad_v.matrix()).array() +
+                                         ((work.temp_buffer.matrix() * dad_v.matrix()).array() +
                                           DNG_INDIVIDUAL_BUFFER_MIN));
-    work.lower[dad] *= (work.temp_buffer.matrix() * mom_v.matrix()).array(); //TODO: FIXME: add transpose()
+    work.lower[dad] *= (work.temp_buffer.matrix().transpose() * mom_v.matrix()).array();
     work.temp_buffer.resize(work.temp_buffer.size(), 1);
 
     work.temp_buffer *= kroneckerProduct(dad_v.matrix(), mom_v.matrix()).array();
@@ -290,10 +290,9 @@ void dng::peel::to_child_reverse(workspace_t &work,
 
     auto mom_width = work.upper[mom].size();
     auto dad_width = work.upper[dad].size();
-    work.temp_buffer.resize(mom_width, dad_width); //TODO: FIXME: add transpose()
-    work.lower[dad] *= (work.temp_buffer.matrix() * mom_v.matrix()).array(); //TODO: FIXME: add transpose()
-    work.lower[mom] *= (work.temp_buffer.matrix().transpose() *
-                        dad_v.matrix()).array(); //TODO: FIXME: remove transpose()
+    work.temp_buffer.resize(mom_width, dad_width);
+    work.lower[dad] *= (work.temp_buffer.matrix().transpose() * mom_v.matrix()).array();
+    work.lower[mom] *= (work.temp_buffer.matrix() * dad_v.matrix()).array();
     work.temp_buffer.resize(work.temp_buffer.size(), 1);
 
     // Update Siblings
