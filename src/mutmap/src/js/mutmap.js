@@ -34,6 +34,9 @@
  
   var explorerView = null;
 
+  var mutationLocationsContainer = null;
+  var mutationExplorerContainer = null;
+
   var Router = Backbone.Router.extend({
     routes : {
       "": "root",
@@ -60,21 +63,40 @@
     locations: function() {
 
       mainContainer.innerHTML = '';
-      new mutmap.MutationLocationsView({
-        el: ".main-container",
-        mutationLocationData: buildMutationLocationData(vcfData)
-      });
+
+      if (!mutationLocationsContainer) {
+        mutationLocationsContainer = d3.select(mainContainer).append('div')
+            .attr("class", "mut-loc-cont").node();
+
+        new mutmap.MutationLocationsView({
+          el: mutationLocationsContainer,
+          className: "loc-cont",
+          mutationLocationData: buildMutationLocationData(vcfData)
+        });
+      }
+      else {
+        mainContainer.appendChild(mutationLocationsContainer);
+      }
     },
 
     explorer: function() {
 
       mainContainer.innerHTML = '';
-      new mutmap.MutationExplorerView({
-        el: '.main-container',
-        graphData: graphData,
-        pedGraph: pedGraph,
-        vcfData: vcfData,
-      });
+
+      if (!mutationExplorerContainer) {
+        mutationExplorerContainer = d3.select(mainContainer).append('div')
+            .attr("class", "mut-exp-cont").node();
+
+        new mutmap.MutationExplorerView({
+          el: mutationExplorerContainer,
+          graphData: graphData,
+          pedGraph: pedGraph,
+          vcfData: vcfData,
+        });
+      }
+      else {
+        mainContainer.appendChild(mutationExplorerContainer);
+      }
     }
   });
 

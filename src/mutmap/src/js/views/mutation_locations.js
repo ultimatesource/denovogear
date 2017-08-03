@@ -51,6 +51,8 @@ var mutmap = mutmap || {};
       var width = boundingRect.width;
       var height = boundingRect.height;
 
+      //console.log(width, height);
+
       var margins = {
         left: 20,
         top: 20,
