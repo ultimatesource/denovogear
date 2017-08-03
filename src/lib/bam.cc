@@ -77,15 +77,16 @@ int BamPileup::Advance(data_type *data, utility::location_t *target_loc,
                 node_type *p = &new_reads.front();
                 new_reads.pop_front();
                 uint8_t *rg = p->aln.aux_get("RG");
-                std::size_t index = k;
-                if(!read_group_to_libraries_.empty()) {
-                    auto it = read_group_to_libraries_.find(reinterpret_cast<const char *>(rg + 1));
-                    if(it == read_group_to_libraries_.end()) {
-                        pool_.Free(p); // drop unknown RG's
-                        continue;
-                    }
-                    index = it->second;
+                if( rg == nullptr ) {
+                    pool_.Free(p); // drop unknown RG's
+                    continue;                    
                 }
+                auto it = read_group_to_libraries_.find(reinterpret_cast<const char *>(rg + 1));
+                if(it == read_group_to_libraries_.end()) {
+                    pool_.Free(p); // drop unknown RG's
+                    continue;
+                }
+                size_t index = it->second;
                 // process cigar string
                 location_t q = cigar::target_to_query(*target_loc, p->beg, p->cigar);
                 p->pos = cigar::query_pos(q);
@@ -184,7 +185,7 @@ void BamPileup::ParseHeaderTokens(It it, It it_last) {
                 }
             }
             if(id.empty()) {
-                throw std::runtime_error("An @RG header line is missing an 'ID' tag.");
+                throw std::invalid_argument("An @RG header line is missing an 'ID' tag.");
             }
             if(name.empty()) {
                 name = id;
@@ -201,7 +202,7 @@ void BamPileup::ParseHeaderTokens(It it, It it_last) {
                 needs_updating = true;
             } else {
                 if(input_libraries_.samples[pos] != sample) {
-                    throw std::runtime_error("Multiple sample names are defined for read groups with library " + prefix + name + ".");
+                    throw std::invalid_argument("Multiple sample names are defined for read groups with library " + prefix + name + ".");
                 }
                 needs_updating |= input_libraries_.read_groups[pos].insert(id).second;
             }

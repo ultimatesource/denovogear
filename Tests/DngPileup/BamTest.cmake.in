@@ -12,7 +12,7 @@ set(TrioTad-RESULT 0)
 # Test unfiltered output vs expected
 
 set(TrioTadBodyCompare_1-CMD @DNG_PILEUP_EXE@ -B -q 0 -Q 0 -f trio.fasta.gz -o ${OUTPUT_DIR}/trio_unfiltered.tad trio.bam)
-set(TrioTadBodyCompare_2-CMD @CMAKE_COMMAND@ -E compare_files trio_unfiltered.tad ${OUTPUT_DIR}/trio_unfiltered.tad)
+set(TrioTadBodyCompare_2-CMD @CMAKE_COMMAND@ -E compare_files trio_unfiltered.tad.body ${OUTPUT_DIR}/trio_unfiltered.tad)
 
 set(TrioTadBodyCompare_1-WD "${All-WD}")
 set(TrioTadBodyCompare_1-RESULT 0)
@@ -32,7 +32,7 @@ set(TrioAd-RESULT 0)
 
 set(TrioAdBodyCompare_1-CMD @DNG_PILEUP_EXE@ -q 0 -Q 0 -f trio.fasta.gz -o ${OUTPUT_DIR}/trio_unfiltered2.ad trio.bam)
 set(TrioAdBodyCompare_2-CMD @DNG_PILEUP_EXE@ -B -o ${OUTPUT_DIR}/trio_unfiltered2.tad ${OUTPUT_DIR}/trio_unfiltered2.ad)
-set(TrioAdBodyCompare_3-CMD @CMAKE_COMMAND@ -E compare_files trio_unfiltered.tad ${OUTPUT_DIR}/trio_unfiltered2.tad)
+set(TrioAdBodyCompare_3-CMD @CMAKE_COMMAND@ -E compare_files trio_unfiltered.tad.body ${OUTPUT_DIR}/trio_unfiltered2.tad)
 
 set(TrioAdBodyCompare_1-WD "${All-WD}")
 set(TrioAdBodyCompare_1-RESULT 0)

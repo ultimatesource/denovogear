@@ -46,12 +46,32 @@ set(TagID-STDOUT
 )
 
 ###############################################################################
+# Test if dng-call crashes on partial pedigree
+
+set(PartialPed-CMD @DNG_CALL_EXE@ --fasta trio.fasta.gz --ped duo.ped trio.cram)
+set(PartialPed-WD "@TESTDATA_DIR@/human_trio/")
+set(PartialPed-RESULT 0)
+set(PartialPed-STDOUT
+  "##PEDIGREE=<ID=LB/NA12878/Solexa-135852,Original=GL/1,OriginalMR=0.0>"
+)
+
+###############################################################################
+# Test if dng-call crashes on empty pedigree
+
+set(EmptyPed-CMD @DNG_CALL_EXE@ --fasta trio.fasta.gz --ped empty.ped trio.cram)
+set(EmptyPed-WD "@TESTDATA_DIR@/human_trio/")
+set(EmptyPed-RESULT 0)
+
+###############################################################################
 # Add Tests
+
 include("@CMAKE_CURRENT_SOURCE_DIR@/CheckProcessTest.cmake")
 
-CheckProcessTests(DngCall.Bam
+CheckProcessTests(DngCall.Cram
   Trio
   TagLB
   TagSM
   TagID
+  PartialPed
+  EmptyPed
 )

@@ -54,6 +54,33 @@ set(TrioExtraCol-STDOUT
   "0/0:147:1,1\\.99685e-15,0,1\\.99954e-26,0,0:3\\.33278e-05:3\\.33278e-05:0,-18\\.4896,-138\\.087,-21\\.9623,-138\\.388,-141\\.865:77:76,1,0"
 )
 
+###############################################################################
+# Test if dng-call crashes on partial pedigree
+
+set(PartialPed-CMD @DNG_CALL_EXE@ --ped duo.ped trio.vcf)
+set(PartialPed-WD "@TESTDATA_DIR@/human_trio/")
+set(PartialPed-RESULT 0)
+set(PartialPed-STDOUT
+  "##PEDIGREE=<ID=LB/NA12878/Solexa-135852,Original=GL/1,OriginalMR=0.0>"
+)
+
+###############################################################################
+# Test if dng-call crashes on empty pedigree
+
+set(EmptyPed-CMD @DNG_CALL_EXE@ --ped empty.ped trio.vcf)
+set(EmptyPed-WD "@TESTDATA_DIR@/human_trio/")
+set(EmptyPed-RESULT 0)
+
+###############################################################################
+# Add Tests
+
 include("@CMAKE_CURRENT_SOURCE_DIR@/CheckProcessTest.cmake")
 
-CheckProcessTestS(DngCall.Vcf Trio TrioAlt TrioAltRegions TrioExtraCol)
+CheckProcessTests(DngCall.Vcf
+  Trio
+  TrioAlt
+  TrioAltRegions
+  TrioExtraCol
+  PartialPed
+  EmptyPed
+)

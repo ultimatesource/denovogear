@@ -46,6 +46,29 @@ set(Ceph-STDOUT
   "MUP=0\\.999943\;LLD=-20\\.6508\;LLS=12\\.1871\;MUX=0\\.999997\;MU1P=0\\.999889\;DNT=(GA|GT)>TA\;DNL=LB/NA12891\;DNQ=3\;DP=90\;AD=60,9,21"
 )
 
+###############################################################################
+# Test if dng-call crashes on partial pedigree
+
+set(PartialPed-CMD @DNG_CALL_EXE@ --ped duo.ped trio.tad)
+set(PartialPed-WD "@TESTDATA_DIR@/human_trio/")
+set(PartialPed-RESULT 0)
+set(PartialPed-STDOUT
+  "##PEDIGREE=<ID=LB/NA12878/Solexa-135852,Original=GL/1,OriginalMR=0.0>"
+)
+
+###############################################################################
+# Test if dng-call crashes on empty pedigree
+
+set(EmptyPed-CMD @DNG_CALL_EXE@ --ped empty.ped trio.tad)
+set(EmptyPed-WD "@TESTDATA_DIR@/human_trio/")
+set(EmptyPed-RESULT 0)
+
 include("@CMAKE_CURRENT_SOURCE_DIR@/CheckProcessTest.cmake")
 
-CheckProcessTestS(DngCall.Tad Trio TrioExtraCol Ceph)
+CheckProcessTestS(DngCall.Tad
+  Trio
+  TrioExtraCol
+  Ceph
+  PartialPed
+  EmptyPed
+)
