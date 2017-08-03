@@ -23,7 +23,9 @@ var mutmap = mutmap || {};
 
       this._graphData = options.graphData;
 
-      var container = this.el.append("div")
+      this.d3el = d3.select(this.el);
+
+      var container = this.d3el.append("div")
           .attr("class", "row")
         .append("div")
           .attr("class",
@@ -39,7 +41,7 @@ var mutmap = mutmap || {};
 
       var g = svg.append("g");
 
-      var boundingRect = this.el.node().getBoundingClientRect();
+      var boundingRect = this.d3el.node().getBoundingClientRect();
       var width = boundingRect.width;
       var height = boundingRect.height;
 

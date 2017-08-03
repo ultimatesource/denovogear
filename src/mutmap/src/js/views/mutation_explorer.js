@@ -30,7 +30,8 @@ var mutmap = mutmap || {};
         this.contigData.push(contig);
       }, this);
 
-      var genomeBrowserRenderElement = this.el.append("div")
+      this.d3el = d3.select(this.el);
+      var genomeBrowserRenderElement = this.d3el.append("div")
           .attr("class", "row")
         .append("div")
           .attr("id", "genome_browser_wrapper")
@@ -67,7 +68,7 @@ var mutmap = mutmap || {};
 
       this.activeNodeModel = new ActiveNodeModel();
 
-      var pedigreeRow = this.el.append("div")
+      var pedigreeRow = this.d3el.append("div")
           .attr("class", "row pedigree-row");
 
       var pedigreeContainer = pedigreeRow.append("div")

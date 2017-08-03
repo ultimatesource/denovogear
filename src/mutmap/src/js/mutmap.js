@@ -13,7 +13,6 @@
   window.pedigreeFileText = pedigreeFileText;
   window.layoutData = layoutData;
   window.dngOutputFileText = dngOutputFileText;
-  //window.optionsManager = utils.createOptionsManager();
 
   var pedigreeData = pedParser.parsePedigreeFile(pedigreeFileText);
   var pedGraph = buildGraphFromPedigree(pedigreeData);
@@ -30,46 +29,57 @@
   console.log("Parsing time:", elapsed / 1000);
 
   console.log(vcfData);
+
+  var mainContainer = document.querySelector('.main-container');
  
-  new mutmap.MutationDistributionView({
-    el: d3.select(".mutation-distribution-tab"),
-    graphData: graphData,
-    vcfText: dngOutputFileText,
-  });
+  var explorerView = null;
 
-  var mutationLocationsRendered = false;
-  $('.nav-tabs a[href="#mutation-locations"]').on('shown.bs.tab', function(e) {
-    if (!mutationLocationsRendered) {
+  var Router = Backbone.Router.extend({
+    routes : {
+      "": "root",
+      "distribution": "distribution",
+      "locations": "locations",
+      "explorer": "explorer"
+    },
 
-      mutationLocationsRendered = true;
+    root: function() {
+      // default to distribution view
+      this.navigate("#/distribution");
+    },
 
+    distribution: function() {
+
+      mainContainer.innerHTML = '';
+      new mutmap.MutationDistributionView({
+        el: ".main-container",
+        graphData: graphData,
+        vcfText: dngOutputFileText,
+      });
+    },
+
+    locations: function() {
+
+      mainContainer.innerHTML = '';
       new mutmap.MutationLocationsView({
-        el: d3.select(".mutation-locations-tab"),
+        el: ".main-container",
         mutationLocationData: buildMutationLocationData(vcfData)
       });
-    }
-  });
+    },
 
-  // Conditionally render the explorer view only once it's selected
-  var rendered = false;
-  $('.nav-tabs a[href="#mutation-explorer"]').on('shown.bs.tab', function(e) {
+    explorer: function() {
 
-    if (!rendered) {
-      rendered = true;
-
+      mainContainer.innerHTML = '';
       new mutmap.MutationExplorerView({
-        el: d3.select(".mutation-explorer-tab"),
+        el: '.main-container',
         graphData: graphData,
         pedGraph: pedGraph,
         vcfData: vcfData,
       });
     }
-
   });
 
-  // TODO: DEV, switch to mutation locations tab
-  //$('.nav-tabs a[href="#mutation-locations"]').tab('show')
-  $('.nav-tabs a[href="#mutation-explorer"]').tab('show')
+  var router = new Router();
+  Backbone.history.start();
 
   function processPedigree(kinshipPedigreeData) {
 

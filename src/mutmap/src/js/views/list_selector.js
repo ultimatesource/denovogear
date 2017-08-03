@@ -13,7 +13,7 @@ var mutmap = mutmap || {};
 
       this.currentChromIndex = 0;
 
-      this.container = options.el.append("div")
+      this.container = this.el.append("div")
           .attr("class", "list-selector");
 
       this.model.on('change', function() {

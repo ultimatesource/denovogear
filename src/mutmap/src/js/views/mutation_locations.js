@@ -10,14 +10,14 @@ var mutmap = mutmap || {};
 
     render: function(options) {
 
-      var parent = options.el;
+      this.d3el = d3.select(this.el);
 
-      var container = parent.append("div")
+      var container = this.d3el.append("div")
           .attr("class", "row")
         .append("div")
           .attr("class",
                 "mutation-location-container col-xs-12 panel panel-default")
-   
+
       var chromSelectorContainer = container.append("div")
           .attr("class", "chrom-selector");
 
@@ -47,7 +47,7 @@ var mutmap = mutmap || {};
           .style("width", "100%")
           .style("height", "100%");
 
-      var boundingRect = parent.node().getBoundingClientRect();
+      var boundingRect = this.d3el.node().getBoundingClientRect();
       var width = boundingRect.width;
       var height = boundingRect.height;
 
