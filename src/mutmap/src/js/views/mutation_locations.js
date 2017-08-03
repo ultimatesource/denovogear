@@ -12,14 +12,20 @@ var mutmap = mutmap || {};
 
       this.d3el = d3.select(this.el);
 
+      var dim = utils.getDimensions(this.d3el);
+      var width = dim.width;
+      var height = dim.height;
+
       var container = this.d3el.append("div")
           .attr("class", "row")
         .append("div")
-          .attr("class",
-                "mutation-location-container col-xs-12 panel panel-default")
+          .attr("class", "col-xs-12 panel panel-default")
+          .style("width", width+'px')
+          .style("height", height+'px');
 
       var chromSelectorContainer = container.append("div")
           .attr("class", "chrom-selector");
+
 
       var SelectedChromosomeModel = Backbone.Model.extend({
         defaults: {
@@ -43,15 +49,11 @@ var mutmap = mutmap || {};
         });
       });
 
+      var selectorDimensions = utils.getDimensions(chromSelectorContainer);
+
       var svg = container.append("svg")
           .style("width", "100%")
-          .style("height", "100%");
-
-      var boundingRect = this.d3el.node().getBoundingClientRect();
-      var width = boundingRect.width;
-      var height = boundingRect.height;
-
-      //console.log(width, height);
+          .style("height", (height - selectorDimensions.height)+'px');
 
       var margins = {
         left: 20,

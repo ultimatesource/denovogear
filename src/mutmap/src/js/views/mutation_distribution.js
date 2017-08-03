@@ -25,11 +25,16 @@ var mutmap = mutmap || {};
 
       this.d3el = d3.select(this.el);
 
+      var boundingRect = this.d3el.node().getBoundingClientRect();
+      var width = boundingRect.width;
+      var height = boundingRect.height;
+
       var container = this.d3el.append("div")
           .attr("class", "row")
         .append("div")
-          .attr("class",
-            "mutation-dist-container col-xs-12 panel panel-default");
+          .attr("class", "col-xs-12 panel panel-default")
+          .style("width", width+'px')
+          .style("height", height+'px');
 
       var svg = container.append("svg")
           .style("width", "100%")
@@ -40,10 +45,6 @@ var mutmap = mutmap || {};
       svg.call(zoom);
 
       var g = svg.append("g");
-
-      var boundingRect = this.d3el.node().getBoundingClientRect();
-      var width = boundingRect.width;
-      var height = boundingRect.height;
 
       this._links_container = g.append("g")
           .attr("class", "links-container");

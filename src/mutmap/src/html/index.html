@@ -25,8 +25,10 @@ html,body {
 :root {
    --genome-browser-height: 100px;
    --genome-browsers-area-height: calc(1 * var(--genome-browser-height));
-   --bootstrap-tab-height: 50px;
-   --bootstrap-navbar-height: 50px;
+   /* TODO: don't know why the extra few pixels is necessary here. By my
+      calculations it should only need to be 50px for the navbar, plus
+      2px for padding, plus 20px for margin = 72px */
+   --bootstrap-navbar-height: 92px;
 }
 
 .axis--x .domain {
@@ -60,24 +62,13 @@ html,body {
   fill: #ff9896;
 }
 
-.pedigree-container {
-  height: calc(100vh - var(--genome-browsers-area-height) -
-                       var(--bootstrap-tab-height));
-  margin-bottom: 0;
-}
-
-.mutation-dist-container {
-  height: calc(100vh - var(--bootstrap-tab-height));
-  margin-bottom: 0;
-}
-
 .node-symbol--selected {
   stroke: #555555;
   stroke-width: 3;
 }
 
-.mutation-location-container {
-  height: calc(100vh - var(--bootstrap-tab-height));
+.main-container {
+  height: calc(100vh - var(--bootstrap-navbar-height));
   margin-bottom: 0;
 }
 

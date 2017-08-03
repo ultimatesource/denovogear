@@ -31,11 +31,16 @@ var mutmap = mutmap || {};
       }, this);
 
       this.d3el = d3.select(this.el);
+
+      var dim = utils.getDimensions(this.d3el);
+
       var genomeBrowserRenderElement = this.d3el.append("div")
           .attr("class", "row")
         .append("div")
           .attr("id", "genome_browser_wrapper")
           .attr("class", "genome-browser-container");
+
+      var contigDimensions = utils.getDimensions(genomeBrowserRenderElement);
 
       var ContigModel = Backbone.Model.extend({
         defaults: {
@@ -56,8 +61,6 @@ var mutmap = mutmap || {};
         mutationClicked: this.mutationClicked.bind(this)
       });
 
-      //console.log(vcfData);
-
       this.dngOverlay(this.vcfData.records[0]);
 
       var ActiveNodeModel = Backbone.Model.extend({
@@ -72,8 +75,8 @@ var mutmap = mutmap || {};
           .attr("class", "row pedigree-row");
 
       var pedigreeContainer = pedigreeRow.append("div")
-          .attr("class",
-                "pedigree-container col-xs-12 col-md-8 panel panel-default"); 
+          .attr("class", "col-xs-12 col-md-8 panel panel-default")
+            .style("height", (dim.height - contigDimensions.height)+'px');
 
       var PedigreeModel = Backbone.Model.extend({
         defaults: {

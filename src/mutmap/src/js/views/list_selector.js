@@ -63,7 +63,6 @@ var mutmap = mutmap || {};
         .enter().append("li")
           .attr("class", "mutation")
         .append("a")
-          .attr("href", "#")
           .text(function(d) {
             if (self.selector !== undefined) {
               return d[self.selector];

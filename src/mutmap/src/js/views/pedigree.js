@@ -30,6 +30,7 @@ var mutmap = mutmap || {};
       var centerY = boundingBox.height / 2;
       var width = parseInt(this._svg.style("width"));
       var height = parseInt(this._svg.style("height"));
+
       var xCorrection = (width / 2) - centerX;
       var yCorrection = (height / 2) - centerY;
 
@@ -55,8 +56,7 @@ var mutmap = mutmap || {};
 
       this._svg.style("height", "100%").style("width", "100%");
 
-      this._container = this._svg.append("g")
-          .attr("class", "pedigree-container");
+      this._container = this._svg.append("g");
 
       this._links_container = this._container.append("g")
           .attr("class", "links-container");

@@ -32,6 +32,10 @@
 
   var mainContainer = document.querySelector('.main-container');
  
+  var boundingRect = mainContainer.getBoundingClientRect();
+  var width = boundingRect.width;
+  var height = boundingRect.height;
+
   var explorerView = null;
 
   var mutationLocationsContainer = null;
@@ -66,11 +70,13 @@
 
       if (!mutationLocationsContainer) {
         mutationLocationsContainer = d3.select(mainContainer).append('div')
-            .attr("class", "mut-loc-cont").node();
+            .attr("class", "mutation-locations-container")
+            .style("width", width+'px')
+            .style("height", height+'px')
+          .node();
 
         new mutmap.MutationLocationsView({
           el: mutationLocationsContainer,
-          className: "loc-cont",
           mutationLocationData: buildMutationLocationData(vcfData)
         });
       }
@@ -85,7 +91,11 @@
 
       if (!mutationExplorerContainer) {
         mutationExplorerContainer = d3.select(mainContainer).append('div')
-            .attr("class", "mut-exp-cont").node();
+            .attr("class", "mut-exp-cont")
+            .attr("class", "mutation-explorer-container")
+            .style("width", width+'px')
+            .style("height", height+'px')
+          .node();
 
         new mutmap.MutationExplorerView({
           el: mutationExplorerContainer,

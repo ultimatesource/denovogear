@@ -84,13 +84,24 @@ var utils = (function() {
     });
   }
 
+  function getDimensions(element) {
+
+    var boundingRect = element.node().getBoundingClientRect();
+
+    return {
+      width: boundingRect.width,
+      height: boundingRect.height
+    };
+  }
+
   return {
     halfwayBetween: halfwayBetween,
     distanceBetweenPoints: distanceBetweenPoints,
     svgTranslateString: svgTranslateString,
     createOptionsManager: createOptionsManager,
     sortByKey: sortByKey,
-    optionsManager: optionsManager
+    optionsManager: optionsManager,
+    getDimensions: getDimensions
   };
 
 }());
