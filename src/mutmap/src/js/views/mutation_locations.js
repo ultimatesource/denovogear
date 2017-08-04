@@ -5,16 +5,21 @@ var mutmap = mutmap || {};
 
   mutmap.MutationLocationsView = Backbone.View.extend({
     initialize: function(options) {
-      this.render(options);
+
+      this.mutationLocationData = options.mutationLocationData;
+
+      this.render();
     },
 
-    render: function(options) {
+    render: function() {
 
       this.d3el = d3.select(this.el);
 
       var dim = utils.getDimensions(this.d3el);
       var width = dim.width;
       var height = dim.height;
+
+      console.log(width, height);
 
       var container = this.d3el.append("div")
           .attr("class", "row")
@@ -38,14 +43,14 @@ var mutmap = mutmap || {};
       var chromSelector = new mutmap.ListSelectorView({
         el: chromSelectorContainer,
         model: selectedChromosome,
-        list: options.mutationLocationData,
+        list: this.mutationLocationData,
         selector: 'chrom',
         itemName: 'Chromosome'
       });
 
       selectedChromosome.on('change', function() {
         listView.render({
-          data: options.mutationLocationData[selectedChromosome.get('index')]
+          data: this.mutationLocationData[selectedChromosome.get('index')]
         });
       });
 
@@ -70,7 +75,7 @@ var mutmap = mutmap || {};
 
       var listView = new SampleMutationsListView({
         el: g,
-        data: options.mutationLocationData[0],
+        data: this.mutationLocationData[0],
         width: chromWidth,
       });
 

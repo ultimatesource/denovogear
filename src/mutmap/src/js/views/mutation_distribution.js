@@ -25,18 +25,16 @@ var mutmap = mutmap || {};
 
       this.d3el = d3.select(this.el);
 
-      var boundingRect = this.d3el.node().getBoundingClientRect();
-      var width = boundingRect.width;
-      var height = boundingRect.height;
+      var dimensions = utils.getDimensions(this.d3el);
 
-      var container = this.d3el.append("div")
+      this._container = this.d3el.append("div")
           .attr("class", "row")
         .append("div")
           .attr("class", "col-xs-12 panel panel-default")
-          .style("width", width+'px')
-          .style("height", height+'px');
+          .style("width", dimensions.width+'px')
+          .style("height", dimensions.height+'px');
 
-      var svg = container.append("svg")
+      var svg = this._container.append("svg")
           .style("width", "100%")
           .style("height", "100%");
 
@@ -60,6 +58,11 @@ var mutmap = mutmap || {};
     },
 
     render: function() {
+      var dimensions = utils.getDimensions(this.d3el);
+
+      this._container
+          .style("width", dimensions.width+'px')
+          .style("height", dimensions.height+'px');
       this._updateLinks();
       this._updateNodes();
     },

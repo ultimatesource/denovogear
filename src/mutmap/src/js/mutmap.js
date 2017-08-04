@@ -1,4 +1,4 @@
-(function(utils) {
+$(document).ready(function() {
 
   // The placeholder tags below will be replaced with the correct data objects
   // by the build system. See mutmap/tools/layout_and_template.R
@@ -32,14 +32,43 @@
 
   var mainContainer = document.querySelector('.main-container');
  
-  var boundingRect = mainContainer.getBoundingClientRect();
-  var width = boundingRect.width;
-  var height = boundingRect.height;
+  var dimensions = utils.getDimensions(d3.select(mainContainer));
 
-  var explorerView = null;
+  var currentView = null;
+  var mutationDistributionView = null;
+  var mutationLocationsView = null;
+  var mutationExplorerView = null;
 
-  var mutationLocationsContainer = null;
-  var mutationExplorerContainer = null;
+  // Create new detached containers for the top level views
+
+  var mutationDistributionContainer = d3.select(document.createElement('div'))
+      .attr("class", "mutation-distribution-container")
+      .style("width", dimensions.width+'px')
+      .style("height", dimensions.height+'px');
+
+  var mutationLocationsContainer = d3.select(document.createElement('div'))
+      .attr("class", "mutation-locations-container")
+      .style("width", dimensions.width+'px')
+      .style("height", dimensions.height+'px');
+
+  var mutationExplorerContainer = d3.select(document.createElement('div'))
+      .attr("class", "mutation-explorer-container")
+      .style("width", dimensions.width+'px')
+      .style("height", dimensions.height+'px');
+
+  $(window).resize(function() {
+    var dimensions = utils.getDimensions(d3.select(mainContainer));
+
+    mutationDistributionContainer
+        .style("width", dimensions.width+'px')
+        .style("height", dimensions.height+'px');
+
+    mutationLocationsContainer
+        .style("width", dimensions.width+'px')
+        .style("height", dimensions.height+'px');
+    
+    currentView.render();
+  });
 
   var Router = Backbone.Router.extend({
     routes : {
@@ -56,57 +85,55 @@
 
     distribution: function() {
 
-      mainContainer.innerHTML = '';
-      new mutmap.MutationDistributionView({
-        el: ".main-container",
-        graphData: graphData,
-        vcfText: dngOutputFileText,
-      });
+      mainContainer.replaceChild(mutationDistributionContainer.node(),
+        mainContainer.lastChild);
+
+      if (!mutationDistributionView) {
+        mutationDistributionView = new mutmap.MutationDistributionView({
+          el: mutationDistributionContainer.node(),
+          graphData: graphData,
+          vcfText: dngOutputFileText,
+        });
+      }
+
+      currentView = mutationDistributionView;
+      currentView.render();
     },
 
     locations: function() {
 
-      mainContainer.innerHTML = '';
+      mainContainer.replaceChild(mutationLocationsContainer.node(),
+        mainContainer.lastChild);
 
-      if (!mutationLocationsContainer) {
-        mutationLocationsContainer = d3.select(mainContainer).append('div')
-            .attr("class", "mutation-locations-container")
-            .style("width", width+'px')
-            .style("height", height+'px')
-          .node();
+      if (!mutationLocationsView) {
 
-        new mutmap.MutationLocationsView({
-          el: mutationLocationsContainer,
+        mutationLocationsView = new mutmap.MutationLocationsView({
+          el: mutationLocationsContainer.node(),
           mutationLocationData: buildMutationLocationData(vcfData)
         });
       }
-      else {
-        mainContainer.appendChild(mutationLocationsContainer);
-      }
+
+      currentView = mutationLocationsView;
+      currentView.render();
     },
 
     explorer: function() {
 
-      mainContainer.innerHTML = '';
+      mainContainer.replaceChild(mutationExplorerContainer.node(),
+        mainContainer.lastChild);
 
-      if (!mutationExplorerContainer) {
-        mutationExplorerContainer = d3.select(mainContainer).append('div')
-            .attr("class", "mut-exp-cont")
-            .attr("class", "mutation-explorer-container")
-            .style("width", width+'px')
-            .style("height", height+'px')
-          .node();
+      if (!mutationExplorerView) {
 
-        new mutmap.MutationExplorerView({
-          el: mutationExplorerContainer,
+        mutationExplorerView = new mutmap.MutationExplorerView({
+          el: mutationExplorerContainer.node(),
           graphData: graphData,
           pedGraph: pedGraph,
           vcfData: vcfData,
         });
       }
-      else {
-        mainContainer.appendChild(mutationExplorerContainer);
-      }
+
+      currentView = mutationExplorerView;
+      currentView.render();
     }
   });
 
@@ -365,5 +392,5 @@
     return processed;
   }
 
+});
 
-}(utils));
