@@ -8,18 +8,11 @@ var mutmap = mutmap || {};
 
       this.mutationLocationData = options.mutationLocationData;
 
-      this.render();
-    },
-
-    render: function() {
-
       this.d3el = d3.select(this.el);
 
       var dim = utils.getDimensions(this.d3el);
       var width = dim.width;
       var height = dim.height;
-
-      console.log(width, height);
 
       var container = this.d3el.append("div")
           .attr("class", "row")
@@ -52,7 +45,7 @@ var mutmap = mutmap || {};
         listView.render({
           data: this.mutationLocationData[selectedChromosome.get('index')]
         });
-      });
+      }, this);
 
       var selectorDimensions = utils.getDimensions(chromSelectorContainer);
 
