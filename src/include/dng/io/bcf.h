@@ -197,8 +197,14 @@ void BcfPileup::SelectLibraries(R &range) {
         }
         selector += bcf_samples_[pos];
     }
-    if(bcf_hdr_set_samples(reader_.reader(0)->header, selector.c_str(),0) != 0) {
-        throw std::runtime_error("Unable to select VCF/BCF columns '" + selector + "'." );
+    if(selector.empty()) {
+        if(bcf_hdr_set_samples(reader_.reader(0)->header,nullptr,0) != 0) {
+            throw std::runtime_error("Unable to exclude all VCF/BCF columns." );
+        }
+    } else {
+        if(bcf_hdr_set_samples(reader_.reader(0)->header, selector.c_str(),0) != 0) {
+            throw std::runtime_error("Unable to select VCF/BCF columns '" + selector + "'." );
+        }
     }
 }
 

@@ -191,12 +191,6 @@ void BamPileup::operator()(CallBack call_back) {
     location_t current_loc = 0;
     location_t fast_forward_loc = 0;
 
-    // if we have no read_groups specified, use each file as a single group
-    // TODO: check this
-    if(data.empty()) {
-        data.resize(scanners_.size());
-    }
-
     // If the first file has parsed regions, use them.
     std::queue<location_range_t> region_queue;
     for(auto && r : scanners_.front().file().regions()) {
@@ -238,6 +232,7 @@ template<typename R>
 void BamPileup::SelectLibraries(R &range) {
     // Clear all output libraries
     output_libraries_ = {};
+    read_group_to_libraries_.clear();
 
     // For every library in range, try to find it in input_libraries_
     size_t k=0;
