@@ -213,7 +213,7 @@ bool CallMutations::Calculate(stats_t *stats, int color) {
         stats->node_mu1p[i] /= total;
     }
     // total = P(1 mutation | D)/P(0 mutations | D) due to backwards algorithm
-    stats->mu1p = total*(1.0-mup);
+    stats->mu1p = total*exp(numerator-denominator);
 
     stats->dnq = dng::utility::lphred<int>(1.0 - (max_coeff / total), 255);
     stats->dnl = dn_location;
