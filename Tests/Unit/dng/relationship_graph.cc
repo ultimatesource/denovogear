@@ -843,14 +843,97 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_peeler) {
     quad_ped.AddMember("Eve","Dad","Mom",Sex::Female,"EveSm");
     quad_ped.AddMember("Bob","Dad","Mom",Sex::Male,"BobSm");
 
-    expected_peeling_nodes_t expected = {
-        {Op::UPFAST, {1,3}},
-        {Op::TOFATHERFAST, {0,1,5,4}},
-        {Op::UP, {0,2}},
-    };
+    BOOST_TEST_CONTEXT("graph=quad_graph_autosomal") {
+        expected_peeling_nodes_t expected = {
+            {Op::UPFAST, {1,3}},
+            {Op::TOFATHERFAST, {0,1,5,4}},
+            {Op::UP, {0,2}},
+        };
 
-    RelationshipGraph graph;
-    BOOST_REQUIRE_NO_THROW(graph.Construct(quad_ped, quad_libs,
-        InheritanceModel::Autosomal, g, s, l, true));
-    test(graph, expected);
+        RelationshipGraph graph;
+        BOOST_REQUIRE_NO_THROW(graph.Construct(quad_ped, quad_libs,
+            InheritanceModel::Autosomal, g, s, l, true));
+        test(graph, expected);
+    }
+
+    BOOST_TEST_CONTEXT("graph=quad_graph_xlinked") {
+        expected_peeling_nodes_t expected = {
+            {Op::UPFAST, {1,3}},
+            {Op::UP, {1,5}},
+            {Op::TOFATHERFAST, {0,1,4}},
+            {Op::UP, {0,2}},
+        };
+
+        RelationshipGraph graph;
+        BOOST_REQUIRE_NO_THROW(graph.Construct(quad_ped, quad_libs,
+            InheritanceModel::XLinked, g, s, l, true));
+        test(graph, expected);
+    }
+
+    BOOST_TEST_CONTEXT("graph=quad_graph_ylinked") {
+        expected_peeling_nodes_t expected = {
+            {Op::UPFAST, {0,1}},
+            {Op::UP, {0,2}},
+        };
+
+        RelationshipGraph graph;
+        BOOST_REQUIRE_NO_THROW(graph.Construct(quad_ped, quad_libs,
+            InheritanceModel::YLinked, g, s, l, true));
+        test(graph, expected);
+    }
+
+    BOOST_TEST_CONTEXT("graph=quad_graph_zlinked") {
+        expected_peeling_nodes_t expected = {
+            {Op::UPFAST, {1,3}},
+            {Op::TOFATHERFAST, {0,1,5}},
+            {Op::UP, {0,2}},
+            {Op::UP, {0,4}},
+        };
+
+        RelationshipGraph graph;
+        BOOST_REQUIRE_NO_THROW(graph.Construct(quad_ped, quad_libs,
+            InheritanceModel::ZLinked, g, s, l, true));
+        test(graph, expected);
+    }
+
+    BOOST_TEST_CONTEXT("graph=quad_graph_wlinked") {
+        expected_peeling_nodes_t expected = {
+            {Op::UPFAST, {0,1}},
+            {Op::UP, {0,2}},
+        };
+
+        RelationshipGraph graph;
+        BOOST_REQUIRE_NO_THROW(graph.Construct(quad_ped, quad_libs,
+            InheritanceModel::WLinked, g, s, l, true));
+        test(graph, expected);
+    }
+
+    BOOST_TEST_CONTEXT("graph=quad_graph_maternal") {
+        expected_peeling_nodes_t expected = {
+            {Op::UPFAST, {0,2}},
+            {Op::UPFAST, {1,3}},
+            {Op::UP, {1,5}},
+            {Op::UP, {1,4}},
+        };
+
+        RelationshipGraph graph;
+        BOOST_REQUIRE_NO_THROW(graph.Construct(quad_ped, quad_libs,
+            InheritanceModel::Maternal, g, s, l, true));
+        test(graph, expected);
+    }
+
+    BOOST_TEST_CONTEXT("graph=quad_graph_paternal") {
+        expected_peeling_nodes_t expected = {
+            {Op::UPFAST, {0,2}},
+            {Op::UP, {0,5}},
+            {Op::UP, {0,4}},
+            {Op::UPFAST, {1,3}},
+        };
+
+        RelationshipGraph graph;
+        BOOST_REQUIRE_NO_THROW(graph.Construct(quad_ped, quad_libs,
+            InheritanceModel::Paternal, g, s, l, true));
+        test(graph, expected);
+    }
+
 }
