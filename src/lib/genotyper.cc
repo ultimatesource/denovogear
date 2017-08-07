@@ -151,7 +151,7 @@ DirichletMultinomial::DirichletMultinomial(params_t params) : params_(params) {
 }
 
 std::pair<GenotypeArray, double> DirichletMultinomial::operator()(
-        const pileup::RawDepths& depths, size_t pos, int ref_allele, int ploidy) const {
+        const pileup::RawDepths& depths, int ref_allele, size_t pos, int ploidy) const {
     assert(ploidy==1 || ploidy==2);
 
     auto d = depths[pos];
