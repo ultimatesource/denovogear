@@ -38,15 +38,79 @@
 #include "../testing.h"
 #include "../xorshift64.h"
 
-#include "../boost_test_helper.h"
-#include "fixture_random_family.h"
-
 using namespace dng;
 using namespace dng::peel;
 using dng::detail::make_test_range;
 
 const int NUM_TEST = 25;
 int g_seed_counter = 0;
+
+BOOST_AUTO_TEST_CASE(test_peel_workspace) {
+    const double prec = 4.0*DBL_EPSILON;
+    using boost::copy;
+    using boost::generate;
+
+    xorshift64 xrand(++g_seed_counter);
+
+    workspace_t work;
+    work.Resize(8);
+    work.founder_nodes = {0,2};
+    work.germline_nodes = {2,3};
+    work.somatic_nodes = {3,4};
+    work.library_nodes = {4,8};
+
+    work.ploidies.assign(8,2);
+    work.ploidies[1] = 1;
+
+    // SetFounders
+    GenotypeArray haploid_prior(4), diploid_prior(10);
+    generate(make_test_range(haploid_prior), [&](){ return xrand.get_double52(); });
+    generate(make_test_range(diploid_prior), [&](){ return xrand.get_double52(); });
+
+    work.SetFounders(diploid_prior, haploid_prior);
+    
+    auto test_upper0 = make_test_range(work.upper[0]);
+    auto expected_upper0 = make_test_range(diploid_prior);
+    CHECK_EQUAL_RANGES(test_upper0, expected_upper0);
+
+    auto test_upper1 = make_test_range(work.upper[1]);
+    auto expected_upper1 = make_test_range(haploid_prior);
+    CHECK_EQUAL_RANGES(test_upper1, expected_upper1);
+
+    // CleanupFast
+    for(auto &&a : work.lower) {
+        generate(make_test_range(a), [&](){ return xrand.get_double52(); });
+    }
+    work.dirty_lower = true;
+    work.CleanupFast();
+    BOOST_CHECK_EQUAL(work.dirty_lower, false);
+    for(int i=0;i<work.somatic_nodes.second;++i) {
+        BOOST_TEST_INFO("node=" << i);
+        auto test_range = make_test_range(work.lower[i]);
+        std::vector<double> expected_range(10,1); 
+        CHECK_EQUAL_RANGES(test_range, expected_range);
+    }
+    for(int i=work.library_nodes.first;i<work.num_nodes;++i) {
+        BOOST_TEST_INFO("node=" << i);
+        auto test_range = make_test_range(work.lower[i]);
+        std::vector<double> expected_range(10,1); 
+        CHECK_NE_RANGES(test_range, expected_range);
+    }
+
+    // Cleanup
+    for(auto &&a : work.lower) {
+        generate(make_test_range(a), [&](){ return xrand.get_double52(); });
+    }
+    work.dirty_lower = true;
+    work.Cleanup();
+    BOOST_CHECK_EQUAL(work.dirty_lower, false);
+    for(int i=0;i<work.num_nodes;++i) {
+        BOOST_TEST_INFO("node=" << i);
+        auto test_range = make_test_range(work.lower[i]);
+        std::vector<double> expected_range(10,1); 
+        CHECK_EQUAL_RANGES(test_range, expected_range);
+    }
+}
 
 BOOST_AUTO_TEST_CASE(test_peel_up_fast) {
     const double prec = 4.0*DBL_EPSILON;

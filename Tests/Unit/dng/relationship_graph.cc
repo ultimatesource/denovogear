@@ -36,6 +36,7 @@
 #include <boost/mem_fn.hpp>
 
 #include "../testing.h"
+#include "../xorshift64.h"
 
 namespace dng {
 struct unittest_dng_relationship_graph {
@@ -85,6 +86,9 @@ using namespace dng;
 using namespace dng::detail;
 using Sex = dng::Pedigree::Sex;
 using dng::detail::make_test_range;
+
+const int NUM_TEST = 25;
+int g_seed_counter = 0;
 
 BOOST_AUTO_TEST_CASE(test_inheritance_model_from_string) {
     BOOST_CHECK(inheritance_model("autosomal") == InheritanceModel::Autosomal);
@@ -224,8 +228,20 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
         auto expected_labels = make_test_range(expected | transformed(boost::mem_fn(&graph_node_t::label)));
         CHECK_EQUAL_RANGES(test.labels(), expected_labels);
 
+        std::vector<std::string> test_labels_pos;
+        for(int i=0; i< test.num_nodes(); ++i) {
+            test_labels_pos.push_back(test.label(i));
+        }
+        CHECK_EQUAL_RANGES(test_labels_pos, expected_labels);
+
         auto expected_ploidies = make_test_range(expected | transformed(boost::mem_fn(&graph_node_t::ploidy)));
         CHECK_EQUAL_RANGES(test.ploidies(), expected_ploidies);
+
+        std::vector<int> test_ploidies_pos;
+        for(int i=0; i< test.num_nodes(); ++i) {
+            test_ploidies_pos.push_back(test.ploidy(i));
+        }
+        CHECK_EQUAL_RANGES(test_ploidies_pos, expected_ploidies);
 
         // Check Library names
         std::vector<std::string> test_library_names = test.library_names();
@@ -237,25 +253,37 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
         CHECK_EQUAL_RANGES(test_library_names, expected_library_names);
 
         // Check Transitions
-        auto test_transition_types = make_test_range(test.transitions() | transformed(boost::mem_fn(&transition_t::type)));
-        auto expected_transition_types = make_test_range(expected | transformed(boost::mem_fn(&graph_node_t::transition_type)));
-        CHECK_EQUAL_RANGES(test_transition_types, expected_transition_types);
+        auto transitions_test = [&](const std::vector<transition_t> & test_transitions,
+                const char * msg) {
+            BOOST_TEST_CONTEXT(msg) {
+            
+            auto test_transition_types = make_test_range(test_transitions | transformed(boost::mem_fn(&transition_t::type)));
+            auto expected_transition_types = make_test_range(expected | transformed(boost::mem_fn(&graph_node_t::transition_type)));
+            CHECK_EQUAL_RANGES(test_transition_types, expected_transition_types);
 
-        auto test_parent1 = make_test_range(test.transitions() | transformed(boost::mem_fn(&transition_t::parent1)));
-        auto expected_parent1 = make_test_range(expected | transformed(boost::mem_fn(&graph_node_t::parent1)));
-        CHECK_EQUAL_RANGES(test_parent1, expected_parent1);
+            auto test_parent1 = make_test_range(test_transitions | transformed(boost::mem_fn(&transition_t::parent1)));
+            auto expected_parent1 = make_test_range(expected | transformed(boost::mem_fn(&graph_node_t::parent1)));
+            CHECK_EQUAL_RANGES(test_parent1, expected_parent1);
 
-        auto test_parent2 = make_test_range(test.transitions() | transformed(boost::mem_fn(&transition_t::parent2)));
-        auto expected_parent2 = make_test_range(expected | transformed(boost::mem_fn(&graph_node_t::parent2)));
-        CHECK_EQUAL_RANGES(test_parent2, expected_parent2);
+            auto test_parent2 = make_test_range(test_transitions | transformed(boost::mem_fn(&transition_t::parent2)));
+            auto expected_parent2 = make_test_range(expected | transformed(boost::mem_fn(&graph_node_t::parent2)));
+            CHECK_EQUAL_RANGES(test_parent2, expected_parent2);
 
-        auto test_length1 = make_test_range(test.transitions() | transformed(boost::mem_fn(&transition_t::length1)));
-        auto expected_length1 = make_test_range(expected | transformed(boost::mem_fn(&graph_node_t::length1)));
-        CHECK_EQUAL_RANGES(test_length1, expected_length1);
+            auto test_length1 = make_test_range(test_transitions | transformed(boost::mem_fn(&transition_t::length1)));
+            auto expected_length1 = make_test_range(expected | transformed(boost::mem_fn(&graph_node_t::length1)));
+            CHECK_EQUAL_RANGES(test_length1, expected_length1);
 
-        auto test_length2 = make_test_range(test.transitions() | transformed(boost::mem_fn(&transition_t::length2)));
-        auto expected_length2 = make_test_range(expected | transformed(boost::mem_fn(&graph_node_t::length2)));
-        CHECK_EQUAL_RANGES(test_length2, expected_length2);
+            auto test_length2 = make_test_range(test_transitions | transformed(boost::mem_fn(&transition_t::length2)));
+            auto expected_length2 = make_test_range(expected | transformed(boost::mem_fn(&graph_node_t::length2)));
+            CHECK_EQUAL_RANGES(test_length2, expected_length2);
+        }};
+        std::vector<transition_t> test_transitions_pos;
+        for(int i=0; i< test.num_nodes(); ++i) {
+            test_transitions_pos.push_back(test.transition(i));
+        }
+
+        transitions_test(test.transitions(), "test.transitions()");
+        transitions_test(test_transitions_pos, "test_transitions_pos");
     };
 
     libraries_t quad_libs = {
@@ -844,7 +872,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_peeler) {
     quad_ped.AddMember("Bob","Dad","Mom",Sex::Male,"BobSm");
 
     BOOST_TEST_CONTEXT("graph=quad_graph_autosomal") {
-        expected_peeling_nodes_t expected = {
+        const expected_peeling_nodes_t expected = {
             {Op::UPFAST, {1,3}},
             {Op::TOFATHERFAST, {0,1,5,4}},
             {Op::UP, {0,2}},
@@ -857,7 +885,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_peeler) {
     }
 
     BOOST_TEST_CONTEXT("graph=quad_graph_xlinked") {
-        expected_peeling_nodes_t expected = {
+        const expected_peeling_nodes_t expected = {
             {Op::UPFAST, {1,3}},
             {Op::UP, {1,5}},
             {Op::TOFATHERFAST, {0,1,4}},
@@ -871,7 +899,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_peeler) {
     }
 
     BOOST_TEST_CONTEXT("graph=quad_graph_ylinked") {
-        expected_peeling_nodes_t expected = {
+        const expected_peeling_nodes_t expected = {
             {Op::UPFAST, {0,1}},
             {Op::UP, {0,2}},
         };
@@ -883,7 +911,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_peeler) {
     }
 
     BOOST_TEST_CONTEXT("graph=quad_graph_zlinked") {
-        expected_peeling_nodes_t expected = {
+        const expected_peeling_nodes_t expected = {
             {Op::UPFAST, {1,3}},
             {Op::TOFATHERFAST, {0,1,5}},
             {Op::UP, {0,2}},
@@ -897,7 +925,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_peeler) {
     }
 
     BOOST_TEST_CONTEXT("graph=quad_graph_wlinked") {
-        expected_peeling_nodes_t expected = {
+        const expected_peeling_nodes_t expected = {
             {Op::UPFAST, {0,1}},
             {Op::UP, {0,2}},
         };
@@ -909,7 +937,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_peeler) {
     }
 
     BOOST_TEST_CONTEXT("graph=quad_graph_maternal") {
-        expected_peeling_nodes_t expected = {
+        const expected_peeling_nodes_t expected = {
             {Op::UPFAST, {0,2}},
             {Op::UPFAST, {1,3}},
             {Op::UP, {1,5}},
@@ -923,7 +951,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_peeler) {
     }
 
     BOOST_TEST_CONTEXT("graph=quad_graph_paternal") {
-        expected_peeling_nodes_t expected = {
+        const expected_peeling_nodes_t expected = {
             {Op::UPFAST, {0,2}},
             {Op::UP, {0,5}},
             {Op::UP, {0,4}},
@@ -934,6 +962,70 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_peeler) {
         BOOST_REQUIRE_NO_THROW(graph.Construct(quad_ped, quad_libs,
             InheritanceModel::Paternal, g, s, l, true));
         test(graph, expected);
+    }
+
+    BOOST_TEST_CONTEXT("graph=somatic_graph_normalized") {
+        libraries_t somatic_libs = {
+            {"M1A", "M1B", "M2", "M3A", "M3B"},
+            {"M1", "M1", "M2", "M3", "M3"}
+        };
+
+        Pedigree somatic_ped;
+        somatic_ped.AddMember("M","0","0",Sex::Female,"((M1,M2)M12,M3);");
+
+        constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
+
+        //Construct Graph
+        RelationshipGraph graph;
+        BOOST_REQUIRE_NO_THROW(graph.Construct(somatic_ped, somatic_libs,
+            InheritanceModel::Autosomal, g, s, l, true));
+
+        const expected_peeling_nodes_t expected = {
+            {Op::UPFAST, {2,8}},
+            {Op::UP,     {2,9}},
+            {Op::UPFAST, {1,2}},
+            {Op::UPFAST, {4,5}},
+            {Op::UP,     {4,6}},
+            {Op::UPFAST, {3,4}},
+            {Op::UP,     {3,7}},            
+            {Op::UP,     {1,3}},            
+            {Op::UPFAST, {0,1}},            
+        };
+
+        test(graph, expected);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Peel) {
+    const double prec = 2*DBL_EPSILON;
+
+    xorshift64 xrand(++g_seed_counter);
+
+    using Op = peel::Op;
+
+    constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
+
+    libraries_t twofam_libs = {
+        {"DadLb", "MomLb","EveLb", "BobLb", "SamLb"},
+        {"DadSm", "MomSm", "EveSm", "BobSm", "SamSm"}
+    };
+
+    Pedigree twofam_ped;
+    twofam_ped.AddMember("Dad","0","0",Sex::Male,"DadSm");
+    twofam_ped.AddMember("Mom","0","0",Sex::Female,"MomSm");
+    twofam_ped.AddMember("Eve","Dad","Mom",Sex::Female,"EveSm");
+    twofam_ped.AddMember("Bob","Dad","Mom",Sex::Male,"BobSm");
+    twofam_ped.AddMember("Sam","0","0",Sex::Male,"SamSm");
+
+    BOOST_TEST_CONTEXT("graph=twofam_graph_autosomal") {
+        RelationshipGraph graph;
+        BOOST_REQUIRE_NO_THROW(graph.Construct(twofam_ped, twofam_libs,
+            InheritanceModel::Autosomal, g, s, l, true));
+
+        auto work = graph.CreateWorkspace();
+
+        
+
     }
 
 }

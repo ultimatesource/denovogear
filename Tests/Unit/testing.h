@@ -97,6 +97,10 @@
     BOOST_TEST(L == R, ::boost::test_tools::per_element() ) \
 /**/
 
+#define CHECK_NE_RANGES( L, R ) \
+    BOOST_TEST(L != R, ::boost::test_tools::per_element() ) \
+/**/
+
 #define CHECK_CLOSE_RANGES( L, R, T )    do { \
     ::boost::test_tools::local_fpc_tolerance<double> t_o_l( T ); \
     BOOST_TEST( L == R, ::boost::test_tools::per_element() ); \
@@ -157,7 +161,19 @@ auto make_test_range(const M& m) -> test_range<decltype(m.data())>
 }
 
 template<typename M>
+auto make_test_range(M& m) -> test_range<decltype(m.data())>
+{
+    return {m.data(), m.data()+m.size()};
+}
+
+template<typename M>
 auto make_test_range(const M& m) -> test_range<decltype(m.begin())>
+{
+    return {m.begin(), m.end()};
+}
+
+template<typename M>
+auto make_test_range(M& m) -> test_range<decltype(m.begin())>
 {
     return {m.begin(), m.end()};
 }

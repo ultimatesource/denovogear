@@ -18,7 +18,7 @@
  */
 
 
-#define BOOST_TEST_MODULE dng::relationship_graph2
+#define BOOST_TEST_MODULE dng::relationship_graph_m12
 
 #include <dng/relationship_graph.h>
 
