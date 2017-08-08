@@ -23,7 +23,7 @@
 #ifdef BOOST_TEST_MODULE
 
 // Declare a class capable of preforming unit tests on public, private, and protected members.
-#define DNG_UNIT_TEST(name) \
+#define DNG_UNIT_TEST_CLASS(name) \
     friend class name \
 /**/
 
@@ -34,7 +34,7 @@
 
 #else
 
-#define DNG_UNIT_TEST(name) 
+#define DNG_UNIT_TEST_CLASS(name) 
 
 #define DNG_UNIT_TEST_FUNCTION(name) 
 
