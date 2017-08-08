@@ -111,13 +111,11 @@ public:
     double PeelBackwards(peel::workspace_t &work,
                          const TransitionMatrixVector &mat) const {
         double ret = 0.0;
-        // Divide by the log-likelihood
+        // Divide by the likelihood
         for(auto r : roots_) {
             double sum = (work.lower[r] * work.upper[r]).sum();
             ret += log(sum);
-            sum = sqrt(sum);
             work.lower[r] /= sum;
-            work.upper[r] /= sum;
         }
 
         for(std::size_t i = peeling_reverse_functions_.size(); i > 0; --i) {

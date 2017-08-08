@@ -23,6 +23,7 @@
 
 #include <dng/relationship_graph.h>
 #include <dng/utility.h>
+#include <dng/mutation.h>
 
 #include <vector>
 #include <functional>
@@ -34,6 +35,9 @@
 #include <boost/range/algorithm/remove_copy.hpp>
 #include <boost/range/irange.hpp>
 #include <boost/mem_fn.hpp>
+
+#include <boost/range/algorithm/generate.hpp>
+#include <boost/range/algorithm/copy.hpp>
 
 #include "../testing.h"
 #include "../xorshift64.h"
@@ -987,9 +991,39 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_peeler) {
             {Op::UPFAST, {4,5}},
             {Op::UP,     {4,6}},
             {Op::UPFAST, {3,4}},
-            {Op::UP,     {3,7}},            
-            {Op::UP,     {1,3}},            
-            {Op::UPFAST, {0,1}},            
+            {Op::UP,     {3,7}},
+            {Op::UP,     {1,3}},
+            {Op::UPFAST, {0,1}},
+        };
+
+        test(graph, expected);
+    }
+
+   BOOST_TEST_CONTEXT("graph=twofam_graph") {
+        libraries_t twofam_libs = {
+            {"DadLb", "MomLb","EveLb", "BobLb", "SamLb"},
+            {"DadSm", "MomSm", "EveSm", "BobSm", "SamSm"}
+        };
+
+        Pedigree twofam_ped;
+        twofam_ped.AddMember("Dad","0","0",Sex::Male,"DadSm");
+        twofam_ped.AddMember("Mom","0","0",Sex::Female,"MomSm");
+        twofam_ped.AddMember("Eve","Dad","Mom",Sex::Female,"EveSm");
+        twofam_ped.AddMember("Bob","Dad","Mom",Sex::Male,"BobSm");
+        twofam_ped.AddMember("Sam","0","0",Sex::Male,"SamSm");
+
+        constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
+
+        //Construct Graph
+        RelationshipGraph graph;
+        BOOST_REQUIRE_NO_THROW(graph.Construct(twofam_ped, twofam_libs,
+            InheritanceModel::Autosomal, g, s, l, true));
+
+        const expected_peeling_nodes_t expected = {
+            {Op::UPFAST, {1,4}},
+            {Op::TOFATHERFAST, {0,1,6,5}},
+            {Op::UP, {0,3}},
+            {Op::UPFAST, {2,7}}          
         };
 
         test(graph, expected);
@@ -997,6 +1031,10 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_peeler) {
 }
 
 BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Peel) {
+    using boost::copy;
+    using boost::generate;
+    using boost::sort;
+
     const double prec = 2*DBL_EPSILON;
 
     xorshift64 xrand(++g_seed_counter);
@@ -1022,10 +1060,101 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Peel) {
         BOOST_REQUIRE_NO_THROW(graph.Construct(twofam_ped, twofam_libs,
             InheritanceModel::Autosomal, g, s, l, true));
 
+        auto da = f81::matrix(1e-6, {0.4, 0.2, 0.1, 0.3});
+        auto ma = f81::matrix(0.7e-6, {0.3, 0.1, 0.2, 0.4});
+
         auto work = graph.CreateWorkspace();
 
-        
+        // Create random log likelihoods sorted in decreasing order
+        std::vector<std::vector<double>> expected_lib_lower(5);
+        for(auto &&a : expected_lib_lower) {
+            a.resize(10);
+            generate(a, [&](){ return xrand.get_double52(); });
+            sort(a, std::greater<double>());
+        }
+        for(int i = work.library_nodes.first, u=0;i<work.library_nodes.second;++i) {
+            work.lower[i].resize(10);
+            copy(expected_lib_lower[u++], work.lower[i].data());
+        }
+        // Create random priors sorted in decreasing order
+        std::vector<std::vector<double>> expected_founder_upper(3);
+        for(auto &&a : expected_founder_upper) {
+            a.resize(10);
+            generate(a, [&](){ return xrand.get_double52(); });
+            sort(a, std::greater<double>());
+        }
+        for(int i = work.founder_nodes.first,u=0;i<work.founder_nodes.second;++i) {
+            work.upper[i].resize(10);
+            copy(expected_founder_upper[u++], work.upper[i].data());
+        }
+        // Create transition matrices
+        TransitionMatrixVector mats(8);
+        mats[3] = mitosis_matrix(2, da);
+        mats[4] = mitosis_matrix(2, ma);
+        mats[5] = meiosis_matrix(2,da,2,ma);
+        mats[6] = meiosis_matrix(2,da,2,ma);       
+        mats[3] = mitosis_matrix(2, da);
+        mats[7] = mitosis_matrix(2, da);
 
+        double test_value = graph.PeelForwards(work, mats);
+        // Family 1
+        double d1 = 0.0;
+        std::vector<double> lower0(10,0.0);
+        std::vector<double> lower1(10,0.0);
+        for(int i=0;i<10;++i) {
+            for(int j=0;j<10;++j) {
+                lower0[i] += expected_lib_lower[0][j]*mats[3](i,j);
+                lower1[i] += expected_lib_lower[1][j]*mats[4](i,j);
+            }
+        }
+        for(int i=0;i<10;++i) {
+            for(int j=0;j<10;++j) {
+                int ij = i*10+j;
+                double a = 0.0;
+                for(int k=0;k<10;++k) {
+                    a += expected_lib_lower[2][k]*mats[5](ij,k);
+                }
+                double b = 0.0;
+                for(int k=0;k<10;++k) {
+                    b += expected_lib_lower[3][k]*mats[6](ij,k);
+                }
+                d1 += a*b*(lower1[j]*expected_founder_upper[1][j])
+                         *(lower0[i]*expected_founder_upper[0][i]);
+            }
+        }        
+
+        // Family 2
+        double d2 = 0.0;
+        for(int i=0;i<10;++i) {
+            for(int j=0;j<10;++j) {
+                d2 += expected_lib_lower[4][j]*mats[7](i,j)*expected_founder_upper[2][i];
+            }
+        }
+        double expected_value = log(d1)+log(d2);
+
+        BOOST_CHECK_CLOSE_FRACTION(test_value, expected_value, prec);
+
+        // Check that backwards peeling produces proper marginals
+        graph.PeelBackwards(work, mats);
+
+        std::vector<double> test_marginal;
+        for(int n=0;n<work.lower.size();++n) {
+            double d = (work.lower[n]*work.upper[n]).sum();
+            test_marginal.push_back(d);
+        }
+        std::vector<double> test_marginal_super;
+        for(int n=3;n<work.lower.size();++n) {
+            double d = (work.lower[n]*(mats[n].transpose()*work.super[n].matrix()).array()).sum();
+            test_marginal_super.push_back(d);
+        }
+        std::vector<double> expected_marginal(work.lower.size(), 1.0);
+        std::vector<double> expected_marginal_super(work.lower.size()-3, 1.0);
+
+        CHECK_CLOSE_RANGES(test_marginal, expected_marginal, prec);
+        CHECK_CLOSE_RANGES(test_marginal_super, expected_marginal_super, prec);
+
+        // Testing Forward Peeling with Dirty Lower.
+        double test_value_2 = graph.PeelForwards(work, mats);
+        BOOST_CHECK_CLOSE_FRACTION(test_value_2, expected_value, prec);
     }
-
 }
