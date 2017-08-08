@@ -96,6 +96,7 @@ var mutmap = mutmap || {};
                 + d.target.x + "," + d.target.y;
             }
           })
+          .attr("stroke", "#ccc")
           .attr("fill", "transparent")
           .attr("stroke-dasharray", function(d) {
             if (d.type == "duplicate") {
@@ -117,33 +118,10 @@ var mutmap = mutmap || {};
           return utils.halfwayBetween(d.source.y, d.target.y);
         });
 
-      visualLinksEnterUpdate.select("text")
-        .text(function(d) {
-          if (linkHasMutation(d)) {
-            return d.dataLink.data.mutation;
-          }
-        });
-
-      visualLinksEnterUpdate.select("path")
-          .attr("stroke-width", function(d) {
-            if (linkHasMutation(d)) {
-              return 5;
-            }
-            return 1;
-          })
-          .attr("stroke", function(d) {
-            if (linkHasMutation(d)) {
-              return "#5cc464";
-            }
-
-            return "#ccc";
-          });
-
       function linkHasMutation(d) {
         return d.dataLink !== undefined && d.dataLink.data !== undefined &&
           d.dataLink.data.mutation !== undefined;
       }
-
     },
 
     _updateNodes: function() {
