@@ -2,8 +2,6 @@
 var vcfParser = (function() {
   "use strict";
 
-  var optionsManager = utils.createOptionsManager();
-
   var FORMAT_INDEX = 8;
   var FIRST_SAMPLE_INDEX = 9;
 
@@ -12,11 +10,6 @@ var vcfParser = (function() {
   }
 
   VcfParser.prototype.parse = function(options) {
-
-    optionsManager.checkOptions({
-      requiredOptions: ['vcfText'],
-      providedOptions: options
-    });
 
     var vcfText = options.vcfText;
 

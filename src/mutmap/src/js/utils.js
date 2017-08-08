@@ -5,8 +5,6 @@
 var utils = (function() {
   "use strict";
 
-  var optionsManager = createOptionsManager();
-
   function halfwayBetween(a, b) {
     if (a > b) {
       return a + ((b - a) / 2);
@@ -27,47 +25,7 @@ var utils = (function() {
     return "translate(" + x + "," + y + ")";
   }
 
-  function OptionsManager() {
-  }
-
-  OptionsManager.prototype.checkOptions = function(options) {
-
-    if (options === undefined) throw "No options";
-    if (options.requiredOptions  === undefined) throw "No requiredOptions";
-    if (options.providedOptions  === undefined) throw "No providedOptions";
-
-    // This is simply used to maintain the list of required options in a more
-    // efficient data struct than an actual list, since it will need to be
-    // searched for each potential unused option
-    //var requiredObject = {};
-
-    // Verify all required options are provided, and also build
-    // requiredObject for the unused option check which comes later 
-    options.requiredOptions.forEach(function(option) {
-      //requiredObject[option] = null;
-      if (options.providedOptions[option] === undefined) {
-        throw "Required option '" + option + "' not provided";
-      }
-    });
-
-    // Verify no unused options are provided
-    //Object.keys(options.providedOptions).forEach(function(option) {
-    //  if (requiredObject[option] === undefined) {
-    //    throw "Unused option '" + option + "' provided";
-    //  }
-    //});
-  }
-
-  function createOptionsManager() {
-    return new OptionsManager();
-  }
-
   function sortByKey(options) {
-
-    optionsManager.checkOptions({
-      requiredOptions: ['array', 'sortKey', 'descending'],
-      providedOptions: options
-    });
 
     var array = options.array;
     var key = options.sortKey;
@@ -98,9 +56,7 @@ var utils = (function() {
     halfwayBetween: halfwayBetween,
     distanceBetweenPoints: distanceBetweenPoints,
     svgTranslateString: svgTranslateString,
-    createOptionsManager: createOptionsManager,
     sortByKey: sortByKey,
-    optionsManager: optionsManager,
     getDimensions: getDimensions
   };
 

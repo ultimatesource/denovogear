@@ -86,11 +86,6 @@ var mutmap = mutmap || {};
 
     render: function(options) {
 
-      utils.optionsManager.checkOptions({
-        requiredOptions: ['data'],
-        providedOptions: options
-      });
-
       var data = options.data;
       this._rowHeight = 30;
       var rowHeightMargin = 5;
@@ -160,12 +155,6 @@ var mutmap = mutmap || {};
     },
 
     render: function(options) {
-
-      utils.optionsManager.checkOptions({
-        requiredOptions: ['data', 'height',
-          'chromLength'],
-        providedOptions: options
-      });
 
       var data = options.data;
       var height = options.height;
