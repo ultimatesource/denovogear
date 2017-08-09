@@ -38,7 +38,7 @@ var mutmap = mutmap || {};
           .attr("class", "row")
         .append("div")
           .attr("id", "genome_browser_wrapper")
-          .attr("class", "genome-browser-container");
+          .attr("class", "genome-browser-container col-xs-12 panel panel-default");
 
       var contigDimensions = utils.getDimensions(genomeBrowserRenderElement);
 

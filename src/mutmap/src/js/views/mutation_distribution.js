@@ -28,9 +28,6 @@ var mutmap = mutmap || {};
       var dimensions = utils.getDimensions(this.d3el);
 
       this._container = this.d3el.append("div")
-          .attr("class", "row")
-        .append("div")
-          .attr("class", "col-xs-12 panel panel-default")
           .style("width", dimensions.width+'px')
           .style("height", dimensions.height+'px');
 

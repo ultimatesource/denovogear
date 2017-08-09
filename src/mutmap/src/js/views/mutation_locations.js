@@ -15,15 +15,11 @@ var mutmap = mutmap || {};
       var height = dim.height;
 
       var container = this.d3el.append("div")
-          .attr("class", "row")
-        .append("div")
-          .attr("class", "col-xs-12 panel panel-default")
           .style("width", width+'px')
           .style("height", height+'px');
 
       var chromSelectorContainer = container.append("div")
           .attr("class", "chrom-selector");
-
 
       var SelectedChromosomeModel = Backbone.Model.extend({
         defaults: {

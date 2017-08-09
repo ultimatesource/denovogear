@@ -52,21 +52,23 @@ $(document).ready(function() {
       .style("height", dimensions.height+'px');
 
   var mutationExplorerContainer = d3.select(document.createElement('div'))
-      .attr("class", "mutation-explorer-container")
+      .attr("class", "mutation-explorer-container container")
       .style("width", dimensions.width+'px')
       .style("height", dimensions.height+'px');
 
   $(window).resize(function() {
     var dimensions = utils.getDimensions(d3.select(mainContainer));
 
-    mutationDistributionContainer
-        .style("width", dimensions.width+'px')
-        .style("height", dimensions.height+'px');
+    [
+      mutationDistributionContainer,
+      mutationLocationsContainer,
+      mutationExplorerContainer
+    ].forEach(function(container) {
+        container
+            .style("width", dimensions.width+'px')
+            .style("height", dimensions.height+'px');
+    });
 
-    mutationLocationsContainer
-        .style("width", dimensions.width+'px')
-        .style("height", dimensions.height+'px');
-    
     currentView.render();
   });
 

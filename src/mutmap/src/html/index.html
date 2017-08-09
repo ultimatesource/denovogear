@@ -18,17 +18,17 @@
   font: 10px sans-serif;
 }
 
-html,body {
-  height: 100%;
-}
-
 :root {
    --genome-browser-height: 100px;
    --genome-browsers-area-height: calc(1 * var(--genome-browser-height));
    /* TODO: don't know why the extra few pixels is necessary here. By my
       calculations it should only need to be 50px for the navbar, plus
-      2px for padding, plus 20px for margin = 72px */
-   --bootstrap-navbar-height: 92px;
+      2px for padding = 52px */
+   --bootstrap-navbar-height: 74px;
+}
+
+.navbar {
+  margin-bottom: 0;
 }
 
 .axis--x .domain {
@@ -47,6 +47,7 @@ html,body {
 
 .genome-browser-container {
   height: var(--genome-browser-height);
+  margin-bottom: 0;
 }
 .genome-browser__mutation {
   fill: #2ca02c;
@@ -111,7 +112,7 @@ html,body {
     </div>
   </nav>
 
-  <div class='main-container'>
+  <div class='main-container panel panel-default'>
   </div>
 
 </div>
