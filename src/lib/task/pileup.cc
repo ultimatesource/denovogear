@@ -80,6 +80,9 @@ int process_bam(Pileup::argument_type &arg) {
     using dng::io::BamPileup;
 
     // Open Reference
+    if(arg.fasta.empty()){
+    	throw std::runtime_error("Path to fasta file is empty.");
+    }
     io::Fasta reference{arg.fasta.c_str()};
 
     // Open input files

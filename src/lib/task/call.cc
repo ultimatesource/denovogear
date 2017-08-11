@@ -186,6 +186,9 @@ int process_bam(task::Call::argument_type &arg) {
     Pedigree ped = io::parse_ped(arg.ped);
 
     // Open Reference
+    if(arg.fasta.empty()){
+    	throw std::runtime_error("Path to fasta file is empty.");
+    }
     io::Fasta reference{arg.fasta.c_str()};
 
     // Parse Nucleotide Frequencies
