@@ -81,7 +81,7 @@ int process_bam(Pileup::argument_type &arg) {
 
     // Open Reference
     if(arg.fasta.empty()){
-    	throw std::runtime_error("Path to fasta file is empty.");
+    	throw std::invalid_argument("Path to reference file must be specified with --fasta when processing bam/sam/cram files.");
     }
     io::Fasta reference{arg.fasta.c_str()};
 
