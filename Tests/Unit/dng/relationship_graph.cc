@@ -58,7 +58,7 @@ template<typename CharType, typename CharTrait>
 inline
 std::basic_ostream<CharType, CharTrait>&
 operator<<(std::basic_ostream<CharType, CharTrait>& o, const RelationshipGraph::TransitionType& m) {
-    o << (int)m;
+    o << static_cast<int>(m);
     return o;
 }
 
@@ -67,7 +67,15 @@ template<typename CharType, typename CharTrait>
 inline
 std::basic_ostream<CharType, CharTrait>&
 operator<<(std::basic_ostream<CharType, CharTrait>& o, const Op& m) {
-    o << (int)m;
+    o << static_cast<int>(m);
+    return o;
+}
+
+template<typename CharType, typename CharTrait>
+inline
+std::basic_ostream<CharType, CharTrait>&
+operator<<(std::basic_ostream<CharType, CharTrait>& o, function_t m) {
+    o << reinterpret_cast<void*>(m);
     return o;
 }
 }
@@ -732,6 +740,72 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
 
         test(graph, expected);
     }
+
+    BOOST_TEST_CONTEXT("graph=m12") {
+/*
+1-2    3-4
+ |      |
+ 7------8    5-6
+   |  |       |
+   9  10-----11
+          |
+          12
+*/
+        libraries_t libs = {
+            {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"},
+            {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"}
+        };
+
+        Pedigree ped;
+        ped.AddMember("1", "0","0",Sex::Male,"");
+        ped.AddMember("2", "0","0",Sex::Female,"");
+        ped.AddMember("3", "0","0",Sex::Male,"");
+        ped.AddMember("4", "0","0",Sex::Female,"");
+        ped.AddMember("5", "0","0",Sex::Male,"");
+        ped.AddMember("6", "0","0",Sex::Female,"");
+        ped.AddMember("7", "1","2",Sex::Male,"");
+        ped.AddMember("8", "3","4",Sex::Female,"");
+        ped.AddMember("9", "7","8",Sex::Female,"");
+        ped.AddMember("10","7","8",Sex::Female,"");
+        ped.AddMember("11","5","6",Sex::Male,"");
+        ped.AddMember("12","11","10",Sex::Male,"");
+
+        constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
+
+        //Construct Graph
+        RelationshipGraph graph;
+        BOOST_REQUIRE_NO_THROW(graph.Construct(ped, libs, InheritanceModel::Autosomal, g, s, l, true));
+
+        const expected_graph_nodes_t expected = {
+            {"GL/1", DIPLOID, GERMLINE,  ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
+            {"GL/2", DIPLOID, GERMLINE, !ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
+            {"GL/3", DIPLOID, GERMLINE, !ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
+            {"GL/4", DIPLOID, GERMLINE, !ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
+            {"GL/5", DIPLOID, GERMLINE, !ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
+            {"GL/6", DIPLOID, GERMLINE, !ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
+            
+            {"GL/7", DIPLOID, GERMLINE, !ROOT, TRIO, 0, g, 1, g, ""},
+            {"GL/8", DIPLOID, GERMLINE, !ROOT, TRIO, 2, g, 3, g, ""},
+            {"GL/11", DIPLOID, GERMLINE, !ROOT, TRIO, 4, g, 5, g, ""},
+            {"GL/10", DIPLOID, GERMLINE, !ROOT, TRIO, 6, g, 7, g, ""},
+
+            {"LB/1", DIPLOID, LIBRARY,  !ROOT, PAIR, 0, s+l, -1, 0.0f, "1"},
+            {"LB/2", DIPLOID, LIBRARY,  !ROOT, PAIR, 1, s+l, -1, 0.0f, "2"},
+            {"LB/3", DIPLOID, LIBRARY,  !ROOT, PAIR, 2, s+l, -1, 0.0f, "3"},
+            {"LB/4", DIPLOID, LIBRARY,  !ROOT, PAIR, 3, s+l, -1, 0.0f, "4"},
+            {"LB/5", DIPLOID, LIBRARY,  !ROOT, PAIR, 4, s+l, -1, 0.0f, "5"},
+            {"LB/6", DIPLOID, LIBRARY,  !ROOT, PAIR, 5, s+l, -1, 0.0f, "6"},
+            {"LB/7", DIPLOID, LIBRARY,  !ROOT, PAIR, 6, s+l, -1, 0.0f, "7"},
+            {"LB/8", DIPLOID, LIBRARY,  !ROOT, PAIR, 7, s+l, -1, 0.0f, "8"},
+            {"LB/9", DIPLOID, LIBRARY,  !ROOT, TRIO, 6, g+s+l, 7, g+s+l, "9"},
+            {"LB/10", DIPLOID, LIBRARY,  !ROOT, PAIR, 9, s+l, -1, 0.0f, "10"},
+            {"LB/11", DIPLOID, LIBRARY,  !ROOT, PAIR, 8, s+l, -1, 0.0f, "11"},
+            {"LB/12", DIPLOID, LIBRARY,  !ROOT, TRIO, 8, g+s+l, 9, g+s+l, "12"},
+          };
+
+        test(graph, expected);
+    }
+
 }
 
 BOOST_AUTO_TEST_CASE(test_RelationshipGraph_CreateWorkspace) {
@@ -1028,6 +1102,63 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_peeler) {
 
         test(graph, expected);
     }
+
+    BOOST_TEST_CONTEXT("graph=m12") {
+/*
+1-2    3-4
+ |      |
+ 7------8    5-6
+   |  |       |
+   9  10-----11
+          |
+          12
+*/
+        libraries_t libs = {
+            {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"},
+            {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"}
+        };
+
+        Pedigree ped;
+        ped.AddMember("1", "0","0",Sex::Male,"");
+        ped.AddMember("2", "0","0",Sex::Female,"");
+        ped.AddMember("3", "0","0",Sex::Male,"");
+        ped.AddMember("4", "0","0",Sex::Female,"");
+        ped.AddMember("5", "0","0",Sex::Male,"");
+        ped.AddMember("6", "0","0",Sex::Female,"");
+        ped.AddMember("7", "1","2",Sex::Male,"");
+        ped.AddMember("8", "3","4",Sex::Female,"");
+        ped.AddMember("9", "7","8",Sex::Female,"");
+        ped.AddMember("10","7","8",Sex::Female,"");
+        ped.AddMember("11","5","6",Sex::Male,"");
+        ped.AddMember("12","11","10",Sex::Male,"");
+
+        constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
+
+        //Construct Graph
+        RelationshipGraph graph;
+        BOOST_REQUIRE_NO_THROW(graph.Construct(ped, libs, InheritanceModel::Autosomal, g, s, l, true));
+
+        const expected_peeling_nodes_t expected = {
+            {Op::UPFAST, {1,11}},
+            {Op::UPFAST, {2,12}},
+            {Op::UPFAST, {3,13}},
+            {Op::TOCHILDFAST, {2,3,7}},
+            {Op::UPFAST, {4,14}},
+            {Op::UPFAST, {5,15}},
+            {Op::TOCHILDFAST, {4,5,8}},       
+            {Op::UPFAST, {8,20}},   
+            {Op::TOMOTHERFAST, {8,9,21}},
+            {Op::UP, {9,19}}, 
+            {Op::UPFAST, {7,17}},
+            {Op::TOFATHERFAST, {6,7,9,18}},
+            {Op::UP, {6,16}},         
+            {Op::TOFATHERFAST, {0,1,6}},         
+            {Op::UP, {0,10}},         
+        };
+
+        test(graph, expected);
+    }
+
 }
 
 BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Peel) {
