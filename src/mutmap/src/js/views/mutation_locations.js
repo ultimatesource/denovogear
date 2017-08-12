@@ -3,6 +3,20 @@ var mutmap = mutmap || {};
 (function(d3, utils) {
   "use strict";
 
+
+  var SelectedChromosomeModel = Backbone.Model.extend({
+    defaults: {
+      index: 0
+    }
+  });
+
+  var SampleListModel = Backbone.Model.extend({
+    defaults: {
+      listElements: null
+    }
+  });
+
+
   mutmap.MutationLocationsView = Backbone.View.extend({
     initialize: function(options) {
 
@@ -14,18 +28,10 @@ var mutmap = mutmap || {};
       var width = dim.width;
       var height = dim.height;
 
-      var container = this.d3el.append("div")
-          .style("width", width+'px')
-          .style("height", height+'px');
+      var container = this.d3el.append("div");
 
       var chromSelectorContainer = container.append("div")
           .attr("class", "chrom-selector");
-
-      var SelectedChromosomeModel = Backbone.Model.extend({
-        defaults: {
-          index: 0
-        }
-      });
 
       var selectedChromosome = new SelectedChromosomeModel();
 
@@ -37,17 +43,12 @@ var mutmap = mutmap || {};
         itemName: 'Chromosome'
       });
 
-      selectedChromosome.on('change', function() {
-        listView.render({
-          data: this.mutationLocationData[selectedChromosome.get('index')]
-        });
-      }, this);
-
       var selectorDimensions = utils.getDimensions(chromSelectorContainer);
 
+      var svgHeight = height - selectorDimensions.height;
       var svg = container.append("svg")
           .style("width", "100%")
-          .style("height", (height - selectorDimensions.height)+'px');
+          .style("height", svgHeight+'px');
 
       var margins = {
         left: 20,
@@ -62,27 +63,39 @@ var mutmap = mutmap || {};
           .attr("transform",
                 utils.svgTranslateString(margins.left, margins.top));
 
+      var sampleList = new SampleListModel();
+      sampleList.set('listElements', this.mutationLocationData[0]);
+
       var listView = new SampleMutationsListView({
-        el: g,
-        data: this.mutationLocationData[0],
+        el: g.node(),
+        sampleList: sampleList,
         width: chromWidth,
       });
 
+      selectedChromosome.on('change', function() {
+        sampleList.set('listElements',
+          this.mutationLocationData[selectedChromosome.get('index')]);
+      }, this);
     }
   });
+
 
   var SampleMutationsListView = Backbone.View.extend({
 
     initialize: function(options) {
 
       this._width = options.width;
+      this.d3el = d3.select(this.el);
+      this._sampleList = options.sampleList;
 
-      this.render(options);
+      this._sampleList.on('change', this.render.bind(this));
+
+      this.render();
     },
 
-    render: function(options) {
+    render: function() {
 
-      var data = options.data;
+      var data = this._sampleList.get('listElements');
       this._rowHeight = 30;
       var rowHeightMargin = 5;
 
@@ -91,9 +104,9 @@ var mutmap = mutmap || {};
       // when the data changes. d3 can do more efficient updates, as well as
       // fancy transitions if you stay with d3's model. This works fine for now
       // but might need to be redesigned in the future.
-      this.el.selectAll("g").remove();
+      this.d3el.selectAll("g").remove();
 
-      var g = this.el.append("g")
+      var g = this.d3el.append("g")
           .attr("class", "sample-mutation-list");
 
       this._rows = [];
@@ -107,7 +120,7 @@ var mutmap = mutmap || {};
             .attr("transform", translateString);
         
         this._rows.push(new SampleMutationsView({
-          el: rowContainer,
+          el: rowContainer.node(),
           data: data.samples[index],
           width: this._width,
           height: this._rowHeight,
@@ -117,20 +130,23 @@ var mutmap = mutmap || {};
 
       this._rows.forEach(function(sample, index) {
         sample.render({
-          data: options.data.samples[index],
+          data: data.samples[index],
           height: this._rowHeight,
-          chromLength: options.data.length
+          chromLength: data.length
         });
       }, this);
     }
 
   });
 
+
   var SampleMutationsView = Backbone.View.extend({
 
     initialize: function(options) {
 
-      this._g = options.el.append("g")
+      this.d3el = d3.select(this.el);
+
+      this._g = this.d3el.append("g")
           .attr("class", "sample");
 
       var label = this._g.append("text")
