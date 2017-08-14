@@ -64,6 +64,8 @@ var mutmap = mutmap || {};
       this._nodes_container = this._container.append("g")
           .attr("class", "nodes-container");
 
+      this._gpNode = gpNode();
+
     },
    
     render: function() {
@@ -182,8 +184,18 @@ var mutmap = mutmap || {};
           }
         });
 
-      visualNodesEnter.call(
-        gpNode().activeNodeModel(this.activeNodeModel));
+
+      var nodeSymbols = visualNodesEnter.append("g")
+          .attr("class", function(d) {
+            if (d.type === "person") {
+              return "node-symbol node-symbol__" + d.dataNode.sex;
+            }
+          })
+          .on("click", this._nodeClicked.bind(this));
+
+      var nodeSymbolsEnterUpdate = nodeSymbols.merge(visualNodesUpdate);
+
+      nodeSymbolsEnterUpdate.call(this._gpNode);
       
       visualNodesEnter.append("text")
         .attr("dx", 15)
@@ -249,6 +261,14 @@ var mutmap = mutmap || {};
         }
       });
     },
+
+    _nodeClicked: function(d) {
+      if (d.type !== "marriage") {
+        this.activeNodeModel.set({
+          dataNode: d.dataNode
+        });
+      }
+    }
   });
 
   function zoomed() {
@@ -275,8 +295,6 @@ var mutmap = mutmap || {};
 
   function gpNode() {
 
-    var activeNodeModel = null;
-
     var color = d3.scaleOrdinal(d3.schemeCategory10);
     var pie = d3.pie()
       .sort(null);
@@ -284,140 +302,149 @@ var mutmap = mutmap || {};
       .outerRadius(15)
       .innerRadius(0);
 
-    function nodeClicked(d) {
-      if (d.type !== "marriage") {
-        activeNodeModel.set({
-          dataNode: d.dataNode
-        });
-      }
-    }
-
     function my(selection) {
 
       selection.each(function(d) {
 
-        if (d.type === "person") {
-          if (d.dataNode.sex === "male") {
-            if (d.dataNode.data.dngOutputData) {
-              var gpSplits =
-                calculateGpSplits(d.dataNode.data.dngOutputData.GP);
+        if (d.type !== "person") {
+          return;
+        }
+        
+        if (d.dataNode.sex === "male") {
+          if (d.dataNode.data.dngOutputData) {
 
-              var squareWidth = 30;
-              var squareHeight = squareWidth;
+            var squareWidth = 30;
+            var squareHeight = squareWidth;
 
-              var square = d3.select(this).append("g")
-                  .attr("class", "node-symbol node-symbol__male")
-                  .on("click", nodeClicked);
+            var partitions = calculatePartitions(
+              d.dataNode.data.dngOutputData.GP, squareWidth);
 
-              // Not using d3 selections because we need to keep track of
-              // the relative offsets
-              var offset = 0;
-              gpSplits.forEach(function(split, index) {
+            var squareUpdate = d3.select(this).selectAll('.partition')
+                .data(partitions);
 
-                square.append("g")
-                    .attr("class", "partition")
-                  .append("rect")
-                    .attr("x", -(squareWidth / 2) + offset)
-                    .attr("y", -(squareHeight / 2))
-                    .attr("width", split*squareWidth)
-                    .attr("height", squareHeight)
-                    .attr("fill", d3.schemeCategory10[index]);
+            var squareEnter = squareUpdate.enter()
+              .append("rect")
+                .attr("class", "partition")
 
-                offset += split*squareWidth;
-              });
-            }
-          }
-          else if (d.dataNode.sex === "female") {
-            if (d.dataNode.data.dngOutputData) {
-              var gpSplits =
-                calculateGpSplits(d.dataNode.data.dngOutputData.GP);
+            var squareEnterUpdate = squareEnter.merge(squareUpdate);
 
-              var pieChart = d3.select(this).append("g")
-                  .attr("class", "node-symbol node-symbol__female")
-                  .on("click", nodeClicked);
-
-              pieChart.selectAll(".arc")
-                  //.data(pie(d.dataNode.data.dngOutputData.GP))
-                  .data(pie(gpSplits))
-                .enter().append("path")
-                  .attr("class", "arc")
-                  .attr("d", piePath)
-                  .attr("fill", function(d, i) { 
-                    return d3.schemeCategory10[i];
-                    //return color(d.value);
-                  });
-            }
-          }
-          else {
+            squareEnterUpdate
+                .attr("x", function(d) {
+                  return -(squareWidth / 2) + d.offset;
+                })
+                .attr("y", -(squareHeight / 2))
+                .attr("width", function(d) {
+                  return d.split*squareWidth;
+                })
+                .attr("height", squareHeight)
+                .attr("fill", function(d, i) {
+                  return d3.schemeCategory10[i];
+                });
           }
         }
-        else {
-          return d3.symbolTriangle;
-        }
 
+        else if (d.dataNode.sex === "female") {
+          if (d.dataNode.data.dngOutputData) {
+            var gpSplits =
+              calculateGpSplits(d.dataNode.data.dngOutputData.GP);
+
+            var pieUpdate = d3.select(this).selectAll(".arc")
+                .data(pie(gpSplits));
+
+            var pieEnter = pieUpdate.enter().append("path")
+                .attr("class", "arc");
+
+            var pieEnterUpdate = pieEnter.merge(pieUpdate);
+
+            pieEnterUpdate
+                .attr("d", piePath)
+                .attr("fill", function(d, i) { 
+                  return d3.schemeCategory10[i];
+                });
+          }
+        }
       });
     }
-
-    my.activeNodeModel = function(value) {
-      if (!arguments.length) return activeNodeModel;
-      activeNodeModel = value;
-      return my;
-    };
 
     return my;
+  }
 
-    function calculateGpSplits(gp) {
+  function calculatePartitions(gp, length) {
+    var gpSplits = calculateGpSplits(gp);
+    var offsets = calculateOffsets(gpSplits, length);
 
-      var gpIndicesTable;
+    return gpSplits.map(function(split, index) {
+      return {
+        split: split,
+        offset: offsets[index]
+      };
+    });
+  }
 
-      // TODO: Generate this table algorithmically.
-      if (gp.length === 3) {
-        // According to VCF spec, ordering is AA, AB, BB
-        // see GL section in
-        // https://samtools.github.io/hts-specs/VCFv4.2.pdf
-        gpIndicesTable = [
-          [ 1 ],
-          [ 2 ]
-        ];
-      }
-      else if (gp.length === 6) {
-        // According to VCF spec, ordering is AA, AB, BB, AC, BC, CC
-        // see GL section in
-        // https://samtools.github.io/hts-specs/VCFv4.2.pdf
-        gpIndicesTable = [
-          [ 1, 3 ],
-          [ 2, 4, 5 ]
-        ];
-      }
-      else if (gp.length === 10) {
-        gpIndicesTable = [
-          [ 1, 3, 6 ],
-          [ 2, 4, 5, 7, 8, 9 ]
-        ];
-      }
-      else {
-        throw "GP indices table not defined for GP length: " + gp.length;
-      }
+  function calculateOffsets(splits, length) {
 
-      var refOnly = gp[0];
+    var offsets = [];
+    var offset = 0;
+    splits.forEach(function(split, index) {
+      offsets.push(offset);
+      offset += split*length;
+    });
 
-      var includesRef = 0;
-      gpIndicesTable[0].forEach(function(index) {
-        includesRef += gp[index];
-      });
+    return offsets;
+  }
 
-      var doesNotIncludeRef = 0;
-      gpIndicesTable[1].forEach(function(index) {
-        doesNotIncludeRef += gp[index];
-      });
+  function calculateGpSplits(gp) {
 
-      return [
-        refOnly,
-        includesRef,
-        doesNotIncludeRef
+    var gpIndicesTable;
+
+    // TODO: Generate this table algorithmically.
+    if (gp.length === 3) {
+      // According to VCF spec, ordering is AA, AB, BB
+      // see GL section in
+      // https://samtools.github.io/hts-specs/VCFv4.2.pdf
+      gpIndicesTable = [
+        [ 1 ],
+        [ 2 ]
       ];
     }
+    else if (gp.length === 6) {
+      // According to VCF spec, ordering is AA, AB, BB, AC, BC, CC
+      // see GL section in
+      // https://samtools.github.io/hts-specs/VCFv4.2.pdf
+      gpIndicesTable = [
+        [ 1, 3 ],
+        [ 2, 4, 5 ]
+      ];
+    }
+    else if (gp.length === 10) {
+      gpIndicesTable = [
+        [ 1, 3, 6 ],
+        [ 2, 4, 5, 7, 8, 9 ]
+      ];
+    }
+    else {
+      throw "GP indices table not defined for GP length: " + gp.length;
+    }
+
+    var refOnly = gp[0];
+
+    var includesRef = 0;
+    gpIndicesTable[0].forEach(function(index) {
+      includesRef += gp[index];
+    });
+
+    var doesNotIncludeRef = 0;
+    gpIndicesTable[1].forEach(function(index) {
+      doesNotIncludeRef += gp[index];
+    });
+
+    return [
+      refOnly,
+      includesRef,
+      doesNotIncludeRef
+    ];
   }
+
 
   function createPedigreeView(options) {
     return new PedigreeView(options);
