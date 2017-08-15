@@ -52,12 +52,48 @@ var utils = (function() {
     };
   }
 
+  function getSVGDimensions(element) {
+    var bbox = element.node().getBBox();
+    return {
+      width: bbox.width,
+      height: bbox.height
+    };
+  }
+
   return {
     halfwayBetween: halfwayBetween,
     distanceBetweenPoints: distanceBetweenPoints,
     svgTranslateString: svgTranslateString,
     sortByKey: sortByKey,
-    getDimensions: getDimensions
+    getDimensions: getDimensions,
+    getSVGDimensions: getSVGDimensions,
+    setSizedGroupDimensions: function(width, height) {
+      // TODO: Maybe too much of a hack. Forces the g group dimensions by
+      // appending an invisible rectangle of the desired size.
+      return function(selection) {
+
+        var rectUpdate = selection.selectAll("rect")
+          .data([0]);
+
+        var rectEnter = rectUpdate.enter()
+          .append("rect")
+            .attr("fill", "none");
+
+        var rectEnterUpdate = rectEnter.merge(rectUpdate);
+
+        rectEnterUpdate
+            .attr("width", width)
+            .attr("height", height);
+      };
+    },
+    getSizedGroupDimensions: function(g) {
+      // TODO: same hack as setSizedGroupDimensions
+      var rect = g.select("rect");
+      return {
+        width: +rect.attr("width"),
+        height: +rect.attr("height")
+      };
+    }
   };
 
 }());
