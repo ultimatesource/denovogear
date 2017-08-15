@@ -71,20 +71,12 @@ bool CallMutations::operator()(const pileup::RawDepths &depths,
 
 bool CallMutations::operator()(const pileup::AlleleDepths &depths,
                 stats_t *stats) {
-    int ref_index = depths.type_info().reference;
-    size_t gt_width = depths.type_gt_info().width;
-    size_t width = depths.type_info().width;
-    // Set the prior probability of the founders given the reference
-    GenotypeArray diploid_prior(gt_width);
-    for(int i=0;i<gt_width;++i) {
-        diploid_prior(i) = diploid_prior_[ref_index](depths.type_gt_info().indexes[i]);
-    }
-    GenotypeArray haploid_prior(width);
-    for(int i=0;i<width;++i) {
-        haploid_prior(i) = diploid_prior_[ref_index](0);//depths.type_info().indexes[i]);
-    }
+    const int ref_index = depths.type_info().reference;
+    const int color = depths.color();
     
     // Set the prior probability of the founders given the reference
+    GenotypeArray diploid_prior = DiploidPrior(ref_index, color);
+    GenotypeArray haploid_prior = HaploidPrior(ref_index, color);
     work_.SetFounders(diploid_prior, haploid_prior);
 
     // Genotype Likelihoods
