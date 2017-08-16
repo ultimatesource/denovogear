@@ -44,9 +44,10 @@ var mutmap = mutmap || {};
       this._selectedChromosome = new SelectedChromosomeModel();
 
       this._svg = this.container.append("svg")
-          .style("width", "100%");
+          .attr("x", 0)
+          .attr("y", 0)
 
-      this._g = this._svg.append("g");
+      this._listSvg = this._svg.append("svg")
 
       var chromSelector = new mutmap.ListSelectorView({
         el: this._chromSelectorContainer,
@@ -64,10 +65,8 @@ var mutmap = mutmap || {};
           this.mutationLocationData[this._selectedChromosome.get('index')]);
       }, this);
 
-      this._g.call(utils.setSizedGroupDimensions(0, 0));
-
       this._listView = new SampleMutationsListView({
-        el: this._g.node(),
+        el: this._listSvg.node(),
         model: this._sampleList,
       });
 
@@ -84,7 +83,9 @@ var mutmap = mutmap || {};
         utils.getDimensions(this._chromSelectorContainer);
 
       var svgHeight = this.dim.height - selectorDimensions.height;
-      this._svg.style("height", svgHeight+'px');
+      this._svg
+          .attr("width", this.dim.width)
+          .attr("height", svgHeight)
 
       var margins = {
         left: 20,
@@ -98,10 +99,11 @@ var mutmap = mutmap || {};
       var listWidth = chromWidth;
       var listHeight = svgHeight - (margins.top + margins.bottom);
 
-      this._g.attr("transform",
-        utils.svgTranslateString(margins.left, margins.top));
-
-      this._g.call(utils.setSizedGroupDimensions(listWidth, listHeight));
+      this._listSvg
+          .attr("x", margins.left)
+          .attr("y", margins.top)
+          .attr("width", listWidth)
+          .attr("height", listHeight)
 
       this._listView.render();
 
@@ -129,7 +131,11 @@ var mutmap = mutmap || {};
     render: function() {
 
       var d3el = d3.select(this.el);
-      this.dim = utils.getSizedGroupDimensions(this.d3el);
+
+      this.dim = {
+        width: this.d3el.attr("width"),
+        height: this.d3el.attr("height")
+      };
 
       var data = this.model.get('listElements');
       var rowHeight = this.dim.height / data.samples.length;
@@ -140,7 +146,8 @@ var mutmap = mutmap || {};
           .data(data.samples);
 
       var rowEnter = rowUpdate.enter()
-        .append("g")
+        // Use svg elements instead of g in order to be able to set dimensions
+        .append("svg")
           .attr("class", "sample-mutation-list__row");
 
       // Basically the approach I'm taking combines the flow of d3 with the
@@ -178,17 +185,21 @@ var mutmap = mutmap || {};
       var rowEnterUpdate = rowEnter.merge(rowUpdate);
 
       rowEnterUpdate
-          .attr("transform", function(d, i) {
-            return utils.svgTranslateString(0, rowHeight * i);
+          .attr("x", 0)
+          .attr("y", function(d, i) {
+            return rowHeight * i;
           })
-          .call(
-            utils.setSizedGroupDimensions(this.dim.width, paddedRowHeight))
+          .attr("width", this.dim.width)
+          .attr("height", paddedRowHeight)
           .each(function(row, index) {
             self._rowViews[index].render();
           })
 
       var rowExit = rowUpdate.exit();
       rowExit
+      // TODO: may want to uncomment this code to have elements removed when
+      // the list shortens. Leaving it here since they're likely to be reused
+      // and this saves a new allocation. ie this is a premature optimization
       //rowExit.each(function(row, index) {
       //  self._rowViews.splice(index, 1);
       //})
@@ -219,8 +230,10 @@ var mutmap = mutmap || {};
 
     render: function() {
 
-      console.log("render");
-      this.dim = utils.getSizedGroupDimensions(this.d3el);
+      this.dim = {
+        width: this.d3el.attr("width"),
+        height: this.d3el.attr("height")
+      };
 
       var fontSize = Math.min(18, .8 * this.dim.height);
       this._textWidth = 10 * fontSize;
@@ -259,7 +272,7 @@ var mutmap = mutmap || {};
           .attr("x", function(d) {
             return xScale(d) + textWidth; 
           })
-          .attr("width", 3)
+          .attr("width", 0.15 * this.dim.height)
           .attr("height", this.dim.height)
     }
   });
