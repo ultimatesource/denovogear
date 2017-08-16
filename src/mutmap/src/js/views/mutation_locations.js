@@ -105,6 +105,11 @@ var mutmap = mutmap || {};
 
       this._sampleList.on('change', this.render.bind(this));
 
+      this._g = this.d3el.append("g")
+          .attr("class", "sample-mutation-list");
+
+      this._rowViews = [];
+
       this.render();
     },
 
@@ -116,43 +121,61 @@ var mutmap = mutmap || {};
       var data = this._sampleList.get('listElements');
       var rowHeight = this.dim.height / data.samples.length;
       var rowPadding = 0.15 * rowHeight;
+      var paddedRowHeight = rowHeight - rowPadding;
 
-      // TODO: This is a hack. The object-oriented approach I'm taking doesn't
-      // really work with d3 all that well. I'm forcing a complete re-render
-      // when the data changes. d3 can do more efficient updates, as well as
-      // fancy transitions if you stay with d3's model. This works fine for now
-      // but might need to be redesigned in the future.
-      this.d3el.selectAll("g").remove();
+      var rowUpdate = this._g.selectAll(".sample-mutation-list__row")
+          .data(data.samples);
 
-      var g = this.d3el.append("g")
-          .attr("class", "sample-mutation-list");
+      var rowEnter = rowUpdate.enter()
+        .append("g")
+          .attr("class", "sample-mutation-list__row");
 
-      this._rows = [];
-      data.samples.forEach(function(sample, index) {
-        var translateString =
-          utils.svgTranslateString(0, rowHeight * index);
+      // Basically the approach I'm taking combines the flow of d3 with the
+      // object oriented view architecture I'm using with Backbone. I'm trying
+      // to stick with the enter, update, exit paradigm from d3. But I also
+      // need to manage the lifetimes of the child Backbone views. So I'm
+      // using this._rowViews to hold those references but using the d3
+      // selections to manage them.
 
-        var rowContainer = g.append("g")
-            .attr("class", "sample-mutation-list__row")
-            .attr("transform", translateString);
+      var self = this;
 
-        var paddedRowHeight = rowHeight - rowPadding;
+      rowEnter.each(function(row, index) {
 
-        rowContainer.call(
-          utils.setSizedGroupDimensions(this.dim.width, paddedRowHeight));
-        
-        this._rows.push(new SampleMutationsView({
+        var rowContainer = d3.select(this);
+
+        self._rowViews[index] = new SampleMutationsView({
           el: rowContainer.node(),
           data: data.samples[index],
           chromLength: data.length,
-        }));
-      }, this);
+        });
+      })
 
-      this._rows.forEach(function(sample, index) {
-        sample.render();
-      }, this);
+      rowUpdate.each(function(row, index) {
+
+        self._rowViews[index].data = data.samples[index];
+        self._rowViews[index].chromLength = data.length;
+      })
+
+      var rowEnterUpdate = rowEnter.merge(rowUpdate);
+
+      rowEnterUpdate
+          .attr("transform", function(d, i) {
+            return utils.svgTranslateString(0, rowHeight * i);
+          })
+          .call(
+            utils.setSizedGroupDimensions(this.dim.width, paddedRowHeight))
+          .each(function(row, index) {
+            self._rowViews[index].render();
+          })
+
+      var rowExit = rowUpdate.exit();
+      rowExit
+      //rowExit.each(function(row, index) {
+      //  self._rowViews.splice(index, 1);
+      //})
+        .remove()
+
     }
-
   });
 
 
@@ -178,13 +201,13 @@ var mutmap = mutmap || {};
 
     render: function() {
 
-      this.dim = utils.getSVGDimensions(this.d3el);
+      console.log("render");
+      this.dim = utils.getSizedGroupDimensions(this.d3el);
 
       var data = this.data;
       var chromLength = this.chromLength;
 
       var fontSize = Math.min(18, .8 * this.dim.height);
-      //this._textWidth = 8 * this.dim.height;
       this._textWidth = 10 * fontSize;
       this._width = this.dim.width - this._textWidth;
 
@@ -211,8 +234,6 @@ var mutmap = mutmap || {};
 
       var mutationsEnter = mutationsUpdate.enter().append("rect")
           .attr("class", "genome-browser__mutation")
-          .attr("width", 3)
-          .attr("height", this.dim.height)
           .attr("y", 0);
 
       mutationsUpdate.exit().remove();
@@ -222,7 +243,9 @@ var mutmap = mutmap || {};
       mutationsEnterUpdate
           .attr("x", function(d) {
             return xScale(d) + textWidth; 
-          });
+          })
+          .attr("width", 3)
+          .attr("height", this.dim.height)
     }
   });
 
