@@ -109,9 +109,13 @@ $(document).ready(function() {
 
       if (!mutationLocationsView) {
 
+        var model = new mutmap.MutationLocationsModel({
+          mutationLocationData: buildMutationLocationData(vcfData)
+        });
+
         mutationLocationsView = new mutmap.MutationLocationsView({
           el: mutationLocationsContainer.node(),
-          mutationLocationData: buildMutationLocationData(vcfData)
+          model: model
         });
       }
 

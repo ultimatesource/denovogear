@@ -3,6 +3,11 @@ var mutmap = mutmap || {};
 (function(d3, utils) {
   "use strict";
 
+  mutmap.MutationLocationsModel = Backbone.Model.extend({
+    defaults: {
+      mutationLocationData: null
+    }
+  });
 
   var SelectedChromosomeModel = Backbone.Model.extend({
     defaults: {
@@ -25,9 +30,9 @@ var mutmap = mutmap || {};
 
 
   mutmap.MutationLocationsView = Backbone.View.extend({
-    initialize: function(options) {
+    initialize: function() {
 
-      this.mutationLocationData = options.mutationLocationData;
+      this.mutationLocationData = this.model.get('mutationLocationData');
 
       this.d3el = d3.select(this.el);
 
@@ -63,8 +68,10 @@ var mutmap = mutmap || {};
 
       this._listView = new SampleMutationsListView({
         el: this._g.node(),
-        sampleList: this._sampleList,
+        model: this._sampleList,
       });
+
+      this.model.on('change', this.render.bind(this));
 
       this.render();
     },
@@ -105,12 +112,11 @@ var mutmap = mutmap || {};
 
   var SampleMutationsListView = Backbone.View.extend({
 
-    initialize: function(options) {
+    initialize: function() {
 
       this.d3el = d3.select(this.el);
-      this._sampleList = options.sampleList;
 
-      this._sampleList.on('change', this.render.bind(this));
+      this.model.on('change', this.render.bind(this));
 
       this._g = this.d3el.append("g")
           .attr("class", "sample-mutation-list");
@@ -125,7 +131,7 @@ var mutmap = mutmap || {};
       var d3el = d3.select(this.el);
       this.dim = utils.getSizedGroupDimensions(this.d3el);
 
-      var data = this._sampleList.get('listElements');
+      var data = this.model.get('listElements');
       var rowHeight = this.dim.height / data.samples.length;
       var rowPadding = 0.15 * rowHeight;
       var paddedRowHeight = rowHeight - rowPadding;
