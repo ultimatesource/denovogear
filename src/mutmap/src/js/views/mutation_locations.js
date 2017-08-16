@@ -16,6 +16,13 @@ var mutmap = mutmap || {};
     }
   });
 
+  var SampleMutationsModel = Backbone.Model.extend({
+    defaults: {
+      chromLength: 0,
+      sample: null
+    }
+  });
+
 
   mutmap.MutationLocationsView = Backbone.View.extend({
     initialize: function(options) {
@@ -143,17 +150,23 @@ var mutmap = mutmap || {};
 
         var rowContainer = d3.select(this);
 
+        var model = new SampleMutationsModel({
+          sample: data.samples[index],
+          chromLength: data.length
+        });
+
         self._rowViews[index] = new SampleMutationsView({
           el: rowContainer.node(),
-          data: data.samples[index],
-          chromLength: data.length,
+          model: model,
         });
       })
 
       rowUpdate.each(function(row, index) {
 
-        self._rowViews[index].data = data.samples[index];
-        self._rowViews[index].chromLength = data.length;
+        self._rowViews[index].model.set({
+          sample: data.samples[index],
+          chromLength: data.length
+        });
       })
 
       var rowEnterUpdate = rowEnter.merge(rowUpdate);
@@ -181,12 +194,9 @@ var mutmap = mutmap || {};
 
   var SampleMutationsView = Backbone.View.extend({
 
-    initialize: function(options) {
+    initialize: function() {
 
       this.d3el = d3.select(this.el);
-
-      this.data = options.data;
-      this.chromLength = options.chromLength;
 
       this._g = this.d3el.append("g")
           .attr("class", "sample");
@@ -196,6 +206,8 @@ var mutmap = mutmap || {};
       this._background = this._g.append("rect")
           .attr("class", "genome-browser__background")
 
+      this.model.on('change', this.render.bind(this));
+
       this.render();
     },
 
@@ -204,15 +216,12 @@ var mutmap = mutmap || {};
       console.log("render");
       this.dim = utils.getSizedGroupDimensions(this.d3el);
 
-      var data = this.data;
-      var chromLength = this.chromLength;
-
       var fontSize = Math.min(18, .8 * this.dim.height);
       this._textWidth = 10 * fontSize;
       this._width = this.dim.width - this._textWidth;
 
       var xScale = d3.scaleLinear()
-        .domain([0, chromLength])
+        .domain([0, this.model.get('chromLength')])
         .range([0, this._width]);
 
       // preserve this context
@@ -222,7 +231,7 @@ var mutmap = mutmap || {};
           .attr("alignment-baseline", "middle")
           .attr("font-size", fontSize+"px")
           .attr("y", this.dim.height / 2)
-          .text(this.data.sampleName);
+          .text(this.model.get('sample').sampleName);
 
       this._background
           .attr("transform", utils.svgTranslateString(this._textWidth, 0))
@@ -230,7 +239,7 @@ var mutmap = mutmap || {};
           .attr("height", this.dim.height);
 
       var mutationsUpdate = this._g.selectAll(".genome-browser__mutation")
-          .data(data.mutationLocations);
+          .data(this.model.get('sample').mutationLocations);
 
       var mutationsEnter = mutationsUpdate.enter().append("rect")
           .attr("class", "genome-browser__mutation")
