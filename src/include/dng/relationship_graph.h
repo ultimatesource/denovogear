@@ -111,13 +111,11 @@ public:
     double PeelBackwards(peel::workspace_t &work,
                          const TransitionMatrixVector &mat) const {
         double ret = 0.0;
-        // Divide by the log-likelihood
+        // Divide by the likelihood
         for(auto r : roots_) {
             double sum = (work.lower[r] * work.upper[r]).sum();
             ret += log(sum);
-            sum = sqrt(sum);
             work.lower[r] /= sum;
-            work.upper[r] /= sum;
         }
 
         for(std::size_t i = peeling_reverse_functions_.size(); i > 0; --i) {
@@ -210,17 +208,17 @@ private:
     void PrintDebugEdges(const std::string &prefix,
             const Graph &pedigree_graph);
 
-    DNG_UNIT_TEST(unittest_dng_relationship_graph);
+    DNG_UNIT_TEST_CLASS(unittest_dng_relationship_graph);
 
-    DNG_UNIT_TEST(test_pedigree_inspect);
-    DNG_UNIT_TEST(test_parse_io_pedigree);
-    DNG_UNIT_TEST(test_add_lib_from_rgs);
-    DNG_UNIT_TEST(test_update_edge_lengths);
-    DNG_UNIT_TEST(test_simplify_pedigree);
-    DNG_UNIT_TEST(test_update_labels_node_ids);
-    DNG_UNIT_TEST(test_create_families_info);
-    DNG_UNIT_TEST(test_create_peeling_ops);
-    DNG_UNIT_TEST(test_peeling_forward_each_op);
+    // DNG_UNIT_TEST(test_pedigree_inspect);
+    // DNG_UNIT_TEST(test_parse_io_pedigree);
+    // DNG_UNIT_TEST(test_add_lib_from_rgs);
+    // DNG_UNIT_TEST(test_update_edge_lengths);
+    // DNG_UNIT_TEST(test_simplify_pedigree);
+    // DNG_UNIT_TEST(test_update_labels_node_ids);
+    // DNG_UNIT_TEST(test_create_families_info);
+    // DNG_UNIT_TEST(test_create_peeling_ops);
+    // DNG_UNIT_TEST(test_peeling_forward_each_op);
 };
 
 }; // namespace dng

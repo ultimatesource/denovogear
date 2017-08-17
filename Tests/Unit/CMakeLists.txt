@@ -55,6 +55,4 @@ AddUnitTest(dng::utility)
 # disable them for now so we can merge important changes
 #AddUnitTest(dng::mutation_stats)
 #AddUnitTest(dng::relationship_graph_m12)
-#AddUnitTest(dng::relationship_graph_peeling)
-#AddUnitTest(dng::relationship_graph_trio)
 #AddUnitTest(dng::find_mutations_ylinked) 

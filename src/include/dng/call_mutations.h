@@ -74,7 +74,7 @@ protected:
     matrices_t oneplus_mutation_matrices_;
     matrices_t mean_mutation_matrices_;
 
-    DNG_UNIT_TEST(unittest_dng_call_mutations);
+    DNG_UNIT_TEST_CLASS(unittest_dng_call_mutations);
 };
 } // namespace dng
 

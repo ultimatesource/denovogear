@@ -170,7 +170,7 @@ private:
 
     utility::StringMap read_group_to_libraries_;
 
-    DNG_UNIT_TEST(unittest_dng_io_bam);
+    DNG_UNIT_TEST_CLASS(unittest_dng_io_bam);
 };
 
 template<typename InFile>

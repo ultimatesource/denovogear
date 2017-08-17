@@ -157,7 +157,7 @@ private:
 
     std::unordered_map<std::string, int> contig_map_;
 
-    DNG_UNIT_TEST(unittest_dng_io_ad);
+    DNG_UNIT_TEST_CLASS(unittest_dng_io_ad);
 };
 
 class AdPileup {

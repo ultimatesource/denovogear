@@ -172,7 +172,7 @@ BOOST_AUTO_TEST_CASE(test_DirichletMultinomial_RawDepths) {
                     for(auto &&x : expected) {
                         x = exp(x-expected_scale);
                     }
-                    auto results = dm(depths, pos, ref, 2);
+                    auto results = dm(depths, ref, pos, 2);
                     double test_scale = results.second;
                     auto test = make_test_range(results.first);
                     BOOST_CHECK_CLOSE_FRACTION(test_scale, expected_scale, prec);
@@ -189,7 +189,7 @@ BOOST_AUTO_TEST_CASE(test_DirichletMultinomial_RawDepths) {
                     for(auto &&x : expected) {
                         x = exp(x-expected_scale);
                     }
-                    auto results = dm(depths, pos, ref, 1);
+                    auto results = dm(depths, ref, pos, 1);
                     double test_scale = results.second;
                     auto test = make_test_range(results.first);
                     BOOST_CHECK_CLOSE_FRACTION(test_scale, expected_scale, prec);
@@ -271,7 +271,7 @@ BOOST_AUTO_TEST_CASE(test_DirichletMultinomial_AlleleDepths) {
                     double test_scale = test_results.second;
                     auto test = make_test_range(test_results.first);
 
-                    auto expected_results = dm(raw, pos, data.type_info().reference, 2);
+                    auto expected_results = dm(raw, data.type_info().reference, pos, 2);
                     double expected_scale = expected_results.second;
                     std::vector<double> expected(data.type_gt_info().width);
                     for(int i=0; i < expected.size(); ++i) {
@@ -288,7 +288,7 @@ BOOST_AUTO_TEST_CASE(test_DirichletMultinomial_AlleleDepths) {
                     double test_scale = test_results.second;
                     auto test = make_test_range(test_results.first);
 
-                    auto expected_results = dm(raw, pos, data.type_info().reference, 1);
+                    auto expected_results = dm(raw, data.type_info().reference, pos, 1);
                     double expected_scale = expected_results.second;
                     std::vector<double> expected(data.type_info().width);
                     for(int i=0; i < expected.size(); ++i) {

@@ -99,34 +99,17 @@ struct workspace_t {
         } 
     }
 
-    inline
-    double SetGenotypeLikelihoods(const Genotyper &gt,
-        const pileup::RawDepths &depths, const int ref_index) {
+    template<typename G, typename ...A>
+    double SetGenotypeLikelihoods(const G& gt, A&&... args) {
         double scale = 0.0, stemp;
-        for(std::size_t u = 0; u < depths.size(); ++u) {
-            auto pos = library_nodes.first + u;
+        size_t u = 0;
+        for(auto pos = library_nodes.first; pos < library_nodes.second; ++pos) {
             std::tie(lower[pos], stemp) =
-                gt(depths, u, ref_index, ploidies[pos]);
+                gt(std::forward<A>(args)..., u++, ploidies[pos]);
             scale += stemp;
         }
         return scale;
     }
-
-    inline
-    double SetGenotypeLikelihoods(const Genotyper &gt,
-        const pileup::AlleleDepths &depths) {
-        double scale=0.0, stemp;
-        for(std::size_t u = 0; u < depths.num_libraries(); ++u) {
-            auto pos = library_nodes.first + u;
-            assert(pos < lower.size());
-            std::tie(lower[pos], stemp) =
-                gt(depths, u, ploidies[pos]);
-            scale += stemp;
-        }
-        return scale;
-}
-
-
 };
 
 typedef std::vector<std::size_t> family_members_t;
