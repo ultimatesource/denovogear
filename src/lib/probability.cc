@@ -89,8 +89,8 @@ LogProbability::value_t LogProbability::operator()(const pileup::RawDepths &dept
 // Calculate the probability of a depths object considering only indexes
 // TODO: make indexes a property of the pedigree
 LogProbability::value_t LogProbability::operator()(const pileup::AlleleDepths &depths) {
-    int ref_index = depths.type_info().reference;
-    int color = depths.color();
+    const int ref_index = depths.type_info().reference;
+    const int color = depths.color();
 
     double scale, logdata;
     // For monomorphic sites we have pre-calculated the peeling part
@@ -107,20 +107,10 @@ LogProbability::value_t LogProbability::operator()(const pileup::AlleleDepths &d
         }
         // convert to a log-likelihood
         logdata = log(logdata);
-    } else {
-        size_t gt_width = depths.type_gt_info().width;
-        size_t width = depths.type_info().width;
+    } else {      
         // Set the prior probability of the founders given the reference
-        GenotypeArray diploid_prior(gt_width);
-        for(int i=0;i<gt_width;++i) {
-            diploid_prior(i) = diploid_prior_[ref_index](depths.type_gt_info().indexes[i]);
-        }
-        GenotypeArray haploid_prior(width);
-        for(int i=0;i<width;++i) {
-            haploid_prior(i) = diploid_prior_[ref_index](depths.type_info().indexes[i]);
-        }
-
-        // Set founders
+        GenotypeArray diploid_prior = DiploidPrior(ref_index, color);
+        GenotypeArray haploid_prior = HaploidPrior(ref_index, color);
         work_.SetFounders(diploid_prior, haploid_prior);
   
         // Calculate genotype likelihoods

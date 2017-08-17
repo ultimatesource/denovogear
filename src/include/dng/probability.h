@@ -59,6 +59,9 @@ protected:
 
     matrices_t CreateMutationMatrices(const int mutype = MUTATIONS_ALL) const;
 
+    GenotypeArray DiploidPrior(int ref_index, int color);
+    GenotypeArray HaploidPrior(int ref_index, int color);
+
     RelationshipGraph graph_;
     params_t params_;
     peel::workspace_t work_; // must be declared after graph_ (see constructor)
@@ -92,6 +95,30 @@ LogProbability::matrices_t LogProbability::CreateMutationMatrices(const int muty
         ret[color] = create_mutation_matrices_subset(full_matrix, color);
     }
     return ret;
+}
+
+inline
+GenotypeArray LogProbability::DiploidPrior(int ref_index, int color) {
+    using AlleleDepths = dng::pileup::AlleleDepths;
+    auto &type_info = AlleleDepths::type_info_gt_table[color];
+    const int width = type_info.width;
+    GenotypeArray prior(width);
+    for(int i=0;i<width;++i) {
+        prior(i) = diploid_prior_[ref_index](type_info.indexes[i]);
+    }
+    return prior;
+}
+
+inline
+GenotypeArray LogProbability::HaploidPrior(int ref_index, int color) {
+    using AlleleDepths = dng::pileup::AlleleDepths;
+    auto &type_info = AlleleDepths::type_info_table[color];
+    const int width = type_info.width;
+    GenotypeArray prior(width);
+    for(int i=0;i<width;++i) {
+        prior(i) = haploid_prior_[ref_index](type_info.indexes[i]);
+    }
+    return prior;
 }
 
 }; // namespace dng

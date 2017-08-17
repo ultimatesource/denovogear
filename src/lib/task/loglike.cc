@@ -133,6 +133,9 @@ int process_bam(LogLike::argument_type &arg) {
     Pedigree ped = io::parse_ped(arg.ped);
 
     // Open Reference
+    if(arg.fasta.empty()){
+    	throw std::invalid_argument("Path to reference file must be specified with --fasta when processing bam/sam/cram files.");
+    }
     io::Fasta reference{arg.fasta.c_str()};
 
     // Parse Nucleotide Frequencies
