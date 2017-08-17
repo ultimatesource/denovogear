@@ -80,6 +80,20 @@
     } while(false) \
 /**/
 
+#define CHECK_NE_RANGES( L, R )    do { \
+    BOOST_REQUIRE_EQUAL( ::boost::size( L ), ::boost::size( R ) ); \
+    auto CHECK_CLOSE_RANGES_A = ::std::begin( L ); \
+    auto CHECK_CLOSE_RANGES_B = ::std::begin( R ); \
+    ::std::size_t CHECK_CLOSE_RANGES_N = 0; \
+    while(CHECK_CLOSE_RANGES_A < ::std::end( L )) { \
+        BOOST_CHECK_NE(*CHECK_CLOSE_RANGES_A, *CHECK_CLOSE_RANGES_B); \
+        ++CHECK_CLOSE_RANGES_A; \
+        ++CHECK_CLOSE_RANGES_B; \
+    } \
+    } while(false) \
+/**/
+
+
 #ifndef BOOST_TEST_CONTEXT
 #define BOOST_TEST_CONTEXT(D) \
     if(true) \
