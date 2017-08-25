@@ -32,15 +32,14 @@ var mutmap = mutmap || {};
 
       this.d3el = d3.select(this.el);
 
-      var dim = utils.getDimensions(this.d3el);
-
       var genomeBrowserRenderElement = this.d3el.append("div")
           .attr("class", "row")
         .append("div")
           .attr("id", "genome_browser_wrapper")
-          .attr("class", "genome-browser-container col-xs-12 panel panel-default");
+          .attr("class",
+            "genome-browser-container col-xs-12 panel panel-default");
 
-      var contigDimensions = utils.getDimensions(genomeBrowserRenderElement);
+      this._contigDimensions = utils.getDimensions(genomeBrowserRenderElement);
 
       var ContigModel = Backbone.Model.extend({
         defaults: {
@@ -74,9 +73,8 @@ var mutmap = mutmap || {};
       var pedigreeRow = this.d3el.append("div")
           .attr("class", "row pedigree-row");
 
-      var pedigreeContainer = pedigreeRow.append("div")
+      this._pedigreeContainer = pedigreeRow.append("div")
           .attr("class", "col-xs-12 col-md-8 panel panel-default")
-            .style("height", (dim.height - contigDimensions.height)+'px');
 
       var PedigreeModel = Backbone.Model.extend({
         defaults: {
@@ -88,8 +86,8 @@ var mutmap = mutmap || {};
 
       this.pedigreeModel = new PedigreeModel();
 
-      new mutmap.PedigreeView({
-        el: pedigreeContainer,
+      this._pedigreeView = new mutmap.PedigreeView({
+        el: this._pedigreeContainer,
         model: this.pedigreeModel,
       });
 
@@ -114,6 +112,18 @@ var mutmap = mutmap || {};
             context.pedigreeModel.set('showSampleTrees',
               !context.pedigreeModel.get('showSampleTrees'));
           });
+    },
+
+    render: function() {
+
+      var dim = utils.getDimensions(this.d3el);
+
+      var height = (dim.height - this._contigDimensions.height);
+
+      this._pedigreeContainer
+          .style("height", height+'px');
+
+      this._pedigreeView.render();
     },
 
     prevMutationButtonClicked: function() {

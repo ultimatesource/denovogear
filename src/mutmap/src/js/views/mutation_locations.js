@@ -130,8 +130,6 @@ var mutmap = mutmap || {};
 
     render: function() {
 
-      var d3el = d3.select(this.el);
-
       this.dim = {
         width: this.d3el.attr("width"),
         height: this.d3el.attr("height")

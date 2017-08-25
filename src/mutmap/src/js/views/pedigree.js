@@ -15,37 +15,13 @@ var mutmap = mutmap || {};
     
     initialize: function() {
 
+      this.d3el = d3.select(this.el);
+      //this.dim = utils.getDimensions(this.d3el);
+
       this.activeNodeModel = this.model.get('activeNodeModel');
 
       this.model.on('change', this.render.bind(this));
       this.activeNodeModel.on('change', this._updateActiveNode.bind(this));
-
-      this._create();
-      this.render();
-
-      // bounding box of the links in the graph serves as a heuristic for
-      // calculating the center of the graph
-      var boundingBox = this._links_container.node().getBBox();
-      var centerX = boundingBox.width / 2;
-      var centerY = boundingBox.height / 2;
-      var width = parseInt(this._svg.style("width"));
-      var height = parseInt(this._svg.style("height"));
-
-      var xCorrection = (width / 2) - centerX;
-      var yCorrection = (height / 2) - centerY;
-
-      var zoom = d3.zoom()
-        .on("zoom", zoomed.bind(this));
-      this._svg.call(zoom);
-
-      zoom.translateBy(this._svg, xCorrection, yCorrection);
-      zoom.scaleBy(this._svg, 0.1, 0.1);
-
-      var transition = this._svg.transition().duration(750);
-      zoom.scaleTo(transition, 1.0);
-    },
-
-    _create: function() {
 
       this._showSampleTrees = false;
 
@@ -66,8 +42,36 @@ var mutmap = mutmap || {};
 
       this._gpNode = gpNode();
 
+
+      this.render();
+
+      console.log(this.dim);
+
+      // bounding box of the links in the graph serves as a heuristic for
+      // calculating the center of the graph
+      var boundingBox = this._links_container.node().getBBox();
+      var centerX = boundingBox.width / 2;
+      var centerY = boundingBox.height / 2;
+      console.log(centerX, centerY);
+
+      var width = parseInt(this._svg.style("width"));
+      var height = parseInt(this._svg.style("height"));
+      console.log(width, height);
+
+      //var xCorrection = (width / 2) - centerX;
+      //var yCorrection = (height / 2) - centerY;
+
+      //var zoom = d3.zoom()
+      //  .on("zoom", zoomed.bind(this));
+      //this._svg.call(zoom);
+
+      //zoom.translateBy(this._svg, xCorrection, yCorrection);
+      //zoom.scaleBy(this._svg, 0.1, 0.1);
+
+      //var transition = this._svg.transition().duration(750);
+      //zoom.scaleTo(transition, 1.0);
     },
-   
+
     render: function() {
 
       this._updateLinks();
