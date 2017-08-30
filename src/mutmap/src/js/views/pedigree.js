@@ -32,8 +32,6 @@ var mutmap = mutmap || {};
           .attr("width", this.dim.width)
           .attr("height", this.dim.height);
 
-      //this._svg.style("height", "100%").style("width", "100%");
-
       this._container = this._svg.append("g");
 
       this._links_container = this._container.append("g")
@@ -47,28 +45,25 @@ var mutmap = mutmap || {};
 
       this.render();
 
+      // Center and zoom the pedigree
       // bounding box of the links in the graph serves as a heuristic for
       // calculating the center of the graph
-      //var boundingBox = this._links_container.node().getBBox();
-      //var centerX = boundingBox.width / 2;
-      //var centerY = boundingBox.height / 2;
+      var boundingBox = this._links_container.node().getBBox();
+      var centerX = boundingBox.width / 2;
+      var centerY = boundingBox.height / 2;
 
-      //var width = parseInt(this._svg.style("width"));
-      //var height = parseInt(this._svg.style("height"));
-      //console.log(width, height);
-
-      //var xCorrection = (width / 2) - centerX;
-      //var yCorrection = (height / 2) - centerY;
+      var xCorrection = (this.dim.width / 2) - centerX;
+      var yCorrection = (this.dim.height / 2) - centerY;
 
       var zoom = d3.zoom()
         .on("zoom", zoomed.bind(this));
       this._svg.call(zoom);
 
-      //zoom.translateBy(this._svg, xCorrection, yCorrection);
-      //zoom.scaleBy(this._svg, 0.1, 0.1);
+      zoom.translateBy(this._svg, xCorrection, yCorrection);
+      zoom.scaleBy(this._svg, 0.1, 0.1);
 
-      //var transition = this._svg.transition().duration(750);
-      //zoom.scaleTo(transition, 1.0);
+      var transition = this._svg.transition().duration(750);
+      zoom.scaleTo(transition, 1.0);
     },
 
     render: function() {
@@ -304,9 +299,11 @@ var mutmap = mutmap || {};
     },
 
     _genPoints(xRatio, yRatio) {
+      // Apply 20% padding
+      var width = this.dim.width - (.2 * this.dim.width);
       return {
-        x: xRatio * this.dim.width,
-        y: yRatio * this.dim.width/3
+        x: xRatio * width,
+        y: yRatio * (width / 3)
       };
     },
 
