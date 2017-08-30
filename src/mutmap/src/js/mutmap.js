@@ -153,6 +153,23 @@ $(document).ready(function() {
     var nodes = [];
     var links = [];
 
+    var xMax = 0;
+    var yMax = 0;
+
+    layout.nid.forEach(function(row, rowIdx) {
+      for (var colIdx = 0; colIdx < layout.n[rowIdx]; colIdx++) {
+        var x = layout.pos[rowIdx][colIdx];
+        var y = rowIdx;
+
+        if (x > xMax) {
+          xMax = x;
+        }
+        if (y > yMax) {
+          yMax = y;
+        }
+      }
+    });
+
     // build person nodes
     layout.nid.forEach(function(row, rowIdx) {
       for (var colIdx = 0; colIdx < layout.n[rowIdx]; colIdx++) {
@@ -163,8 +180,10 @@ $(document).ready(function() {
         node.type = "person";
         node.dataNode =
           pedGraph.getPerson(pedigreeData[oneToZeroBase(id)].individualId);
-        node.x = 90 * layout.pos[rowIdx][colIdx];
-        node.y = 120 * rowIdx;
+
+        // x and y are ratios
+        node.x = layout.pos[rowIdx][colIdx] / xMax;
+        node.y = rowIdx / yMax;
 
         // TODO: such a hack. remove
         node.rowIdx = rowIdx;

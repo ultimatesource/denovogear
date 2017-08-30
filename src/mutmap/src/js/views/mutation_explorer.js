@@ -73,8 +73,14 @@ var mutmap = mutmap || {};
       var pedigreeRow = this.d3el.append("div")
           .attr("class", "row pedigree-row");
 
+      var dim = utils.getDimensions(this.d3el);
+      var height = (dim.height - this._contigDimensions.height);
+
       this._pedigreeContainer = pedigreeRow.append("div")
           .attr("class", "col-xs-12 col-md-8 panel panel-default")
+        // add another div that doesn't have bootstrap padding
+        .append("div")
+          .style("height", height+'px');
 
       var PedigreeModel = Backbone.Model.extend({
         defaults: {
@@ -87,7 +93,7 @@ var mutmap = mutmap || {};
       this.pedigreeModel = new PedigreeModel();
 
       this._pedigreeView = new mutmap.PedigreeView({
-        el: this._pedigreeContainer,
+        el: this._pedigreeContainer.node(),
         model: this.pedigreeModel,
       });
 

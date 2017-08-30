@@ -16,7 +16,6 @@ var mutmap = mutmap || {};
     initialize: function() {
 
       this.d3el = d3.select(this.el);
-      //this.dim = utils.getDimensions(this.d3el);
 
       this.activeNodeModel = this.model.get('activeNodeModel');
 
@@ -25,12 +24,15 @@ var mutmap = mutmap || {};
 
       this._showSampleTrees = false;
 
-      this.el.append("svg")
+      this.d3el.append("svg")
           .attr("class", "pedigree-svg");
 
-      this._svg = this.el.select(".pedigree-svg");
+      this.dim = utils.getDimensions(this.d3el);
+      this._svg = this.d3el.select(".pedigree-svg")
+          .attr("width", this.dim.width)
+          .attr("height", this.dim.height);
 
-      this._svg.style("height", "100%").style("width", "100%");
+      //this._svg.style("height", "100%").style("width", "100%");
 
       this._container = this._svg.append("g");
 
@@ -45,25 +47,22 @@ var mutmap = mutmap || {};
 
       this.render();
 
-      console.log(this.dim);
-
       // bounding box of the links in the graph serves as a heuristic for
       // calculating the center of the graph
-      var boundingBox = this._links_container.node().getBBox();
-      var centerX = boundingBox.width / 2;
-      var centerY = boundingBox.height / 2;
-      console.log(centerX, centerY);
+      //var boundingBox = this._links_container.node().getBBox();
+      //var centerX = boundingBox.width / 2;
+      //var centerY = boundingBox.height / 2;
 
-      var width = parseInt(this._svg.style("width"));
-      var height = parseInt(this._svg.style("height"));
-      console.log(width, height);
+      //var width = parseInt(this._svg.style("width"));
+      //var height = parseInt(this._svg.style("height"));
+      //console.log(width, height);
 
       //var xCorrection = (width / 2) - centerX;
       //var yCorrection = (height / 2) - centerY;
 
-      //var zoom = d3.zoom()
-      //  .on("zoom", zoomed.bind(this));
-      //this._svg.call(zoom);
+      var zoom = d3.zoom()
+        .on("zoom", zoomed.bind(this));
+      this._svg.call(zoom);
 
       //zoom.translateBy(this._svg, xCorrection, yCorrection);
       //zoom.scaleBy(this._svg, 0.1, 0.1);
@@ -74,6 +73,11 @@ var mutmap = mutmap || {};
 
     render: function() {
 
+      this.dim = utils.getDimensions(this.d3el);
+      this._svg
+          .attr("width", this.dim.width)
+          .attr("height", this.dim.height);
+
       this._updateLinks();
       this._updateNodes();
       this._updateSampleTrees();
@@ -82,6 +86,8 @@ var mutmap = mutmap || {};
     },
 
     _updateLinks: function() {
+
+      var self = this;
 
       var links = this.model.get('graphData').links;
 
@@ -96,18 +102,23 @@ var mutmap = mutmap || {};
 
       visualLinksEnter.append("path")
           .attr("d", function(d) {
+
+            var points = self._genLinkPoints(d);
+
             if (d.type == "child" || d.type == "spouse") {
-              return "M" + d.source.x + "," + d.source.y +
-                "L" + d.target.x + "," + d.target.y;
+              return "M" + points.source.x + "," + points.source.y +
+                "L" + points.target.x + "," + points.target.y;
             }
             else {
-              var controlX = utils.halfwayBetween(d.source.x, d.target.x);
+
+              var controlX = utils.halfwayBetween(points.source.x,
+                points.target.x);
               // TODO: parameterize the control point Y value by the distance
               // between the nodes, rather than hard coding
-              var controlY = d.source.y - 100;
-              return "M" + d.source.x + "," + d.source.y
+              var controlY = points.source.y - 100;
+              return "M" + points.source.x + "," + points.source.y
                 + "Q" + controlX + "," + controlY + ","
-                + d.target.x + "," + d.target.y;
+                + points.target.x + "," + points.target.y;
             }
           })
           .attr("fill", "transparent")
@@ -124,10 +135,12 @@ var mutmap = mutmap || {};
       visualLinksEnter.append("text")
         .attr("text-anchor", "middle")
         .attr("dx", function(d) {
-          return utils.halfwayBetween(d.source.x, d.target.x);
+          var points = self._genLinkPoints(d);
+          return utils.halfwayBetween(points.source.x, points.target.x);
         })
         .attr("dy", function(d) {
-          return utils.halfwayBetween(d.source.y, d.target.y);
+          var points = self._genLinkPoints(d);
+          return utils.halfwayBetween(points.source.y, points.target.y);
         });
 
       visualLinksEnterUpdate.select("text")
@@ -160,6 +173,7 @@ var mutmap = mutmap || {};
 
     _updateNodes: function() {
 
+      var self = this;
       var visualNodesUpdate = this._nodes_container.selectAll(".node")
           .data(this.model.get('graphData').nodes);
 
@@ -202,18 +216,20 @@ var mutmap = mutmap || {};
       nodeSymbolsEnterUpdate.call(this._gpNode);
       
       visualNodesEnter.append("text")
-        .attr("dx", 15)
-        .attr("dy", 15)
+        .attr("x", 12)
+        .attr("y", 18)
         .text(function(d) { 
           if (d.type !== "marriage") {
             return d.dataNode.id;
           }
         })
         .style("pointer-events", "none")
-        .style("font", "10px sans-serif");
+        .style("font", "8px sans-serif");
 
       visualNodesEnter.attr("transform", function(d) {
-        return svgTranslateString(d.x, d.y);
+
+        var points = self._genNodePoints(d);
+        return utils.svgTranslateString(points.x, points.y);
       });
     },
 
@@ -272,15 +288,32 @@ var mutmap = mutmap || {};
           dataNode: d.dataNode
         });
       }
-    }
+    },
+
+    // Converts x and y (which are ratios between 0 and 1) into relative
+    // values based on the view dimensions
+    _genNodePoints: function(d) {
+      return this._genPoints(d.x, d.y);
+    },
+
+    _genLinkPoints: function(d) {
+      return {
+        source: this._genPoints(d.source.x, d.source.y),
+        target: this._genPoints(d.target.x, d.target.y)
+      }
+    },
+
+    _genPoints(xRatio, yRatio) {
+      return {
+        x: xRatio * this.dim.width,
+        y: yRatio * this.dim.width/3
+      };
+    },
+
   });
 
   function zoomed() {
     this._container.attr("transform", d3.event.transform);
-  }
-
-  function svgTranslateString(x, y) {
-    return "translate(" + x + "," + y + ")";
   }
 
   function fillColor(d) {
@@ -299,11 +332,13 @@ var mutmap = mutmap || {};
 
   function gpNode() {
 
+    var nodeWidth = 20;
+
     var color = d3.scaleOrdinal(d3.schemeCategory10);
     var pie = d3.pie()
       .sort(null);
     var piePath = d3.arc()
-      .outerRadius(15)
+      .outerRadius(nodeWidth/2)
       .innerRadius(0);
 
     function my(selection) {
@@ -317,7 +352,7 @@ var mutmap = mutmap || {};
         if (d.dataNode.sex === "male") {
           if (d.dataNode.data.dngOutputData) {
 
-            var squareWidth = 30;
+            var squareWidth = nodeWidth;
             var squareHeight = squareWidth;
 
             var partitions = calculatePartitions(

@@ -44,7 +44,8 @@ var utils = (function() {
 
   function getDimensions(element) {
 
-    var boundingRect = element.node().getBoundingClientRect();
+    var node = element.node();
+    var boundingRect = node.getBoundingClientRect();
 
     return {
       width: boundingRect.width,
