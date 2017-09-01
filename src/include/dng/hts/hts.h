@@ -85,7 +85,7 @@ unsigned long version() {
         if(!*end) {
             break;
         }
-        if(*end != '.') {
+        if(*end != '.' && *end != '-') {
             return 0; // unexpected format
         }
         str = end+1;
