@@ -23,7 +23,6 @@
 
 #include <cstdlib>
 #include <fstream>
-
 #include <iostream>
 #include <iomanip>
 #include <ctime>
@@ -63,6 +62,10 @@ using namespace dng;
 int process_bam(task::Call::argument_type &arg);
 int process_bcf(task::Call::argument_type &arg);
 int process_ad(task::Call::argument_type &arg);
+
+bool is_positive(int i){
+	return (i<0);
+}
 
 void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup::stats_t& depth_stats,
     bool has_single_mut,
@@ -673,12 +676,12 @@ int process_bcf(task::Call::argument_type &arg) {
                 data(i,a) = ad[offset+allele_list[a]];
             }
         }
-
+        //Replace missing data with 0
+        std::replace_if(data.data().begin(),data.data().end() , is_positive, 0);
         if(!do_call(data, &stats)) {
             return;
         }
         const bool has_single_mut = ((stats.mu1p / stats.mup) >= min_prob);
-
         // Measure total depth and sort nucleotides in descending order
         pileup::stats_t depth_stats;
         pileup::calculate_stats(data, &depth_stats);
