@@ -17,8 +17,8 @@ var mutmap = mutmap || {};
 
       this._maxCount = 0;
       Object.keys(this._counts).forEach(function(key) {
-        if (this._counts[key] > this._maxCount) {
-          this._maxCount = this._counts[key];
+        if (this._counts[key].total > this._maxCount) {
+          this._maxCount = this._counts[key].total;
         }
       }, this);
       this._barScale = d3.scaleLinear()
@@ -185,7 +185,7 @@ var mutmap = mutmap || {};
           .attr("x", -25)
           .attr("y", function(d) {
             if (counts[d.dataNode.id]) {
-              return -scale(counts[d.dataNode.id]);
+              return -scale(counts[d.dataNode.id].total);
             }
             else {
               return 0;
@@ -194,7 +194,7 @@ var mutmap = mutmap || {};
           .attr("width", barWidth)
           .attr("height", function(d) {
             if (counts[d.dataNode.id]) {
-              return scale(counts[d.dataNode.id]);
+              return scale(counts[d.dataNode.id].total);
             }
             else {
               return 0;
@@ -208,7 +208,7 @@ var mutmap = mutmap || {};
 
             var offset;
             if (counts[d.dataNode.id]) {
-              offset = -scale(counts[d.dataNode.id]);
+              offset = -scale(counts[d.dataNode.id].total);
             }
             else {
               offset = 0;
@@ -219,7 +219,7 @@ var mutmap = mutmap || {};
           .attr("text-anchor", "middle")
           .text(function(d) {
             if (counts[d.dataNode.id]) {
-              return counts[d.dataNode.id];
+              return counts[d.dataNode.id].total;
             }
             else {
               return 0;
@@ -273,16 +273,34 @@ var mutmap = mutmap || {};
           var data = parseDataLine(line);
           var info = parseInfoColumn(data[7]);
           var dnl = parseDNL(info);
+          var dnt = parseDNT(info);
+          var type = determineMutationType(dnt);
+          //console.log(type);
 
-          if (counts[dnl.value] === undefined) {
-            counts[dnl.value] = 0;
+          var id = idFromKey(dnl.value);
+
+          if (type && id.length > 0) {
+            if (counts[id] === undefined) {
+              counts[id] = {
+                total: 0,
+                'C->A': 0,
+                'C->G': 0,
+                'C->T': 0,
+                'T->A': 0,
+                'T->C': 0,
+                'T->G': 0
+              }
+            }
+            counts[id].total++;
+            counts[id][type]++;
+            count++;
+
+
+
+            //if (index % 1000 === 0) {
+            //  console.log(dnl);
+            //}
           }
-          counts[dnl.value]++;
-          count++;
-
-          //if (index % 1000 === 0) {
-          //  console.log(dnl);
-          //}
         }
       });
 
@@ -290,21 +308,7 @@ var mutmap = mutmap || {};
       //var elapsed = endTime - startTime;
       //console.log("Parsing time:", elapsed / 1000);
 
-      var processedCounts = {};
-
-      Object.keys(counts).forEach(function(key) {
-        var id = idFromKey(key);
-
-        if (id.length > 0) {
-          if (processedCounts[id] === undefined) {
-            processedCounts[id] = 0;
-          }
-
-          processedCounts[id] += counts[key];
-        }
-      });
-
-      return processedCounts;
+      return counts;
     }
 
     function parseDataLine(line) {
@@ -318,6 +322,10 @@ var mutmap = mutmap || {};
 
     function parseDNL(info) {
       return parsePair(info[6]);
+    }
+
+    function parseDNT(info) {
+      return parsePair(info[5]);
     }
 
     function parsePair(pair) {
@@ -338,7 +346,59 @@ var mutmap = mutmap || {};
       return key.slice(idStartIndex, idStopIndex);
     }
 
+    function determineMutationType(dnt) {
 
+      var mutationString = dnt.value;
+      var isGermlineMutation = mutationString.length === 8;
+      var parentsAreSameGenotype = mutationString[0] === mutationString[3] &&
+        mutationString[1] === mutationString[4];
+
+      if (!isGermlineMutation) {
+        return;
+      }
+
+      if (!parentsAreSameGenotype) {
+        return;
+      }
+
+      mutationString = mutationString.slice(3);
+
+      var fromIndex;
+      var toIndex;
+
+      if (mutationString[0] !== mutationString[3]) {
+        fromIndex = 0;
+        toIndex = 3;
+      }
+      else {
+        fromIndex = 1;
+        toIndex = 4;
+      }
+
+      var mutation = {
+        from: mutationString[fromIndex],
+        to: mutationString[toIndex]
+      };
+
+      var map = {
+        'CA': 'CA',
+        'GT': 'CA',
+        'CG': 'CG',
+        'GC': 'CG',
+        'CT': 'CT',
+        'GA': 'CT',
+        'TA': 'TA',
+        'AT': 'TA',
+        'TC': 'TC',
+        'AG': 'TC',
+        'TG': 'TG',
+        'AC': 'TG',
+      };
+
+      var pyrimidineMutation = map[mutation.from + mutation.to];
+
+      return pyrimidineMutation[0] + "->" + pyrimidineMutation[1];
+    }
   }
 
   DistributionProcessor.prototype.getCounts = function() {
