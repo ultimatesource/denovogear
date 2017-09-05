@@ -61,6 +61,13 @@ var utils = (function() {
     };
   }
 
+  function getD3Dimensions(element) {
+    return {
+      width: +element.attr("width"),
+      height: +element.attr("height")
+    };
+  }
+
   return {
     halfwayBetween: halfwayBetween,
     distanceBetweenPoints: distanceBetweenPoints,
@@ -68,6 +75,7 @@ var utils = (function() {
     sortByKey: sortByKey,
     getDimensions: getDimensions,
     getSVGDimensions: getSVGDimensions,
+    getD3Dimensions: getD3Dimensions,
     setSizedGroupDimensions: function(width, height) {
       // TODO: Maybe too much of a hack. Forces the g group dimensions by
       // appending an invisible rectangle of the desired size.

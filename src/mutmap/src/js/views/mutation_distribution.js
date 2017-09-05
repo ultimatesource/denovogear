@@ -15,6 +15,8 @@ var mutmap = mutmap || {};
 
       this._counts = distProc.getCounts();
 
+      console.log(this._counts);
+
       this._maxCount = 0;
       Object.keys(this._counts).forEach(function(key) {
         if (this._counts[key].total > this._maxCount) {
@@ -80,6 +82,9 @@ var mutmap = mutmap || {};
           .attr("class", "link");
 
       var visualLinksEnterUpdate = visualLinksEnter.merge(visualLinksUpdate);
+
+      // Stores references to models and views for bar spark charts
+      this._barSparkData = {};
 
       visualLinksEnter.append("path")
           .attr("d", function(d) {
@@ -149,9 +154,30 @@ var mutmap = mutmap || {};
 
       //var visualNodesEnterUpdate = visualNodesEnter.merge(visualNodesUpdate);
 
+      var counts = this._counts;
       visualNodesEnter.each(function(d) {
 
         var symbolSize = 500;
+
+        var variantColors = [
+          '#1ebff0', '#050708', '#e62725', '#cbcacb', '#a1cf64', '#edc8c5'
+        ];
+
+        var variantData = _.chain(counts[d.dataNode.id])
+          .map(function(num, key) {
+            return { name: key, value: num };
+          })
+          .filter(function(item) {
+            return item.name !== 'total';
+          })
+          .sortBy(function(item) {
+            return item.name;
+          })
+          .map(function(item, index) {
+            item.color = variantColors[index];
+            return item;
+          })
+          .value();
 
         if (d.type === "person") {
           if (d.dataNode.sex === "male") {
@@ -160,26 +186,64 @@ var mutmap = mutmap || {};
                 .attr("fill", d3.schemeCategory20[1]);
           }
           else {
-            d3.select(this).append("path")
-                .attr("d", d3.symbol().type(d3.symbolCircle).size(symbolSize))
-                .attr("fill", d3.schemeCategory20[7]);
+
+            var circleWidth = 25;
+            var circleHeight = 25;
+            var ratioCircleEl = d3.select(this).append("svg")
+                .attr("x", -(circleWidth/2))
+                .attr("y", -(circleHeight/2))
+                .attr("width", circleWidth)
+                .attr("height", circleHeight)
+
+            var ratioCircleModel = new mutmap.RatioCircleModel({
+              ratioDataList: variantData
+            });
+
+            new mutmap.RatioCircleView({
+              el: ratioCircleEl.node(),
+              model: ratioCircleModel
+            });
           }
+        }
+
+        if (d.type !== "marriage") {
+
+          var barSparkHeight = 40;
+          var barSparkEl = d3.select(this).append("svg")
+              .attr("width", 40)
+              .attr("height", barSparkHeight)
+              .attr("x", 15)
+              .attr("y", -barSparkHeight)
+
+          var barSparkModel = new mutmap.BarSparkModel({
+            barDataList: variantData
+          });
+          var barSparkView = new mutmap.BarSparkView({
+            model: barSparkModel,
+            el: barSparkEl.node()
+          });
+
+          self._barSparkData[d.id] = {
+            model: barSparkModel,
+            view: barSparkView
+          };
         }
       });
 
       visualNodesEnter.append("text")
-          .attr("x", 15)
-          .attr("y", 15)
+          .attr("x", 0)
+          .attr("y", 22)
           .text(function(d) { 
             if (d.type !== "marriage") {
               return d.dataNode.id;
             }
           })
+          .attr("text-anchor", "middle")
           .style("pointer-events", "none")
           .style("font", "8px sans-serif");
 
+      // mutation count bar
       var barWidth = 10;
-      var counts = this._counts;
       var scale = this._barScale;
       visualNodesEnter.append("rect")
           .attr("x", -25)
@@ -202,6 +266,7 @@ var mutmap = mutmap || {};
           })
           .attr("fill", d3.schemeCategory20[4]);
 
+      // Text above mutation count bar
       visualNodesEnter.append("text")
           .attr("x", -25 + barWidth/2)
           .attr("y", function(d) {

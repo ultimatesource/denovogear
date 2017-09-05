@@ -15,6 +15,8 @@ if (Rscript_FOUND)
       ${JS_DIR}/ped_parser.js
       ${JS_DIR}/pedigr.js
       ${VIEW_DIR}/list_selector.js
+      ${VIEW_DIR}/bar_spark.js
+      ${VIEW_DIR}/ratio_circle.js
       ${VIEW_DIR}/contig.js
       ${VIEW_DIR}/sample_tree.js
       ${VIEW_DIR}/stats.js
