@@ -58,7 +58,8 @@ var mutmap = mutmap || {};
 
       this._selectedChromosome.on('change', function() {
         this._sampleList.set('listElements',
-          this.mutationLocationData[this._selectedChromosome.get('index')]);
+          this.mutationLocationData[this._selectedChromosome.get(
+            'selectedIndex')]);
       }, this);
 
       this._listView = new SampleMutationsListView({
