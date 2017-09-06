@@ -2,21 +2,29 @@ var mutmap = mutmap || {};
 
 (function() {
   "use strict";
+
+  mutmap.ListSelectorModel = Backbone.Model.extend({
+    defaults: {
+      list: null,
+      selectedIndex: 0
+    }
+  });
   
   mutmap.ListSelectorView = Backbone.View.extend({
     
     initialize: function(options) {
 
-      this.list = options.list;
+      this.list = this.model.get('list');
       this.selector = options.selector;
       this.itemName = options.itemName;
 
-      this.currentChromIndex = 0;
+      this.selectedIndex = 0;
 
       this.container = this.el.append("div")
           .attr("class", "list-selector");
 
       this.model.on('change', function() {
+
           this.container.select("text").text(this.currentItem.bind(this));
       }, this);
 
@@ -35,12 +43,12 @@ var mutmap = mutmap || {};
       var prevButton = this.container.append("button")
           .attr("class", "btn btn-default")
           .on("click", function() {
-            self.currentChromIndex--;
-            if (self.currentChromIndex < 0) {
-              self.currentChromIndex = self.list.length - 1;
+            self.selectedIndex--;
+            if (self.selectedIndex < 0) {
+              self.selectedIndex = self.list.length - 1;
             }
 
-            self.model.set('index', self.currentChromIndex);
+            self.model.set('selectedIndex', self.selectedIndex);
           });
       prevButton.append("span")
           .attr("class", "glyphicon glyphicon-arrow-left");
@@ -72,35 +80,34 @@ var mutmap = mutmap || {};
             }
           })
           .on("click", function(d, i) {
-            self.currentChromIndex = i;
-            self.model.set('index', self.currentChromIndex);
+            self.selectedIndex = i;
+            self.model.set('selectedIndex', self.selectedIndex);
           });
 
         var nextButton = this.container.append("button")
             .attr("class", "btn btn-default")
             .on("click", function() {
-              self.currentChromIndex++;
-              if (self.currentChromIndex === self.list.length) {
-                self.currentChromIndex = 0;
+              self.selectedIndex++;
+              if (self.selectedIndex === self.list.length) {
+                self.selectedIndex = 0;
               }
 
-              self.model.set('index', self.currentChromIndex);
+              self.model.set('selectedIndex', self.selectedIndex);
             });
         nextButton.append("span")
             .text("Next ");
         nextButton.append("span")
             .attr("class", "glyphicon glyphicon-arrow-right");
 
-
       return this;
     },
 
     currentItem: function() {
       if (this.selector !== undefined) {
-        return this.list[this.currentChromIndex][this.selector];
+        return this.list[this.selectedIndex][this.selector];
       }
       else {
-        return this.list[this.currentChromIndex];
+        return this.list[this.selectedIndex];
       }
     }
   });

@@ -9,12 +9,6 @@ var mutmap = mutmap || {};
     }
   });
 
-  var SelectedChromosomeModel = Backbone.Model.extend({
-    defaults: {
-      index: 0
-    }
-  });
-
   var SampleListModel = Backbone.Model.extend({
     defaults: {
       listElements: null
@@ -41,7 +35,9 @@ var mutmap = mutmap || {};
       this._chromSelectorContainer = this.container.append("div")
           .attr("class", "chrom-selector");
 
-      this._selectedChromosome = new SelectedChromosomeModel();
+      this._selectedChromosome = new mutmap.ListSelectorModel({
+        list: this.mutationLocationData
+      });
 
       this._svg = this.container.append("svg")
           .attr("x", 0)
@@ -52,7 +48,6 @@ var mutmap = mutmap || {};
       var chromSelector = new mutmap.ListSelectorView({
         el: this._chromSelectorContainer,
         model: this._selectedChromosome,
-        list: this.mutationLocationData,
         selector: 'chrom',
         itemName: 'Chromosome'
       });

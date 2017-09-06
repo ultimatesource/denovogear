@@ -17,7 +17,7 @@ if (Rscript_FOUND)
       ${VIEW_DIR}/list_selector.js
       ${VIEW_DIR}/bar_spark.js
       ${VIEW_DIR}/ratio_circle.js
-      ${VIEW_DIR}/ratio_square.js
+      ${VIEW_DIR}/ratio_rectangle.js
       ${VIEW_DIR}/contig.js
       ${VIEW_DIR}/sample_tree.js
       ${VIEW_DIR}/stats.js

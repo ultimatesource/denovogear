@@ -15,7 +15,7 @@ var mutmap = mutmap || {};
 
       this._counts = distProc.getCounts();
 
-      console.log(this._counts);
+      this._nodeViews = [];
 
       this._maxCount = 0;
       Object.keys(this._counts).forEach(function(key) {
@@ -33,6 +33,21 @@ var mutmap = mutmap || {};
       this._container = this.d3el.append("div")
           .style("width", this.dim.width+'px')
           .style("height", this.dim.height+'px');
+
+      this._variantStyleSelectorContainer = this._container.append("div")
+          .attr("class", "variant-style-selector");
+
+      this._variantStyleModel = new mutmap.ListSelectorModel({
+        list: ['Divided Nodes', 'Mini Bars', 'Stacked Bar']
+      });
+      var selectedIndex = this._variantStyleModel.get('selectedIndex');
+      this._variantStyle = this._variantStyleModel.get('list')[selectedIndex];
+
+      var variantStyleSelector = new mutmap.ListSelectorView({
+        el: this._variantStyleSelectorContainer,
+        model: this._variantStyleModel,
+        itemName: 'Variant View Style',
+      });
 
       var svg = this._container.append("svg")
           .style("width", "100%")
@@ -52,6 +67,14 @@ var mutmap = mutmap || {};
 
       this.render();
 
+      this._variantStyleModel.on('change', function() {
+
+        var index = this._variantStyleModel.get('selectedIndex');
+        this._variantStyle = this._variantStyleModel.get('list')[index];
+
+        this.render();
+      }, this);
+
       function zoomed() {
         g.attr("transform", d3.event.transform);
       }
@@ -64,11 +87,11 @@ var mutmap = mutmap || {};
       this._container
           .style("width", this.dim.width+'px')
           .style("height", this.dim.height+'px');
-      this._updateLinks();
-      this._updateNodes();
+      this._renderLinks();
+      this._renderNodes();
     },
 
-    _updateLinks: function() {
+    _renderLinks: function() {
 
       var self = this;
 
@@ -82,9 +105,6 @@ var mutmap = mutmap || {};
           .attr("class", "link");
 
       var visualLinksEnterUpdate = visualLinksEnter.merge(visualLinksUpdate);
-
-      // Stores references to models and views for bar spark charts
-      this._barSparkData = {};
 
       visualLinksEnter.append("path")
           .attr("d", function(d) {
@@ -137,9 +157,12 @@ var mutmap = mutmap || {};
       }
     },
 
-    _updateNodes: function() {
+    _renderNodes: function() {
 
       var self = this;
+
+      // TODO: Update properly without removing
+      this._nodes_container.selectAll(".node").remove();
 
       var visualNodesUpdate = this._nodes_container.selectAll(".node")
           .data(this._graphData.nodes);
@@ -152,12 +175,10 @@ var mutmap = mutmap || {};
             return utils.svgTranslateString(points.x, points.y);
           });
 
-      //var visualNodesEnterUpdate = visualNodesEnter.merge(visualNodesUpdate);
+      var visualNodesEnterUpdate = visualNodesEnter.merge(visualNodesUpdate);
 
       var counts = this._counts;
-      visualNodesEnter.each(function(d) {
-
-        var symbolSize = 500;
+      visualNodesEnterUpdate.each(function(d, index) {
 
         var variantColors = [
           '#1ebff0', '#050708', '#e62725', '#cbcacb', '#a1cf64', '#edc8c5'
@@ -179,77 +200,135 @@ var mutmap = mutmap || {};
           })
           .value();
 
-        if (d.type === "person") {
+        switch(self._variantStyle) {
 
-          var nodeWidth = 25;
-          var nodeHeight = 25;
-          var ratioNodeEl = d3.select(this).append("svg")
-              .attr("x", -(nodeWidth/2))
-              .attr("y", -(nodeHeight/2))
-              .attr("width", nodeWidth)
-              .attr("height", nodeHeight)
+          case "Divided Nodes":
+            if (d.type === "person") {
 
+              var nodeWidth = 25;
+              var nodeHeight = 25;
+              var ratioNodeEl = d3.select(this).append("svg")
+                  .attr("x", -(nodeWidth/2))
+                  .attr("y", -(nodeHeight/2))
+                  .attr("width", nodeWidth)
+                  .attr("height", nodeHeight)
 
-          if (d.dataNode.sex === "male") {
+              if (d.dataNode.sex === "male") {
 
-            var ratioSquareModel = new mutmap.RatioSquareModel({
-              ratioDataList: variantData
-            });
+                var ratioSquareModel = new mutmap.RatioRectangleModel({
+                  orientation: 'horizontal',
+                  ratioDataList: variantData
+                });
 
-            new mutmap.RatioSquareView({
-              el: ratioNodeEl.node(),
-              model: ratioSquareModel
-            });
-            //d3.select(this).append("path")
-            //    .attr("d", d3.symbol().type(d3.symbolSquare).size(symbolSize))
-            //    .attr("fill", d3.schemeCategory20[1]);
-          }
-          else {
+                self._nodeViews[index] = new mutmap.RatioRectangleView({
+                  el: ratioNodeEl.node(),
+                  model: ratioSquareModel
+                });
+              }
+              else {
 
-            var ratioCircleModel = new mutmap.RatioCircleModel({
-              ratioDataList: variantData
-            });
+                var ratioCircleModel = new mutmap.RatioCircleModel({
+                  ratioDataList: variantData
+                });
 
-            new mutmap.RatioCircleView({
-              el: ratioNodeEl.node(),
-              model: ratioCircleModel
-            });
-          }
-        }
+                self._nodeViews[index] = new mutmap.RatioCircleView({
+                  el: ratioNodeEl.node(),
+                  model: ratioCircleModel
+                });
+              }
+            }
 
-        if (d.type !== "marriage") {
+          break;
 
-          var barSparkHeight = 40;
-          var barSparkEl = d3.select(this).append("svg")
-              .attr("width", 40)
-              .attr("height", barSparkHeight)
-              .attr("x", 15)
-              .attr("y", -barSparkHeight)
+          case "Mini Bars":
 
-          var barSparkModel = new mutmap.BarSparkModel({
-            barDataList: variantData
-          });
-          var barSparkView = new mutmap.BarSparkView({
-            model: barSparkModel,
-            el: barSparkEl.node()
-          });
+            if (d.type === "person") {
 
-          self._barSparkData[d.id] = {
-            model: barSparkModel,
-            view: barSparkView
-          };
+              var symbolSize = 500;
+              if (d.dataNode.sex === "male") {
+                d3.select(this).append("path")
+                    .attr("d",
+                      d3.symbol().type(d3.symbolSquare).size(symbolSize))
+                    .attr("fill", d3.schemeCategory20[1]);
+              }
+              else {
+                d3.select(this).append("path")
+                    .attr("d",
+                      d3.symbol().type(d3.symbolCircle).size(symbolSize))
+                    .attr("fill", d3.schemeCategory20[7]);
+              }
+
+              var barSparkHeight = 40;
+              var barSparkEl = d3.select(this).append("svg")
+                  .attr("width", 40)
+                  .attr("height", barSparkHeight)
+                  .attr("x", 15)
+                  .attr("y", -barSparkHeight)
+
+              var barSparkModel = new mutmap.BarSparkModel({
+                barDataList: variantData
+              });
+
+              self._nodeViews[index] = new mutmap.BarSparkView({
+                model: barSparkModel,
+                el: barSparkEl.node()
+              });
+            }
+
+          break;
+
+          case "Stacked Bar":
+
+             if (d.type === "person") {
+
+              var symbolSize = 500;
+              if (d.dataNode.sex === "male") {
+                d3.select(this).append("path")
+                    .attr("d",
+                      d3.symbol().type(d3.symbolSquare).size(symbolSize))
+                    .attr("fill", d3.schemeCategory20[1]);
+              }
+              else {
+                d3.select(this).append("path")
+                    .attr("d",
+                      d3.symbol().type(d3.symbolCircle).size(symbolSize))
+                    .attr("fill", d3.schemeCategory20[7]);
+              }
+
+              if (variantData.length > 0) {
+                var stackedBarWidth = 50;
+                var stackedBarHeight = 10;
+                var stackedBarContainer = d3.select(this).append("svg")
+                    .attr("x", -(stackedBarWidth/2))
+                    .attr("y", 15)
+                    .attr("width", stackedBarWidth)
+                    .attr("height", stackedBarHeight)
+
+                var stackedBarModel = new mutmap.RatioRectangleModel({
+                  orientation: 'horizontal',
+                  ratioDataList: variantData
+                });
+
+                self._nodeViews[index] = new mutmap.RatioRectangleView({
+                  model: stackedBarModel,
+                  el: stackedBarContainer.node()
+                });
+              }
+            }
+
+          break;
         }
       });
 
       visualNodesEnter.append("text")
-          .attr("x", 0)
-          .attr("y", 22)
+          .attr("x", 15)
+          .attr("y", 10)
           .text(function(d) { 
             if (d.type !== "marriage") {
               return d.dataNode.id;
             }
           })
-          .attr("text-anchor", "middle")
+          //.attr("text-anchor", "middle")
           .style("pointer-events", "none")
           .style("font", "8px sans-serif");
 
@@ -326,7 +405,6 @@ var mutmap = mutmap || {};
     },
 
   });
-
   
   function createMutationDistributionView(options) {
     return new MutationDistributionView(options);

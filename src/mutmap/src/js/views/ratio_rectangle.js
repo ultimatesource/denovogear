@@ -3,13 +3,14 @@ var mutmap = mutmap || {};
 (function(Backbone, d3, utils) {
   "use strict";
 
-  mutmap.RatioSquareModel = Backbone.Model.extend({
+  mutmap.RatioRectangleModel = Backbone.Model.extend({
     defaults: {
+      orientation: 'vertical',
       ratioDataList: null
     }
   });
 
-  mutmap.RatioSquareView = Backbone.View.extend({
+  mutmap.RatioRectangleView = Backbone.View.extend({
 
     initialize: function(options) {
 
@@ -22,8 +23,8 @@ var mutmap = mutmap || {};
 
       var dim = utils.getD3Dimensions(this.d3el);
 
-      var squareWidth = dim.width;
-      var squareHeight = dim.height;
+      var rectWidth = dim.width;
+      var rectHeight = dim.height;
 
       var data = this.model.get('ratioDataList');
 
@@ -31,28 +32,33 @@ var mutmap = mutmap || {};
         data = [ { value: 1, color: d3.schemeCategory20[1] } ];
       }
 
-      var partitions = calculatePartitions(data, dim.width);
+      var vertical = this.model.get('orientation') === 'vertical';
 
-      console.log(partitions);
+      var partitions = calculatePartitions(data,
+        vertical ? dim.height : dim.width);
 
-      var squareUpdate = this.d3el.selectAll('.partition')
+      var rectUpdate = this.d3el.selectAll('.partition')
           .data(partitions);
 
-      var squareEnter = squareUpdate.enter()
+      var rectEnter = rectUpdate.enter()
         .append("rect")
           .attr("class", "partition")
 
-      var squareEnterUpdate = squareEnter.merge(squareUpdate);
+      var rectEnterUpdate = rectEnter.merge(rectUpdate);
 
-      squareEnterUpdate
+      rectEnterUpdate
         .attr("x", function(d) {
-          return d.offset
+          return vertical ? 0 : d.offset;
         })
-        .attr("y", 0)
+        .attr("y", function(d) {
+          return vertical ? d.offset : 0;
+        })
         .attr("width", function(d) {
-          return d.split * squareWidth;
+          return vertical ? rectWidth : d.split * rectWidth;
         })
-        .attr("height", squareHeight)
+        .attr("height", function(d) {
+          return vertical ? d.split * rectHeight : rectHeight;
+        })
         .attr("fill", function(d, i) {
           return d.color;
         });
