@@ -39,20 +39,8 @@ BOOST_AUTO_TEST_CASE(test_hts_version) {
     test("001.4.01",10401);
     test("1.4-1",10401);
     test("0",0);
-}
-
-BOOST_AUTO_TEST_CASE(test_fail_hts_version,
-    * boost::unit_test::expected_failures(5)) {
-    auto test_fail = [](const char* version_char, unsigned long version_int) -> void {
-    BOOST_TEST_CONTEXT("version_char='" << version_char << "'"){
-	auto result = version_parse(version_char);
-	BOOST_CHECK_EQUAL(result, version_int);
-    }};
-
-    test_fail("htslib version 1.5",10500);
-    test_fail("1.5",10000);
-    test_fail(".1.4.1",10401);
-    test_fail("1..5",10500);
-    //check empty char
-    test_fail("",10000);
+    test("htslib version 1.5",0);
+    test("1,5",0);
+    test("1 . 4",0);
+    test(" ",0);
 }
