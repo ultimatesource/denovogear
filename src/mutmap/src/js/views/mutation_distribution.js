@@ -180,27 +180,38 @@ var mutmap = mutmap || {};
           .value();
 
         if (d.type === "person") {
+
+          var nodeWidth = 25;
+          var nodeHeight = 25;
+          var ratioNodeEl = d3.select(this).append("svg")
+              .attr("x", -(nodeWidth/2))
+              .attr("y", -(nodeHeight/2))
+              .attr("width", nodeWidth)
+              .attr("height", nodeHeight)
+
+
           if (d.dataNode.sex === "male") {
-            d3.select(this).append("path")
-                .attr("d", d3.symbol().type(d3.symbolSquare).size(symbolSize))
-                .attr("fill", d3.schemeCategory20[1]);
+
+            var ratioSquareModel = new mutmap.RatioSquareModel({
+              ratioDataList: variantData
+            });
+
+            new mutmap.RatioSquareView({
+              el: ratioNodeEl.node(),
+              model: ratioSquareModel
+            });
+            //d3.select(this).append("path")
+            //    .attr("d", d3.symbol().type(d3.symbolSquare).size(symbolSize))
+            //    .attr("fill", d3.schemeCategory20[1]);
           }
           else {
-
-            var circleWidth = 25;
-            var circleHeight = 25;
-            var ratioCircleEl = d3.select(this).append("svg")
-                .attr("x", -(circleWidth/2))
-                .attr("y", -(circleHeight/2))
-                .attr("width", circleWidth)
-                .attr("height", circleHeight)
 
             var ratioCircleModel = new mutmap.RatioCircleModel({
               ratioDataList: variantData
             });
 
             new mutmap.RatioCircleView({
-              el: ratioCircleEl.node(),
+              el: ratioNodeEl.node(),
               model: ratioCircleModel
             });
           }
