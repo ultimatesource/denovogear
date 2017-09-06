@@ -29,10 +29,7 @@ var mutmap = mutmap || {};
 
       this._graphData = options.graphData;
 
-
       this._container = this.d3el.append("div")
-          .style("width", this.dim.width+'px')
-          .style("height", this.dim.height+'px');
 
       this._variantStyleSelectorContainer = this._container.append("div")
           .attr("class", "variant-style-selector");
@@ -49,15 +46,20 @@ var mutmap = mutmap || {};
         itemName: 'Variant View Style',
       });
 
-      var svg = this._container.append("svg")
-          .style("width", "100%")
-          .style("height", "100%");
+      this._margins = {
+        left: 100,
+        top: 100,
+        right: 100,
+        bottom: 100
+      };
+
+      this._svg = this._container.append("svg")
 
       var zoom = d3.zoom()
         .on("zoom", zoomed.bind(this));
-      svg.call(zoom);
+      this._svg.call(zoom);
 
-      var g = svg.append("g");
+      var g = this._svg.append("g");
 
       this._links_container = g.append("g")
           .attr("class", "links-container");
@@ -84,9 +86,14 @@ var mutmap = mutmap || {};
 
       this.dim = utils.getDimensions(this.d3el);
 
-      this._container
-          .style("width", this.dim.width+'px')
-          .style("height", this.dim.height+'px');
+      var selectorDimensions =
+        utils.getDimensions(this._variantStyleSelectorContainer);
+
+      var svgHeight = this.dim.height - selectorDimensions.height;
+      this._svg
+          .attr("width", this.dim.width)
+          .attr("height", svgHeight)
+
       this._renderLinks();
       this._renderNodes();
     },
@@ -398,9 +405,15 @@ var mutmap = mutmap || {};
     },
 
     _genPoints(xRatio, yRatio) {
+
+      var adjustedWidth =
+        this.dim.width - this._margins.left - this._margins.right;
+
+      var adjustedHeight = adjustedWidth / 3;
+
       return {
-        x: xRatio * this.dim.width,
-        y: yRatio * this.dim.width/3
+        x: this._margins.left + (xRatio * adjustedWidth),
+        y: this._margins.top + (yRatio * adjustedHeight)
       };
     },
 

@@ -24,6 +24,7 @@ var mutmap = mutmap || {};
 
 
   mutmap.MutationLocationsView = Backbone.View.extend({
+
     initialize: function() {
 
       this.mutationLocationData = this.model.get('mutationLocationData');
