@@ -68,6 +68,10 @@ using namespace std;
 using namespace dng;
 using namespace dng::task;
 
+bool is_missing_data(int i){
+    return (i==hts::bcf::int32_missing);
+}
+
 // Helper function for writing the vcf header information
 void cout_add_header_text(task::LogLike::argument_type &arg) {
     using namespace std;
@@ -515,6 +519,9 @@ int process_bcf(LogLike::argument_type &arg) {
                 data(i,a) = ad[offset+allele_list[a]];
             }
         }
+
+	// Replace missing data with 0
+	std::replace_if(data.data().begin(), data.data().end(), is_missing_data, 0);	
 
         auto loglike = calculate(data);
         sum_data += loglike.log_data;

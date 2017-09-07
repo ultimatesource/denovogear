@@ -63,8 +63,8 @@ int process_bam(task::Call::argument_type &arg);
 int process_bcf(task::Call::argument_type &arg);
 int process_ad(task::Call::argument_type &arg);
 
-bool is_positive(int i){
-	return (i<0);
+bool is_missing_data(int i){
+    return (i==hts::bcf::int32_missing);
 }
 
 void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup::stats_t& depth_stats,
@@ -676,8 +676,8 @@ int process_bcf(task::Call::argument_type &arg) {
                 data(i,a) = ad[offset+allele_list[a]];
             }
         }
-        //Replace missing data with 0
-        std::replace_if(data.data().begin(),data.data().end() , is_positive, 0);
+        // Replace missing data with 0
+        std::replace_if(data.data().begin(),data.data().end() , is_missing_data, 0);
         if(!do_call(data, &stats)) {
             return;
         }
