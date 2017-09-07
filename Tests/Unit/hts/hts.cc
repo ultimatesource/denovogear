@@ -23,6 +23,9 @@
 #include <dng/hts/hts.h>
 #include "../testing.h"
 
+#include <fstream>
+#include <string>
+
 using namespace hts;
 using hts::version_parse;
 
