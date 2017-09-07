@@ -25,6 +25,8 @@
 #include <memory>
 #include <cassert>
 #include <cstring>
+#include <string>
+#include <sstream>
 
 namespace hts {
 
