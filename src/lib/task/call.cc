@@ -33,6 +33,7 @@
 #include <boost/range/algorithm/replace.hpp>
 #include <boost/range/algorithm/max_element.hpp>
 #include <boost/range/algorithm/fill.hpp>
+#include <boost/range/algorithm/replace_if.hpp>
 
 #include <boost/algorithm/string.hpp>
 
@@ -677,7 +678,7 @@ int process_bcf(task::Call::argument_type &arg) {
             }
         }
         // Replace missing data with 0
-        std::replace_if(data.data().begin(),data.data().end() , is_missing_data, 0);
+        boost::range::replace_if(data.data(), [](int n) {return n==hts::bcf::int32_missing;}, 0);
         if(!do_call(data, &stats)) {
             return;
         }

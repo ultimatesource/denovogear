@@ -39,6 +39,7 @@
 #include <boost/range/iterator_range.hpp>
 #include <boost/range/algorithm/replace.hpp>
 #include <boost/range/algorithm/max_element.hpp>
+#include <boost/range/algorithm/replace_if.hpp>
 
 #include <boost/algorithm/string.hpp>
 
@@ -520,8 +521,8 @@ int process_bcf(LogLike::argument_type &arg) {
             }
         }
 
-	// Replace missing data with 0
-	std::replace_if(data.data().begin(), data.data().end(), is_missing_data, 0);	
+        // Replace missing data with 0
+        boost::range::replace_if(data.data(), [](int n) {return n==hts::bcf::int32_missing;}, 0);
 
         auto loglike = calculate(data);
         sum_data += loglike.log_data;
