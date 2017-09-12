@@ -35,7 +35,7 @@ var mutmap = mutmap || {};
           .attr("class", "variant-style-selector");
 
       this._variantStyleModel = new mutmap.ListSelectorModel({
-        list: ['Divided Nodes', 'Mini Bars', 'Stacked Bar']
+        list: ['Stacked Bar', 'Mini Bars', 'Divided Nodes']
       });
       var selectedIndex = this._variantStyleModel.get('selectedIndex');
       this._variantStyle = this._variantStyleModel.get('list')[selectedIndex];
