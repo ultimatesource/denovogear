@@ -94,11 +94,9 @@
 /**/
 
 
-#ifndef BOOST_TEST_CONTEXT
 #define BOOST_TEST_CONTEXT(D) \
     if(true) \
 /**/
-#endif
 
 #ifndef BOOST_TEST_INFO
 #define BOOST_TEST_INFO(D) \
