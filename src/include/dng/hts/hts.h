@@ -25,6 +25,8 @@
 #include <memory>
 #include <cassert>
 #include <cstring>
+#include <string>
+#include <sstream>
 
 namespace hts {
 
@@ -76,21 +78,24 @@ private:
 
 // convert hts version string to a numeric value
 inline
-unsigned long version() {
+unsigned long version_parse(const char *str) {
     unsigned long v[3] = {0,0,0};
-    const char *str = hts_version();
     char *end;
     for(int i=0;i<3;++i) {
         v[i] = std::strtoul(str, &end, 10);
         if(!*end) {
             break;
         }
-        if(*end != '.') {
+        if(*end != '.' && *end != '-') {
             return 0; // unexpected format
         }
         str = end+1;
     }
     return v[0]*100*100+v[1]*100+v[2];
+}
+
+inline unsigned long version() {
+    return version_parse(hts_version());
 }
 
 };

@@ -50,6 +50,7 @@ AddUnitTest(dng::relationship_graph)
 AddUnitTest(dng::seq)
 AddUnitTest(dng::stats)
 AddUnitTest(dng::utility)
+AddUnitTest(hts::hts)
 
 # These tests are broken by changes to the library
 # disable them for now so we can merge important changes
