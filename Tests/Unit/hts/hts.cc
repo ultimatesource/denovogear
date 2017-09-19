@@ -24,14 +24,13 @@
 #include "../testing.h"
 
 #include <fstream>
-#include <string>
 
 using namespace hts;
 using hts::version_parse;
 
 BOOST_AUTO_TEST_CASE(test_hts_version) {
-    auto test = [](const char* version_char, unsigned long version_int) ->  void {    
-    BOOST_TEST_CONTEXT("version_string='" << std::string(version_char) << "'"){
+    auto test = [](const char* version_char, unsigned long version_int) ->  void {
+    BOOST_TEST_CONTEXT("version_string='" << version_char << "'"){
 	auto result = version_parse(version_char);
 	BOOST_CHECK_EQUAL(result, version_int);
     }};

@@ -25,7 +25,7 @@
 #include <type_traits>
 #include <boost/test/unit_test.hpp>
 #include <boost/preprocessor/seq/for_each.hpp>
-
+#include <boost/version.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/range/size.hpp>
@@ -93,10 +93,11 @@
     } while(false) \
 /**/
 
-
+#ifndef BOOST_TEST_CONTEXT
 #define BOOST_TEST_CONTEXT(D) \
     if(true) \
 /**/
+#endif
 
 #ifndef BOOST_TEST_INFO
 #define BOOST_TEST_INFO(D) \
