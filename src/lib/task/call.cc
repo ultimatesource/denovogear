@@ -34,6 +34,7 @@
 #include <boost/range/algorithm/replace.hpp>
 #include <boost/range/algorithm/max_element.hpp>
 #include <boost/range/algorithm/fill.hpp>
+#include <boost/range/algorithm/replace_if.hpp>
 
 #include <boost/algorithm/string.hpp>
 
@@ -673,12 +674,12 @@ int process_bcf(task::Call::argument_type &arg) {
                 data(i,a) = ad[offset+allele_list[a]];
             }
         }
-
+        // Replace missing data with 0
+        boost::range::replace_if(data.data(), [](int n) {return n==hts::bcf::int32_missing;}, 0);
         if(!do_call(data, &stats)) {
             return;
         }
         const bool has_single_mut = ((stats.mu1p / stats.mup) >= min_prob);
-
         // Measure total depth and sort nucleotides in descending order
         pileup::stats_t depth_stats;
         pileup::calculate_stats(data, &depth_stats);
