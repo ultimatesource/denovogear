@@ -23,6 +23,7 @@
 
 #include <cstdlib>
 #include <fstream>
+
 #include <iostream>
 #include <iomanip>
 #include <ctime>
@@ -63,10 +64,6 @@ using namespace dng;
 int process_bam(task::Call::argument_type &arg);
 int process_bcf(task::Call::argument_type &arg);
 int process_ad(task::Call::argument_type &arg);
-
-bool is_missing_data(int i){
-    return (i==hts::bcf::int32_missing);
-}
 
 void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup::stats_t& depth_stats,
     bool has_single_mut,

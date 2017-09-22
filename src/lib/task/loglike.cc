@@ -69,10 +69,6 @@ using namespace std;
 using namespace dng;
 using namespace dng::task;
 
-bool is_missing_data(int i){
-    return (i==hts::bcf::int32_missing);
-}
-
 // Helper function for writing the vcf header information
 void cout_add_header_text(task::LogLike::argument_type &arg) {
     using namespace std;
