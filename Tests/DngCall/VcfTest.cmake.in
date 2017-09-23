@@ -72,6 +72,13 @@ set(EmptyPed-WD "@TESTDATA_DIR@/human_trio/")
 set(EmptyPed-RESULT 0)
 
 ###############################################################################
+# Test how dng-call handles missing data
+
+set(MissingData-CMD @DNG_CALL_EXE@ -m 0 --ped trio.ped trio_missing.vcf)
+set(MissingData-WD "@TESTDATA_DIR@/human_trio/")
+set(MissingData-RESULT 1)
+
+###############################################################################
 # Add Tests
 
 include("@CMAKE_CURRENT_SOURCE_DIR@/CheckProcessTest.cmake")
@@ -83,4 +90,5 @@ CheckProcessTests(DngCall.Vcf
   TrioExtraCol
   PartialPed
   EmptyPed
+  MissingData
 )

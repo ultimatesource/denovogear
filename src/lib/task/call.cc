@@ -622,11 +622,7 @@ int process_bcf(task::Call::argument_type &arg) {
 
     // allocate space for ad. bcf_get_format_int32 uses realloc internally
     int n_ad_capacity = num_libs*5;
-    std::unique_ptr<int[],decltype(std::free)*> ad{
-        reinterpret_cast<int*>(std::malloc(sizeof(int)*n_ad_capacity)), std::free};
-    if(!ad) {
-        throw std::bad_alloc{};
-    }
+    auto ad = hts::bcf::make_buffer<int>(n_ad_capacity);
 
     // run calculation based on the depths at each site.
     mpileup([&](const BcfPileup::data_type & rec) {
@@ -647,35 +643,47 @@ int process_bcf(task::Call::argument_type &arg) {
                 first_is_n = 64;
             }
         }
-        int color = AlleleDepths::MatchIndexes(allele_indexes);
+        const int color = AlleleDepths::MatchIndexes(allele_indexes);
         assert(color != -1);
         data.resize(color+first_is_n, rec->n_sample);
         // Read all the Allele Depths for every sample into an AD array
 
-        int *pad = ad.get();
-        int n_ad = bcf_get_format_int32(header, rec, "AD", &pad, &n_ad_capacity);
-        if(n_ad == -4) {
-            throw std::bad_alloc{};
-        } else if(pad != ad.get()) {
-            // update pointer
-            ad.release();
-            ad.reset(pad);
-        }
+        const int n_ad = hts::bcf::get_format_int32(header, rec, "AD", &ad, &n_ad_capacity);
         if(n_ad <= 0) {
             // AD tag is missing, so we do nothing at this time
             // TODO: support using calculated genotype likelihoods
             return;
         }
 
-        assert(n_ad >= data.data_size());
+        for(int i=0; i < n_ad; ++i) {
+            std::cerr << ad[i] << " ";
+        }
+        std::cerr << std::endl;
+
+        assert(n_ad % num_libs == 0);
+
+        const int n_sz = n_ad / num_libs;
+
         for(int i=0;i<num_libs;++i) {
-            int offset = i*num_alleles;
+            int offset = i*n_sz;
             for(int a=0; a<allele_indexes.size();++a) {
-                data(i,a) = ad[offset+allele_list[a]];
+                if(allele_list[a] >= n_sz || ad[offset+allele_list[a]] < 0) {
+                    data(i,a) = 0;
+                } else {
+                    data(i,a) = ad[offset+allele_list[a]];
+                }
             }
         }
+
+        // for(int i=0;i<num_libs;++i) {
+        //     int offset = i*num_alleles;
+        //     for(int a=0; a<allele_indexes.size();++a) {
+        //         data(i,a) = ad[offset+allele_list[a]];
+        //     }
+        // }
         // Replace missing data with 0
-        boost::range::replace_if(data.data(), [](int n) {return n==hts::bcf::int32_missing;}, 0);
+        // boost::range::replace_if(data.data(), [](int n) {
+        //     return (n == hts::bcf::int32_missing || n == hts::bcf::int32_vector_end) ;}, 0);
         if(!do_call(data, &stats)) {
             return;
         }
