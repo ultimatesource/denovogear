@@ -646,19 +646,14 @@ int process_bcf(task::Call::argument_type &arg) {
         const int color = AlleleDepths::MatchIndexes(allele_indexes);
         assert(color != -1);
         data.resize(color+first_is_n, rec->n_sample);
-        // Read all the Allele Depths for every sample into an AD array
 
+        // Read all the Allele Depths for every sample into an AD array
         const int n_ad = hts::bcf::get_format_int32(header, rec, "AD", &ad, &n_ad_capacity);
         if(n_ad <= 0) {
             // AD tag is missing, so we do nothing at this time
             // TODO: support using calculated genotype likelihoods
             return;
         }
-
-        for(int i=0; i < n_ad; ++i) {
-            std::cerr << ad[i] << " ";
-        }
-        std::cerr << std::endl;
 
         assert(n_ad % num_libs == 0);
 
@@ -675,15 +670,6 @@ int process_bcf(task::Call::argument_type &arg) {
             }
         }
 
-        // for(int i=0;i<num_libs;++i) {
-        //     int offset = i*num_alleles;
-        //     for(int a=0; a<allele_indexes.size();++a) {
-        //         data(i,a) = ad[offset+allele_list[a]];
-        //     }
-        // }
-        // Replace missing data with 0
-        // boost::range::replace_if(data.data(), [](int n) {
-        //     return (n == hts::bcf::int32_missing || n == hts::bcf::int32_vector_end) ;}, 0);
         if(!do_call(data, &stats)) {
             return;
         }

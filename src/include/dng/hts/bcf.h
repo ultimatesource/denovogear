@@ -85,6 +85,7 @@ int get_format_int32(const bcf_hdr_t *header, BareVariant *record, const char *t
         throw std::bad_alloc{};
     } else if(p != buffer->get()) {
         // update pointer
+        buffer->release();
         buffer->reset(p);
     }
     return n;
