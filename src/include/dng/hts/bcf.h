@@ -25,6 +25,7 @@
 #include <vector>
 #include <string>
 #include <set>
+#include <cstdlib>
 #include <htslib/vcf.h>
 #include <htslib/synced_bcf_reader.h>
 
@@ -60,7 +61,35 @@ constexpr int8_t int8_vector_end = bcf_int8_vector_end;
 
 const std::string str_missing = ".";
 
+template<typename T>
+using buffer_t = std::unique_ptr<T[],decltype(std::free)*>;
+
+// bcf_get_format_* uses realloc internally, so this buffer
+// will be managed by malloc and free
+template<typename T>
+buffer_t<T> make_buffer(std::size_t sz) {
+    void *p = std::malloc(sizeof(T)*sz);
+    if(p == nullptr) {
+        throw std::bad_alloc{};
+    }
+    return { reinterpret_cast<T*>(p),std::free};
+}
+
 typedef bcf1_t BareVariant;
+
+inline
+int get_format_int32(const bcf_hdr_t *header, BareVariant *record, const char *tag, buffer_t<int>* buffer, int *capacity) {
+    int *p = buffer->get();
+    int n = bcf_get_format_int32(header, record, "AD", &p, capacity);
+    if(n == -4) {
+        throw std::bad_alloc{};
+    } else if(p != buffer->get()) {
+        // update pointer
+        buffer->release();
+        buffer->reset(p);
+    }
+    return n;
+}
 
 class File;
 
