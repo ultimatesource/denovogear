@@ -403,7 +403,7 @@ int process_bcf(LogLike::argument_type &arg) {
 
     // Read input data
     if(arg.input.size() > 1) {
-        throw std::runtime_error("dng call can only handle one variant file at a time.");
+        throw std::runtime_error("dng loglike can only handle one variant file at a time.");
     }
 
     using dng::io::BcfPileup;
