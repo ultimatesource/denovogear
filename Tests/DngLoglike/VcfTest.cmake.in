@@ -28,15 +28,6 @@ set(MultiInput-STDERR
 )
 
 ###############################################################################
-# Test if dng-loglike crashes on unknown --region file
-set(Region-CMD @DNG_LOGLIKE_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -p ceu.ped --region region.gz test1.vcf)
-set(Region-WD "@TESTDATA_DIR@/sample_5_3/")
-set(Region-Result 1)
-set(Region-STDERR
-    "not compressed with bgzip"
-)
-
-###############################################################################
 # Add Tests
 
 include("@CMAKE_CURRENT_SOURCE_DIR@/CheckProcessTest.cmake")
@@ -45,5 +36,4 @@ CheckProcessTests(DngLoglike.Vcf
     BasicTest
     EmptyVcf
     MultiInput
-    Region
 )
