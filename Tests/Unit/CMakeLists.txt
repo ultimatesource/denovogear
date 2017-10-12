@@ -40,6 +40,7 @@ endmacro()
 
 AddUnitTest(dng::io::ad)
 AddUnitTest(dng::io::bam)
+AddUnitTest(dng::cigar)
 AddUnitTest(dng::genotype)
 AddUnitTest(dng::library)
 AddUnitTest(dng::log_probability)
