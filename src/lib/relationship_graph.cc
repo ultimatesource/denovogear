@@ -171,7 +171,7 @@ bool dng::RelationshipGraph::Construct(const Pedigree& pedigree,
     CreatePeelingOps(pedigree_graph, node_ids, family_labels, pivots);
     ConstructPeelingMachine();
 
-    // PrintMachine(cerr);
+    PrintMachine(cerr);
     return true;
 }
 

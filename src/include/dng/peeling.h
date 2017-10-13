@@ -60,43 +60,73 @@ struct workspace_t {
         num_nodes = sz;
         upper.resize(num_nodes);
         super.resize(num_nodes);
-        lower.assign(num_nodes, DNG_INDIVIDUAL_BUFFER_ONES);
+        lower.resize(num_nodes);
+        for(auto && a: lower) {
+            a.setOnes(10);
+        }
         temp_buffer.resize(100, 1);
         dirty_lower = false;
     }
 
     // Cleanup after a backwards peeling algorithm
     void Cleanup() {
-        boost::fill(lower, DNG_INDIVIDUAL_BUFFER_ONES);
+        for(auto && a : lower) {
+            a.setOnes();
+        }
         dirty_lower = false;
     }
 
     // Cleanup after a backwards peeling algorithm
     // Do not update libraries since they might be set in another operation
     void CleanupFast() {
-        // TODO: create a check that sees if this has been done before the
-        // forward algorithm.
-        boost::fill_n(lower, somatic_nodes.second, DNG_INDIVIDUAL_BUFFER_ONES);
+        for(std::size_t n = 0; n < somatic_nodes.second; ++n) {
+            lower[n].setOnes();
+        }
         dirty_lower = false;
     }
 
     // Set the prior probability of the founders given the reference
-    void SetFounders(const GenotypeArray &prior) {
+    void SetGermline(const GenotypeArray &prior) {
         assert(founder_nodes.first <= founder_nodes.second);
-        std::fill(upper.begin() + founder_nodes.first,
-                  upper.begin() + founder_nodes.second, prior);
+        assert(founder_nodes.second <= germline_nodes.second);
+
+        // Set the Upper and Lowers of the Founder Nodes
+        for(auto i = founder_nodes.first; i < founder_nodes.second; ++i) {
+            upper[i] = prior;
+            lower[i].setOnes(prior.size());
+        }
+        // Also set the lowers of any germline node
+        for(auto i = founder_nodes.second; i < germline_nodes.second; ++i) {
+            lower[i].setOnes(prior.size());
+        }
     }
 
-    void SetFounders(const GenotypeArray &diploid_prior, const GenotypeArray &haploid_prior) {
+    void SetGermline(const GenotypeArray &diploid_prior, const GenotypeArray &haploid_prior) {
+        assert(founder_nodes.first <= founder_nodes.second);
+        assert(founder_nodes.second <= germline_nodes.second);
+        
+        // Set the Upper and Lowers of the Founder Nodes
         for(auto i = founder_nodes.first; i < founder_nodes.second; ++i) {
             if(ploidies[i] == 2) {
                 upper[i] = diploid_prior;
+                lower[i].setOnes(diploid_prior.size());
             } else if(ploidies[i] == 1) {
-                upper[i] = haploid_prior;                
+                upper[i] = haploid_prior;
+                lower[i].setOnes(haploid_prior.size());  
             } else {
                 assert(false); // should not be here
             }
-        } 
+        }
+        // Also set the lowers of any germline node
+        for(auto i = founder_nodes.second; i < germline_nodes.second; ++i) {
+             if(ploidies[i] == 2) {
+                lower[i].setOnes(diploid_prior.size());
+            } else if(ploidies[i] == 1) {
+                lower[i].setOnes(haploid_prior.size());  
+            } else {
+                assert(false); // should not be here
+            }           
+        }
     }
 
     template<typename G, typename ...A>

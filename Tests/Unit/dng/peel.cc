@@ -62,12 +62,12 @@ BOOST_AUTO_TEST_CASE(test_peel_workspace) {
     work.ploidies.assign(8,2);
     work.ploidies[1] = 1;
 
-    // SetFounders
+    // SetGermline
     GenotypeArray haploid_prior(4), diploid_prior(10);
     generate(make_test_range(haploid_prior), [&](){ return xrand.get_double52(); });
     generate(make_test_range(diploid_prior), [&](){ return xrand.get_double52(); });
 
-    work.SetFounders(diploid_prior, haploid_prior);
+    work.SetGermline(diploid_prior, haploid_prior);
     
     auto test_upper0 = make_test_range(work.upper[0]);
     auto expected_upper0 = make_test_range(diploid_prior);
@@ -87,7 +87,8 @@ BOOST_AUTO_TEST_CASE(test_peel_workspace) {
     for(int i=0;i<work.somatic_nodes.second;++i) {
         BOOST_TEST_INFO("node=" << i);
         auto test_range = make_test_range(work.lower[i]);
-        std::vector<double> expected_range(10,1); 
+        size_t sz = (i == 1) ? 4 : 10;
+        std::vector<double> expected_range(sz,1); 
         CHECK_EQUAL_RANGES(test_range, expected_range);
     }
     for(int i=work.library_nodes.first;i<work.num_nodes;++i) {
@@ -107,7 +108,8 @@ BOOST_AUTO_TEST_CASE(test_peel_workspace) {
     for(int i=0;i<work.num_nodes;++i) {
         BOOST_TEST_INFO("node=" << i);
         auto test_range = make_test_range(work.lower[i]);
-        std::vector<double> expected_range(10,1); 
+        size_t sz = (i == 1) ? 4 : 10;
+        std::vector<double> expected_range(sz,1); 
         CHECK_EQUAL_RANGES(test_range, expected_range);
     }
 }

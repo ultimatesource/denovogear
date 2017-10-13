@@ -57,7 +57,7 @@ LogProbability::LogProbability(RelationshipGraph graph, params_t params) :
         GenotypeArray diploid_prior(1), haploid_prior(1);
         diploid_prior(0) = diploid_prior_[color](pileup::AlleleDepths::type_info_gt_table[color].indexes[0]);
         haploid_prior(0) = haploid_prior_[color](pileup::AlleleDepths::type_info_table[color].indexes[0]);
-        work_.SetFounders(diploid_prior, haploid_prior);
+        work_.SetGermline(diploid_prior, haploid_prior);
         work_.SetGenotypeLikelihoods(genotyper_, depths);
         double logdata = graph_.PeelForwards(work_, transition_matrices_[color]);
         prob_monomorphic_[color] = exp(logdata);
@@ -71,7 +71,7 @@ LogProbability::value_t LogProbability::operator()(const pileup::RawDepths &dept
     double scale = work_.SetGenotypeLikelihoods(genotyper_, depths, ref_index);
 
     // Set the prior probability of the founders given the reference
-    work_.SetFounders(diploid_prior_[ref_index], haploid_prior_[ref_index]);
+    work_.SetGermline(diploid_prior_[ref_index], haploid_prior_[ref_index]);
 
     // for(int i=0; i < full_transition_matrices_.size(); ++i) {
     //     std::cerr << i << "\t";
@@ -111,7 +111,7 @@ LogProbability::value_t LogProbability::operator()(const pileup::AlleleDepths &d
         // Set the prior probability of the founders given the reference
         GenotypeArray diploid_prior = DiploidPrior(ref_index, color);
         GenotypeArray haploid_prior = HaploidPrior(ref_index, color);
-        work_.SetFounders(diploid_prior, haploid_prior);
+        work_.SetGermline(diploid_prior, haploid_prior);
   
         // Calculate genotype likelihoods
         scale = work_.SetGenotypeLikelihoods(genotyper_, depths);
