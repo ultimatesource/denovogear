@@ -61,6 +61,8 @@ BOOST_AUTO_TEST_CASE(test_peel_workspace) {
 
     work.ploidies.assign(8,2);
     work.ploidies[1] = 1;
+    work.ploidies[2] = 1;
+    work.ploidies[3] = 1;
 
     // SetGermline
     GenotypeArray haploid_prior(4), diploid_prior(10);
@@ -87,7 +89,7 @@ BOOST_AUTO_TEST_CASE(test_peel_workspace) {
     for(int i=0;i<work.somatic_nodes.second;++i) {
         BOOST_TEST_INFO("node=" << i);
         auto test_range = make_test_range(work.lower[i]);
-        size_t sz = (i == 1) ? 4 : 10;
+        size_t sz = (i == 1 || i == 2) ? 4 : 10;
         std::vector<double> expected_range(sz,1); 
         CHECK_EQUAL_RANGES(test_range, expected_range);
     }
@@ -108,7 +110,7 @@ BOOST_AUTO_TEST_CASE(test_peel_workspace) {
     for(int i=0;i<work.num_nodes;++i) {
         BOOST_TEST_INFO("node=" << i);
         auto test_range = make_test_range(work.lower[i]);
-        size_t sz = (i == 1) ? 4 : 10;
+        size_t sz = (i == 1 || i == 2) ? 4 : 10;
         std::vector<double> expected_range(sz,1); 
         CHECK_EQUAL_RANGES(test_range, expected_range);
     }
