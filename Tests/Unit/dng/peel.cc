@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016 Steven H. Wu
- * Copyright (c) 2016 Reed A. Cartwright
+ * Copyright (c) 2016,2017 Reed A. Cartwright
  * Authors:  Steven H. Wu <stevenwu@asu.edu>
  *           Reed A. Cartwright <reed@cartwrig.ht>
  *
@@ -53,16 +53,16 @@ BOOST_AUTO_TEST_CASE(test_peel_workspace) {
     xorshift64 xrand(++g_seed_counter);
 
     workspace_t work;
-    work.Resize(8);
+    work.Resize(10);
     work.founder_nodes = {0,2};
-    work.germline_nodes = {2,3};
-    work.somatic_nodes = {3,4};
-    work.library_nodes = {4,8};
+    work.germline_nodes = {2,4};
+    work.somatic_nodes = {4,5};
+    work.library_nodes = {5,10};
 
-    work.ploidies.assign(8,2);
+    work.ploidies.assign(10,2);
     work.ploidies[1] = 1;
     work.ploidies[2] = 1;
-    work.ploidies[3] = 1;
+    work.ploidies[4] = 1;
 
     // SetGermline
     GenotypeArray haploid_prior(4), diploid_prior(10);

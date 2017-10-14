@@ -107,24 +107,22 @@ struct workspace_t {
         
         // Set the Upper and Lowers of the Founder Nodes
         for(auto i = founder_nodes.first; i < founder_nodes.second; ++i) {
+            assert(ploidies[i] == 2 || ploidies[i] == 1);
             if(ploidies[i] == 2) {
                 upper[i] = diploid_prior;
                 lower[i].setOnes(diploid_prior.size());
-            } else if(ploidies[i] == 1) {
+            } else {
                 upper[i] = haploid_prior;
                 lower[i].setOnes(haploid_prior.size());  
-            } else {
-                assert(false); // should not be here
             }
         }
         // Also set the lowers of any germline node
         for(auto i = founder_nodes.second; i < germline_nodes.second; ++i) {
+            assert(ploidies[i] == 2 || ploidies[i] == 1);
              if(ploidies[i] == 2) {
                 lower[i].setOnes(diploid_prior.size());
-            } else if(ploidies[i] == 1) {
-                lower[i].setOnes(haploid_prior.size());  
             } else {
-                assert(false); // should not be here
+                lower[i].setOnes(haploid_prior.size());  
             }           
         }
     }
