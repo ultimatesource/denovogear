@@ -98,6 +98,19 @@ inline unsigned long version() {
     return version_parse(hts_version());
 }
 
+namespace detail {
+template<typename S>
+std::string make_data_url(const S& str) {
+    // data: url format changed in htslib 1.4
+    std::string bamstr = "data:";
+    if(hts::version() >= 10400 ) {
+        bamstr += ",";
+    }
+    return bamstr+str;
+}
+
+} // namespace detail
+
 };
 
 #endif

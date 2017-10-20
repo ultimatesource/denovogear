@@ -194,7 +194,8 @@ public:
                     break;
                 }
             }
-            if(p->is_any(BAM_FUNMAP | BAM_FSECONDARY | BAM_FQCFAIL | BAM_FDUP)) {
+            if(p->is_any(BAM_FUNMAP | BAM_FQCFAIL | BAM_FDUP
+                | BAM_FSECONDARY | BAM_FSUPPLEMENTARY)) {
                 continue;
             }
             if(p->map_qual() < min_mapQ_) {
