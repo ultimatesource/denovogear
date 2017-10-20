@@ -57,7 +57,7 @@ LogProbability::LogProbability(RelationshipGraph graph, params_t params) :
         GenotypeArray diploid_prior(1), haploid_prior(1);
         diploid_prior(0) = diploid_prior_[color](pileup::AlleleDepths::type_info_gt_table[color].indexes[0]);
         haploid_prior(0) = haploid_prior_[color](pileup::AlleleDepths::type_info_table[color].indexes[0]);
-        work_.SetFounders(diploid_prior, haploid_prior);
+        work_.SetGermline(diploid_prior, haploid_prior);
         work_.SetGenotypeLikelihoods(genotyper_, depths);
         double logdata = graph_.PeelForwards(work_, transition_matrices_[color]);
         prob_monomorphic_[color] = exp(logdata);
@@ -71,7 +71,7 @@ LogProbability::value_t LogProbability::operator()(const pileup::RawDepths &dept
     double scale = work_.SetGenotypeLikelihoods(genotyper_, depths, ref_index);
 
     // Set the prior probability of the founders given the reference
-    work_.SetFounders(diploid_prior_[ref_index], haploid_prior_[ref_index]);
+    work_.SetGermline(diploid_prior_[ref_index], haploid_prior_[ref_index]);
 
     // for(int i=0; i < full_transition_matrices_.size(); ++i) {
     //     std::cerr << i << "\t";
@@ -111,7 +111,7 @@ LogProbability::value_t LogProbability::operator()(const pileup::AlleleDepths &d
         // Set the prior probability of the founders given the reference
         GenotypeArray diploid_prior = DiploidPrior(ref_index, color);
         GenotypeArray haploid_prior = HaploidPrior(ref_index, color);
-        work_.SetFounders(diploid_prior, haploid_prior);
+        work_.SetGermline(diploid_prior, haploid_prior);
   
         // Calculate genotype likelihoods
         scale = work_.SetGenotypeLikelihoods(genotyper_, depths);
@@ -137,10 +137,10 @@ TransitionMatrixVector dng::create_mutation_matrices(const RelationshipGraph &gr
         } else if(trans.type == RelationshipGraph::TransitionType::Pair) {
             auto orig = f81::matrix(trans.length1, nuc_freq);
             if(graph.ploidy(child) == 1) {
-            	matrices[child] = gamete_matrix(graph.ploidy(trans.parent1), orig, mutype);
+                matrices[child] = gamete_matrix(graph.ploidy(trans.parent1), orig, mutype);
             } else {
-	            assert(graph.ploidy(child) == 2);
-            	matrices[child] = mitosis_matrix(graph.ploidy(trans.parent1), orig, mutype);
+                assert(graph.ploidy(child) == 2);
+                matrices[child] = mitosis_matrix(graph.ploidy(trans.parent1), orig, mutype);
             }
         } else {
             matrices[child] = {};
@@ -154,7 +154,7 @@ TransitionMatrix subset_mutation_matrix_meiosis_autosomal(const TransitionMatrix
 
     const int width = type_info_gt_table[color].width;
 
-	TransitionMatrix ret{width*width, width};
+    TransitionMatrix ret{width*width, width};
 
     // a: parent1/dad; b: parent2/mom;
     // kronecker product is 'a-major'
@@ -185,7 +185,7 @@ TransitionMatrix subset_mutation_matrix_meiosis_xlinked(const TransitionMatrix &
     const int widthA = type_info_table[color].width;                      
     const int widthB = type_info_gt_table[color].width;
 
-	TransitionMatrix ret{widthA*widthB,widthB};
+    TransitionMatrix ret{widthA*widthB,widthB};
 
     for(int a = 0; a < widthA; ++a) {
         const int ga = type_info_table[color].indexes[a];
@@ -211,7 +211,7 @@ TransitionMatrix subset_mutation_matrix_meiosis_gamete(const TransitionMatrix &f
     const int widthP = type_info_gt_table[color].width;
     const int widthC = type_info_table[color].width;
 
-	TransitionMatrix ret{widthP,widthC};
+    TransitionMatrix ret{widthP,widthC};
 
     for(int x = 0; x < widthP; ++x) {
         const int gx = type_info_gt_table[color].indexes[x];
@@ -230,7 +230,7 @@ TransitionMatrix subset_mutation_matrix_mitosis_diploid(const TransitionMatrix &
 
     const int width = type_info_gt_table[color].width;
 
-	TransitionMatrix ret{width,width};
+    TransitionMatrix ret{width,width};
 
     for(int x = 0; x < width; ++x) {
         const int gx = type_info_gt_table[color].indexes[x];
@@ -248,7 +248,7 @@ TransitionMatrix subset_mutation_matrix_mitosis_haploid(const TransitionMatrix &
 
     const int width = type_info_table[color].width;
 
-	TransitionMatrix ret{width,width};
+    TransitionMatrix ret{width,width};
 
     for(int x = 0; x < width; ++x) {
         const int gx = type_info_table[color].indexes[x];
@@ -280,7 +280,7 @@ TransitionMatrixVector dng::create_mutation_matrices_subset(const TransitionMatr
         } else if(full_matrices[child].rows() == 4 && full_matrices[child].cols() == 4) {
             matrices[child] = subset_mutation_matrix_mitosis_haploid(full_matrices[child], color);
         } else if(full_matrices[child].rows() == 10 && full_matrices[child].cols() == 4) {
-        	matrices[child] = subset_mutation_matrix_meiosis_gamete(full_matrices[child], color);
+            matrices[child] = subset_mutation_matrix_meiosis_gamete(full_matrices[child], color);
         } else if(full_matrices[child].rows() == 0 && full_matrices[child].cols() == 0 ) {
             matrices[child] = {};
         } else {

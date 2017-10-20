@@ -4,7 +4,7 @@
 
 ```bash
 mkdir ./build/clangdebug
-CXX=clang++ CC=clang cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug
+CXX=clang++ CC=clang cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug ../..
 ninja
 ninja test
 ```
@@ -13,7 +13,7 @@ ninja test
 
 ```bash
 mkdir ./build/coverage
-CXX=g++ CC=gcc cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug -DDNG_DEVEL_ENABLE_COVERAGE_REPORT=1
+CXX=g++ CC=gcc cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug -DDNG_DEVEL_ENABLE_COVERAGE_REPORT=1 ../..
 ninja
 ```
 ### Run Unit Tests only
