@@ -104,6 +104,10 @@ AddCmakeTest(DngCall.Cram "" "Build.dng-call;Build.testdata")
 AddCmakeTest(DngCall.Tad "" "Build.dng-call;Build.testdata")
 
 AddCMakeTest(DngLoglike.Run "" "Build.dng-loglike")
+AddCMakeTest(DngLoglike.Bam "" "Build.dng-loglike;Build.testdata")
+AddCMakeTest(DngLoglike.Vcf "" "Build.dng-loglike;Build.testdata")
+AddCMakeTest(DngLoglike.Cram "" "Build.dng-loglike;Build.testdata")
+AddCMakeTest(DngLoglike.Tad "" "Build.dng-loglike;Build.testdata")
 
 AddCMakeTest(DngDnm.Run "" "Build.dng-dnm")
 AddCMakeTest(DngDnm.Auto "" "Build.dng-dnm;Build.testdata")

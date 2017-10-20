@@ -1,0 +1,50 @@
+###############################################################################
+# Test dng-loglike functioning with tad file
+
+set(BasicTest-CMD @DNG_LOGLIKE_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped test1.tad)
+set(BasicTest-WD "@TESTDATA_DIR@/sample_5_3/")
+set(BasicTest-Result 0)
+set(BasicTest-STDOUT
+    "log_likelihood\tlog_hidden\tlog_observed"
+    "-31\\.512781885360631\t-7\\.6149721273918676\t-23\\.897809757968766"
+)
+
+###############################################################################
+# Test if dng-loglike crashes on empty tad 
+set(EmptyTad-CMD @DNG_LOGLIKE_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped empty.tad)
+set(EmptyTad-WD "@TESTDATA_DIR@/sample_5_3/")
+set(EmptyTad-Result 1)
+set(EmptyTad-STDERR
+    "Argument Error: unable to open input file 'empty\\.tad'\\."
+)
+
+###############################################################################
+# Test if dng-loglike --threads works properly
+set(Threads-CMD @DNG_LOGLIKE_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped -t 2 test1.tad)
+set(Threads-WD "@TESTDATA_DIR@/sample_5_3/")
+set(Threads-Result 0)
+set(Threads-STDOUT
+    "log_likelihood\tlog_hidden\tlog_observed"
+    "-31\\.512781885360631\t-7\\.6149721273918676\t-23\\.897809757968766"
+)
+
+###############################################################################
+# Test if dng-loglike crashes on more than one input file
+set(MultiInput-CMD @DNG_LOGLIKE_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped test1.tad test1.tad)
+set(MultiInput-WD "@TESTDATA_DIR@/sample_5_3/")
+set(MultiInput-Result 1)
+set(MultiInput-STDERR
+    "Argument Error: can only process one ad/tad file at a time\\."
+)
+
+###############################################################################
+# Add Tests
+
+include("@CMAKE_CURRENT_SOURCE_DIR@/CheckProcessTest.cmake")
+
+CheckProcessTests(DngLoglike.Tad
+    BasicTest
+    EmptyTad
+    Threads
+    MultiInput
+)
