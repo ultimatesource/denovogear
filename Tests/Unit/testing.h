@@ -145,6 +145,8 @@ struct AutoTempFile {
     }
 };
 
+// function to create a 
+
 namespace {
 template<typename T>
 struct test_range {
@@ -221,9 +223,9 @@ operator<<(std::basic_ostream<CharType, CharTrait>& o, E m) {
     o << static_cast<typename std::underlying_type<E>::type>(m);
     return o;
 }
+}}} // namespace dng::detail::io
 
-}}}
-
+// allow pair of strings to be printed
 namespace std {
 template<typename CharType, typename CharTrait>
 inline

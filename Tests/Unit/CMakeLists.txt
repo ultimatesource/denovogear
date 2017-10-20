@@ -38,6 +38,9 @@ endmacro()
 ###############################################################################
 # Add Unit tests based on CXX namespaces
 
+AddUnitTest(hts::hts)
+AddUnitTest(hts::bam)
+
 AddUnitTest(dng::io::ad)
 AddUnitTest(dng::io::bam)
 AddUnitTest(dng::genotype)
@@ -51,7 +54,6 @@ AddUnitTest(dng::relationship_graph)
 AddUnitTest(dng::seq)
 AddUnitTest(dng::stats)
 AddUnitTest(dng::utility)
-AddUnitTest(hts::hts)
 
 # These tests are broken by changes to the library
 # disable them for now so we can merge important changes

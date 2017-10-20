@@ -22,6 +22,7 @@
 #include <dng/regions.h>
 
 #include "../testing.h"
+#include <dng/hts/hts.h>
 
 #include <fstream>
 
@@ -30,6 +31,7 @@
 
 using namespace dng::regions;
 using dng::detail::make_test_range;
+using hts::detail::make_data_url;
 
 BOOST_AUTO_TEST_CASE(test_region_parsing) {
     auto test_fail = [](std::string region_string) -> void {
@@ -91,12 +93,7 @@ BOOST_AUTO_TEST_CASE(test_region_parsing_with_bam) {
     using region_t = hts::bam::region_t;
 
     // Open Read our test data from Memory
-    std::string bamstr = "data:";
-    if(hts::version() >= 10400 ) {
-        // data: url format changed in htslib 1.4
-        bamstr += ",";
-    }
-    bamstr += bamtext;
+    std::string bamstr = make_data_url(bamtext);
 
     hts::bam::File bamfile(bamstr.c_str(), "r");
     // Sanity checks.  If these fail, then other tests will as well
