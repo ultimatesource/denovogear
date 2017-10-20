@@ -39,8 +39,6 @@ typedef std::vector<GenotypeArray, Eigen::aligned_allocator<GenotypeArray>>
         GenotypeArrayVector;
 
 #define DNG_INDIVIDUAL_BUFFER_MIN DBL_MIN
-#define DNG_INDIVIDUAL_BUFFER_ONES GenotypeArrayVector::value_type::Ones(10)
-#define DNG_INDIVIDUAL_BUFFER_ZEROS GenotypeArrayVector::value_type::Zero(10)
 
 typedef Eigen::MatrixXd TransitionMatrix; // element (i,j) is the P(j|i)
 typedef std::vector<TransitionMatrix> TransitionMatrixVector;

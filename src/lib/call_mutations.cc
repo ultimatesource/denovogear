@@ -54,11 +54,12 @@ CallMutations::CallMutations(double min_prob, const RelationshipGraph &graph, pa
 // Returns true if a mutation was found and the record was modified
 bool CallMutations::operator()(const pileup::RawDepths &depths,
         int ref_index, stats_t *stats) {
-    // Genotype Likelihoods
-    double scale = work_.SetGenotypeLikelihoods(genotyper_, depths, ref_index);
 
     // Set the prior probability of the founders given the reference
-    work_.SetFounders(diploid_prior_[ref_index], haploid_prior_[ref_index]);
+    work_.SetGermline(diploid_prior_[ref_index], haploid_prior_[ref_index]);
+
+    // Genotype Likelihoods
+    double scale = work_.SetGenotypeLikelihoods(genotyper_, depths, ref_index);
 
     // Run
     bool found = Calculate(stats, COLOR_ACGT);
@@ -77,7 +78,7 @@ bool CallMutations::operator()(const pileup::AlleleDepths &depths,
     // Set the prior probability of the founders given the reference
     GenotypeArray diploid_prior = DiploidPrior(ref_index, color);
     GenotypeArray haploid_prior = HaploidPrior(ref_index, color);
-    work_.SetFounders(diploid_prior, haploid_prior);
+    work_.SetGermline(diploid_prior, haploid_prior);
 
     // Genotype Likelihoods
     double scale = work_.SetGenotypeLikelihoods(genotyper_, depths);

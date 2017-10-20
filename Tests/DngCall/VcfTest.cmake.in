@@ -64,6 +64,17 @@ set(PartialPed-STDOUT
   "##PEDIGREE=<ID=LB/NA12878/Solexa-135852,Original=GL/1,OriginalMR=0.0>"
 )
 
+set(PartialPed2-CMD @DNG_CALL_EXE@ -m 0 --ped trio.ped duo.vcf)
+set(PartialPed2-WD "@TESTDATA_DIR@/human_trio/")
+set(PartialPed2-RESULT 0)
+set(PartialPed2-STDOUT
+  "##PEDIGREE=<ID=LB/NA12878,Father=GL/NA12891,Mother=GL/NA12892,FatherMR=10.0e-09,MotherMR=10.0e-09>"
+  "##PEDIGREE=<ID=LB/NA12892,Original=GL/NA12892,OriginalMR=0.0>"
+)
+set(PartialPed2-STDOUT-FAIL
+  "##PEDIGREE=<ID=LB/NA12891,Original=GL/NA12891,OriginalMR=0.0>"
+)
+
 ###############################################################################
 # Test if dng-call crashes on empty pedigree
 
@@ -104,6 +115,7 @@ CheckProcessTests(DngCall.Vcf
   TrioAltRegions
   TrioExtraCol
   PartialPed
+  PartialPed2
   EmptyPed
   MissingData
 )

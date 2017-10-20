@@ -1,0 +1,58 @@
+###############################################################################
+# Test dng-loglike functioning with cram file
+set(BasicTest-CMD @DNG_LOGLIKE_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped test1.cram)
+set(BasicTest-WD "@TESTDATA_DIR@/sample_5_3/")
+set(BasicTest-Result 0)
+set(BasicTest-STDOUT
+    "log_likelihood\tlog_hidden\tlog_observed"
+    "-101\\.013738899918..\t-8\\.08795333100022.+\t-92\\.9257855689178.."
+)
+
+###############################################################################
+# Test if dng-loglike crashes on empty cram
+set(EmptyCram-CMD @DNG_LOGLIKE_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped empty.cram)
+set(EmptyCram-WD "@TESTDATA_DIR@/sample_5_3/")
+set(EmptyCram-Result 1)
+set(EmptyCram-STDERR
+    "Unable to open input file 'empty\\.cram'\\."
+)
+
+###############################################################################
+# Test if dng-loglike crashes on more than one input type file
+set(MultiInput-CMD @DNG_LOGLIKE_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped test1.cram test1.vcf)
+set(MultiInput-WD "@TESTDATA_DIR@/sample_5_3/")
+set(MultiInput-Result 1)
+set(MultiInput-STDERR
+    "Mixing sam/bam/cram, vcf/bcf, and tad/ad input files is not supported\\."
+)
+
+###############################################################################
+# Test if dng-loglike crashes if fasta file is not specified
+set(NoFasta-CMD @DNG_LOGLIKE_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -p ceu.ped test1.cram)
+set(NoFasta-WD "@TESTDATA_DIR@/sample_5_3/")
+set(NoFasta-Result 1)
+set(NoFasta-STDERR
+    "Path to reference file must be specified with --fasta when processing bam/sam/cram files\\."
+)
+
+###############################################################################
+# Test if dng-loglike crashes on unknown --region file
+set(Region-CMD @DNG_LOGLIKE_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped --region region.gz test1.cram)
+set(Region-WD "@TESTDATA_DIR@/sample_5_3/")
+set(Region-Result 1)
+set(Region-STDERR
+    "Unknown contig name: 'region\\.gz'"
+)
+
+###############################################################################
+# Add Tests
+
+include("@CMAKE_CURRENT_SOURCE_DIR@/CheckProcessTest.cmake")
+
+CheckProcessTests(DngLoglike.Cram
+    BasicTest
+    EmptyCram
+    MultiInput
+    NoFasta
+    Region
+)
