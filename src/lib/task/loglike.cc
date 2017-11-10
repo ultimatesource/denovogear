@@ -261,19 +261,22 @@ int process_ad(LogLike::argument_type &arg) {
     cout_add_header_text(arg);
 
     // replace arg.region with the contents of a file if needed
-    io::at_slurp(arg.region);
+    //auto region_ext = io::at_slurp(arg.region);
+    if(!arg.region.empty()) {
+        throw std::invalid_argument("--region not supported when processing ad/tad file.");
+    }
 
     // Open input files
     if(arg.input.size() != 1) {
-        throw std::runtime_error("Argument Error: can only process one ad/tad file at a time.");
+        throw std::runtime_error("can only process one ad/tad file at a time.");
     }
     
     io::Ad input{arg.input[0], std::ios_base::in};
     if(!input) {
-        throw std::runtime_error("Argument Error: unable to open input file '" + arg.input[0] + "'.");
+        throw std::runtime_error("unable to open input file '" + arg.input[0] + "'.");
     }
     if(input.ReadHeader() == 0) {
-        throw std::runtime_error("Argument Error: unable to read header from '" + input.path() + "'.");
+        throw std::runtime_error("unable to read header from '" + input.path() + "'.");
     }
 
     // Construct peeling algorithm from parameters and pedigree information
@@ -282,7 +285,7 @@ int process_ad(LogLike::argument_type &arg) {
     RelationshipGraph graph;
     if(!graph.Construct(ped, input.libraries(), model, arg.mu, arg.mu_somatic, arg.mu_library,
         arg.normalize_somatic_trees)) {
-        throw runtime_error("Error: Unable to construct peeler for pedigree; "
+        throw std::invalid_argument("Unable to construct peeler for pedigree; "
                             "possible non-zero-loop pedigree.");
     }
     // Select libraries in the input that are used in the pedigree
@@ -431,7 +434,7 @@ int process_bcf(LogLike::argument_type &arg) {
     if (!relationship_graph.Construct(ped, mpileup.libraries(), model,
                                       arg.mu, arg.mu_somatic, arg.mu_library,
                                       arg.normalize_somatic_trees)) {
-        throw std::runtime_error("Unable to construct peeler for pedigree; "
+        throw std::invalid_argument("Unable to construct peeler for pedigree; "
                                  "possible non-zero-loop relationship_graph.");
     }
     mpileup.SelectLibraries(relationship_graph.library_names());
