@@ -15,7 +15,7 @@ set(EmptyTad-CMD @DNG_LOGLIKE_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample
 set(EmptyTad-WD "@TESTDATA_DIR@/sample_5_3/")
 set(EmptyTad-Result 1)
 set(EmptyTad-STDERR
-    "Argument Error: unable to open input file 'empty\\.tad'\\."
+    "unable to open input file 'empty\\.tad'\\."
 )
 
 ###############################################################################
@@ -34,7 +34,7 @@ set(MultiInput-CMD @DNG_LOGLIKE_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f samp
 set(MultiInput-WD "@TESTDATA_DIR@/sample_5_3/")
 set(MultiInput-Result 1)
 set(MultiInput-STDERR
-    "Argument Error: can only process one ad/tad file at a time\\."
+    "can only process one ad/tad file at a time\\."
 )
 
 ###############################################################################

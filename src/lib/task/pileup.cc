@@ -53,6 +53,7 @@ int process_ad(Pileup::argument_type &arg);
 int Pileup::operator()(Pileup::argument_type &arg) {
     using utility::FileCat;
     using utility::FileCatSet;
+
     // if input is empty default to stdin.
     if(arg.input.empty()) {
         arg.input.emplace_back("-");
@@ -66,6 +67,7 @@ int Pileup::operator()(Pileup::argument_type &arg) {
             throw runtime_error("Argument error: mixing sam/bam/cram and tad/ad input files is not supported.");
         }
     }
+
     // Execute sub tasks based on input type
     if(mode == FileCat::Pileup) {
         return process_ad(arg);
@@ -85,6 +87,9 @@ int process_bam(Pileup::argument_type &arg) {
     }
     io::Fasta reference{arg.fasta.c_str()};
 
+    // replace arg.region with the contents of a file if needed
+    auto region_ext = io::at_slurp(arg.region);
+
     // Open input files
     BamPileup mpileup{arg.min_qlen, arg.rgtag};
     for(auto && str : arg.input) {
@@ -92,7 +97,7 @@ int process_bam(Pileup::argument_type &arg) {
         // TODO: However it might make sense to incorporate it into BamPileup::AddFile
         hts::bam::File input{str.c_str(), "r", arg.fasta.c_str(), arg.min_mapqual, arg.header.c_str()};
         if(!input.is_open()) {
-            throw std::runtime_error("ERROR: unable to open bam/sam/cram input file '" + str + "' for reading.");
+            throw std::runtime_error("Unable to open bam/sam/cram input file '" + str + "' for reading.");
         }
         // add regions
         if(!arg.region.empty()) {
@@ -119,12 +124,12 @@ int process_bam(Pileup::argument_type &arg) {
     // Outputfile
     io::Ad output{arg.output, std::ios_base::out};
     if(!output) {
-        throw std::runtime_error("Argument Error: unable to open output file '" + arg.output + "'.");
+        throw std::runtime_error("Unable to open output file '" + arg.output + "'.");
     }
 
     string dict = reference.FetchDictionary();
     if(dict.empty()) {
-        throw std::runtime_error("Error: Dictionary for reference " + reference.path() + " is missing.");
+        throw std::runtime_error("Dictionary for reference " + reference.path() + " is missing.");
     }
     output.AddHeaderLines(dict);
 
@@ -143,10 +148,10 @@ int process_bam(Pileup::argument_type &arg) {
     }
 
     if(arg.body_only && output.format() == io::Ad::Format::AD) {
-        throw runtime_error("Argument Error: -B / --body-only not supported with binary output (.ad).");
+        throw std::invalid_argument("-B / --body-only not supported with binary output (.ad).");
     }
     if(arg.header_only && output.format() == io::Ad::Format::AD) {
-        throw runtime_error("Argument Error: -H / --header-only not supported with binary output (.ad).");
+        throw std::invalid_argument("-H / --header-only not supported with binary output (.ad).");
     }
     if(!arg.body_only) {
         output.WriteHeader();
@@ -163,12 +168,12 @@ int process_bam(Pileup::argument_type &arg) {
     const bam_hdr_t *h = mpileup.header();
     assert(h != nullptr);
     if(h->n_targets != output.contigs().size()) {
-        throw runtime_error("Different number of @SQ lines in reference dictionary and first sam/bam/cram file.");
+        throw std::invalid_argument("Different number of @SQ lines in reference dictionary and first sam/bam/cram file.");
     }
     for(int n = 0; n < h->n_targets; ++n) {
         if(output.contig(n).name != h->target_name[n] ||
            output.contig(n).length != h->target_len[n]) {
-            throw runtime_error("Disagreement between @SQ lines in reference dictionary and first sam/bam/cram file." );
+            throw std::invalid_argument("Disagreement between @SQ lines in reference dictionary and first sam/bam/cram file." );
         }
     }
 
@@ -176,7 +181,7 @@ int process_bam(Pileup::argument_type &arg) {
     int min_dp = std::max(arg.min_dp,1);
     int max_dp = (arg.max_dp > 0) ? arg.max_dp : std::numeric_limits<int>::max();
     if(max_dp < min_dp) {
-        throw runtime_error("Argument error: Calculated maximum depth '" + to_string(max_dp) +
+        throw std::invalid_argument("Calculated maximum depth '" + to_string(max_dp) +
             "' is less than calculated min depth '" + to_string(min_dp) + "'.");
     }
     mpileup([&,h](const BamPileup::data_type & data, utility::location_t loc) {
@@ -242,30 +247,34 @@ int process_bam(Pileup::argument_type &arg) {
 int process_ad(Pileup::argument_type &arg) {
     using dng::pileup::AlleleDepths;
 
+    if(!arg.region.empty()) {
+        throw std::invalid_argument("--region not supported when processing ad/tad file.");
+    }
+
     if(arg.input.size() != 1) {
-        throw std::runtime_error("Argument Error: can only process one ad/tad file at a time.");
+        throw std::invalid_argument("Can only process one ad/tad file at a time.");
     }
     
     io::Ad input{arg.input[0], std::ios_base::in};
     if(!input) {
-        throw std::runtime_error("Argument Error: unable to open input file '" + arg.input[0] + "'.");
+        throw std::runtime_error("Unable to open input file '" + arg.input[0] + "'.");
     }
     if(input.ReadHeader() == 0) {
-        throw std::runtime_error("Argument Error: unable to read header from '" + input.path() + "'.");
+        throw std::runtime_error("Unable to read header from '" + input.path() + "'.");
     }
     
     io::Ad output{arg.output, std::ios_base::out};
     if(!output) {
-        throw std::runtime_error("Argument Error: unable to open output file '" + arg.output + "'.");
+        throw std::runtime_error("Unable to open output file '" + arg.output + "'.");
     }
 
     output.CopyHeader(input);
 
     if(arg.body_only && output.format() == io::Ad::Format::AD) {
-        throw runtime_error("Argument Error: -B / --body-only not supported with binary output (.ad).");
+        throw std::invalid_argument("-B / --body-only not supported with binary output (.ad).");
     }
     if(arg.header_only && output.format() == io::Ad::Format::AD) {
-        throw runtime_error("Argument Error: -H / --header-only not supported with binary output (.ad).");
+        throw std::invalid_argument("-H / --header-only not supported with binary output (.ad).");
     }
     if(!arg.body_only) {
         output.WriteHeader();

@@ -153,9 +153,6 @@ using namespace task;
 // The main loop for dng-call application
 // argument_type arg holds the processed command line arguments
 int task::Call::operator()(Call::argument_type &arg) {
-    // replace arg.region with the contents of a file if needed
-    io::at_slurp(arg.region);
-
     // Determine the type of input files
     auto it = arg.input.begin();
     FileCat mode = utility::input_category(*it, FileCat::Sequence|FileCat::Pileup|FileCat::Variant, FileCat::Unknown);
@@ -196,7 +193,8 @@ int process_bam(task::Call::argument_type &arg) {
     std::array<double, 4> freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
 
     // Fetch the selected regions
-    auto region_ext = io::at_slurp(arg.region); // replace arg.region with the contents of a file if needed
+    // replace arg.region with the contents of a file if needed
+    auto region_ext = io::at_slurp(arg.region);
 
     // Open input files
     using BamPileup = dng::io::BamPileup;
@@ -434,7 +432,11 @@ int process_ad(task::Call::argument_type &arg) {
     // Parse Nucleotide Frequencies
     std::array<double, 4> freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
 
-    //io::at_slurp(arg.region); // replace arg.region with the contents of a file if needed
+    // replace arg.region with the contents of a file if needed
+    //auto region_ext = io::at_slurp(arg.region);
+    if(!arg.region.empty()) {
+        throw std::invalid_argument("--region not supported when processing ad/tad file.");
+    }
 
     // Open input files
     if(arg.input.size() != 1) {
