@@ -79,7 +79,7 @@ qi::grammar<Iterator, parsed_ranges_t(), Skipper> {
             |(attr(1) >> '-' >> pos)
             );
         pos = sudouble | (uint_ >> !lit(',')) | sepint;
-        // We support the format of targets specified in Sam files, except that ':' are disallowed
+        // We support the format of target contigs specified in Sam files, except that ':' are disallowed
         label = as_string[lexeme[char_("!-)+-9;<>-~") >> *char_("!-9;-~")]]; 
         sepint = lexeme[uint3_p[_val=_1] >> *(',' >> uint3_3_p[_val = 1000*_val+_1])];
     }
@@ -155,15 +155,15 @@ hts::bam::regions_t dng::regions::bam_parse_region(const std::string &text, cons
     // Convert raw regions to bam regions
     regions_t value;
     for(auto &&r : raw_regions.first) {
-        int tid = file.TargetNameToID(r.target.c_str());
+        int tid = file.TargetNameToID(r.contig_name.c_str());
         int beg = r.beg-1;
         int end = r.end;
         if(tid < 0 ) {
-            throw std::invalid_argument("Unknown contig name: '" + r.target + "'");
+            throw std::invalid_argument("Unknown contig name: '" + r.contig_name + "'");
         }
         if(beg < 0 || end < 0 || beg >= end) {
             throw std::invalid_argument("Invalid region coordinates: '" +
-                r.target + ":" + std::to_string(beg+1) + "-" + std::to_string(end) + "'" );
+                r.contig_name + ":" + std::to_string(beg+1) + "-" + std::to_string(end) + "'" );
         }
         value.push_back({tid,beg,end});
     }

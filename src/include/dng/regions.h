@@ -26,10 +26,53 @@
 #include <dng/utility.h>
 #include <dng/hts/bam.h>
 
+#include <boost/container/flat_map.hpp>
+
 #include <dng/detail/unit_test.h>
 
 namespace dng {
 namespace regions {
+
+struct contig_t {
+    std::string name;
+    int length;
+};
+
+class ContigIndex {
+public:
+    int NameToId(const std::string &name) const {
+        auto it = map_.find(name);
+        return (it != map_.end()) ? it->second : -1; 
+    }
+
+    const contig_t* IdToContig(int id) const {
+        return (0 <= id && id < contigs_.size()) ? &contigs_[id] : nullptr;
+    }
+
+    const std::vector<contig_t>& contigs() const { return contigs_; }
+
+    template<typename... Args>
+    int AddContig(Args&&... args) {
+        int pos = contigs_.size();
+        // Build the contig early because we need to access its name
+        contigs_.emplace_back(std::forward<Args>(args)...);
+        // Try to insert it into the name map
+        auto ok = map_.try_emplace(contigs_.back().name, pos);
+        if(ok.second) {
+            return pos;
+        }
+        // Reject the contig because the name is a duplicate
+        contigs_.pop_back();
+        return -1;
+    }
+
+private:
+    // Keeps contigs sorted in file order.
+    std::vector<contig_t> contigs_;
+
+    // Allows fast conversion between contig_name and id
+    boost::container::flat_map<std::string, int> map_;
+};
 
 // Parse a white-spaced separated list of regions
 // Formats of a region range is contig:from-to
@@ -41,7 +84,7 @@ namespace regions {
 //   ctg:from+length
 
 struct parsed_range_t {
-    std::string target;
+    std::string contig_name;
     int beg; // 1-based
     int end; // 1-based
 };
