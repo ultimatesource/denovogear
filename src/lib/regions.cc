@@ -32,6 +32,7 @@
 
 #include <boost/fusion/include/std_pair.hpp>
 #include <boost/fusion/include/vector.hpp>
+#include <boost/phoenix/stl/container.hpp>
 
 #include <boost/spirit/include/qi.hpp>
 #include <boost/phoenix/core.hpp>
@@ -63,7 +64,7 @@ template <typename Iterator>
 struct regions_grammar :
 qi::grammar<Iterator, contig_fragments_t(), boost::spirit::standard::space_type> {
     using pos_t = std::pair<int,int>;
-    using skipper_type = typename regions_grammar::skipper_type;
+    using skipper_type = boost::spirit::standard::space_type;
     regions_grammar() : regions_grammar::base_type(start) {
         using namespace qi;
         using namespace qi::labels;
@@ -167,7 +168,7 @@ ranges_t dng::regions::convert_fragments_to_ranges(const contig_fragments_t& fra
     return optimize_ranges(std::move(value));
 }
 
-ranges_t parse_ranges(const std::string &text, const ContigIndex& index) {
+ranges_t dng::regions::parse_ranges(const std::string &text, const ContigIndex& index) {
     // Parse string
     if(auto fragments = parse_contig_fragments(text)) {
         return convert_fragments_to_ranges(*fragments, index, true);    
@@ -180,20 +181,23 @@ template <typename Iterator>
 struct bed_grammar :
 qi::grammar<Iterator, contig_fragments_t(), boost::spirit::standard::blank_type> {
     using pos_t = std::pair<int,int>;
-    using skipper_type = typename bed_grammar::skipper_type;
+    using skipper_type = boost::spirit::standard::blank_type;
     bed_grammar() : bed_grammar::base_type(start) {
         using namespace qi;
         using namespace qi::labels;
+        using boost::phoenix::push_back;
 
-        start = line % eol;
-        line = (fragment >> *(char_ - eol) ) | ('#' >> *(char_ - eol));
+        start = (line[push_back(_val,_1)] | comment | eps) % eol;
+        line = (fragment >> *(char_ - eol) );
+        comment = ('#' >> *(char_ - eol));
         fragment =  (label >> uint_ >> uint_)[_val = make_fragment(_1, _2, _3)]; 
         // We support the format of target contigs specified in Sam files, except that ':' are disallowed
         label = as_string[lexeme[char_("!-)+-9;<>-~") >> *char_("!-9;-~")]];
     }
 
     qi::rule<Iterator, contig_fragments_t(), skipper_type> start;
-    qi::rule<Iterator, boost::optional<contig_fragment_t>(), skipper_type> line;
+    qi::rule<Iterator, contig_fragment_t(), skipper_type> line;
+    qi::rule<Iterator, void(), skipper_type> comment;
     qi::rule<Iterator, contig_fragment_t(), skipper_type> fragment;
     qi::rule<Iterator, std::string(), skipper_type> label;
     qi::rule<Iterator, int(), skipper_type> pos, pos_end;

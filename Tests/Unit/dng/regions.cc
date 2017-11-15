@@ -36,31 +36,31 @@ using hts::detail::make_data_url;
 BOOST_AUTO_TEST_CASE(test_region_parsing) {
     auto test_fail = [](std::string region_string) -> void {
     BOOST_TEST_CONTEXT("region_string='" << region_string << "'") {
-        auto result = parse_ranges(region_string);
-        BOOST_CHECK(!result.second);
+        auto result = parse_contig_fragments(region_string);
+        BOOST_CHECK(!result);
     }};
 
     test_fail("chr1:-");
     test_fail("chr1:");
     test_fail("chr1:1-1a1");
 
-    auto test = [](std::string region_string, parsed_ranges_t expected) -> void {
+    auto test = [](std::string region_string, contig_fragments_t expected) -> void {
     BOOST_TEST_CONTEXT("region_string='" << region_string << "'") {
         using boost::adaptors::transformed;
 
-        auto result = parse_ranges(region_string);
-        BOOST_CHECK(result.second);
+        auto result = parse_contig_fragments(region_string);
+        BOOST_CHECK(result);
 
-        auto test_targets = make_test_range(result.first | transformed(boost::mem_fn(&parsed_range_t::target)));
-        auto expected_targets = make_test_range(expected | transformed(boost::mem_fn(&parsed_range_t::target)));
+        auto test_targets = make_test_range(*result | transformed(boost::mem_fn(&contig_fragment_t::contig_name)));
+        auto expected_targets = make_test_range(expected | transformed(boost::mem_fn(&contig_fragment_t::contig_name)));
         CHECK_EQUAL_RANGES(test_targets, expected_targets);
 
-        auto test_begs = make_test_range(result.first | transformed(boost::mem_fn(&parsed_range_t::beg)));
-        auto expected_begs = make_test_range(expected | transformed(boost::mem_fn(&parsed_range_t::beg)));
+        auto test_begs = make_test_range(*result | transformed(boost::mem_fn(&contig_fragment_t::beg)));
+        auto expected_begs = make_test_range(expected | transformed(boost::mem_fn(&contig_fragment_t::beg)));
         CHECK_EQUAL_RANGES(test_begs, expected_begs);
 
-        auto test_ends = make_test_range(result.first | transformed(boost::mem_fn(&parsed_range_t::end)));
-        auto expected_ends = make_test_range(expected | transformed(boost::mem_fn(&parsed_range_t::end)));
+        auto test_ends = make_test_range(*result | transformed(boost::mem_fn(&contig_fragment_t::end)));
+        auto expected_ends = make_test_range(expected | transformed(boost::mem_fn(&contig_fragment_t::end)));
         CHECK_EQUAL_RANGES(test_ends, expected_ends);
     }};
 
@@ -90,115 +90,81 @@ const char bamtext[]=
 ;
 
 BOOST_AUTO_TEST_CASE(test_region_parsing_with_bam) {
-    using region_t = hts::bam::region_t;
+    ContigIndex index;
+    index.AddContig(contig_t{std::string{"1"}, 249250621});
+    index.AddContig(contig_t{std::string{"2"}, 243199373});
 
-    // Open Read our test data from Memory
-    std::string bamstr = make_data_url(bamtext);
 
-    hts::bam::File bamfile(bamstr.c_str(), "r");
-    // Sanity checks.  If these fail, then other tests will as well
-    BOOST_REQUIRE(bamfile.is_open() && bamfile.header() != nullptr);
-    BOOST_REQUIRE_EQUAL(bamfile.TargetNameToID("xyz"), -1);
-    BOOST_REQUIRE_EQUAL(bamfile.TargetNameToID("1"), 0);
-    BOOST_REQUIRE_EQUAL(bamfile.TargetNameToID("2"), 1);
-
-    auto test = [](std::string region_string, hts::bam::File &file, hts::bam::regions_t expected) -> void {
+    auto test = [&](std::string region_string, ranges_t expected) -> void {
     BOOST_TEST_CONTEXT("region_string='" << region_string << "'") {
         using boost::adaptors::transformed;
 
-        hts::bam::regions_t test;
-        BOOST_REQUIRE_NO_THROW(test = bam_parse_region(region_string, file));
+        ranges_t test;
+        BOOST_REQUIRE_NO_THROW(test = parse_ranges(region_string, index));
 
-        auto test_tids = make_test_range(test | transformed(boost::mem_fn(&region_t::tid)));
-        auto expected_tids = make_test_range(expected | transformed(boost::mem_fn(&region_t::tid)));
-        CHECK_EQUAL_RANGES(test_tids, expected_tids);
-
-        auto test_begs = make_test_range(test | transformed(boost::mem_fn(&region_t::beg)));
-        auto expected_begs = make_test_range(expected | transformed(boost::mem_fn(&region_t::beg)));
+        auto test_begs = make_test_range(test | transformed(boost::mem_fn(&range_t::beg)));
+        auto expected_begs = make_test_range(expected | transformed(boost::mem_fn(&range_t::beg)));
         CHECK_EQUAL_RANGES(test_begs, expected_begs);
 
-        auto test_ends = make_test_range(test | transformed(boost::mem_fn(&region_t::end)));
-        auto expected_ends = make_test_range(expected | transformed(boost::mem_fn(&region_t::end)));
+        auto test_ends = make_test_range(test | transformed(boost::mem_fn(&range_t::end)));
+        auto expected_ends = make_test_range(expected | transformed(boost::mem_fn(&range_t::end)));
         CHECK_EQUAL_RANGES(test_ends, expected_ends);
     }};
 
     // Check normal 
-    test("1:1-1000", bamfile, {{0,0,1000}});
-    test("1:1-1000 2:1", bamfile, {{0,0,1000},{1,0,1}});
+    test("1:1-1000", {{0,0,1000}});
+    test("1:1-1000 2:1", {{0,0,1000},{1,0,1}});
     // Check sorting
-    test("2:100-120 2:21-30 2:1-20 1:1-5 1:7-10", bamfile, {{0,0,5},{0,6,10},{1,0,30},{1,99,120}});
+    test("2:100-120 2:21-30 2:1-20 1:1-5 1:7-10", {{0,0,5},{0,6,10},{1,0,30},{1,99,120}});
     // Check merging
-    test("1:1-1000 1:900-2000", bamfile, {{0,0,2000}});
-    test("2:10-200 2:100-300 1:1-1000 2:200-400", bamfile, {{0,0,1000},{1,9,400}});
+    test("1:1-1000 1:900-2000", {{0,0,2000}});
+    test("2:10-200 2:100-300 1:1-1000 2:200-400", {{0,0,1000},{1,9,400}});
 
     // Check expected failures
-    auto test_fail = [](std::string region_string, hts::bam::File &file) -> void {
+    auto test_fail = [&](std::string region_string) -> void {
     BOOST_TEST_CONTEXT("region_string='" << region_string << "'") {
-        hts::bam::regions_t test;
-        BOOST_CHECK_THROW(test = bam_parse_region(region_string, file), std::invalid_argument);
+        ranges_t test;
+        BOOST_CHECK_THROW(test = parse_ranges(region_string, index), std::invalid_argument);
     }};
 
-    test_fail("xyz", bamfile);
-    test_fail("1:1000-900", bamfile);
-    test_fail("1:1000-999", bamfile);
+    test_fail("xyz");
+    test_fail("1:1000-900");
+    test_fail("1:1000-999");
     // Check empty file
-    test_fail("", bamfile);
+    test_fail("");
 }
 
 BOOST_AUTO_TEST_CASE(test_bed_parsing) {
-    using region_t = hts::bam::region_t;
-
-    // Open Read our test data from Memory
-    std::string bamstr = "data:";
-    if(hts::version() >= 10400 ) {
-        // data: url format changed in htslib 1.4
-        bamstr += ",";
-    }
-    bamstr += bamtext;
-
-    hts::bam::File bamfile(bamstr.c_str(), "r");
-    // Sanity checks.  If these fail, then other tests will as well
-    BOOST_REQUIRE(bamfile.is_open() && bamfile.header() != nullptr);
-    BOOST_REQUIRE_EQUAL(bamfile.TargetNameToID("xyz"), -1);
-    BOOST_REQUIRE_EQUAL(bamfile.TargetNameToID("1"), 0);
-    BOOST_REQUIRE_EQUAL(bamfile.TargetNameToID("2"), 1);
+    ContigIndex index;
+    index.AddContig(contig_t{std::string{"1"}, 249250621});
+    index.AddContig(contig_t{std::string{"2"}, 243199373});
     
-    auto test = [](std::string bed_string, hts::bam::File &file, hts::bam::regions_t expected) -> void {
+    auto test = [&](std::string bed_string, ranges_t expected) -> void {
     BOOST_TEST_CONTEXT("bed_string='" << bed_string << "'") {
         using boost::adaptors::transformed;
 
-        dng::detail::AutoTempFile output;
+        ranges_t test;
+        BOOST_REQUIRE_NO_THROW(test = parse_bed(bed_string, index));
 
-        BOOST_REQUIRE(output.file.is_open());
-        output.file.write(bed_string.c_str(),bed_string.size());
-        output.file.flush();
-
-        hts::bam::regions_t test;
-        BOOST_REQUIRE_NO_THROW(test = bam_parse_bed(output.path.string(), file));
-
-        auto test_tids = make_test_range(test | transformed(boost::mem_fn(&region_t::tid)));
-        auto expected_tids = make_test_range(expected | transformed(boost::mem_fn(&region_t::tid)));
-        CHECK_EQUAL_RANGES(test_tids, expected_tids);
-
-        auto test_begs = make_test_range(test | transformed(boost::mem_fn(&region_t::beg)));
-        auto expected_begs = make_test_range(expected | transformed(boost::mem_fn(&region_t::beg)));
+        auto test_begs = make_test_range(test | transformed(boost::mem_fn(&range_t::beg)));
+        auto expected_begs = make_test_range(expected | transformed(boost::mem_fn(&range_t::beg)));
         CHECK_EQUAL_RANGES(test_begs, expected_begs);
 
-        auto test_ends = make_test_range(test | transformed(boost::mem_fn(&region_t::end)));
-        auto expected_ends = make_test_range(expected | transformed(boost::mem_fn(&region_t::end)));
+        auto test_ends = make_test_range(test | transformed(boost::mem_fn(&range_t::end)));
+        auto expected_ends = make_test_range(expected | transformed(boost::mem_fn(&range_t::end)));
         CHECK_EQUAL_RANGES(test_ends, expected_ends);
     }};
 
     // Check normal
-    test("1\t0\t1000\n", bamfile, {{0,0,1000}});
-    test("1\t0\t1000\n2\t0\t1", bamfile, {{0,0,1000},{1,0,1}});
+    test("1\t0\t1000\n", {{0,0,1000}});
+    test("1\t0\t1000\n2\t0\t1", {{0,0,1000},{1,0,1}});
     // Check sorting
-    test("2\t99\t120\n2\t20\t30\n2\t0\t20\n1\t0\t5\n1\t6\t10", bamfile, {{0,0,5},{0,6,10},{1,0,30},{1,99,120}});
+    test("2\t99\t120\n2\t20\t30\n2\t0\t20\n1\t0\t5\n1\t6\t10", {{0,0,5},{0,6,10},{1,0,30},{1,99,120}});
     // Check merging
-    test("1\t0\t1000\n1\t899\t2000", bamfile, {{0,0,2000}});
-    test("2\t9\t200\n2\t99\t300\n1\t0\t1000\n2\t199\t400", bamfile, {{0,0,1000},{1,9,400}});
+    test("1\t0\t1000\n1\t899\t2000", {{0,0,2000}});
+    test("2\t9\t200\n2\t99\t300\n1\t0\t1000\n2\t199\t400", {{0,0,1000},{1,9,400}});
     // Check Comments and blank lines
-    test("#comment\n\n\n#comment\ttest\n#comment\ttest\tanothertest\n1\t0\t1000\n", bamfile, {{0,0,1000}});
+    test("#comment\n\n\n#comment\ttest\n#comment\ttest\tanothertest\n1\t0\t1000\n", {{0,0,1000}});
     // Check empty file
-    test("", bamfile, {});
+    test("", {});
 }

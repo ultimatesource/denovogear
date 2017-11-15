@@ -37,22 +37,22 @@ using namespace dng::io::detail;
 // Advance starts a pileup procedure at pos.
 // If there are no reads at pos, it forwards to the next pos and updates
 // current_pos
-int BamPileup::Advance(data_type *data, utility::location_t *target_loc,
-                       utility::location_t *fast_forward_loc) {
+int BamPileup::Advance(utility::location_t *target_location) {
+    assert(target_location != nullptr);
     using namespace std;
     // enumerate through existing data set, updating location of reads and
     // purge reads that have expired
     bool fast_forward = true;
-    for(auto &d : *data) {
+    for(auto & d : data_) {
         auto it = d.begin();
         while(it != d.end()) {
-            if(it->end <= *target_loc) {
+            if(it->end <= *target_location) {
                 node_type *p = &(*it);
                 d.erase(it++);
                 pool_.Free(p);
                 continue;
             }
-            location_t q = cigar::target_to_query(*target_loc, it->beg, it->cigar);
+            location_t q = cigar::target_to_query(*target_location, it->beg, it->cigar);
             it->pos = cigar::query_pos(q);
             it->is_missing = cigar::query_del(q);
             ++it;
@@ -61,15 +61,15 @@ int BamPileup::Advance(data_type *data, utility::location_t *target_loc,
         fast_forward = (fast_forward && d.empty());
     }
     if(fast_forward) {
-        *target_loc = *fast_forward_loc;
+        *target_location = fast_forward_location_;
     }
-    if(*target_loc >= *fast_forward_loc) {
+    if(*target_location >= fast_forward_location_) {
         location_t next_loc = utility::LOCATION_MAX;
         std::size_t k = 0;
         // Iterate over input files
         for(auto &scanner : scanners_) {
             // Scan reads from file until target_loc
-            list_type new_reads = scanner(*target_loc, pool_);
+            list_type new_reads = scanner(*target_location, pool_);
             // Update the minimum position of the next read
             next_loc = std::min(next_loc, scanner.next_loc());
             // process read_groups
@@ -88,21 +88,21 @@ int BamPileup::Advance(data_type *data, utility::location_t *target_loc,
                 }
                 size_t index = it->second;
                 // process cigar string
-                location_t q = cigar::target_to_query(*target_loc, p->beg, p->cigar);
+                location_t q = cigar::target_to_query(*target_location, p->beg, p->cigar);
                 p->pos = cigar::query_pos(q);
                 p->is_missing = cigar::query_del(q);
 
                 // push read onto correct RG
-                (*data)[index].push_back(*p);
+                data_[index].push_back(*p);
                 fast_forward = false;
             }
             ++k;
         }
-        *fast_forward_loc = next_loc;
+        fast_forward_location_ = next_loc;
     }
     // fast_forward will be true if no reads overlap our current position
     // return -1 if we are out of reads and at the end of our reference range
-    if(fast_forward && *fast_forward_loc == utility::LOCATION_MAX) {
+    if(fast_forward && fast_forward_location_ == utility::LOCATION_MAX) {
         return -1;
     }
     // return 1 if we have read data
@@ -115,7 +115,6 @@ BamScan::operator()(utility::location_t target_loc, pool_type &pool) {
     using utility::make_location;
     // Reads from in_ until it encounters the first read
     // that is right of pos.
-    // TODO: check for proper read ordering???
     while(next_loc_ <= target_loc) {
         node_type *p = pool.Malloc();
         do {
@@ -139,8 +138,6 @@ BamScan::operator()(utility::location_t target_loc, pool_type &pool) {
         // cache pointers to data elements
         p->seq = p->aln.seq();
         p->qual = p->aln.seq_qual();
-        // TODO: Adjust for Illumina 1.3 quality
-
         // update the left-most position of the most recently read read.
         next_loc_ = p->beg;
         // save read

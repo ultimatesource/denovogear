@@ -40,11 +40,6 @@ class BcfPileup {
 public:
     using data_type = bcf1_t *;
 
-    struct contig_t {
-        std::string name;
-        int length;
-    };
-
     typedef void (callback_type)(const data_type &, utility::location_t);
 
     int AddFile(const char* filename);
@@ -54,9 +49,9 @@ public:
 
     void ResetLibraries();
 
-    int SetRegions(const regions::parsed_ranges_t &ranges);
+    int SetRegions(const regions::ranges_t &ranges);
 
-    const std::vector<contig_t>& contigs() const {
+    const std::vector<regions::contig_t>& contigs() const {
         return contigs_;
     }
 
@@ -84,7 +79,7 @@ private:
     dng::libraries_t output_libraries_;
     std::vector<std::string> bcf_samples_;
 
-    std::vector<contig_t> contigs_;
+    std::vector<regions::contig_t> contigs_;
 };
 
 template<typename CallBack>
@@ -217,14 +212,14 @@ void BcfPileup::ResetLibraries() {
 
 inline
 void BcfPileup::ParseContigs(int index) {
-
     auto reader = reader_.reader(index);
 
     const int num_contigs = reader->header->n[BCF_DT_CTG];
 
     for(int i=0;i<num_contigs;++i) {
         const char *name = reader->header->id[BCF_DT_CTG][i].key;
-        auto pos = utility::find_position_if(contigs_, [name](const contig_t& contig) { return name == contig.name; });
+        auto pos = utility::find_position_if(contigs_,
+            [name](const regions::contig_t& contig) { return name == contig.name; });
         int length = reader->header->id[BCF_DT_CTG][i].val->info[0];
         if(pos < contigs_.size()) {
             assert(contigs_[pos].length == length);
@@ -235,7 +230,7 @@ void BcfPileup::ParseContigs(int index) {
 }
 
 inline
-int BcfPileup::SetRegions(const regions::parsed_ranges_t &ranges) {
+int BcfPileup::SetRegions(const regions::ranges_t &ranges) {
     // convert ranges to the 1-based synced_bcf_reader format
     namespace karma = boost::spirit::karma;
     std::string str;
@@ -244,12 +239,16 @@ int BcfPileup::SetRegions(const regions::parsed_ranges_t &ranges) {
         if(i != 0) {
             str += ',';
         }
-        const auto & a = ranges[i];
-        str += a.target;
+        int tid = utility::location_to_contig(ranges[i].beg);
+        assert( tid == utility::location_to_contig(ranges[i].end));
+        int beg = utility::location_to_position(ranges[i].beg);
+        int end = utility::location_to_position(ranges[i].end);
+
+        str += contigs_[tid].name;
         str += ':';
-        karma::generate(std::back_inserter(str), a.beg);
+        karma::generate(std::back_inserter(str), beg+1);
         str += '-';
-        karma::generate(std::back_inserter(str), a.end);
+        karma::generate(std::back_inserter(str), end);
     }
     return reader_.SetRegions(str.c_str());
 }

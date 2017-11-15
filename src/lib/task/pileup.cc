@@ -87,27 +87,30 @@ int process_bam(Pileup::argument_type &arg) {
     }
     io::Fasta reference{arg.fasta.c_str()};
 
-    // replace arg.region with the contents of a file if needed
-    auto region_ext = io::at_slurp(arg.region);
-
     // Open input files
     BamPileup mpileup{arg.min_qlen, arg.rgtag};
     for(auto && str : arg.input) {
-        // TODO: We put all this logic here to simplify the BamPileup construction
-        // TODO: However it might make sense to incorporate it into BamPileup::AddFile
         hts::bam::File input{str.c_str(), "r", arg.fasta.c_str(), arg.min_mapqual, arg.header.c_str()};
         if(!input.is_open()) {
             throw std::runtime_error("Unable to open bam/sam/cram input file '" + str + "' for reading.");
         }
-        // add regions
-        if(!arg.region.empty()) {
-            if(arg.region.find(".bed") != std::string::npos) {
-                input.regions(regions::bam_parse_bed(arg.region, input));
-            } else {
-                input.regions(regions::bam_parse_region(arg.region, input));
-            }
-        }
         mpileup.AddFile(std::move(input));
+    }
+
+    // Load contigs into an index
+    regions::ContigIndex index;
+    for(auto && a : mpileup.contigs()) {
+        index.AddContig(std::move(a));
+    }
+
+    // replace arg.region with the contents of a file if needed
+    auto region_ext = io::at_slurp(arg.region);
+    if(!arg.region.empty()) {
+        if(region_ext == "bed") {
+            mpileup.SetRegions(regions::parse_bed(arg.region, index));
+        } else {
+            mpileup.SetRegions(regions::parse_ranges(arg.region, index));
+        }
     }
 
     // Pileup data

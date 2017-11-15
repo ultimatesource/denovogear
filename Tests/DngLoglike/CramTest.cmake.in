@@ -14,7 +14,7 @@ set(EmptyCram-CMD @DNG_LOGLIKE_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sampl
 set(EmptyCram-WD "@TESTDATA_DIR@/sample_5_3/")
 set(EmptyCram-Result 1)
 set(EmptyCram-STDERR
-    "Unable to open input file 'empty\\.cram'\\."
+    "Unable to open bam/sam/cram input file 'empty\\.cram' for reading"
 )
 
 ###############################################################################

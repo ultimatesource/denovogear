@@ -22,6 +22,9 @@
 
 #include <utility>
 #include <string>
+#include <vector>
+#include <queue>
+#include <deque>
 
 #include <dng/utility.h>
 
@@ -104,7 +107,8 @@ struct range_t {
      location_t end;
 };
 
-typedef std::vector<range_t> ranges_t;
+using ranges_t = std::deque<range_t>;
+using ranges_queue_t = std::queue<range_t,ranges_t>;
 
 // Parse a white-spaced separated list of regions
 // Formats of a region range is contig:from-to

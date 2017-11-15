@@ -142,29 +142,31 @@ int process_bam(LogLike::argument_type &arg) {
     // Parse Nucleotide Frequencies
     std::array<double, 4> freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
 
-    // Fetch the selected regions
-    auto region_ext = io::at_slurp(arg.region); // replace arg.region with the contents of a file if needed
-
     // Open input files
     using BamPileup = dng::io::BamPileup;
     BamPileup mpileup{arg.min_qlen, arg.rgtag};
     for(auto && str : arg.input) {
-        // TODO: We put all this logic here to simplify the BamPileup construction
-        // TODO: However it might make sense to incorporate it into BamPileup::AddFile
         hts::bam::File input{str.c_str(), "r", arg.fasta.c_str(), arg.min_mapqual, arg.header.c_str()};
         if(!input.is_open()) {
-            throw std::runtime_error("Unable to open input file '" + str + "'.");
-        }
-        // add regions
-        // TODO: make this work with region_ext
-        if(!arg.region.empty()) {
-            if(arg.region.find(".bed") != std::string::npos) {
-                input.regions(regions::bam_parse_bed(arg.region, input));
-            } else {
-                input.regions(regions::bam_parse_region(arg.region, input));
-            }
+            throw std::runtime_error("Unable to open bam/sam/cram input file '" + str + "' for reading.");
         }
         mpileup.AddFile(std::move(input));
+    }
+
+    // Load contigs into an index
+    regions::ContigIndex index;
+    for(auto && a : mpileup.contigs()) {
+        index.AddContig(std::move(a));
+    }
+
+    // replace arg.region with the contents of a file if needed
+    auto region_ext = io::at_slurp(arg.region);
+    if(!arg.region.empty()) {
+        if(region_ext == "bed") {
+            mpileup.SetRegions(regions::parse_bed(arg.region, index));
+        } else {
+            mpileup.SetRegions(regions::parse_ranges(arg.region, index));
+        }
     }
 
     // Construct peeling algorithm from parameters and pedigree information
@@ -411,20 +413,25 @@ int process_bcf(LogLike::argument_type &arg) {
 
     using dng::io::BcfPileup;
     BcfPileup mpileup;
-
-    // Fetch the selected regions
-    auto region_ext = io::at_slurp(arg.region); // replace arg.region with the contents of a file if needed
-    if(!arg.region.empty()) {
-        auto ranges = regions::parse_ranges(arg.region);
-        if(ranges.second == false) {
-            throw std::runtime_error("unable to parse the format of '--region' argument.");
-        }
-        mpileup.SetRegions(ranges.first);
-    }
-
     if(mpileup.AddFile(arg.input[0].c_str()) == 0) {
         int errnum = mpileup.reader().handle()->errnum;
         throw std::runtime_error(bcf_sr_strerror(errnum));
+    }
+
+    // Load contigs into an index
+    regions::ContigIndex index;
+    for(auto & a : mpileup.contigs()) {
+        index.AddContig(a);
+    }
+
+    // replace arg.region with the contents of a file if needed
+    auto region_ext = io::at_slurp(arg.region);
+    if(!arg.region.empty()) {
+        if(region_ext == "bed") {
+            mpileup.SetRegions(regions::parse_bed(arg.region, index));
+        } else {
+            mpileup.SetRegions(regions::parse_ranges(arg.region, index));
+        }
     }
 
     // Construct peeling algorithm from parameters and pedigree information
