@@ -123,12 +123,14 @@ using ranges_queue_t = std::queue<range_t,ranges_t>;
 //   ctg:-to
 //   ctg:from+length
 
-boost::optional<contig_fragments_t> parse_contig_fragments(const std::string &text);
+boost::optional<contig_fragments_t> parse_contig_fragments_from_regions(const std::string &text);
+
+boost::optional<contig_fragments_t> parse_contig_fragments_from_bed(const std::string &text);
 
 ranges_t convert_fragments_to_ranges(const contig_fragments_t& fragments, const ContigIndex& index, bool one_indexed=true);
 
 // Parse dng region string into ranges
-ranges_t parse_ranges(const std::string &text, const ContigIndex& index);
+ranges_t parse_regions(const std::string &text, const ContigIndex& index);
 
 // Parse slurped bed into ranges
 ranges_t parse_bed(const std::string &text, const ContigIndex& index);

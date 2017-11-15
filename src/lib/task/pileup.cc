@@ -109,7 +109,7 @@ int process_bam(Pileup::argument_type &arg) {
         if(region_ext == "bed") {
             mpileup.SetRegions(regions::parse_bed(arg.region, index));
         } else {
-            mpileup.SetRegions(regions::parse_ranges(arg.region, index));
+            mpileup.SetRegions(regions::parse_regions(arg.region, index));
         }
     }
 

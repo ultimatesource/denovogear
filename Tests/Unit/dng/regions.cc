@@ -36,7 +36,7 @@ using hts::detail::make_data_url;
 BOOST_AUTO_TEST_CASE(test_region_parsing) {
     auto test_fail = [](std::string region_string) -> void {
     BOOST_TEST_CONTEXT("region_string='" << region_string << "'") {
-        auto result = parse_contig_fragments(region_string);
+        auto result = parse_contig_fragments_from_regions(region_string);
         BOOST_CHECK(!result);
     }};
 
@@ -48,7 +48,7 @@ BOOST_AUTO_TEST_CASE(test_region_parsing) {
     BOOST_TEST_CONTEXT("region_string='" << region_string << "'") {
         using boost::adaptors::transformed;
 
-        auto result = parse_contig_fragments(region_string);
+        auto result = parse_contig_fragments_from_regions(region_string);
         BOOST_CHECK(result);
 
         auto test_targets = make_test_range(*result | transformed(boost::mem_fn(&contig_fragment_t::contig_name)));
@@ -100,7 +100,7 @@ BOOST_AUTO_TEST_CASE(test_region_parsing_with_bam) {
         using boost::adaptors::transformed;
 
         ranges_t test;
-        BOOST_REQUIRE_NO_THROW(test = parse_ranges(region_string, index));
+        BOOST_REQUIRE_NO_THROW(test = parse_regions(region_string, index));
 
         auto test_begs = make_test_range(test | transformed(boost::mem_fn(&range_t::beg)));
         auto expected_begs = make_test_range(expected | transformed(boost::mem_fn(&range_t::beg)));
@@ -124,7 +124,7 @@ BOOST_AUTO_TEST_CASE(test_region_parsing_with_bam) {
     auto test_fail = [&](std::string region_string) -> void {
     BOOST_TEST_CONTEXT("region_string='" << region_string << "'") {
         ranges_t test;
-        BOOST_CHECK_THROW(test = parse_ranges(region_string, index), std::invalid_argument);
+        BOOST_CHECK_THROW(test = parse_regions(region_string, index), std::invalid_argument);
     }};
 
     test_fail("xyz");

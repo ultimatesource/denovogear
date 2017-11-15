@@ -165,7 +165,7 @@ int process_bam(LogLike::argument_type &arg) {
         if(region_ext == "bed") {
             mpileup.SetRegions(regions::parse_bed(arg.region, index));
         } else {
-            mpileup.SetRegions(regions::parse_ranges(arg.region, index));
+            mpileup.SetRegions(regions::parse_regions(arg.region, index));
         }
     }
 
@@ -413,25 +413,28 @@ int process_bcf(LogLike::argument_type &arg) {
 
     using dng::io::BcfPileup;
     BcfPileup mpileup;
-    if(mpileup.AddFile(arg.input[0].c_str()) == 0) {
-        int errnum = mpileup.reader().handle()->errnum;
-        throw std::runtime_error(bcf_sr_strerror(errnum));
-    }
-
-    // Load contigs into an index
-    regions::ContigIndex index;
-    for(auto & a : mpileup.contigs()) {
-        index.AddContig(a);
-    }
 
     // replace arg.region with the contents of a file if needed
     auto region_ext = io::at_slurp(arg.region);
     if(!arg.region.empty()) {
         if(region_ext == "bed") {
-            mpileup.SetRegions(regions::parse_bed(arg.region, index));
+            if(auto f = regions::parse_contig_fragments_from_bed(arg.region)) {
+                mpileup.SetRegions(*f, false);
+            } else {
+                throw std::invalid_argument("Parsing of bed failed.");
+            }
         } else {
-            mpileup.SetRegions(regions::parse_ranges(arg.region, index));
+            if(auto f = regions::parse_contig_fragments_from_regions(arg.region)) {
+                mpileup.SetRegions(*f, true);
+            } else {
+                throw std::invalid_argument("Parsing of regions failed.");
+            }
         }
+    }
+
+    if(mpileup.AddFile(arg.input[0].c_str()) == 0) {
+        int errnum = mpileup.reader().handle()->errnum;
+        throw std::runtime_error(bcf_sr_strerror(errnum));
     }
 
     // Construct peeling algorithm from parameters and pedigree information

@@ -49,7 +49,7 @@ public:
 
     void ResetLibraries();
 
-    int SetRegions(const regions::ranges_t &ranges);
+    int SetRegions(const regions::contig_fragments_t &frags, bool one_indexed=true);
 
     const std::vector<regions::contig_t>& contigs() const {
         return contigs_;
@@ -230,25 +230,20 @@ void BcfPileup::ParseContigs(int index) {
 }
 
 inline
-int BcfPileup::SetRegions(const regions::ranges_t &ranges) {
+int BcfPileup::SetRegions(const regions::contig_fragments_t &frags, bool one_indexed) {
     // convert ranges to the 1-based synced_bcf_reader format
     namespace karma = boost::spirit::karma;
     std::string str;
     str.reserve(128);
-    for(size_t i = 0; i < ranges.size(); ++i) {
+    for(size_t i = 0; i < frags.size(); ++i) {
         if(i != 0) {
             str += ',';
         }
-        int tid = utility::location_to_contig(ranges[i].beg);
-        assert( tid == utility::location_to_contig(ranges[i].end));
-        int beg = utility::location_to_position(ranges[i].beg);
-        int end = utility::location_to_position(ranges[i].end);
-
-        str += contigs_[tid].name;
+        str += frags[i].contig_name;
         str += ':';
-        karma::generate(std::back_inserter(str), beg+1);
+        karma::generate(std::back_inserter(str), frags[i].beg+one_indexed);
         str += '-';
-        karma::generate(std::back_inserter(str), end);
+        karma::generate(std::back_inserter(str), frags[i].end);
     }
     return reader_.SetRegions(str.c_str());
 }

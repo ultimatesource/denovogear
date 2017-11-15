@@ -98,7 +98,7 @@ qi::grammar<Iterator, contig_fragments_t(), boost::spirit::standard::space_type>
     skipper_type wsp;
 };
 
-boost::optional<contig_fragments_t> dng::regions::parse_contig_fragments(const std::string &text) {
+boost::optional<contig_fragments_t> dng::regions::parse_contig_fragments_from_regions(const std::string &text) {
     namespace ss = boost::spirit::standard;
     using ss::space; // must match the space_type in parser_grammar
     regions_grammar<std::string::const_iterator> parser_grammar;
@@ -168,9 +168,9 @@ ranges_t dng::regions::convert_fragments_to_ranges(const contig_fragments_t& fra
     return optimize_ranges(std::move(value));
 }
 
-ranges_t dng::regions::parse_ranges(const std::string &text, const ContigIndex& index) {
+ranges_t dng::regions::parse_regions(const std::string &text, const ContigIndex& index) {
     // Parse string
-    if(auto fragments = parse_contig_fragments(text)) {
+    if(auto fragments = parse_contig_fragments_from_regions(text)) {
         return convert_fragments_to_ranges(*fragments, index, true);    
     } else {
         throw std::invalid_argument("Parsing of regions failed.");
@@ -203,8 +203,7 @@ qi::grammar<Iterator, contig_fragments_t(), boost::spirit::standard::blank_type>
     qi::rule<Iterator, int(), skipper_type> pos, pos_end;
 };
 
-
-dng::regions::ranges_t dng::regions::parse_bed(const std::string &text, const ContigIndex& index) {
+boost::optional<contig_fragments_t> dng::regions::parse_contig_fragments_from_bed(const std::string &text) {
     namespace ss = boost::spirit::standard;
     using ss::blank; // must match the space_type in parser_grammar
     bed_grammar<std::string::const_iterator> parser_grammar;
@@ -212,8 +211,17 @@ dng::regions::ranges_t dng::regions::parse_bed(const std::string &text, const Co
     contig_fragments_t fragments;
     bool success = qi::phrase_parse(first, text.end(), parser_grammar, blank, fragments);
     success = success && (first == text.end());
-    if(!success) {
-        throw std::invalid_argument("Parsing of bed regions failed.");        
+    if(success) {
+        return fragments;
     }
-    return convert_fragments_to_ranges(fragments, index, false);
+    return boost::none;
+}
+
+dng::regions::ranges_t dng::regions::parse_bed(const std::string &text, const ContigIndex& index) {
+    // Parse string
+    if(auto fragments = parse_contig_fragments_from_bed(text)) {
+        return convert_fragments_to_ranges(*fragments, index, false);    
+    } else {
+        throw std::invalid_argument("Parsing of bed failed.");
+    }    
 }
