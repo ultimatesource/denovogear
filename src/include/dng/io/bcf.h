@@ -241,7 +241,7 @@ int BcfPileup::SetRegions(const regions::contig_fragments_t &frags, bool one_ind
         }
         str += frags[i].contig_name;
         str += ':';
-        karma::generate(std::back_inserter(str), frags[i].beg+one_indexed);
+        karma::generate(std::back_inserter(str), frags[i].beg+(!one_indexed));
         str += '-';
         karma::generate(std::back_inserter(str), frags[i].end);
     }
