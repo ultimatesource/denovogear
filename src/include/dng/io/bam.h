@@ -86,7 +86,8 @@ public:
         assert( tid == utility::location_to_contig(region.end));
         int beg = utility::location_to_position(region.beg);
         int end = utility::location_to_position(region.end);
-        in_.SetRegion(tid, beg, end);        
+        in_.SetRegion(tid, beg, end);
+        next_loc_ = 0;
     }
 
 private:
@@ -152,13 +153,23 @@ public:
         return ret;
     }
 
-
 private:
-    int Advance(utility::location_t *target_location);
+    int Advance(regions::range_t *target_range);
+
+    void ClearData() {
+        for(auto & d : data_) {
+            auto it = d.begin();
+            while(it != d.end()) {
+                node_type *p = &(*it);
+                d.erase(it++);
+                pool_.Free(p);
+            }
+        }    
+    }
 
     // Data Used for Pileup
     data_type data_; // Store pileup
-    utility::location_t fast_forward_location_; // Next location off the scanners
+    utility::location_t next_scanner_location_; // Next location off the scanners
 
     void ParseHeader(const char* text);
 
@@ -200,6 +211,7 @@ inline
 boost::optional<regions::range_t> BamPileup::LoadNextRegion() {
     using regions::range_t;
 
+    next_scanner_location_ = 0;
     if(regions_.empty()) {
         return boost::none;
     }
@@ -208,7 +220,6 @@ boost::optional<regions::range_t> BamPileup::LoadNextRegion() {
     for(auto &&s : scanners_) {
         s.SetRegion(region);
     }
-
     return region;
 }
 
@@ -218,44 +229,35 @@ void BamPileup::operator()(CallBack call_back) {
     using utility::make_location;
     using dng::regions::range_t;
 
-    // data will hold our pileup information
-    data_.clear();
+    // Resize data and free any existing nodes
     data_.resize(num_libraries());
-    fast_forward_location_ = 0;
+    ClearData();
 
-    range_t current_reg = {0, utility::LOCATION_MAX};
+    range_t current_range = {0, utility::LOCATION_MAX};
     if(auto reg = LoadNextRegion()) {
-        current_reg = *reg;
+        current_range = *reg;
     }
-    utility::location_t current_location = current_reg.beg;
-
-    for(;; current_location += 1) {
-        int res = Advance(&current_location);
-        while( res < 0 ) {
+    for(;;) {
+        Advance(&current_range);
+        assert(current_range.beg <= current_range.end);
+        while(current_range.beg == current_range.end) {
             // We are out of reads, try loading the next region
+            ClearData();
             if(auto reg = LoadNextRegion()) {
-                current_reg = *reg;
-                current_location = current_reg.beg;
-                res = Advance(&current_location);
+                current_range = *reg;
+                Advance(&current_range);
             } else {
                 // we are out of regions
                 break;
             }
         }
-        if( res < 0 ) {
+        if(current_range.beg == current_range.end) {
             // we are out of data
             break;
-        } else if(res == 0) {
-            // We are not out of reads, but nothing overlaps current_loc
-            continue;            
-        }
-
-        // location does not overlap our region so skip it
-        if( current_location < current_reg.beg || current_reg.end <= current_location ) {
-            continue;
         }
         // Execute callback function
-        call_back(data_, current_location);
+        call_back(data_, current_range.beg);
+        current_range.beg += 1;
     }
 }
 

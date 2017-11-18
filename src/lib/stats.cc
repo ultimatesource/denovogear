@@ -364,6 +364,7 @@ double dng::stats::ad_two_sample_test(std::vector<int> a,
                                       std::vector<int> b) {
     using namespace std;
     using namespace boost;
+    assert(a.size() > 0 && b.size() > 0);
 
     sort(a);
     sort(b);
