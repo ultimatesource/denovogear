@@ -165,7 +165,7 @@ int process_bam(Pileup::argument_type &arg) {
 
     // setup initial line buffer
     AlleleDepths line;
-    line.resize(63,mpileup.num_libraries());
+    line.Resize(63,mpileup.num_libraries());
 
     // Do pileup
     const bam_hdr_t *h = mpileup.header();
@@ -220,7 +220,7 @@ int process_bam(Pileup::argument_type &arg) {
             dp += total_depths.counts[i];
         }
         if(dp < min_dp || dp > max_dp) {
-            return; // no data at this site
+            return; // Skip site
         }
         // check to make sure that we have a positive depths past this point
         assert(dp > 0);
@@ -234,8 +234,12 @@ int process_bam(Pileup::argument_type &arg) {
         }
         int color = dng::pileup::raw_counts_to_color(total_depths)+first_is_N;
         assert(0 <= color && color < 128);
+        if(AlleleDepths::type_info_table[color].width < arg.min_num_alleles ||
+           AlleleDepths::type_info_table[color].width > arg.max_num_alleles ) {
+            return; // Skip Site
+        }
         line.location(loc);
-        line.resize(color);
+        line.Resize(color);
         for(int lib = 0; lib < line.num_libraries(); ++lib) {
             for(int n=0; n < line.type_info().width; ++n) {
                 line(lib,n) = read_depths[lib].counts[(int)line.type_info().indexes[n]];
@@ -286,10 +290,25 @@ int process_ad(Pileup::argument_type &arg) {
         return EXIT_SUCCESS;
     }
 
-    
+    int min_dp = std::max(arg.min_dp,1);
+    int max_dp = (arg.max_dp > 0) ? arg.max_dp : std::numeric_limits<int>::max();
+    if(max_dp < min_dp) {
+        throw std::invalid_argument("Calculated maximum depth '" + to_string(max_dp) +
+            "' is less than calculated min depth '" + to_string(min_dp) + "'.");
+    }
+
     AlleleDepths line;
     line.data().reserve(4*input.libraries().names.size());
     while(input.Read(&line)) {
+        if(line.TotalDepth() < min_dp ||
+           line.TotalDepth() > max_dp ) {
+            continue; // Skip Site
+        }
+        if(line.type_info().width < arg.min_num_alleles ||
+           line.type_info().width > arg.max_num_alleles ) {
+            continue; // Skip Site
+        }
+
         output.Write(line);
     }
 

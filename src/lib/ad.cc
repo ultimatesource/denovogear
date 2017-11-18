@@ -309,14 +309,14 @@ int dng::io::Ad::ReadTad(AlleleDepths *pline) {
     }
     // check to make sure store has the proper size
     if(store.size() != 3+input_libraries_.names.size()) {
-        throw runtime_error("ERROR: Unable to parse TAD record: Expected " + utility::to_pretty(3+input_libraries_.names.size()) 
+        throw std::invalid_argument("Unable to parse TAD record: Expected " + utility::to_pretty(3+input_libraries_.names.size()) 
             + " columns. Found " + utility::to_pretty(store.size()) + " columns.");
     }
 
     // parse contig
     auto mit = contig_map_.find(store[0]);
     if(mit == contig_map_.end()) {
-        throw runtime_error("ERROR: Unable to parse TAD record: Contig Name '" + store[0] + "' is unknown.");
+        throw std::invalid_argument("Unable to parse TAD record: Contig Name '" + store[0] + "' is unknown.");
     }
     int contig_num = mit->second;
     
@@ -326,16 +326,16 @@ int dng::io::Ad::ReadTad(AlleleDepths *pline) {
     auto last  = store[1].cend();
 
     if(!phrase_parse(first, last, uint_, space, position) || first != last) {
-        throw runtime_error("ERROR: Unable to parse TAD record: Unable to parse position '" + store[1] + "' as integer.");
+        throw std::invalid_argument("Unable to parse TAD record: Unable to parse position '" + store[1] + "' as integer.");
     }
     pline->location(utility::make_location(contig_num,position-1));
 
     // parse type and resize
     int8_t ty = AlleleDepths::MatchLabel(store[2]);
     if(ty == -1) {
-        throw runtime_error("ERROR: Unable to parse TAD record: Type '" + store[2] + "' is unknown.");        
+        throw std::invalid_argument("Unable to parse TAD record: Type '" + store[2] + "' is unknown.");        
     }
-    pline->resize(ty,output_libraries_.names.size());
+    pline->Resize(ty,output_libraries_.names.size());
 
     // parse data
     vector<int> data;
@@ -343,9 +343,9 @@ int dng::io::Ad::ReadTad(AlleleDepths *pline) {
     for(size_t i=3;i<store.size();++i) {
         tie(data,success) = utility::parse_int_list(store[i]);
         if(!success) {
-            throw runtime_error("ERROR: Unable to parse TAD record: unable to parse comma-separated depths '" + store[i] + "'.");
+            throw std::invalid_argument("Unable to parse TAD record: unable to parse comma-separated depths '" + store[i] + "'.");
         } else if(data.size() != pline->num_nucleotides()) {
-            throw runtime_error("ERROR: Unable to parse TAD record: incorrect number of depths parsed from '" + store[i]
+            throw std::invalid_argument("Unable to parse TAD record: incorrect number of depths parsed from '" + store[i]
                 + "'. Expected " + utility::to_pretty(pline->num_nucleotides())
                 + " columns. Found " + utility::to_pretty(data.size()));
         }
@@ -501,7 +501,7 @@ int dng::io::Ad::ReadAd(AlleleDepths *pline) {
         return 1;
     }
     pline->location(loc);
-    pline->resize(rec_type,output_libraries_.names.size());
+    pline->Resize(rec_type,output_libraries_.names.size());
 
     // Reference depths
     for(size_t i=0;i<input_libraries_.names.size();++i) {

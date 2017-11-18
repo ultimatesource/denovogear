@@ -325,7 +325,7 @@ BOOST_AUTO_TEST_CASE(test_ad_write_and_read) {
     int x=0;
     for(int i=0;i<128;++i) {
         AlleleDepths line;
-        line.resize(i,2);
+        line.Resize(i,2);
         line.location(0,10+(i+1));
         for(auto && d : line.data()) {
             d = x;
@@ -335,7 +335,7 @@ BOOST_AUTO_TEST_CASE(test_ad_write_and_read) {
     }
     for(int i=0;i<128;++i) {
         AlleleDepths line;
-        line.resize(i,2);
+        line.Resize(i,2);
         line.location(1,100+(i+1));
         for(auto && d : line.data()) {
             d = x;
@@ -401,7 +401,7 @@ BOOST_AUTO_TEST_CASE(test_ad_read_subset) {
     int x=0;
     for(int i=0;i<128;++i) {
         AlleleDepths line;
-        line.resize(i,2);
+        line.Resize(i,2);
         line.location(0,10+(i+1));
         for(auto && d : line.data()) {
             d = x;
@@ -411,7 +411,7 @@ BOOST_AUTO_TEST_CASE(test_ad_read_subset) {
     }
     for(int i=0;i<128;++i) {
         AlleleDepths line;
-        line.resize(i,2);
+        line.Resize(i,2);
         line.location(1,100+(i+1));
         for(auto && d : line.data()) {
             d = x;

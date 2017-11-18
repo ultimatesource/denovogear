@@ -120,12 +120,14 @@ public:
 
     data_t::reference operator()(data_t::size_type lib, data_t::size_type nuc) {
         // storage is library major
+        assert(data_.size() == num_nucleotides()*num_libraries());
         assert(0 <= nuc && nuc < num_nucleotides() && 0 <= lib && lib < num_libraries());
         return data_[lib*num_nucleotides()+nuc];
     }
 
     data_t::const_reference operator()(data_t::size_type lib, data_t::size_type nuc) const {
         // storage is library major
+        assert(data_.size() == num_nucleotides()*num_libraries());
         assert(0 <= nuc && nuc < num_nucleotides() && 0 <= lib && lib < num_libraries());
         return data_[lib*num_nucleotides()+nuc];
     }
@@ -146,36 +148,38 @@ public:
     }
 
     const data_t& data() const { return data_; }
-    data_t& data() { return data_; }
+    data_t& data() { 
+        assert(data_.size() == num_nucleotides()*num_libraries());
+        return data_;
+    }
     size_type data_size() const { return data_.size(); };
-    void data(data_t data) {
-        assert(data.size() == data_.size());
-        data_ = std::move(data);
-    }
-    void data_copy(const data_t& data) {
-        assert(data.size() == data_.size());
-        data_ = data;
-    }
-    void data_swap(data_t& data) {
-        assert(data.size() == data_.size());
-        data_.swap(data);
-    }
 
     size_type num_libraries() const { return num_libraries_; }
     size_type num_nucleotides() const { return type_info().width; }
     std::pair<size_type,size_type> dimensions() const { return {num_nucleotides(), num_libraries()}; }
-    void resize(int8_t color) {
+    
+    void Resize(int8_t color) {
         color_ = color;
         data_.resize(num_nucleotides()*num_libraries());
     }
-    void resize(int8_t color, size_type num_lib) {
+    void Resize(int8_t color, size_type num_lib) {
         color_ = color;
         num_libraries_ = num_lib;
         data_.resize(num_nucleotides()*num_libraries());
     }
-    void zero() {
+    void Zero() {
+        assert(data_.size() == num_nucleotides()*num_libraries());
         data_.assign(data_.size(), 0);
     }
+    size_type TotalDepth() const {
+        assert(data_.size() == num_nucleotides()*num_libraries());
+        size_type dp = 0;
+        for(auto &&a : data_) {
+            dp += a;
+        }
+        return dp;
+    }
+
     void swap(AlleleDepths& other) {
         std::swap(location_, other.location_);
         std::swap(color_, other.color_);

@@ -657,7 +657,7 @@ int process_bcf(task::Call::argument_type &arg) {
         }
         const int color = AlleleDepths::MatchIndexes(allele_indexes);
         assert(color != -1);
-        data.resize(color+first_is_n, rec->n_sample);
+        data.Resize(color+first_is_n, rec->n_sample);
 
         // Read all the Allele Depths for every sample into an AD array
         const int n_ad = hts::bcf::get_format_int32(header, rec, "AD", &ad, &n_ad_capacity);
