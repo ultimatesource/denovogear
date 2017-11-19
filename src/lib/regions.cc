@@ -153,14 +153,12 @@ ranges_t dng::regions::convert_fragments_to_ranges(const contig_fragments_t& fra
         if(tid < 0 ) {
             throw std::invalid_argument("Unknown contig name: '" + r.contig_name + "'");
         }
-        int beg = r.beg-(one_indexed);
-        int end = r.end;
-        if( !(0 <= beg && beg <= index.contig(tid).length) ||
-            !(0 <= end && end <= index.contig(tid).length) ||
-            !(beg < end)
-          ) {
+        int beg = std::max(0,r.beg-(one_indexed));
+        int end = std::min(index.contig(tid).length, r.end);
+
+        if(beg >= end) {
             throw std::invalid_argument("Invalid region coordinates: '" +
-                r.contig_name + ":" + std::to_string(beg+1) + "-" + std::to_string(end) + "'" );
+                r.contig_name + ":" + std::to_string(r.beg-(one_indexed)+1) + "-" + std::to_string(r.end) + "'" );
         }
         value.push_back({tid,beg,end});
     }
