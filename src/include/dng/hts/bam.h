@@ -41,13 +41,6 @@ class File;
 typedef std::pair<const uint32_t *, const uint32_t *> cigar_t;
 typedef std::pair<const uint8_t *, const uint8_t *> data_t;
 
-struct region_t {
-    int tid;
-    int beg;
-    int end;
-};
-typedef std::deque<region_t> regions_t;
-
 class Alignment : protected BareAlignment {
 public:
     Alignment() {
@@ -180,19 +173,13 @@ public:
         assert(p != nullptr);
         int ret;
         for(;;) {
-            if(has_regions_) {
+            if(iter_) {
                 ret = sam_itr_next(handle(), iter_.get(), p->base());
-                if(ret < 0) {
-                    if(NextRegion()) {
-                        continue;
-                    }
-                    break;
-                }
             } else {
                 ret = sam_read1(handle(), hdr_.get(), p->base());
-                if(ret < 0) {
-                    break;
-                }
+            }
+            if(ret < 0) {
+                break;
             }
             if(p->is_any(BAM_FUNMAP | BAM_FQCFAIL | BAM_FDUP
                 | BAM_FSECONDARY | BAM_FSUPPLEMENTARY)) {
@@ -232,54 +219,32 @@ public:
         return bam_name2id(hdr_.get(), name);
     }
 
-    const regions_t& regions() const {
-        return regions_;
-    }
-    const regions_t& regions(regions_t regions) {
-        regions_ = std::move(regions);
-        // Load index for the file
+    void SetRegion(int tid, int beg, int end) {
+        assert(0 <= tid && 0 <= beg && beg < end && end <= INT_MAX);
         if(!idx_) {
             idx_.reset(sam_index_load(handle(), name()));
             if(!idx_) {
                 throw std::runtime_error("unable to load index for '" + std::string(name()) + "'.");
             }
         }
+        iter_.reset(sam_itr_queryi(idx_.get(), tid, beg, end));
+        if(!iter_) {
+            throw std::invalid_argument("unable to construct iterator");
+        }
+    }
 
-        has_regions_ = UpdateRegion();
-        return regions_;
+    void UnsetRegion() {
+        iter_.reset(nullptr);
     }
 
     std::vector<std::pair<const char *, int>> contigs() const;
 
 protected:
-    bool NextRegion() {
-        regions_.pop_front();
-        return UpdateRegion();
-    }
-    bool UpdateRegion() {
-        if(regions_.empty()) {
-            iter_.reset(nullptr);
-            return false;
-        }
-        // Construct iterator for the active region
-        auto &r = regions_.front();
-        assert(0 <= r.tid && 0 <= r.beg && r.beg < r.end && r.end <= INT_MAX);
-        assert(idx_);
-        iter_.reset(sam_itr_queryi(idx_.get(), r.tid, r.beg, r.end));
-        if(!iter_) {
-            throw std::runtime_error("unable to construct iterator");
-        }
-        return true;
-    }
-
     std::unique_ptr<bam_hdr_t, void(*)(bam_hdr_t *)> hdr_;  // the file header
     std::unique_ptr<hts_itr_t, void(*)(hts_itr_t *)> iter_; // NULL if a region not specified
     std::unique_ptr<hts_idx_t, void(*)(hts_idx_t *)> idx_;  // The current iterator
 
     int min_mapQ_; // mapQ filter
-
-    std::deque<region_t> regions_;
-    bool has_regions_{false};
 };
 
 
@@ -290,7 +255,7 @@ std::vector<std::pair<const char*, int>> contigs(const bam_hdr_t *header) {
     int n_targets = header->n_targets;
     for(int a = 0; a < n_targets; a++) {
         if(header->target_name[a] == nullptr) {
-            continue;
+            throw std::invalid_argument("Undefined target name in bam header");
         }
         contigs.emplace_back(header->target_name[a], header->target_len[a]);
     }

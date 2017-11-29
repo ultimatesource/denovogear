@@ -102,7 +102,7 @@ bool varint_convert(uint64_t u) {
 
     buffer.pubseekpos(0);
     auto aa = varint::get(&buffer);
-    if(!aa.second) {
+    if(!aa) {
         cerr << "  Reading varint " << std::hex << std::showbase << u << " from a streambuf failed.\n";
         cerr << "    Buffer:";
         for(auto a : buffer.str()) {
@@ -113,9 +113,9 @@ bool varint_convert(uint64_t u) {
         cerr << std::dec << std::noshowbase;
         return false;
     }
-    if(aa.first != u) {
+    if(*aa != u) {
         cerr << "  Conversion of " << std::hex << std::showbase << u << " via streambuf failed.\n";
-        cerr << "    Output: " << std::hex << std::showbase << aa.first << "\n";
+        cerr << "    Output: " << std::hex << std::showbase << *aa << "\n";
         cerr << "    Buffer:";
         for(auto a : buffer.str()) {
             cerr << " " << hex(a);
@@ -189,14 +189,14 @@ bool zigzag_convert(int64_t n) {
 
     buffer.pubseekpos(0);
     auto aa = varint::get_zig_zag(&buffer);
-    if(!aa.second) {
+    if(!aa) {
         cerr << "  Reading zig-zag varint " << std::hex << std::showbase << n << " from a streambuf failed.\n";
         cerr << std::dec << std::noshowbase;
         return false;
     }
-    if(aa.first != n) {
+    if(*aa != n) {
         cerr << "  Conversion of zig-zag " << std::hex << std::showbase << n << " via streambuf failed.\n";
-        cerr << "    Output: " << std::hex << std::showbase << aa.first << "\n";
+        cerr << "    Output: " << std::hex << std::showbase << *aa << "\n";
         cerr << "    Buffer:";
         for(auto a : buffer.str()) {
             cerr << " " << hex(a);
@@ -325,7 +325,7 @@ BOOST_AUTO_TEST_CASE(test_ad_write_and_read) {
     int x=0;
     for(int i=0;i<128;++i) {
         AlleleDepths line;
-        line.resize(i,2);
+        line.Resize(i,2);
         line.location(0,10+(i+1));
         for(auto && d : line.data()) {
             d = x;
@@ -335,7 +335,7 @@ BOOST_AUTO_TEST_CASE(test_ad_write_and_read) {
     }
     for(int i=0;i<128;++i) {
         AlleleDepths line;
-        line.resize(i,2);
+        line.Resize(i,2);
         line.location(1,100+(i+1));
         for(auto && d : line.data()) {
             d = x;
@@ -401,7 +401,7 @@ BOOST_AUTO_TEST_CASE(test_ad_read_subset) {
     int x=0;
     for(int i=0;i<128;++i) {
         AlleleDepths line;
-        line.resize(i,2);
+        line.Resize(i,2);
         line.location(0,10+(i+1));
         for(auto && d : line.data()) {
             d = x;
@@ -411,7 +411,7 @@ BOOST_AUTO_TEST_CASE(test_ad_read_subset) {
     }
     for(int i=0;i<128;++i) {
         AlleleDepths line;
-        line.resize(i,2);
+        line.Resize(i,2);
         line.location(1,100+(i+1));
         for(auto && d : line.data()) {
             d = x;

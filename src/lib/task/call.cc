@@ -153,9 +153,6 @@ using namespace task;
 // The main loop for dng-call application
 // argument_type arg holds the processed command line arguments
 int task::Call::operator()(Call::argument_type &arg) {
-    // replace arg.region with the contents of a file if needed
-    io::at_slurp(arg.region);
-
     // Determine the type of input files
     auto it = arg.input.begin();
     FileCat mode = utility::input_category(*it, FileCat::Sequence|FileCat::Pileup|FileCat::Variant, FileCat::Unknown);
@@ -195,29 +192,31 @@ int process_bam(task::Call::argument_type &arg) {
     // Parse Nucleotide Frequencies
     std::array<double, 4> freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
 
-    // Fetch the selected regions
-    auto region_ext = io::at_slurp(arg.region); // replace arg.region with the contents of a file if needed
-
     // Open input files
     using BamPileup = dng::io::BamPileup;
     BamPileup mpileup{arg.min_qlen, arg.rgtag};
     for(auto && str : arg.input) {
-        // TODO: We put all this logic here to simplify the BamPileup construction
-        // TODO: However it might make sense to incorporate it into BamPileup::AddFile
         hts::bam::File input{str.c_str(), "r", arg.fasta.c_str(), arg.min_mapqual, arg.header.c_str()};
         if(!input.is_open()) {
-            throw std::runtime_error("Unable to open input file '" + str + "'.");
-        }
-        // add regions
-        // TODO: make this work with region_ext
-        if(!arg.region.empty()) {
-            if(arg.region.find(".bed") != std::string::npos) {
-                input.regions(regions::bam_parse_bed(arg.region, input));
-            } else {
-                input.regions(regions::bam_parse_region(arg.region, input));
-            }
+            throw std::runtime_error("Unable to open bam/sam/cram input file '" + str + "' for reading.");
         }
         mpileup.AddFile(std::move(input));
+    }
+
+    // Load contigs into an index
+    regions::ContigIndex index;
+    for(auto && a : mpileup.contigs()) {
+        index.AddContig(std::move(a));
+    }
+
+    // replace arg.region with the contents of a file if needed
+    auto region_ext = io::at_slurp(arg.region);
+    if(!arg.region.empty()) {
+        if(region_ext == "bed") {
+            mpileup.SetRegions(regions::parse_bed(arg.region, index));
+        } else {
+            mpileup.SetRegions(regions::parse_regions(arg.region, index));
+        }
     }
 
     // Construct peeling algorithm from parameters and pedigree information
@@ -389,22 +388,6 @@ int process_bam(task::Call::argument_type &arg) {
 		}
 		rms_mq = sqrt(rms_mq/(qual_ref.size()+qual_alt.size()));
 
-		// Fisher Exact Test for strand bias
-		double fs_info;
-		{
-			int a11 = adf_info[0];
-			int a21 = adr_info[0];
-			int a12 = 0, a22 = 0;
-			for(int k = 1; k < refalt_count; ++k) {
-				a12 += adf_info[k];
-				a22 += adr_info[k];
-			}
-			fs_info = dng::stats::fisher_exact_test(a11, a12, a21, a22);
-		}
-		double mq_info = dng::stats::ad_two_sample_test(qual_ref, qual_alt);
-		double rp_info = dng::stats::ad_two_sample_test(pos_ref, pos_alt);
-		double bq_info = dng::stats::ad_two_sample_test(base_ref, base_alt);
-
         record.samples("AD", ad_counts);
 		record.samples("ADF", adf_counts);
 		record.samples("ADR", adr_counts);
@@ -413,10 +396,27 @@ int process_bam(task::Call::argument_type &arg) {
 		record.info("ADF", adf_info);
 		record.info("ADR", adr_info);
 		record.info("MQ", static_cast<float>(rms_mq));
-		record.info("FS", static_cast<float>(phred(fs_info)));
-		record.info("MQTa", static_cast<float>(mq_info));
-		record.info("RPTa", static_cast<float>(rp_info));
-		record.info("BQTa", static_cast<float>(bq_info));
+
+        int a11 = adf_info[0];
+        int a21 = adr_info[0];
+        int a12 = 0, a22 = 0;
+        for(int k = 1; k < refalt_count; ++k) {
+            a12 += adf_info[k];
+            a22 += adr_info[k];
+        }
+        if(a12+a22 > 0) {
+            // Fisher Exact Test for strand bias
+            double fs_info = dng::stats::fisher_exact_test(a11, a12, a21, a22);
+
+            double mq_info = dng::stats::ad_two_sample_test(qual_ref, qual_alt);
+            double rp_info = dng::stats::ad_two_sample_test(pos_ref, pos_alt);
+            double bq_info = dng::stats::ad_two_sample_test(base_ref, base_alt);
+
+            record.info("FS", static_cast<float>(phred(fs_info)));
+            record.info("MQTa", static_cast<float>(mq_info));
+            record.info("RPTa", static_cast<float>(rp_info));
+            record.info("BQTa", static_cast<float>(bq_info));
+        }
 
 		record.target(h->target_name[contig]);
 		record.position(position);
@@ -434,7 +434,11 @@ int process_ad(task::Call::argument_type &arg) {
     // Parse Nucleotide Frequencies
     std::array<double, 4> freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
 
-    //io::at_slurp(arg.region); // replace arg.region with the contents of a file if needed
+    // replace arg.region with the contents of a file if needed
+    //auto region_ext = io::at_slurp(arg.region);
+    if(!arg.region.empty()) {
+        throw std::invalid_argument("--region not supported when processing ad/tad file.");
+    }
 
     // Open input files
     if(arg.input.size() != 1) {
@@ -553,14 +557,22 @@ int process_bcf(task::Call::argument_type &arg) {
     using dng::io::BcfPileup;
     BcfPileup mpileup;
 
-    // Fetch the selected regions
-    auto region_ext = io::at_slurp(arg.region); // replace arg.region with the contents of a file if needed
+    // replace arg.region with the contents of a file if needed
+    auto region_ext = io::at_slurp(arg.region);
     if(!arg.region.empty()) {
-        auto ranges = regions::parse_ranges(arg.region);
-        if(ranges.second == false) {
-            throw std::runtime_error("unable to parse the format of '--region' argument.");
+        if(region_ext == "bed") {
+            if(auto f = regions::parse_contig_fragments_from_bed(arg.region)) {
+                mpileup.SetRegions(*f, false);
+            } else {
+                throw std::invalid_argument("Parsing of bed failed.");
+            }
+        } else {
+            if(auto f = regions::parse_contig_fragments_from_regions(arg.region)) {
+                mpileup.SetRegions(*f, true);
+            } else {
+                throw std::invalid_argument("Parsing of regions failed.");
+            }
         }
-        mpileup.SetRegions(ranges.first);
     }
 
     if(mpileup.AddFile(arg.input[0].c_str()) == 0) {
@@ -645,7 +657,7 @@ int process_bcf(task::Call::argument_type &arg) {
         }
         const int color = AlleleDepths::MatchIndexes(allele_indexes);
         assert(color != -1);
-        data.resize(color+first_is_n, rec->n_sample);
+        data.Resize(color+first_is_n, rec->n_sample);
 
         // Read all the Allele Depths for every sample into an AD array
         const int n_ad = hts::bcf::get_format_int32(header, rec, "AD", &ad, &n_ad_capacity);
@@ -759,39 +771,42 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
     if(has_single_mut) {
         std::string dnt;
         size_t pos = call_stats.dnl;
-        if(graph.transitions()[pos].type == dng::RelationshipGraph::TransitionType::Trio) {
-            assert(work.ploidies[pos] == 2);
-            size_t child = reencode_genotype(call_stats.dnt_col, 2, old_color, new_color);
+        size_t child = reencode_genotype(call_stats.dnt_col, work.ploidies[pos], old_color, new_color);
+        size_t new_width = (work.ploidies[pos] == 2) ? type_info_gt_table[new_color].width 
+                                                     : type_info_table[new_color].width;
+        // Only output records if child's mutant genotype is compatible with the site
+        if(child < new_width) {
+            if(graph.transitions()[pos].type == dng::RelationshipGraph::TransitionType::Trio) {
+                assert(work.ploidies[pos] == 2);
+                size_t dad = graph.transition(pos).parent1;
+                size_t dad_ploidy = work.ploidies[dad];
+                size_t mom = graph.transition(pos).parent2;
+                size_t mom_ploidy = work.ploidies[mom];
 
-            size_t dad = graph.transition(pos).parent1;
-            size_t dad_ploidy = work.ploidies[dad];
-            size_t mom = graph.transition(pos).parent2;
-            size_t mom_ploidy = work.ploidies[mom];
+                size_t width = (mom_ploidy == 2) ? type_info_gt_table[old_color].width : type_info_table[old_color].width;
+                dad = call_stats.dnt_row / width;
+                mom = call_stats.dnt_row % width;
+                dad = reencode_genotype(dad, dad_ploidy, old_color, new_color);
+                mom = reencode_genotype(mom, mom_ploidy, old_color, new_color);
 
-            size_t width = (mom_ploidy == 2) ? type_info_gt_table[old_color].width : type_info_table[new_color].width;
-            dad = call_stats.dnt_row / width;
-            mom = call_stats.dnt_row % width;
-            dad = reencode_genotype(dad, dad_ploidy, old_color, new_color);
-            mom = reencode_genotype(mom, mom_ploidy, old_color, new_color);
+                dnt = genotype_string(dad, dad_ploidy, new_color);
+                dnt += 'x';
+                dnt += genotype_string(mom, mom_ploidy, new_color);
+                dnt += '>';
+                dnt += genotype_string(child, work.ploidies[pos], new_color);
+            } else {
+                size_t par_pos = graph.transition(pos).parent1;
+                size_t par   = reencode_genotype(call_stats.dnt_row, work.ploidies[par_pos], old_color, new_color);
 
-            dnt = genotype_string(dad, dad_ploidy, new_color);
-            dnt += 'x';
-            dnt += genotype_string(mom, mom_ploidy, new_color);
-            dnt += '>';
-            dnt += genotype_string(child, work.ploidies[pos], new_color);            
-        } else {
-            size_t par_pos = graph.transition(pos).parent1;
-            size_t par   = reencode_genotype(call_stats.dnt_row, work.ploidies[par_pos], old_color, new_color);
-            size_t child = reencode_genotype(call_stats.dnt_col, work.ploidies[pos], old_color, new_color);
+                dnt = genotype_string(par, work.ploidies[par_pos], new_color);
+                dnt += '>';
+                dnt += genotype_string(child, work.ploidies[pos], new_color);
+            }
+            record->info("DNT", dnt);
 
-            dnt = genotype_string(par, work.ploidies[par_pos], new_color);
-            dnt += '>';
-            dnt += genotype_string(child, work.ploidies[pos], new_color);
+            record->info("DNL", graph.label(pos));
+            record->info("DNQ", call_stats.dnq);
         }
-        record->info("DNT", dnt);
-
-        record->info("DNL", graph.label(pos));
-        record->info("DNQ", call_stats.dnq);
     }
 
     record->info("DP", depth_stats.dp);

@@ -32,6 +32,7 @@
 
 #include <boost/fusion/include/std_pair.hpp>
 #include <boost/fusion/include/vector.hpp>
+#include <boost/phoenix/stl/container.hpp>
 
 #include <boost/spirit/include/qi.hpp>
 #include <boost/phoenix/core.hpp>
@@ -44,8 +45,8 @@ using namespace dng::regions;
 namespace qi = boost::spirit::qi;
 namespace phoenix = boost::phoenix;
 
-struct make_range_impl {
-    typedef parsed_range_t result_type;
+struct make_fragment_impl {
+    typedef contig_fragment_t result_type;
 
     result_type operator()(std::string s, int b, int e) const {
         return {s,b,e};
@@ -57,20 +58,19 @@ struct make_range_impl {
         return {s,1,INT_MAX};
     }
 };
-const phoenix::function<make_range_impl> make_range;
+const phoenix::function<make_fragment_impl> make_fragment;
 
-template <typename Iterator, typename Skipper>
+template <typename Iterator>
 struct regions_grammar :
-qi::grammar<Iterator, parsed_ranges_t(), Skipper> {
-    typedef std::pair<int,int> pos_t;
+qi::grammar<Iterator, contig_fragments_t(), boost::spirit::standard::space_type> {
+    using pos_t = std::pair<int,int>;
+    using skipper_type = boost::spirit::standard::space_type;
     regions_grammar() : regions_grammar::base_type(start) {
-        using qi::uint_; using qi::char_; using qi::as_string;
-        using qi::attr; using qi::lexeme; using qi::no_skip;
-        using qi::lit;
+        using namespace qi;
         using namespace qi::labels;
 
         start = range % no_skip[wsp];
-        range = (label >> -(':' >> position))[_val = make_range(_1,_2)];
+        range = (label >> -(':' >> position))[_val = make_fragment(_1,_2)];
         position %=
             ((pos[_a = _1] >> ( ('-' >> ( pos | attr(INT_MAX)))
                               | ('+' >> pos)[_1 = _a+_1-1]
@@ -79,7 +79,7 @@ qi::grammar<Iterator, parsed_ranges_t(), Skipper> {
             |(attr(1) >> '-' >> pos)
             );
         pos = sudouble | (uint_ >> !lit(',')) | sepint;
-        // We support the format of targets specified in Sam files, except that ':' are disallowed
+        // We support the format of target contigs specified in Sam files, except that ':' are disallowed
         label = as_string[lexeme[char_("!-)+-9;<>-~") >> *char_("!-9;-~")]]; 
         sepint = lexeme[uint3_p[_val=_1] >> *(',' >> uint3_3_p[_val = 1000*_val+_1])];
     }
@@ -88,39 +88,42 @@ qi::grammar<Iterator, parsed_ranges_t(), Skipper> {
     qi::uint_parser<unsigned, 10, 1, 3> uint3_p;
     qi::uint_parser<unsigned, 10, 3, 3> uint3_3_p;
 
-    qi::rule<Iterator, parsed_ranges_t(), Skipper> start;
-    qi::rule<Iterator, parsed_range_t(), Skipper> range;
-    qi::rule<Iterator, std::string(), Skipper> label;
-    qi::rule<Iterator, int(), Skipper> pos, pos_end;
-    qi::rule<Iterator, std::pair<int,int>(), qi::locals<int>, Skipper> position;
-    qi::rule<Iterator, int(), Skipper> sepint;
+    qi::rule<Iterator, contig_fragments_t(), skipper_type> start;
+    qi::rule<Iterator, contig_fragment_t(), skipper_type> range;
+    qi::rule<Iterator, std::string(), skipper_type> label;
+    qi::rule<Iterator, int(), skipper_type> pos, pos_end;
+    qi::rule<Iterator, std::pair<int,int>(), qi::locals<int>, skipper_type> position;
+    qi::rule<Iterator, int(), skipper_type> sepint;
 
-    Skipper wsp;
+    skipper_type wsp;
 };
 
-std::pair<parsed_ranges_t,bool> dng::regions::parse_ranges(const std::string &text) {
+boost::optional<contig_fragments_t> dng::regions::parse_contig_fragments_from_regions(const std::string &text) {
     namespace ss = boost::spirit::standard;
-    using ss::space;
-    regions_grammar<std::string::const_iterator, ss::space_type> parser_grammar;
+    using ss::space; // must match the space_type in parser_grammar
+    regions_grammar<std::string::const_iterator> parser_grammar;
 
     std::string::const_iterator first = text.begin();
-    parsed_ranges_t ranges;
-    bool success = qi::phrase_parse(first, text.end(), parser_grammar, space, ranges);
+    contig_fragments_t fragments;
+    bool success = qi::phrase_parse(first, text.end(), parser_grammar, space, fragments);
     success = success && (first == text.end());
-    return {ranges, success};
+    if(success) {
+        return fragments;
+    }
+    return boost::none;
 }
 
 inline
-hts::bam::regions_t optimize_regions(hts::bam::regions_t value) {
-    using hts::bam::region_t;
-    using hts::bam::regions_t;    
+dng::regions::ranges_t optimize_ranges(dng::regions::ranges_t value) {
+    using dng::regions::ranges_t;
+    using dng::regions::range_t;
      // sort regions in increasing order
-    std::sort(value.begin(), value.end(), [](const region_t &a, const region_t &b) {
-        return std::tie(a.tid, a.beg, a.end) < std::tie(b.tid, b.beg, b.end);
+    std::sort(value.begin(), value.end(), [](const range_t &a, const range_t &b) {
+        return std::tie(a.beg, a.end) < std::tie(b.beg, b.end);
     });
     // merge overlapping ranges
-    auto overlapping = [](const region_t &a, const region_t &b) {
-        return a.tid == b.tid && b.beg <= a.end; // assumes sorted range
+    auto overlapping = [](const range_t &a, const range_t &b) {
+        return b.beg <= a.end; // assumes sorted range
     };
 
     auto first = value.begin();
@@ -137,103 +140,86 @@ hts::bam::regions_t optimize_regions(hts::bam::regions_t value) {
         ++result;
         value.erase(result,value.end());
     }
-    return value;   
+    return value;
 }
 
-hts::bam::regions_t dng::regions::bam_parse_region(const std::string &text, const hts::bam::File &file) {
-    using hts::bam::region_t;
-    using hts::bam::regions_t;
-    // Parse string
-    auto raw_regions = parse_ranges(text);
-    if(!raw_regions.second) {
-        throw std::invalid_argument("Parsing of regions string failed.");
-    }
-    // Return quickly if there are no regions
-    if(raw_regions.first.empty()) {
-        return {};
-    }
-    // Convert raw regions to bam regions
-    regions_t value;
-    for(auto &&r : raw_regions.first) {
-        int tid = file.TargetNameToID(r.target.c_str());
-        int beg = r.beg-1;
-        int end = r.end;
+ranges_t dng::regions::convert_fragments_to_ranges(const contig_fragments_t& fragments, const ContigIndex& index, bool one_indexed) {
+    // Convert fragments to ranges
+    ranges_t value;
+    int tid = 0;
+
+    for(auto &&r : fragments) {
+        tid = index.NameToId(r.contig_name, tid);
         if(tid < 0 ) {
-            throw std::invalid_argument("Unknown contig name: '" + r.target + "'");
+            throw std::invalid_argument("Unknown contig name: '" + r.contig_name + "'");
         }
-        if(beg < 0 || end < 0 || beg >= end) {
+        int beg = std::max(0,r.beg-(one_indexed));
+        int end = std::min(index.contig(tid).length, r.end);
+
+        if(beg >= end) {
             throw std::invalid_argument("Invalid region coordinates: '" +
-                r.target + ":" + std::to_string(beg+1) + "-" + std::to_string(end) + "'" );
+                r.contig_name + ":" + std::to_string(r.beg-(one_indexed)+1) + "-" + std::to_string(r.end) + "'" );
         }
         value.push_back({tid,beg,end});
     }
 
-    return optimize_regions(std::move(value));
+    return optimize_ranges(std::move(value));
 }
 
-inline
-hts::bam::region_t parse_bed_line(const std::string &target, const std::string &beg_str, const std::string &end_str,
-    const hts::bam::File &file) {
-    int tid = file.TargetNameToID(target.c_str());
-    if(tid < 0 ) {
-        throw std::invalid_argument("Unknown contig name: '" + target + "'");
-    }
-    size_t sz;
-    int beg = stoi(beg_str, &sz);
-    // if we could not convert all the characters, invalidate beg
-    if(sz != beg_str.size()) {
-        beg = -1;
-    }
-    int end = stoi(end_str, &sz);
-    // if we could not convert all the characters, invalidate beg
-    if(sz != end_str.size()) {
-        end = -1;
+ranges_t dng::regions::parse_regions(const std::string &text, const ContigIndex& index) {
+    // Parse string
+    if(auto fragments = parse_contig_fragments_from_regions(text)) {
+        return convert_fragments_to_ranges(*fragments, index, true);    
+    } else {
+        throw std::invalid_argument("Parsing of regions failed.");
     }    
-    // check for valid coordinates
-    if(beg < 0 || end < 0 || beg >= end) {
-        throw std::invalid_argument("Invalid bed coordinates: '" + target + "\t" + beg_str +"\t" + end_str + "'");
-    }
-    return {tid,beg,end};
 }
 
-hts::bam::regions_t dng::regions::bam_parse_bed(const std::string &path, const hts::bam::File &file) {
-	using hts::bam::region_t;
-	using hts::bam::regions_t;
+template <typename Iterator>
+struct bed_grammar :
+qi::grammar<Iterator, contig_fragments_t(), boost::spirit::standard::blank_type> {
+    using pos_t = std::pair<int,int>;
+    using skipper_type = boost::spirit::standard::blank_type;
+    bed_grammar() : bed_grammar::base_type(start) {
+        using namespace qi;
+        using namespace qi::labels;
+        using boost::phoenix::push_back;
 
-    if(path.empty()) {
-        throw std::invalid_argument("path to bed file was not specified or is blank.");
+        start = (line[push_back(_val,_1)] | comment | eps) % eol;
+        line = (fragment >> *(char_ - eol) );
+        comment = ('#' >> *(char_ - eol));
+        fragment =  (label >> uint_ >> uint_)[_val = make_fragment(_1, _2, _3)]; 
+        // We support the format of target contigs specified in Sam files, except that ':' are disallowed
+        label = as_string[lexeme[char_("!-)+-9;<>-~") >> *char_("!-9;-~")]];
     }
-    std::ifstream bed_file(path);
-    if(!bed_file.is_open()) {
-        throw std::runtime_error("unable to open bed file '" + path + "'.");
-    }
-    // Construct the tokenizer from the ifstream
-    auto tokens = utility::make_tokenizer(io::istreambuf_range(bed_file));
 
-    regions_t value;
-    std::string col[3];
-    int column = 0, beg, end, line_num = 1;
-    for(auto tok_iter = tokens.begin(); tok_iter != tokens.end(); ++tok_iter) {
-        if(*tok_iter == "\n") {
-            if(column < 3 && !((column == 1 && col[0].empty()) || col[0][0] == '#')) {
-                throw std::invalid_argument("line " + std::to_string(line_num) + " in bed file '"
-                + path + "' has less than three columns." );
-            }
-            ++line_num;
-            column = 0;
-            continue;
-        } else if(column == 0) {
-            col[0] = std::move(*tok_iter);
-        } else if(column == 1) {
-            col[1] = std::move(*tok_iter);
-        } else if(column == 2) {
-            col[2] = std::move(*tok_iter);
-            // check if column 0 begins a comment
-            if(col[0][0] != '#') {
-                value.push_back(parse_bed_line(col[0],col[1],col[2],file));
-            }
-        }
-        column += 1;
+    qi::rule<Iterator, contig_fragments_t(), skipper_type> start;
+    qi::rule<Iterator, contig_fragment_t(), skipper_type> line;
+    qi::rule<Iterator, void(), skipper_type> comment;
+    qi::rule<Iterator, contig_fragment_t(), skipper_type> fragment;
+    qi::rule<Iterator, std::string(), skipper_type> label;
+    qi::rule<Iterator, int(), skipper_type> pos, pos_end;
+};
+
+boost::optional<contig_fragments_t> dng::regions::parse_contig_fragments_from_bed(const std::string &text) {
+    namespace ss = boost::spirit::standard;
+    using ss::blank; // must match the space_type in parser_grammar
+    bed_grammar<std::string::const_iterator> parser_grammar;
+    std::string::const_iterator first = text.begin();
+    contig_fragments_t fragments;
+    bool success = qi::phrase_parse(first, text.end(), parser_grammar, blank, fragments);
+    success = success && (first == text.end());
+    if(success) {
+        return fragments;
     }
-	return optimize_regions(std::move(value));
+    return boost::none;
+}
+
+dng::regions::ranges_t dng::regions::parse_bed(const std::string &text, const ContigIndex& index) {
+    // Parse string
+    if(auto fragments = parse_contig_fragments_from_bed(text)) {
+        return convert_fragments_to_ranges(*fragments, index, false);    
+    } else {
+        throw std::invalid_argument("Parsing of bed failed.");
+    }    
 }

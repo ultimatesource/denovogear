@@ -26,6 +26,8 @@
 #include <unordered_map>
 #include <utility>
 
+#include <boost/optional.hpp>
+
 #include <dng/pool.h>
 #include <dng/utility.h>
 #include <dng/regions.h>
@@ -79,6 +81,15 @@ public:
 
     const File& file() const { return in_; }
 
+    void SetRegion(const regions::range_t &region) {
+        int tid = utility::location_to_contig(region.beg);
+        assert( tid == utility::location_to_contig(region.end));
+        int beg = utility::location_to_position(region.beg);
+        int end = utility::location_to_position(region.end);
+        in_.SetRegion(tid, beg, end);
+        next_loc_ = 0;
+    }
+
 private:
     File in_;
     utility::location_t next_loc_;
@@ -89,17 +100,12 @@ private:
 
 class BamPileup {
 public:
-    typedef detail::BamScan::pool_type pool_type;
-    typedef detail::BamScan::list_type list_type;
-    typedef detail::BamScan::node_type node_type;
+    using pool_type = detail::BamScan::pool_type;
+    using list_type = detail::BamScan::list_type;
+    using node_type = detail::BamScan::node_type;
 
-    struct contig_t {
-        std::string name;
-        int length;
-    };
-
-    typedef std::vector<list_type> data_type;
-    typedef void (callback_type)(const data_type &, utility::location_t);
+    using data_type = std::vector<list_type>;
+    using callback_type = void(const data_type &, utility::location_t);
 
     template<typename CallBack>
     void operator()(CallBack func);
@@ -119,6 +125,10 @@ public:
 
     void ResetLibraries();
 
+    void SetRegions(regions::ranges_t regions) {
+        regions_ = regions::ranges_queue_t(std::move(regions));
+    }
+
     const libraries_t& libraries() const {
         return output_libraries_;
     }
@@ -129,31 +139,48 @@ public:
         return output_libraries_.read_groups[index];
     }
 
+    // retrieves the header from the first file
     const bam_hdr_t * header() const {
         return scanners_.front().file().header();
     }
 
-    std::vector<contig_t> contigs() const {
-        std::vector<contig_t> ret;
+    // retrieves the contigs from the first file
+    std::vector<regions::contig_t> contigs() const {
+        std::vector<regions::contig_t> ret;
         for(auto && contig : hts::bam::contigs(header())) {
-            ret.push_back({contig.first,contig.second});
+            ret.push_back({std::string{contig.first}, contig.second});
         }
         return ret;
     }
 
-
-protected:
-    int Advance(data_type *data, utility::location_t *target_loc,
-                utility::location_t *fast_forward_loc);
-
 private:
+    int Advance(regions::range_t *target_range);
+
+    void ClearData() {
+        for(auto & d : data_) {
+            auto it = d.begin();
+            while(it != d.end()) {
+                node_type *p = &(*it);
+                d.erase(it++);
+                pool_.Free(p);
+            }
+        }    
+    }
+
+    // Data Used for Pileup
+    data_type data_; // Store pileup
+    utility::location_t next_scanner_location_; // Next location off the scanners
+
     void ParseHeader(const char* text);
 
     template<typename It>
     void ParseHeaderTokens(It it, It it_last);
 
+    boost::optional<regions::range_t> LoadNextRegion();
 
     std::vector<detail::BamScan> scanners_;
+
+    regions::ranges_queue_t regions_;
 
     pool_type pool_;
 
@@ -180,51 +207,57 @@ void BamPileup::AddFile(InFile&& f) {
     ParseHeader(text);
 }
 
+inline
+boost::optional<regions::range_t> BamPileup::LoadNextRegion() {
+    using regions::range_t;
+
+    next_scanner_location_ = 0;
+    if(regions_.empty()) {
+        return boost::none;
+    }
+    range_t region = regions_.front();
+    regions_.pop();
+    for(auto &&s : scanners_) {
+        s.SetRegion(region);
+    }
+    return region;
+}
+
 template<typename CallBack>
 void BamPileup::operator()(CallBack call_back) {
     using namespace std;
     using utility::make_location;
-    using dng::regions::location_range_t;
+    using dng::regions::range_t;
 
-    // data will hold our pileup information
-    data_type data(num_libraries());
-    location_t current_loc = 0;
-    location_t fast_forward_loc = 0;
+    // Resize data and free any existing nodes
+    data_.resize(num_libraries());
+    ClearData();
 
-    // If the first file has parsed regions, use them.
-    std::queue<location_range_t> region_queue;
-    for(auto && r : scanners_.front().file().regions()) {
-        // convert regions from bam format to dng format
-        region_queue.emplace(r);
+    range_t current_range = {0, utility::LOCATION_MAX};
+    if(auto reg = LoadNextRegion()) {
+        current_range = *reg;
     }
-    location_range_t current_reg = {0, utility::LOCATION_MAX};
-    if(!region_queue.empty()) {
-        current_reg = region_queue.front();
-        region_queue.pop();
-    }
-
-    for(;; current_loc += 1) {
-        int res = Advance(&data, &current_loc, &fast_forward_loc);
-        if(res < 0) {
-            break;
-        } else if(res == 0) {
-            continue;
-        }
-        // if we have advanced passed our current region, try to find the next one
-        while( current_reg.end <= current_loc ) {
-            if(region_queue.empty()) {
+    for(;;) {
+        Advance(&current_range);
+        assert(current_range.beg <= current_range.end);
+        while(current_range.beg == current_range.end) {
+            // We are out of reads, try loading the next region
+            ClearData();
+            if(auto reg = LoadNextRegion()) {
+                current_range = *reg;
+                Advance(&current_range);
+            } else {
+                // we are out of regions
                 break;
             }
-            current_reg = region_queue.front();
-            region_queue.pop();
         }
-        // location does not overlap our region so skip it
-        if( current_loc < current_reg.beg || current_reg.end <= current_loc ) {
-            continue;
+        if(current_range.beg == current_range.end) {
+            // we are out of data
+            break;
         }
-        //if (bed && bed_overlap(bed, h->target_name[tid], pos, pos + 1) == 0) continue; // not in BED; skip
         // Execute callback function
-        call_back(data, current_loc);
+        call_back(data_, current_range.beg);
+        current_range.beg += 1;
     }
 }
 

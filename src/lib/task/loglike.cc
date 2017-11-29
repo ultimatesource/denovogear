@@ -142,29 +142,31 @@ int process_bam(LogLike::argument_type &arg) {
     // Parse Nucleotide Frequencies
     std::array<double, 4> freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
 
-    // Fetch the selected regions
-    auto region_ext = io::at_slurp(arg.region); // replace arg.region with the contents of a file if needed
-
     // Open input files
     using BamPileup = dng::io::BamPileup;
     BamPileup mpileup{arg.min_qlen, arg.rgtag};
     for(auto && str : arg.input) {
-        // TODO: We put all this logic here to simplify the BamPileup construction
-        // TODO: However it might make sense to incorporate it into BamPileup::AddFile
         hts::bam::File input{str.c_str(), "r", arg.fasta.c_str(), arg.min_mapqual, arg.header.c_str()};
         if(!input.is_open()) {
-            throw std::runtime_error("Unable to open input file '" + str + "'.");
-        }
-        // add regions
-        // TODO: make this work with region_ext
-        if(!arg.region.empty()) {
-            if(arg.region.find(".bed") != std::string::npos) {
-                input.regions(regions::bam_parse_bed(arg.region, input));
-            } else {
-                input.regions(regions::bam_parse_region(arg.region, input));
-            }
+            throw std::runtime_error("Unable to open bam/sam/cram input file '" + str + "' for reading.");
         }
         mpileup.AddFile(std::move(input));
+    }
+
+    // Load contigs into an index
+    regions::ContigIndex index;
+    for(auto && a : mpileup.contigs()) {
+        index.AddContig(std::move(a));
+    }
+
+    // replace arg.region with the contents of a file if needed
+    auto region_ext = io::at_slurp(arg.region);
+    if(!arg.region.empty()) {
+        if(region_ext == "bed") {
+            mpileup.SetRegions(regions::parse_bed(arg.region, index));
+        } else {
+            mpileup.SetRegions(regions::parse_regions(arg.region, index));
+        }
     }
 
     // Construct peeling algorithm from parameters and pedigree information
@@ -261,19 +263,22 @@ int process_ad(LogLike::argument_type &arg) {
     cout_add_header_text(arg);
 
     // replace arg.region with the contents of a file if needed
-    io::at_slurp(arg.region);
+    //auto region_ext = io::at_slurp(arg.region);
+    if(!arg.region.empty()) {
+        throw std::invalid_argument("--region not supported when processing ad/tad file.");
+    }
 
     // Open input files
     if(arg.input.size() != 1) {
-        throw std::runtime_error("Argument Error: can only process one ad/tad file at a time.");
+        throw std::runtime_error("can only process one ad/tad file at a time.");
     }
     
     io::Ad input{arg.input[0], std::ios_base::in};
     if(!input) {
-        throw std::runtime_error("Argument Error: unable to open input file '" + arg.input[0] + "'.");
+        throw std::runtime_error("unable to open input file '" + arg.input[0] + "'.");
     }
     if(input.ReadHeader() == 0) {
-        throw std::runtime_error("Argument Error: unable to read header from '" + input.path() + "'.");
+        throw std::runtime_error("unable to read header from '" + input.path() + "'.");
     }
 
     // Construct peeling algorithm from parameters and pedigree information
@@ -282,7 +287,7 @@ int process_ad(LogLike::argument_type &arg) {
     RelationshipGraph graph;
     if(!graph.Construct(ped, input.libraries(), model, arg.mu, arg.mu_somatic, arg.mu_library,
         arg.normalize_somatic_trees)) {
-        throw runtime_error("Error: Unable to construct peeler for pedigree; "
+        throw std::invalid_argument("Unable to construct peeler for pedigree; "
                             "possible non-zero-loop pedigree.");
     }
     // Select libraries in the input that are used in the pedigree
@@ -409,14 +414,22 @@ int process_bcf(LogLike::argument_type &arg) {
     using dng::io::BcfPileup;
     BcfPileup mpileup;
 
-    // Fetch the selected regions
-    auto region_ext = io::at_slurp(arg.region); // replace arg.region with the contents of a file if needed
+    // replace arg.region with the contents of a file if needed
+    auto region_ext = io::at_slurp(arg.region);
     if(!arg.region.empty()) {
-        auto ranges = regions::parse_ranges(arg.region);
-        if(ranges.second == false) {
-            throw std::runtime_error("unable to parse the format of '--region' argument.");
+        if(region_ext == "bed") {
+            if(auto f = regions::parse_contig_fragments_from_bed(arg.region)) {
+                mpileup.SetRegions(*f, false);
+            } else {
+                throw std::invalid_argument("Parsing of bed failed.");
+            }
+        } else {
+            if(auto f = regions::parse_contig_fragments_from_regions(arg.region)) {
+                mpileup.SetRegions(*f, true);
+            } else {
+                throw std::invalid_argument("Parsing of regions failed.");
+            }
         }
-        mpileup.SetRegions(ranges.first);
     }
 
     if(mpileup.AddFile(arg.input[0].c_str()) == 0) {
@@ -431,7 +444,7 @@ int process_bcf(LogLike::argument_type &arg) {
     if (!relationship_graph.Construct(ped, mpileup.libraries(), model,
                                       arg.mu, arg.mu_somatic, arg.mu_library,
                                       arg.normalize_somatic_trees)) {
-        throw std::runtime_error("Unable to construct peeler for pedigree; "
+        throw std::invalid_argument("Unable to construct peeler for pedigree; "
                                  "possible non-zero-loop relationship_graph.");
     }
     mpileup.SelectLibraries(relationship_graph.library_names());
@@ -488,7 +501,7 @@ int process_bcf(LogLike::argument_type &arg) {
         }
         const int color = AlleleDepths::MatchIndexes(allele_indexes);
         assert(color != -1);
-        data.resize(color+first_is_n, rec->n_sample);
+        data.Resize(color+first_is_n, rec->n_sample);
 
         // Read all the Allele Depths for every sample into an AD array
         const int n_ad = hts::bcf::get_format_int32(header, rec, "AD", &ad, &n_ad_capacity);

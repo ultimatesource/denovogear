@@ -242,7 +242,7 @@ BOOST_AUTO_TEST_CASE(test_DirichletMultinomial_AlleleDepths) {
         for(int color=0; color < AlleleDepths::type_info_table_length; ++color) {
             AlleleDepths data;
             RawDepths raw;
-            data.resize(color, 10);
+            data.Resize(color, 10);
             raw.resize(10);
             for(auto &&a : data.data()) {
                 if(xrand.get_double53() < 0.5) {

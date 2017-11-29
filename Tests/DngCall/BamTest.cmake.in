@@ -81,6 +81,30 @@ set(EmptyPed-WD "@TESTDATA_DIR@/human_trio/")
 set(EmptyPed-RESULT 0)
 
 ###############################################################################
+# Test if dng-call uses Regions Properly
+
+# "5:126,385,700-126,385,704 5:126,385,706-126,385,710"
+
+set(Region1-CMD @DNG_CALL_EXE@ -m 0 --region "5:126,385,700-126,385,704 5:126,385,706-126,385,710" --ped trio.ped --fasta trio.fasta.gz trio.bam)
+set(Region1-WD "@TESTDATA_DIR@/human_trio/")
+set(Region1-RESULT 0)
+set(Region1-STDOUT
+  "5\t126385700"
+  "5\t126385701"
+  "5\t126385702"
+  "5\t126385703"
+  "5\t126385704"
+  "5\t126385706"
+  "5\t126385707"
+  "5\t126385708"
+  "5\t126385709"
+  "5\t126385710"
+)
+set(Region1-STDOUT-FAIL
+  "5\t126385705"
+)
+
+###############################################################################
 # Add Tests
 
 include("@CMAKE_CURRENT_SOURCE_DIR@/CheckProcessTest.cmake")
@@ -94,4 +118,5 @@ CheckProcessTests(DngCall.Bam
   SepHeader2
   PartialPed
   EmptyPed
+  Region1
 )

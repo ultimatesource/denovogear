@@ -34,42 +34,59 @@ using namespace dng;
 using namespace dng::io;
 using namespace dng::io::detail;
 
-// Advance starts a pileup procedure at pos.
-// If there are no reads at pos, it forwards to the next pos and updates
-// current_pos
-int BamPileup::Advance(data_type *data, utility::location_t *target_loc,
-                       utility::location_t *fast_forward_loc) {
+/*
+1. Free expired reads and update positions of unexpired reads
+2. Add reads from scanners (if any)
+3. If data is missing, update position and repeat 2.
+*/
+
+// Generate a pileup at first location in the range that has data
+// If no location in the range has has data, make it empty
+int BamPileup::Advance(regions::range_t *target_range) {
+    assert(target_range != nullptr);
+    assert(target_range->beg <= target_range->end);
     using namespace std;
+    if(target_range->beg == target_range->end) {
+        return 0;
+    }
     // enumerate through existing data set, updating location of reads and
-    // purge reads that have expired
-    bool fast_forward = true;
-    for(auto &d : *data) {
+    // purge reads that do not overlap
+    bool no_data = true;
+    for(auto & d : data_) {
         auto it = d.begin();
         while(it != d.end()) {
-            if(it->end <= *target_loc) {
+            assert(it->beg < target_range->end);
+            if(target_range->beg >= it->end) {
                 node_type *p = &(*it);
                 d.erase(it++);
                 pool_.Free(p);
                 continue;
             }
-            location_t q = cigar::target_to_query(*target_loc, it->beg, it->cigar);
+            location_t q = cigar::target_to_query(target_range->beg, it->beg, it->cigar);
             it->pos = cigar::query_pos(q);
             it->is_missing = cigar::query_del(q);
             ++it;
         }
-        // we want to fast_forward if there is nothing to output
-        fast_forward = (fast_forward && d.empty());
+        no_data = (no_data && d.empty());
     }
-    if(fast_forward) {
-        *target_loc = *fast_forward_loc;
-    }
-    if(*target_loc >= *fast_forward_loc) {
+    for(;;) {
+        // Fast Forward position to the next one with data.
+        if(no_data) {
+            if(next_scanner_location_ >= target_range->end) {
+                // no more data in the range
+                target_range->beg = target_range->end;
+                return 0;
+            } else if(next_scanner_location_ > target_range->beg) {
+                target_range->beg = next_scanner_location_;
+            }
+        } else if(next_scanner_location_ > target_range->beg ) {
+            break;
+        }
         location_t next_loc = utility::LOCATION_MAX;
-        std::size_t k = 0;
         // Iterate over input files
         for(auto &scanner : scanners_) {
             // Scan reads from file until target_loc
-            list_type new_reads = scanner(*target_loc, pool_);
+            list_type new_reads = scanner(target_range->beg, pool_);
             // Update the minimum position of the next read
             next_loc = std::min(next_loc, scanner.next_loc());
             // process read_groups
@@ -79,7 +96,7 @@ int BamPileup::Advance(data_type *data, utility::location_t *target_loc,
                 uint8_t *rg = p->aln.aux_get("RG");
                 if( rg == nullptr ) {
                     pool_.Free(p); // drop unknown RG's
-                    continue;                    
+                    continue;    
                 }
                 auto it = read_group_to_libraries_.find(reinterpret_cast<const char *>(rg + 1));
                 if(it == read_group_to_libraries_.end()) {
@@ -88,26 +105,18 @@ int BamPileup::Advance(data_type *data, utility::location_t *target_loc,
                 }
                 size_t index = it->second;
                 // process cigar string
-                location_t q = cigar::target_to_query(*target_loc, p->beg, p->cigar);
+                location_t q = cigar::target_to_query(target_range->beg, p->beg, p->cigar);
                 p->pos = cigar::query_pos(q);
                 p->is_missing = cigar::query_del(q);
 
                 // push read onto correct RG
-                (*data)[index].push_back(*p);
-                fast_forward = false;
+                data_[index].push_back(*p);
+                no_data = false;
             }
-            ++k;
         }
-        *fast_forward_loc = next_loc;
+        next_scanner_location_ = next_loc;
     }
-    // fast_forward will be true if no reads overlap our current position
-    // return -1 if we are out of reads and at the end of our reference range
-    if(fast_forward && *fast_forward_loc == utility::LOCATION_MAX) {
-        return -1;
-    }
-    // return 1 if we have read data
-    // return 0 if we don't have read data at this location but we may have read data in the future 
-    return (fast_forward ? 0 : 1);
+    return 1;
 }
 
 BamScan::list_type
@@ -115,14 +124,13 @@ BamScan::operator()(utility::location_t target_loc, pool_type &pool) {
     using utility::make_location;
     // Reads from in_ until it encounters the first read
     // that is right of pos.
-    // TODO: check for proper read ordering???
     while(next_loc_ <= target_loc) {
         node_type *p = pool.Malloc();
         do {
             // Try to grab a read, if not return current buffer
             if(in_(&p->aln) < 0) {
                 pool.Free(p);
-                next_loc_ = std::numeric_limits<location_t>::max();
+                next_loc_ = utility::LOCATION_MAX;
                 return std::move(buffer_);
             }
             p->cigar = p->aln.cigar();
@@ -139,8 +147,6 @@ BamScan::operator()(utility::location_t target_loc, pool_type &pool) {
         // cache pointers to data elements
         p->seq = p->aln.seq();
         p->qual = p->aln.seq_qual();
-        // TODO: Adjust for Illumina 1.3 quality
-
         // update the left-most position of the most recently read read.
         next_loc_ = p->beg;
         // save read
@@ -213,10 +219,8 @@ void BamPileup::ParseHeaderTokens(It it, It it_last) {
     }
 }
 
-
 void BamPileup::ResetLibraries() {
     output_libraries_ = input_libraries_;
-    
     for(size_t i = 0; i < output_libraries_.read_groups.size(); ++i) {
         for(auto && a : output_libraries_.read_groups[i]) {
             read_group_to_libraries_.emplace(a,i);

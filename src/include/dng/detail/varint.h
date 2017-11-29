@@ -38,7 +38,10 @@
 #include <streambuf>
 #include <utility>
 #include <cstdint>
-#include <limits.h>
+#include <cassert>
+#include <climits>
+
+#include <boost/optional.hpp>
 
 #pragma once
 #ifndef DNG_DETAIL_VARINT_H
@@ -51,22 +54,22 @@ static_assert(CHAR_BIT == 8, "Sizeof char/byte is not 8 bits. Your machine is no
 
 typedef std::basic_streambuf<char> bytebuf_t;
 
-std::pair<uint64_t,bool> get_fallback(bytebuf_t *in, uint64_t first_byte);
+boost::optional<uint64_t> get_fallback(bytebuf_t *in, uint64_t first_byte);
 
 inline
-std::pair<uint64_t,bool> get(bytebuf_t *in) {
+boost::optional<uint64_t> get(bytebuf_t *in) {
     assert(in != nullptr);
     // grab the first character
     bytebuf_t::int_type n = in->sbumpc();
     // if you have reached the end of stream, return error
     if(bytebuf_t::traits_type::eq_int_type(n, bytebuf_t::traits_type::eof())) {
-        return {0,false};
+        return boost::none;
     }
     // Convert back to a char and save in a 64-bit num.
     uint64_t u = static_cast<uint8_t>(bytebuf_t::traits_type::to_char_type(n));
     // if MSB is not set, return the result
     if(!(u & 0x80)) {
-        return {u,true};
+        return u;
     }
     // continue processing
     return varint::get_fallback(in, u);
@@ -87,23 +90,26 @@ bool put(bytebuf_t *out, uint64_t val);
 
 inline
 uint64_t zig_zag_encode(int64_t n) {
-	return (static_cast<uint64_t>(n) << 1) ^ (n >> 63);
+    return (static_cast<uint64_t>(n) << 1) ^ (n >> 63);
 }
 
 inline
 int64_t zig_zag_decode(uint64_t n) {
-	return (n >> 1) ^ -static_cast<int64_t>(n & 1);
+    return (n >> 1) ^ -static_cast<int64_t>(n & 1);
 }
 
 inline
-std::pair<int64_t,bool> get_zig_zag(bytebuf_t *in) {
-	auto aa = get(in);
-	return {zig_zag_decode(aa.first),aa.second};
+boost::optional<int64_t> get_zig_zag(bytebuf_t *in) {
+    if(auto aa = get(in)) {
+        return zig_zag_decode(*aa);
+    } else {
+        return boost::none;
+    }
 }
 
 inline
 bool put_zig_zag(bytebuf_t *in, int64_t n) {
-	return put(in,zig_zag_encode(n));
+    return put(in,zig_zag_encode(n));
 }
 
 }}} // dng::detail::varint
