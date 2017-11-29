@@ -62,8 +62,8 @@ BOOST_AUTO_TEST_CASE(test_ContigIndex) {
     BOOST_CHECK_EQUAL(index.IdToContig(1), &index.contig(1));
     BOOST_CHECK_EQUAL(index.IdToContig(2), &index.contig(2));
     BOOST_CHECK_EQUAL(index.IdToContig(3), &index.contig(3));
-    BOOST_CHECK_EQUAL(index.IdToContig(4), nullptr);
-    BOOST_CHECK_EQUAL(index.IdToContig(-1), nullptr);
+    BOOST_CHECK(!index.IdToContig(4));
+    BOOST_CHECK(!index.IdToContig(-1));
 
     BOOST_CHECK_EQUAL(index.IdToContig(0), &index.contigs()[0]);
 }
