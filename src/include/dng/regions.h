@@ -37,6 +37,8 @@ namespace dng {
 namespace regions {
 
 struct contig_t {
+    contig_t() = default;
+    contig_t(std::string s, int n) : name{std::move(s)}, length{n} { }
     std::string name;
     int length;
 };

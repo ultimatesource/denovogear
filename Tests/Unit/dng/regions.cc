@@ -33,6 +33,52 @@ using namespace dng::regions;
 using dng::detail::make_test_range;
 using hts::detail::make_data_url;
 
+BOOST_AUTO_TEST_CASE(test_ContigIndex) {
+    ContigIndex index;
+
+    contig_t x; // check that a default constructor exists
+
+    BOOST_CHECK_EQUAL(index.AddContig("chr1", 1000), 0);
+    BOOST_CHECK_EQUAL(index.AddContig("chr2", 1100), 1);
+    BOOST_CHECK_EQUAL(index.AddContig("chr3", 1200), 2);
+    BOOST_CHECK_EQUAL(index.AddContig("chr1", 100), -1);
+    BOOST_CHECK_EQUAL(index.AddContig("chr2", 100), -1);
+    BOOST_CHECK_EQUAL(index.AddContig("chr3", 100), -1);
+    BOOST_CHECK_EQUAL(index.AddContig(std::string{"chr4"}, 100), 3);
+
+    BOOST_CHECK_EQUAL(index.NameToId("chr5"), -1);
+    BOOST_CHECK_EQUAL(index.NameToId("chr4"), 3);
+    BOOST_CHECK_EQUAL(index.NameToId("chr3"), 2);
+    BOOST_CHECK_EQUAL(index.NameToId("chr2"), 1);
+    BOOST_CHECK_EQUAL(index.NameToId("chr1"), 0);
+
+    BOOST_CHECK_EQUAL(index.NameToId("chr5", 1), -1);
+    BOOST_CHECK_EQUAL(index.NameToId("chr4", 1), 3);
+    BOOST_CHECK_EQUAL(index.NameToId("chr3", 1), 2);
+    BOOST_CHECK_EQUAL(index.NameToId("chr2", 1), 1);
+    BOOST_CHECK_EQUAL(index.NameToId("chr1", 1), 0);
+
+    BOOST_CHECK_EQUAL(index.IdToContig(0), &index.contig(0));
+    BOOST_CHECK_EQUAL(index.IdToContig(1), &index.contig(1));
+    BOOST_CHECK_EQUAL(index.IdToContig(2), &index.contig(2));
+    BOOST_CHECK_EQUAL(index.IdToContig(3), &index.contig(3));
+    BOOST_CHECK_EQUAL(index.IdToContig(4), nullptr);
+    BOOST_CHECK_EQUAL(index.IdToContig(-1), nullptr);
+
+    BOOST_CHECK_EQUAL(index.IdToContig(0), &index.contigs()[0]);
+}
+
+BOOST_AUTO_TEST_CASE(test_range_t) {
+    using dng::utility::make_location;
+
+    range_t a{1, 100, 200};
+    range_t b{make_location(1,100), make_location(1,200)};
+
+    BOOST_CHECK_EQUAL(a.beg, b.beg);
+    BOOST_CHECK_EQUAL(a.end, b.end);
+}
+
+
 BOOST_AUTO_TEST_CASE(test_region_parsing) {
     auto test_fail = [](std::string region_string) -> void {
     BOOST_TEST_CONTEXT("region_string='" << region_string << "'") {
@@ -91,8 +137,8 @@ const char bamtext[]=
 
 BOOST_AUTO_TEST_CASE(test_region_parsing_with_bam) {
     ContigIndex index;
-    index.AddContig(contig_t{std::string{"1"}, 249250621});
-    index.AddContig(contig_t{std::string{"2"}, 243199373});
+    index.AddContig("1", 249250621);
+    index.AddContig("2", 243199373);
 
 
     auto test = [&](std::string region_string, ranges_t expected) -> void {
@@ -137,9 +183,18 @@ BOOST_AUTO_TEST_CASE(test_region_parsing_with_bam) {
 
 BOOST_AUTO_TEST_CASE(test_bed_parsing) {
     ContigIndex index;
-    index.AddContig(contig_t{std::string{"1"}, 249250621});
-    index.AddContig(contig_t{std::string{"2"}, 243199373});
-    
+    index.AddContig("1", 249250621);
+    index.AddContig("2", 243199373);
+
+    auto test_fail = [&](std::string bed_string) -> void {
+    BOOST_TEST_CONTEXT("bed_string='" << bed_string << "'") {
+        ranges_t test;
+        BOOST_CHECK_THROW(test = parse_bed(bed_string, index), std::invalid_argument);
+    }};
+
+    test_fail("3\t0\t100\n");
+    test_fail("3");
+
     auto test = [&](std::string bed_string, ranges_t expected) -> void {
     BOOST_TEST_CONTEXT("bed_string='" << bed_string << "'") {
         using boost::adaptors::transformed;
