@@ -74,7 +74,7 @@ public:
         // Build the contig early because we need to access its name
         contigs_.emplace_back(std::forward<Args>(args)...);
         // Try to insert it into the name map
-        auto ok = map_.try_emplace(contigs_.back().name, pos);
+        auto ok = map_.emplace(contigs_.back().name, pos);
         if(ok.second) {
             return pos;
         }

@@ -613,7 +613,7 @@ boost::optional<uint64_t> dng::detail::varint::get_fallback(bytebuf_t *in, uint6
         bytebuf_t::int_type n = in->sbumpc();
         // if you have reached the end of stream, return error
         if(bytebuf_t::traits_type::eq_int_type(n, bytebuf_t::traits_type::eof())) {
-            return {0,false};
+            return boost::none;
         }
         // Convert back to a char and save in a 64-bit num.
         uint64_t u = static_cast<uint8_t>(bytebuf_t::traits_type::to_char_type(n));
