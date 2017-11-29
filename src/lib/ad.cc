@@ -132,7 +132,7 @@ void dng::io::Ad::ParseHeaderTokens(It it, It it_last) {
                     const char *last  = it->c_str()+it->length();
 
                     if(!phrase_parse(first, last, uint_ , space, sq.length) || first != last) {
-                        throw runtime_error("ERROR: Unable to parse AD/TAD header: Unable to parse sequence length from header attribute '" + *it + "'");
+                        throw std::invalid_argument("Unable to parse AD/TAD header: Unable to parse sequence length from header attribute '" + *it + "'");
                     }
                 } else {
                     if(!attr.empty()) {
@@ -166,7 +166,7 @@ void dng::io::Ad::ParseHeaderTokens(It it, It it_last) {
                 /*noop*/;
             }
         } else if(*it == "@ID") {
-            throw runtime_error("ERROR: Unable to parse AD/TAD header: @ID can only be specified once.");
+            throw std::invalid_argument("Unable to parse AD/TAD header: @ID can only be specified once.");
         } else if((*it)[0] == '@') {
             // store all the information for this line into the extra_headers_ field
             extra_headers_.push_back(std::move(*it));
@@ -178,7 +178,7 @@ void dng::io::Ad::ParseHeaderTokens(It it, It it_last) {
                 extra_headers_.push_back(std::move(*it));
             }
         } else {
-            throw runtime_error("ERROR: Unable to parse AD/TAD header: Something went wrong. "
+            throw std::invalid_argument("Unable to parse AD/TAD header: Something went wrong. "
                 "Expected the @TAG at the beginning of a header line but got '" + *it +"'.");            
         }
     }
@@ -231,7 +231,7 @@ int dng::io::Ad::ReadHeaderTad() {
     // Setup header information
     auto it = store.begin();
     if(it == store.end() || *it != "@ID") {
-        throw runtime_error("ERROR: Unable to parse TAD header: @ID missing from first line.");
+        throw std::invalid_argument("Unable to parse TAD header: @ID missing from first line.");
     }
     // Parse @ID line which identifies the file format and version.
     for(++it; it != store.end(); ++it) {
@@ -242,14 +242,14 @@ int dng::io::Ad::ReadHeaderTad() {
             id_.name = it->substr(3);
             to_upper(id_.name);
             if(id_.name != "TAD") {
-                throw runtime_error("ERROR: Unable to parse TAD header: Unknown file format '" + id_.name + "'");
+                throw std::invalid_argument("Unable to parse TAD header: Unknown file format '" + id_.name + "'");
             }
         } else if(starts_with(*it, "VN:")) {
             const char *first = it->c_str()+3;
             const char *last  = it->c_str()+it->length();
             pair<uint8_t,uint8_t> bytes;
             if(!phrase_parse(first, last, uint8_ >> ( '.' >> uint8_ || lit('\0')), space, bytes) || first != last) {
-                throw runtime_error("ERROR: Unable to parse TAD header: File format version information '" + *it + "' not major.minor.");
+                throw std::invalid_argument("Unable to parse TAD header: File format version information '" + *it + "' not major.minor.");
             }
             id_.version = ((uint16_t)bytes.first << 8) | bytes.second;
         } else {
@@ -400,17 +400,17 @@ int dng::io::Ad::ReadHeaderAd() {
     char buffer[8+2+4+8];
     stream_.read(buffer, sizeof(buffer));
     if(!stream_) {
-        throw runtime_error("ERROR: Unable to parse AD header: missing beginning values.");
+        throw std::invalid_argument("Unable to parse AD header: missing beginning values.");
     }
     // test magic
     if(strncmp(&buffer[0], ad_header, 8) != 0) {
-        throw runtime_error("ERROR: Unable to parse AD header: identifying number (magic) not found.");
+        throw std::invalid_argument("Unable to parse AD header: identifying number (magic) not found.");
     }
     // test version
     uint16_t version = 0;
     memcpy(&version, &buffer[8], 2);
     if(version != 0x0001) {
-        throw runtime_error("ERROR: Unable to parse AD header: unknown version " + to_string(version >> 8) + '.' + to_string(version & 0xFF) + '.');
+        throw std::invalid_argument("Unable to parse AD header: unknown version " + to_string(version >> 8) + '.' + to_string(version & 0xFF) + '.');
     }
     id_.name = "AD";
     id_.version = version;
@@ -422,7 +422,7 @@ int dng::io::Ad::ReadHeaderAd() {
     std::string tad_header(tad_sz,'\0');
     stream_.read(&tad_header[0], tad_sz);
     if(!stream_) {
-        throw runtime_error("ERROR: Unable to parse AD header: TAD header block missing.");
+        throw std::invalid_argument("Unable to parse AD header: TAD header block missing.");
     }
     // Shrink header in case it is null padded
     auto pos = tad_header.find_first_of('\0');
@@ -460,32 +460,32 @@ int dng::io::Ad::ReadAd(AlleleDepths *pline) {
 
     // read location and type
     auto result = varint::get(stream_.rdbuf());
-    if(!result.second) {
+    if(!result) {
         return 0;
     }
-    location_t loc = (result.first >> 7);
-    int8_t rec_type = result.first & 0x7F;
+    location_t loc = (*result >> 7);
+    int8_t rec_type = *result & 0x7F;
     if(utility::location_to_contig(loc) > 0) {
         // absolute positioning
         loc -= (1LL << 32);
         // read reference information into buffer
         for(size_t i=0;i<input_libraries_.names.size();++i) {
-            result = varint::get(stream_.rdbuf());
-            if(!result.second) {
+            if((result = varint::get(stream_.rdbuf()))) {
+                last_data_[i] = *result;
+            } else {
                 return 0;
-            }          
-            last_data_[i] = result.first;
+            }
         }
     } else {
         // relative positioning
         loc += last_location_ + 1;
         // read reference information into buffer
         for(size_t i=0;i<input_libraries_.names.size();++i) {
-            auto zzresult = varint::get_zig_zag(stream_.rdbuf());
-            if(!zzresult.second) {
+            if(auto zzresult = varint::get_zig_zag(stream_.rdbuf())) {
+                last_data_[i] += *zzresult;
+            } else {
                 return 0;
-            }          
-            last_data_[i] += zzresult.first;
+            }
         }
     }
     last_location_ = loc;
@@ -493,8 +493,7 @@ int dng::io::Ad::ReadAd(AlleleDepths *pline) {
     if(pline == nullptr) {
         int width = AlleleDepths::type_info_table[rec_type].width;
         for(size_t i=input_libraries_.names.size(); i < input_libraries_.names.size()*width; ++i) {
-            result = varint::get(stream_.rdbuf());
-            if(!result.second) {
+            if(!(result = varint::get(stream_.rdbuf()))) {
                 return 0;
             }
         }
@@ -513,13 +512,13 @@ int dng::io::Ad::ReadAd(AlleleDepths *pline) {
     // Alternate depths
     for(size_t j=1;j< pline->num_nucleotides();++j) {
         for(size_t i=0; i < input_libraries_.names.size(); ++i) {
-            result = varint::get(stream_.rdbuf());
-            if(!result.second) {
+            if((result = varint::get(stream_.rdbuf()))) {
+                const size_t pos = indexes_[i];
+                if(pos != -1) {
+                    (*pline)(pos,j) = *result;
+                }
+            } else {
                 return 0;
-            }
-            const size_t pos = indexes_[i];
-            if(pos != -1) {
-                (*pline)(pos,j) = result.first;
             }
         }
     }
@@ -603,7 +602,7 @@ int dng::io::Ad::WriteAd(const AlleleDepths& line) {
 }
 
 constexpr int MAX_VARINT_SIZE = 10;
-std::pair<uint64_t,bool> dng::detail::varint::get_fallback(bytebuf_t *in, uint64_t result) {
+boost::optional<uint64_t> dng::detail::varint::get_fallback(bytebuf_t *in, uint64_t result) {
     assert(in != nullptr);
     assert((result & 0x80) == 0x80);
     assert((result & 0xFF) == result);
@@ -622,11 +621,11 @@ std::pair<uint64_t,bool> dng::detail::varint::get_fallback(bytebuf_t *in, uint64
         result += (u << (7*i));
         // if MSB is not set, return the result
         if(!(u & 0x80)) {
-            return {result,true};
+            return result;
         }
     }
     // if you have read more bytes than expected, return error
-    return {0,false};
+    return boost::none;
 }
 
 bool dng::detail::varint::put(bytebuf_t *out, uint64_t u) {

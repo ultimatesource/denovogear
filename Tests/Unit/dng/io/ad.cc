@@ -102,7 +102,7 @@ bool varint_convert(uint64_t u) {
 
     buffer.pubseekpos(0);
     auto aa = varint::get(&buffer);
-    if(!aa.second) {
+    if(!aa) {
         cerr << "  Reading varint " << std::hex << std::showbase << u << " from a streambuf failed.\n";
         cerr << "    Buffer:";
         for(auto a : buffer.str()) {
@@ -113,9 +113,9 @@ bool varint_convert(uint64_t u) {
         cerr << std::dec << std::noshowbase;
         return false;
     }
-    if(aa.first != u) {
+    if(*aa != u) {
         cerr << "  Conversion of " << std::hex << std::showbase << u << " via streambuf failed.\n";
-        cerr << "    Output: " << std::hex << std::showbase << aa.first << "\n";
+        cerr << "    Output: " << std::hex << std::showbase << *aa << "\n";
         cerr << "    Buffer:";
         for(auto a : buffer.str()) {
             cerr << " " << hex(a);
@@ -189,14 +189,14 @@ bool zigzag_convert(int64_t n) {
 
     buffer.pubseekpos(0);
     auto aa = varint::get_zig_zag(&buffer);
-    if(!aa.second) {
+    if(!aa) {
         cerr << "  Reading zig-zag varint " << std::hex << std::showbase << n << " from a streambuf failed.\n";
         cerr << std::dec << std::noshowbase;
         return false;
     }
-    if(aa.first != n) {
+    if(*aa != n) {
         cerr << "  Conversion of zig-zag " << std::hex << std::showbase << n << " via streambuf failed.\n";
-        cerr << "    Output: " << std::hex << std::showbase << aa.first << "\n";
+        cerr << "    Output: " << std::hex << std::showbase << *aa << "\n";
         cerr << "    Buffer:";
         for(auto a : buffer.str()) {
             cerr << " " << hex(a);
