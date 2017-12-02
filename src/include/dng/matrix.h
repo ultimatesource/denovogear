@@ -48,8 +48,6 @@ typedef Eigen::ArrayXXd TemporaryMatrix;
 typedef Eigen::ArrayXd ParentArray;
 typedef std::vector<ParentArray> ParentArrayVector;
 
-typedef Eigen::Matrix4d MutationMatrix;
-
 template<typename A, typename B>
 inline auto kronecker_product_coef(const A &a, const B &b, std::size_t i,
                               std::size_t j) -> decltype(a(0, 0)*b(0, 0)) {

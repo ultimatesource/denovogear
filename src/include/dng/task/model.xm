@@ -23,14 +23,18 @@
  * XM((long)(name), (shortname), "description", typename, defaultvalue)    *
  ***************************************************************************/
 
-XM((lib)(bias), , "library/sequencing reference bias (ref/alt ratio)", double, 1.02)
-XM((lib)(error), , "library/sequencing error rate (per base-call)", double, DL(0.0005,"0.0005"))
-XM((lib)(overdisp), , "library/sequencing overdispersion (pairwise correlation of errors)", double, DL(0.0005,"0.0005"))
 XM((mu), , "the germline mutation rate", double, DL(1e-8, "1e-8"))
 XM((mu)(somatic), , "the somatic mutation rate", double, DL(0.0, "0"))
 XM((mu)(library), , "the library prep mutation rate", double, DL(0.0, "0"))
-XM((model), (M), "Inheritance model", std::string, "autosomal")
-XM((nuc)(freqs), , "nucleotide frequencies in ACGT order", std::string, "0.3,0.2,0.2,0.3")
-XM((ref)(weight), (R), "weight given to reference base for population prior",
-   double, DL(1.0, "1"))
+
 XM((theta), , "the population diversity", double, DL(0.001, "0.001"))
+XM((ref)(bias)(hom), , "ascertainment bias for reference homozygotes ", double, DL(0.0, "0"))
+XM((ref)(bias)(het), , "ascertainment bias for ref-alt heterozygotes ", double, DL(0.0, "0"))
+XM((ref)(bias)(hap), , "ascertainment bias for reference haploids ", double, DL(0.0, "0"))
+
+XM((lib)(bias), , "library/sequencing reference bias (ref/alt ratio)", double, 1)
+XM((lib)(error), , "library/sequencing error rate (per base-call)", double, DL(0.0005,"0.0005"))
+XM((lib)(overdisp)(hom), , "library/sequencing overdispersion for homozygotes (pairwise correlation of errors)", double, DL(0.0005,"0.0005"))
+XM((lib)(overdisp)(het), , "library/sequencing overdispersion for heterozygotes (pairwise correlation of errors)", double, DL(0.0005,"0.0005"))
+
+XM((model), (M), "Inheritance model", std::string, "autosomal")

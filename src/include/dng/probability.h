@@ -35,8 +35,9 @@ class LogProbability {
 public:
     struct params_t {
         double theta;
-        std::array<double, 4> nuc_freq;
-        double ref_weight;
+        double hom_bias;
+        double het_bias;
+        double hap_bias;
 
         Genotyper::params_t genotyper_params;
     };
@@ -59,8 +60,8 @@ protected:
 
     matrices_t CreateMutationMatrices(const int mutype = MUTATIONS_ALL) const;
 
-    GenotypeArray DiploidPrior(int ref_index, int color);
-    GenotypeArray HaploidPrior(int ref_index, int color);
+    GenotypeArray DiploidPrior(int num_alts, bool has_ref=true);
+    GenotypeArray HaploidPrior(int num_alts, bool has_ref=true);
 
     RelationshipGraph graph_;
     params_t params_;
@@ -73,8 +74,10 @@ protected:
 
     Genotyper genotyper_;
 
-    GenotypeArray diploid_prior_[5]; // Holds P(G | theta)
-    GenotypeArray haploid_prior_[5]; // Holds P(G | theta)
+    GenotypeArray diploid_prior_[4]; // Holds P(G | theta)
+    GenotypeArray haploid_prior_[4]; // Holds P(G | theta)
+    GenotypeArray diploid_prior_noref_[4]; // Holds P(G | theta)
+    GenotypeArray haploid_prior_noref_[4]; // Holds P(G | theta)
 
     DNG_UNIT_TEST_CLASS(unittest_dng_log_probability);
 };
@@ -98,27 +101,29 @@ LogProbability::matrices_t LogProbability::CreateMutationMatrices(const int muty
 }
 
 inline
-GenotypeArray LogProbability::DiploidPrior(int ref_index, int color) {
-    using AlleleDepths = dng::pileup::AlleleDepths;
-    auto &type_info = AlleleDepths::type_info_gt_table[color];
-    const int width = type_info.width;
-    GenotypeArray prior(width);
-    for(int i=0;i<width;++i) {
-        prior(i) = diploid_prior_[ref_index](type_info.indexes[i]);
+GenotypeArray LogProbability::DiploidPrior(int num_alts, bool has_ref) {
+    assert(num_alts >= 0);
+    if(has_ref) {
+        return (num_alts <= 3) ? diploid_prior_[num_alts]
+            : population_prior_diploid_ia(params_.theta, params_.hom_bias, params_.het_bias, true);
+    } else {
+        assert(num_alts >= 1);
+        return (num_alts < 5) ? diploid_prior_noref_[num_alts-1]
+            : population_prior_diploid_ia(params_.theta, params_.hom_bias, params_.het_bias, false);
     }
-    return prior;
 }
 
 inline
-GenotypeArray LogProbability::HaploidPrior(int ref_index, int color) {
-    using AlleleDepths = dng::pileup::AlleleDepths;
-    auto &type_info = AlleleDepths::type_info_table[color];
-    const int width = type_info.width;
-    GenotypeArray prior(width);
-    for(int i=0;i<width;++i) {
-        prior(i) = haploid_prior_[ref_index](type_info.indexes[i]);
+GenotypeArray LogProbability::HaploidPrior(int num_alts, bool has_ref) {
+    assert(num_alts >= 0);
+    if(has_ref) {
+        return (num_alts <= 3) ? haploid_prior_[num_alts]
+            : population_prior_haploid_ia(params_.theta, params_.hom_bias, params_.het_bias, true);
+    } else {
+        assert(num_alts >= 1);
+        return (num_alts < 5) ? haploid_prior_noref_[num_alts-1]
+            : population_prior_haploid_ia(params_.theta, params_.hom_bias, params_.het_bias, false);
     }
-    return prior;
 }
 
 }; // namespace dng

@@ -31,8 +31,7 @@ LogProbability::LogProbability(RelationshipGraph graph, params_t params) :
     params_(std::move(params)),
     work_{graph_.CreateWorkspace()},
     genotyper_{params.genotyper_params}
-    {
-
+{
     using namespace dng;
 
     // Use a parent-independent mutation model, which produces a beta-binomial
@@ -72,13 +71,6 @@ LogProbability::value_t LogProbability::operator()(const pileup::RawDepths &dept
 
     // Set the prior probability of the founders given the reference
     work_.SetGermline(diploid_prior_[ref_index], haploid_prior_[ref_index]);
-
-    // for(int i=0; i < full_transition_matrices_.size(); ++i) {
-    //     std::cerr << i << "\t";
-    //     std::cerr << full_transition_matrices_[i].rows() << "x" << full_transition_matrices_[i].cols() << "\t";
-    //     std::cerr << work_.upper[i].rows() << "x" << work_.upper[i].cols() << "\t";
-    //     std::cerr << work_.lower[i].rows() << "x" << work_.lower[i].cols() << std::endl;
-    // }
 
     // Calculate log P(Data ; model)
     double logdata = graph_.PeelForwards(work_, transition_matrices_[COLOR_ACGT]);

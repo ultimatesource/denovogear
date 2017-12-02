@@ -25,12 +25,14 @@
 #include <cassert>
 #include <array>
 #include <iostream>
+#include <dng/matrix.h>
 #include <dng/genotyper.h>
 
 namespace dng {
 
-namespace f81 {
+typedef Eigen::Matrix4d MutationMatrix;
 
+namespace f81 {
 // Construct an F81 mutation matrix
 inline MutationMatrix matrix(double mu, const std::array<double, 4> &nuc_freq) {
     double beta = 1.0;
@@ -59,6 +61,27 @@ inline double estimate(double q, const std::array<double, 4> &nuc_freq) {
 }
 
 } // namespace f81
+
+namespace Mk {
+    // The Mk model of Lewis 2001 and Tuffley and Steel 1997
+    // u = (k-1)*a*t
+
+    MutationMatrix matrix(double u, int k) {
+        MutationMatrix ret{k,k};
+        double K = k;
+        double beta = K*u/(K-1.0);
+        double p_ij = -1.0/K*expm1(-beta);
+        double p_ii = exp(-beta) + p_ij;
+
+        for(int i=0;i<k;++i) {
+            for(int j=0;j<k;++j) {
+                ret(j,i) = (i == j) ? p_ii : p_ij;
+            }
+        }
+        return ret;
+    }
+
+} // namespace kalleles
 
 constexpr int MUTATIONS_ALL = -1;
 constexpr int MUTATIONS_MEAN = -2;
@@ -230,7 +253,7 @@ std::array<double, 4> population_alphas(double theta,
     }};
 }
 
-inline dng::GenotypeArray population_prior_diploid(double theta,
+inline dng::GenotypeArray population_prior_diploid_dm(double theta,
         const std::array<double, 4> &nuc_freq,
         const std::array<double, 4> &prior) {
     std::array<double, 4> alpha = population_alphas(theta, nuc_freq, prior);
@@ -251,7 +274,7 @@ inline dng::GenotypeArray population_prior_diploid(double theta,
 }
 
 
-inline dng::GenotypeArray population_prior_haploid(double theta,
+inline dng::GenotypeArray population_prior_haploid_dm(double theta,
         const std::array<double, 4> &nuc_freq,
         const std::array<double, 4> &prior) {
     std::array<double, 4> alpha = population_alphas(theta, nuc_freq, prior);
@@ -265,6 +288,96 @@ inline dng::GenotypeArray population_prior_haploid(double theta,
     return ret;
 }
 
+inline bool population_prior_check_ia(double theta, double hom_bias, double het_bias, double hap_bias) {
+    return (theta >= 0)
+        && (theta*hom_bias >= -2.0 && hom_bias <= 1.0)
+        && (theta*het_bias >= -2.0 && het_bias <= 1.0)
+        && (theta*hap_bias >= -1.0 && hap_bias <= 1.0)
+        ;
+}
+
+inline
+dng::GenotypeArray population_prior_diploid_ia(double theta, double hom_bias, double het_bias,
+    int num_alts, bool known_anc=true) {
+    assert(num_alts >= 0);
+
+    // Check to see if we have any alleles
+    if(!known_anc && num_alts == 0) {
+        return {};
+    }
+
+    double p_hom = 1.0/(1.0+theta);
+    double p_het = theta/(1.0+theta);
+
+    double k = num_alts;
+
+    double p_RR=0.0, p_AA=0.0, p_RA=0.0, p_AB=0.0;
+    if(known_anc) {
+        if(num_alts == 0) {
+            p_RR = 1.0;
+        } else {
+            p_RR = p_hom*(2.0+theta*hom_bias)/(2.0+theta);
+            p_AA = p_hom*theta*(1.0-hom_bias)/(2.0+theta)*(1.0/k);
+            if(num_alts == 1) {
+                p_RA = p_het;
+            } else {
+                p_RA = p_het*(2.0+theta*het_bias)/(2.0+theta)*(1.0/k);
+                p_AB = p_het*theta*(1.0-het_bias)/(2.0+theta)*(2.0/(k*(k-1.0)));
+            }
+        }
+    } else {
+        if(num_alts == 1) {
+            p_AA = 1.0;
+        } else {
+            p_AA = p_hom*(1.0/k);
+            p_AB = p_het*(2.0/(k*(k-1.0)));
+        }
+    }
+
+    dng::GenotypeArray ret{(num_alts+1)*(num_alts+2)/2};
+
+    int n=0;
+    for(int i=0;i<(num_alts+1);++i) {
+        for(int j=0;j<i;++j) {
+            ret(n++) = (j==0 || i==0) ? p_RA : p_AB;
+        }
+        ret(n++) = (i==0) ? p_RR : p_AA;
+    }
+
+    return ret;
+}
+
+inline
+dng::GenotypeArray population_prior_haploid_ia(double theta, double hap_bias,
+    int num_alts, bool known_anc=true) {
+    assert(num_alts >= 0);
+
+    // Check to see if we have any alleles
+    if(!known_anc && num_alts == 0) {
+        return {};
+    }
+
+    double k = num_alts;
+    double p_R = 0.0, p_A = 0.0;
+    if(known_anc) {
+        if(num_alts == 0) {
+            p_R = 1.0;
+        } else {
+            p_R = (1.0+theta*hap_bias)/(1.0+theta);
+            p_A = theta*(1.0-hap_bias)/(1.0+theta)*(1.0/k);
+        }
+    } else {
+        p_A = 1.0/k;
+    }
+    
+    dng::GenotypeArray ret{num_alts+1};
+    ret(0) = p_R;
+    for(int n=0;n<(num_alts+1);++n) {
+        ret(n) = p_A;
+    }
+
+    return ret;
+}
 
 } // namespace dng
 
