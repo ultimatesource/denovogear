@@ -83,7 +83,7 @@ protected:
 };
 
 TransitionMatrixVector create_mutation_matrices(const RelationshipGraph &pedigree,
-        const std::array<double, 4> &nuc_freq, const int mutype = MUTATIONS_ALL);
+        int num_alleles, const int mutype = MUTATIONS_ALL);
 
 TransitionMatrixVector create_mutation_matrices_subset(const TransitionMatrixVector &full_matrices, size_t color);
 

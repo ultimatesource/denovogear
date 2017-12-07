@@ -42,36 +42,6 @@ T
 
 using MutationMatrix = TransitionMatrix;
 
-namespace f81 {
-// Construct an F81 mutation matrix
-inline MutationMatrix matrix(double mu, const std::array<double, 4> &nuc_freq) {
-    double beta = 1.0;
-    for(auto d : nuc_freq) {
-        beta -= d * d;
-    }
-    double p = -expm1(-mu / beta);
-
-    MutationMatrix ret{4,4};
-    for(int i = 0; i < 4; ++i) {
-        for(int j = 0; j < 4; ++j) {
-            ret(i, j) = nuc_freq[j] * p;
-        }
-        ret(i, i) += 1.0 - p;
-    }
-    return ret;
-}
-
-// Calculate the maximum likelihood estimate of mu given q fraction of observed differences
-inline double estimate(double q, const std::array<double, 4> &nuc_freq) {
-    double beta = 1.0;
-    for(auto d : nuc_freq) {
-        beta -= d * d;
-    }
-    return -beta * log(1.0 - q / beta);
-}
-
-} // namespace f81
-
 namespace Mk {
     // The Mk model of Lewis 2001 and Tuffley and Steel 1997
     // u = (k-1)*a*t
@@ -395,6 +365,36 @@ dng::GenotypeArray population_prior_haploid_ia(double theta, double hap_bias,
 //             alpha[3] / alpha_sum;
 //     return ret;
 // }
+
+// namespace f81 {
+// // Construct an F81 mutation matrix
+// inline MutationMatrix matrix(double mu, const std::array<double, 4> &nuc_freq) {
+//     double beta = 1.0;
+//     for(auto d : nuc_freq) {
+//         beta -= d * d;
+//     }
+//     double p = -expm1(-mu / beta);
+
+//     MutationMatrix ret{4,4};
+//     for(int i = 0; i < 4; ++i) {
+//         for(int j = 0; j < 4; ++j) {
+//             ret(i, j) = nuc_freq[j] * p;
+//         }
+//         ret(i, i) += 1.0 - p;
+//     }
+//     return ret;
+// }
+
+// // Calculate the maximum likelihood estimate of mu given q fraction of observed differences
+// inline double estimate(double q, const std::array<double, 4> &nuc_freq) {
+//     double beta = 1.0;
+//     for(auto d : nuc_freq) {
+//         beta -= d * d;
+//     }
+//     return -beta * log(1.0 - q / beta);
+// }
+
+// } // namespace f81
 
 
 } // namespace dng

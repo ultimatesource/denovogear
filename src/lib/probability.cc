@@ -116,18 +116,18 @@ LogProbability::value_t LogProbability::operator()(const pileup::AlleleDepths &d
 
 // Construct the mutation matrices for each transition
 TransitionMatrixVector dng::create_mutation_matrices(const RelationshipGraph &graph,
-    const std::array<double, 4> &nuc_freq, const int mutype) {
+    int num_alleles, const int mutype) {
     TransitionMatrixVector matrices(graph.num_nodes());
  
     for(size_t child = 0; child < graph.num_nodes(); ++child) {
         auto trans = graph.transition(child);
         if(trans.type == RelationshipGraph::TransitionType::Trio) {
             assert(graph.ploidy(child) == 2);
-            auto dad = f81::matrix(trans.length1, nuc_freq);
-            auto mom = f81::matrix(trans.length2, nuc_freq);
+            auto dad = Mk::matrix(trans.length1, num_alleles);
+            auto mom = Mk::matrix(trans.length2, num_alleles);
             matrices[child] = meiosis_matrix(graph.ploidy(trans.parent1), dad, graph.ploidy(trans.parent2), mom, mutype);
         } else if(trans.type == RelationshipGraph::TransitionType::Pair) {
-            auto orig = f81::matrix(trans.length1, nuc_freq);
+            auto orig = Mk::matrix(trans.length1, num_alleles);
             if(graph.ploidy(child) == 1) {
                 matrices[child] = gamete_matrix(graph.ploidy(trans.parent1), orig, mutype);
             } else {
@@ -141,144 +141,144 @@ TransitionMatrixVector dng::create_mutation_matrices(const RelationshipGraph &gr
     return matrices;
 }
 
-TransitionMatrix subset_mutation_matrix_meiosis_autosomal(const TransitionMatrix &full_matrix, size_t color) {
-    const auto &type_info_gt_table = dng::pileup::AlleleDepths::type_info_gt_table;
+// TransitionMatrix subset_mutation_matrix_meiosis_autosomal(const TransitionMatrix &full_matrix, size_t color) {
+//     const auto &type_info_gt_table = dng::pileup::AlleleDepths::type_info_gt_table;
 
-    const int width = type_info_gt_table[color].width;
+//     const int width = type_info_gt_table[color].width;
 
-    TransitionMatrix ret{width*width, width};
+//     TransitionMatrix ret{width*width, width};
 
-    // a: parent1/dad; b: parent2/mom;
-    // kronecker product is 'a-major'
-    for(int a = 0; a < width; ++a) {
-        const int ga = type_info_gt_table[color].indexes[a];
-        for(int b = 0; b < width; ++b) {
-            const int gb = type_info_gt_table[color].indexes[b];
-            // copy correct value from the full matrix to the subset matrix
-            const int x = a*width+b;
-            const int gx = ga*10+gb;
-            for(int y = 0; y < width; ++y) {
-                const int gy = type_info_gt_table[color].indexes[y];
-                // copy correct value from the full matrix to the subset matrix
-                ret(x,y) = full_matrix(gx,gy); 
-            }
-        }
-    }
-    return ret;
-}
+//     // a: parent1/dad; b: parent2/mom;
+//     // kronecker product is 'a-major'
+//     for(int a = 0; a < width; ++a) {
+//         const int ga = type_info_gt_table[color].indexes[a];
+//         for(int b = 0; b < width; ++b) {
+//             const int gb = type_info_gt_table[color].indexes[b];
+//             // copy correct value from the full matrix to the subset matrix
+//             const int x = a*width+b;
+//             const int gx = ga*10+gb;
+//             for(int y = 0; y < width; ++y) {
+//                 const int gy = type_info_gt_table[color].indexes[y];
+//                 // copy correct value from the full matrix to the subset matrix
+//                 ret(x,y) = full_matrix(gx,gy); 
+//             }
+//         }
+//     }
+//     return ret;
+// }
 
-TransitionMatrix subset_mutation_matrix_meiosis_xlinked(const TransitionMatrix &full_matrix, size_t color) {
-    const auto &type_info_table = dng::pileup::AlleleDepths::type_info_table;
-    const auto &type_info_gt_table = dng::pileup::AlleleDepths::type_info_gt_table;
+// TransitionMatrix subset_mutation_matrix_meiosis_xlinked(const TransitionMatrix &full_matrix, size_t color) {
+//     const auto &type_info_table = dng::pileup::AlleleDepths::type_info_table;
+//     const auto &type_info_gt_table = dng::pileup::AlleleDepths::type_info_gt_table;
 
-    // a: parent1/dad; b: parent2/mom;
-    // kronecker product is 'a-major'
-    // a: haploid; b: diploid
-    const int widthA = type_info_table[color].width;                      
-    const int widthB = type_info_gt_table[color].width;
+//     // a: parent1/dad; b: parent2/mom;
+//     // kronecker product is 'a-major'
+//     // a: haploid; b: diploid
+//     const int widthA = type_info_table[color].width;                      
+//     const int widthB = type_info_gt_table[color].width;
 
-    TransitionMatrix ret{widthA*widthB,widthB};
+//     TransitionMatrix ret{widthA*widthB,widthB};
 
-    for(int a = 0; a < widthA; ++a) {
-        const int ga = type_info_table[color].indexes[a];
-        for(int b = 0; b < widthB; ++b) {
-            const int gb = type_info_gt_table[color].indexes[b];
-            // copy correct value from the full matrix to the subset matrix
-            const int x = a*widthB+b;
-            const int gx = ga*10+gb;
-            for(int y = 0; y < widthB; ++y) {
-                const int gy = type_info_gt_table[color].indexes[y];
-                // copy correct value from the full matrix to the subset matrix
-                ret(x,y) = full_matrix(gx,gy); 
-            }
-        }
-    }
-    return ret;
-}
+//     for(int a = 0; a < widthA; ++a) {
+//         const int ga = type_info_table[color].indexes[a];
+//         for(int b = 0; b < widthB; ++b) {
+//             const int gb = type_info_gt_table[color].indexes[b];
+//             // copy correct value from the full matrix to the subset matrix
+//             const int x = a*widthB+b;
+//             const int gx = ga*10+gb;
+//             for(int y = 0; y < widthB; ++y) {
+//                 const int gy = type_info_gt_table[color].indexes[y];
+//                 // copy correct value from the full matrix to the subset matrix
+//                 ret(x,y) = full_matrix(gx,gy); 
+//             }
+//         }
+//     }
+//     return ret;
+// }
 
-TransitionMatrix subset_mutation_matrix_meiosis_gamete(const TransitionMatrix &full_matrix, size_t color) {
-    const auto &type_info_table = dng::pileup::AlleleDepths::type_info_table;
-    const auto &type_info_gt_table = dng::pileup::AlleleDepths::type_info_gt_table;
+// TransitionMatrix subset_mutation_matrix_meiosis_gamete(const TransitionMatrix &full_matrix, size_t color) {
+//     const auto &type_info_table = dng::pileup::AlleleDepths::type_info_table;
+//     const auto &type_info_gt_table = dng::pileup::AlleleDepths::type_info_gt_table;
 
-    const int widthP = type_info_gt_table[color].width;
-    const int widthC = type_info_table[color].width;
+//     const int widthP = type_info_gt_table[color].width;
+//     const int widthC = type_info_table[color].width;
 
-    TransitionMatrix ret{widthP,widthC};
+//     TransitionMatrix ret{widthP,widthC};
 
-    for(int x = 0; x < widthP; ++x) {
-        const int gx = type_info_gt_table[color].indexes[x];
-        for(int y = 0; y < widthC; ++y) {
-            const int gy = type_info_table[color].indexes[y];
-            // copy correct value from the full matrix to the subset matrix
-            ret(x,y) = full_matrix(gx,gy); 
-        }
-    }
-    return ret;
-}
-
-
-TransitionMatrix subset_mutation_matrix_mitosis_diploid(const TransitionMatrix &full_matrix, size_t color) {
-    const auto &type_info_gt_table = dng::pileup::AlleleDepths::type_info_gt_table;
-
-    const int width = type_info_gt_table[color].width;
-
-    TransitionMatrix ret{width,width};
-
-    for(int x = 0; x < width; ++x) {
-        const int gx = type_info_gt_table[color].indexes[x];
-        for(int y = 0; y < width; ++y) {
-            const int gy = type_info_gt_table[color].indexes[y];
-            // copy correct value from the full matrix to the subset matrix
-            ret(x,y) = full_matrix(gx,gy); 
-        }
-    }           
-    return ret;
-}
-
-TransitionMatrix subset_mutation_matrix_mitosis_haploid(const TransitionMatrix &full_matrix, size_t color) {
-    const auto &type_info_table = dng::pileup::AlleleDepths::type_info_table;
-
-    const int width = type_info_table[color].width;
-
-    TransitionMatrix ret{width,width};
-
-    for(int x = 0; x < width; ++x) {
-        const int gx = type_info_table[color].indexes[x];
-        for(int y = 0; y < width; ++y) {
-            const int gy = type_info_table[color].indexes[y];
-            // copy correct value from the full matrix to the subset matrix
-            ret(x,y) = full_matrix(gx,gy); 
-        }
-    }
-    return ret;
-}
+//     for(int x = 0; x < widthP; ++x) {
+//         const int gx = type_info_gt_table[color].indexes[x];
+//         for(int y = 0; y < widthC; ++y) {
+//             const int gy = type_info_table[color].indexes[y];
+//             // copy correct value from the full matrix to the subset matrix
+//             ret(x,y) = full_matrix(gx,gy); 
+//         }
+//     }
+//     return ret;
+// }
 
 
-TransitionMatrixVector dng::create_mutation_matrices_subset(const TransitionMatrixVector &full_matrices, size_t color) {
+// TransitionMatrix subset_mutation_matrix_mitosis_diploid(const TransitionMatrix &full_matrix, size_t color) {
+//     const auto &type_info_gt_table = dng::pileup::AlleleDepths::type_info_gt_table;
 
-    // Create out output vector
-    TransitionMatrixVector matrices(full_matrices.size());
+//     const int width = type_info_gt_table[color].width;
 
-    // enumerate over all matrices
-    for(size_t child = 0; child < full_matrices.size(); ++child) {
-        if(full_matrices[child].rows() == 100 && full_matrices[child].cols() == 10) {
-            // resize transition matrix to w*w,w
-            matrices[child] = subset_mutation_matrix_meiosis_autosomal(full_matrices[child], color);
-        } else if(full_matrices[child].rows() == 40 && full_matrices[child].cols() == 10) {
-            // FIXME: ASSUME x-linkage for now
-            matrices[child] = subset_mutation_matrix_meiosis_xlinked(full_matrices[child], color);
-        } else if(full_matrices[child].rows() == 10 && full_matrices[child].cols() == 10) {
-            matrices[child] = subset_mutation_matrix_mitosis_diploid(full_matrices[child], color);
-        } else if(full_matrices[child].rows() == 4 && full_matrices[child].cols() == 4) {
-            matrices[child] = subset_mutation_matrix_mitosis_haploid(full_matrices[child], color);
-        } else if(full_matrices[child].rows() == 10 && full_matrices[child].cols() == 4) {
-            matrices[child] = subset_mutation_matrix_meiosis_gamete(full_matrices[child], color);
-        } else if(full_matrices[child].rows() == 0 && full_matrices[child].cols() == 0 ) {
-            matrices[child] = {};
-        } else {
-            // should never reach here
-            assert(false);
-        }
-    }
-    return matrices;    
-}
+//     TransitionMatrix ret{width,width};
+
+//     for(int x = 0; x < width; ++x) {
+//         const int gx = type_info_gt_table[color].indexes[x];
+//         for(int y = 0; y < width; ++y) {
+//             const int gy = type_info_gt_table[color].indexes[y];
+//             // copy correct value from the full matrix to the subset matrix
+//             ret(x,y) = full_matrix(gx,gy); 
+//         }
+//     }           
+//     return ret;
+// }
+
+// TransitionMatrix subset_mutation_matrix_mitosis_haploid(const TransitionMatrix &full_matrix, size_t color) {
+//     const auto &type_info_table = dng::pileup::AlleleDepths::type_info_table;
+
+//     const int width = type_info_table[color].width;
+
+//     TransitionMatrix ret{width,width};
+
+//     for(int x = 0; x < width; ++x) {
+//         const int gx = type_info_table[color].indexes[x];
+//         for(int y = 0; y < width; ++y) {
+//             const int gy = type_info_table[color].indexes[y];
+//             // copy correct value from the full matrix to the subset matrix
+//             ret(x,y) = full_matrix(gx,gy); 
+//         }
+//     }
+//     return ret;
+// }
+
+
+// TransitionMatrixVector dng::create_mutation_matrices_subset(const TransitionMatrixVector &full_matrices, size_t color) {
+
+//     // Create out output vector
+//     TransitionMatrixVector matrices(full_matrices.size());
+
+//     // enumerate over all matrices
+//     for(size_t child = 0; child < full_matrices.size(); ++child) {
+//         if(full_matrices[child].rows() == 100 && full_matrices[child].cols() == 10) {
+//             // resize transition matrix to w*w,w
+//             matrices[child] = subset_mutation_matrix_meiosis_autosomal(full_matrices[child], color);
+//         } else if(full_matrices[child].rows() == 40 && full_matrices[child].cols() == 10) {
+//             // FIXME: ASSUME x-linkage for now
+//             matrices[child] = subset_mutation_matrix_meiosis_xlinked(full_matrices[child], color);
+//         } else if(full_matrices[child].rows() == 10 && full_matrices[child].cols() == 10) {
+//             matrices[child] = subset_mutation_matrix_mitosis_diploid(full_matrices[child], color);
+//         } else if(full_matrices[child].rows() == 4 && full_matrices[child].cols() == 4) {
+//             matrices[child] = subset_mutation_matrix_mitosis_haploid(full_matrices[child], color);
+//         } else if(full_matrices[child].rows() == 10 && full_matrices[child].cols() == 4) {
+//             matrices[child] = subset_mutation_matrix_meiosis_gamete(full_matrices[child], color);
+//         } else if(full_matrices[child].rows() == 0 && full_matrices[child].cols() == 0 ) {
+//             matrices[child] = {};
+//         } else {
+//             // should never reach here
+//             assert(false);
+//         }
+//     }
+//     return matrices;    
+// }

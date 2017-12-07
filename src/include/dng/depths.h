@@ -100,8 +100,8 @@ public:
 
     static int8_t ColorDropN(int8_t color) { return color & 0x3F;}
 
-    typedef std::vector<int32_t> data_t;
-    typedef data_t::size_type size_type;
+    using data_t = std::vector<int32_t>;
+    using size_type = data_t::size_type;
 
     AlleleDepths() : location_{0}, color_{0}, num_libraries_{0} { }
 
