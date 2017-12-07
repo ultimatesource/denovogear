@@ -25,6 +25,7 @@
 #include <cstdint>
 #include <unordered_map>
 
+#include <boost/multi_array.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/functional/hash.hpp>
 
@@ -32,6 +33,8 @@
 
 namespace dng {
 namespace pileup {
+
+using allele_depths_t = boost::multi_array<int32_t, 2>;
 
 struct depth_t {
     int32_t counts[4]{0,0,0,0};
@@ -45,7 +48,7 @@ struct container_hash {
     std::size_t operator()(Container const& c) const {
         return boost::hash_range(c.begin(), c.end());
     }
-};    
+};
 
 };
 

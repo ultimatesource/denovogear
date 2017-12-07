@@ -36,6 +36,16 @@ namespace dng {
 
 namespace genotype {
 
+/* K-Alleles Genotype Model
+
+log P(depths = {a,b,c,...} | genotype = g) =
+    f(1,a,g) + f(2,b,g) + f(3,c,g) + ... + f(T, a+b+..., g)
+
+Case: g = i/i:
+    f(i,a,g) = lgamma(A+n)-lgamma(A) where 
+
+*/
+
 namespace detail {
 class log_pochhammer {
     typedef boost::math::lanczos::lanczos13m53 Lanczos;
