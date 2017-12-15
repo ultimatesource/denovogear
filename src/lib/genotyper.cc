@@ -96,13 +96,16 @@ inline double log_sum(double a, double b) {
 inline double log_sum_exact(double a, double b) {
     return log1p(exp(-fabs(a-b))) + std::max(a,b);
 }
+}
 
 std::array<double,8> make_alphas(double over_dispersion_hom, 
-        double over_dispersion_het, double error_rate, double ref_bias) {
+        double over_dispersion_het, double ref_bias,
+        double error_rate, double error_entropy) {
     assert(0.0 <= over_dispersion_hom && over_dispersion_hom <= 1.0 );
     assert(0.0 <= over_dispersion_het && over_dispersion_het <= 1.0 );
-    assert(0.0 <= error_rate && error_rate <= 1.0 );
     assert(0.0 <= ref_bias );
+    assert(0.0 <= error_rate && error_rate <= 1.0 );
+    assert(0.0 <= error_entropy );
 
     // Adjust parameters to prevent zeros, which can cause issues with the 
     // current implementation
@@ -114,36 +117,38 @@ std::array<double,8> make_alphas(double over_dispersion_hom,
 
     // assume three possible errors
     double p1 = 1.0-error_rate;
-    double p2 = error_rate/3.0;
+    double p2 = error_rate/exp(error_entropy);
     double p3 = p1+p2;
     double q = ref_bias/(1.0+ref_bias);
 
-    ret[static_cast<int>(DirichletMultinomial::alpha::HOM_MATCH)] = over_dispersion_hom*p1;
-    ret[static_cast<int>(DirichletMultinomial::alpha::HOM_ERROR)] = over_dispersion_hom*p2;
-    
-    ret[static_cast<int>(DirichletMultinomial::alpha::HET_REF)] = over_dispersion_het*p3*q;
-    ret[static_cast<int>(DirichletMultinomial::alpha::HET_ALT)] = over_dispersion_het*p3*(1.0-q);
-    ret[static_cast<int>(DirichletMultinomial::alpha::HET_ALTALT)] = over_dispersion_het*p3*0.5;
-    ret[static_cast<int>(DirichletMultinomial::alpha::HET_ERROR)] = over_dispersion_het*p2;
+    using alpha = DirichletMultinomial::alpha;
 
-    ret[static_cast<int>(DirichletMultinomial::alpha::HOM_TOTAL)] = over_dispersion_hom;
-    ret[static_cast<int>(DirichletMultinomial::alpha::HET_TOTAL)] = over_dispersion_het;
+    ret[alpha::HOM_MATCH] = over_dispersion_hom*p1;
+    ret[alpha::HOM_ERROR] = over_dispersion_hom*p2;
+    
+    ret[alpha::HET_REF] = over_dispersion_het*p3*q;
+    ret[alpha::HET_ALT] = over_dispersion_het*p3*(1.0-q);
+    ret[alpha::HET_ALTALT] = over_dispersion_het*p3*0.5;
+    ret[alpha::HET_ERROR] = over_dispersion_het*p2;
+
+    ret[alpha::HOM_TOTAL] = over_dispersion_hom;
+    ret[alpha::HET_TOTAL] = over_dispersion_het;
 
     return ret;
-}
 }
 
 using detail::make_alphas;
 using detail::log_sum;
 
 DirichletMultinomial::DirichletMultinomial(double over_dispersion_hom, 
-        double over_dispersion_het, double error_rate, double ref_bias) : 
+        double over_dispersion_het, double ref_bias, double error_rate, double error_entropy) : 
     over_dispersion_hom_{over_dispersion_hom},
     over_dispersion_het_{over_dispersion_het},
-    error_rate_{error_rate}, ref_bias_{ref_bias}
+    ref_bias_{ref_bias}, error_rate_{error_rate},
+    error_entropy_{error_entropy}
 {
     auto alphas = make_alphas(over_dispersion_hom, over_dispersion_hom, 
-        error_rate, ref_bias);
+        ref_bias, error_rate, error_entropy);
 
     for(int i=0; i<pochhammers_.size(); ++i) {
         pochhammers_[i] = pochhammers_t::value_type{alphas[i]};

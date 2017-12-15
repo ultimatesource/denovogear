@@ -72,9 +72,6 @@ private:
         return result;
     }
 };
-
-std::array<double,8> make_alphas(double over_dispersion_hom, 
-        double over_dispersion_het, double error_rate, double ref_bias);
 } // namespace detail
 
 class DirichletMultinomial {
@@ -82,7 +79,8 @@ public:
     using allele_depths_t = dng::pileup::allele_depths_t;
 
     DirichletMultinomial(double over_dispersion_hom, 
-        double over_dispersion_het, double error_rate, double ref_bias);
+        double over_dispersion_het, double ref_bias,
+        double error_rate, double error_entropy);
 
     std::pair<GenotypeArray, double> operator()(
         allele_depths_t::const_reference ad, int num_alleles, int ploidy=2) const;
@@ -120,7 +118,7 @@ protected:
         return (n < CACHE_SIZE) ? cache_[t][n] : pochhammers_[t](n);
     }
 
-    friend std::array<double,8> detail::make_alphas(double over_dispersion_hom, 
+    friend std::array<double,8> make_alphas(double over_dispersion_hom, 
         double over_dispersion_het, double error_rate, double ref_bias);
 
 };
