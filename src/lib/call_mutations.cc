@@ -52,17 +52,16 @@ CallMutations::CallMutations(double min_prob, const RelationshipGraph &graph, pa
 }
 
 // Returns true if a mutation was found and the record was modified
-bool CallMutations::operator()(const pileup::RawDepths &depths,
-        int ref_index, stats_t *stats) {
+bool CallMutations::operator()(
+    const pileup::allele_depths_t &depths, int num_alts, bool has_ref, stats_t *stats)
+{
+    // calculate genotype likelihoods and store in the lower library vector
+    double scale = work_.SetGenotypeLikelihoods(genotyper_, depths, num_alts);
 
     // Set the prior probability of the founders given the reference
-    work_.SetGermline(diploid_prior_[ref_index], haploid_prior_[ref_index]);
+    work_.SetGermline(DiploidPrior(num_alts, has_ref), HaploidPrior(num_alts, has_ref));
 
-    // Genotype Likelihoods
-    double scale = work_.SetGenotypeLikelihoods(genotyper_, depths, ref_index);
-
-    // Run
-    bool found = Calculate(stats, COLOR_ACGT);
+    bool found = Calculate(stats, num_alts, has_ref);
     if(found && stats != nullptr) {
         stats->lld += scale/M_LN10;
     }
@@ -70,32 +69,12 @@ bool CallMutations::operator()(const pileup::RawDepths &depths,
     return found;
 }
 
-bool CallMutations::operator()(const pileup::AlleleDepths &depths,
-                stats_t *stats) {
-    const int ref_index = depths.type_info().reference;
-    const int color = depths.color();
-    
-    // Set the prior probability of the founders given the reference
-    GenotypeArray diploid_prior = DiploidPrior(ref_index, color);
-    GenotypeArray haploid_prior = HaploidPrior(ref_index, color);
-    work_.SetGermline(diploid_prior, haploid_prior);
-
-    // Genotype Likelihoods
-    double scale = work_.SetGenotypeLikelihoods(genotyper_, depths);
-
-    bool found = Calculate(stats, depths.color());
-    if(found && stats != nullptr) {
-        stats->lld += scale/M_LN10;
-    }
-    return found;
-}
-
-bool CallMutations::Calculate(stats_t *stats, int color) {
+bool CallMutations::Calculate(stats_t *stats, int num_alts, bool has_ref) {
     // Now peel numerator
-    double numerator = graph_.PeelForwards(work_, zero_mutation_matrices_[color]);
+    double numerator = graph_.PeelForwards(work_, zero_mutation_matrices_[num_alts]);
 
     // Calculate log P(Data ; model)
-    double denominator = graph_.PeelForwards(work_, transition_matrices_[color]);
+    double denominator = graph_.PeelForwards(work_, transition_matrices_[num_alts]);
 
     // Mutation Probability
     double mup = -std::expm1(numerator - denominator);
@@ -105,11 +84,10 @@ bool CallMutations::Calculate(stats_t *stats, int color) {
     } else if(stats == nullptr) {
         return true;
     }
-    stats->color = color;
     stats->mup = mup;
     stats->lld = denominator/M_LN10;
 
-    graph_.PeelBackwards(work_, transition_matrices_[color]);
+    graph_.PeelBackwards(work_, transition_matrices_[num_alts]);
 
     // Genotype Likelihoods for Libraries
     size_t num_libraries = work_.library_nodes.second-work_.library_nodes.first;
@@ -137,7 +115,7 @@ bool CallMutations::Calculate(stats_t *stats, int color) {
     // Expected Number of Mutations
     stats->mux = 0.0;
     for(size_t i = work_.founder_nodes.second; i < work_.num_nodes; ++i) {
-        stats->mux += (work_.super[i] * (mean_mutation_matrices_[color][i] *
+        stats->mux += (work_.super[i] * (mean_mutation_matrices_[num_alts][i] *
                                       work_.lower[i].matrix()).array()).sum();
     }
 
@@ -147,25 +125,15 @@ bool CallMutations::Calculate(stats_t *stats, int color) {
         stats->node_mup[i] = 0.0;
     }
     for (size_t i = work_.founder_nodes.second; i < work_.num_nodes; ++i) {
-        // std::cerr << color << " " << i << " a: "
-        //           << work_.temp_buffer.rows() << ','
-        //           << work_.temp_buffer.cols() << ' '
-        //           << oneplus_mutation_matrices_[color][i].rows() << ','
-        //           << oneplus_mutation_matrices_[color][i].cols() <<  ' '
-        //           << work_.super[i].rows() << ','
-        //           << work_.super[i].cols() << ' '
-        //           << work_.lower[i].rows() << ','
-        //           << work_.lower[i].cols() << std::endl;
-
-        stats->node_mup[i] = (work_.super[i] * (oneplus_mutation_matrices_[color][i] *
+        stats->node_mup[i] = (work_.super[i] * (oneplus_mutation_matrices_[num_alts][i] *
                                           work_.lower[i].matrix()).array()).sum();
         stats->node_mup[i] /= mup;
     }
 
     // Probability of Exactly One Mutation
     // We will peel again, but this time with the zero matrix
-    graph_.PeelForwards(work_, zero_mutation_matrices_[color]);
-    graph_.PeelBackwards(work_, zero_mutation_matrices_[color]);
+    graph_.PeelForwards(work_, zero_mutation_matrices_[num_alts]);
+    graph_.PeelBackwards(work_, zero_mutation_matrices_[num_alts]);
 
     double total = 0.0, max_coeff = -1.0;
     size_t dn_row = 0, dn_col = 0, dn_location = 0;
@@ -175,21 +143,11 @@ bool CallMutations::Calculate(stats_t *stats, int color) {
         stats->node_mu1p[i] = 0.0;
     }
     for (size_t i = work_.founder_nodes.second; i < work_.num_nodes; ++i) {
-        // std::cerr << color << " " << i << " b: "
-        //           << work_.temp_buffer.rows() << ','
-        //           << work_.temp_buffer.cols() << ' '
-        //           << one_mutation_matrices_[color][i].rows() << ','
-        //           << one_mutation_matrices_[color][i].cols() <<  ' '
-        //           << work_.super[i].rows() << ','
-        //           << work_.super[i].cols() << ' '
-        //           << work_.lower[i].rows() << ','
-        //           << work_.lower[i].cols() << std::endl;
-
         work_.temp_buffer.resize(1,1);
 
         work_.temp_buffer = (work_.super[i].matrix() *
-                               work_.lower[i].matrix().transpose()).array() *
-                              one_mutation_matrices_[color][i].array();
+                                work_.lower[i].matrix().transpose()).array() *
+                                one_mutation_matrices_[num_alts][i].array();
         std::size_t row, col;
         double temp = work_.temp_buffer.maxCoeff(&row, &col);
         if (temp > max_coeff) {

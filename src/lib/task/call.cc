@@ -189,9 +189,6 @@ int process_bam(task::Call::argument_type &arg) {
     }
     io::Fasta reference{arg.fasta.c_str()};
 
-    // Parse Nucleotide Frequencies
-    std::array<double, 4> freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
-
     // Open input files
     using BamPileup = dng::io::BamPileup;
     BamPileup mpileup{arg.min_qlen, arg.rgtag};
@@ -255,12 +252,14 @@ int process_bam(task::Call::argument_type &arg) {
     auto record = vcfout.InitVariant();
 
     // Construct Calling Object
+    LogProbability::params_t params = get_model_parameters(arg);
+
     const double min_prob = arg.min_prob;
-    CallMutations do_call(min_prob, relationship_graph, {arg.theta, freqs,
-            arg.ref_weight, {arg.lib_overdisp, arg.lib_error, arg.lib_bias} });
+    CallMutations do_call(min_prob, relationship_graph, params);
 
     // Pileup data
-    dng::pileup::RawDepths read_depths(mpileup.num_libraries());
+    dng::pileup::allele_depths_t read_depths;
+    read_depths.resize(boost::extents[mpileup.num_libraries()][5]);
 
     // Calculated stats
     CallMutations::stats_t stats;
@@ -288,34 +287,36 @@ int process_bam(task::Call::argument_type &arg) {
         char ref_base = reference.FetchBase(h->target_name[contig],position);
         size_t ref_index = seq::char_index(ref_base);
 
-		// reset all depth counters
-        boost::fill(read_depths, pileup::depth_t{});
+        // reset all depth counters
+        std::fill_n(read_depths.data(), read_depths.num_elements(), 0);
 
-		// pileup on read counts
-		for(std::size_t u = 0; u < data.size(); ++u) {
-			for(auto && r : data[u]) {
-				if(filter_read(r)) {
-					continue;
-				}
+        // pileup on read counts
+        for(std::size_t u = 0; u < data.size(); ++u) {
+            for(auto && r : data[u]) {
+                if(filter_read(r)) {
+                    continue;
+                }
                 std::size_t base = seq::base_index(r.base());
-                assert(read_depths[u].counts[ base ] < 65535);
+                assert(read_depths[u][(ref_index+base) % 5] < 65535);
 
-                read_depths[u].counts[ base ] += 1;
-			}
-		}
-		if(!do_call(read_depths, ref_index, &stats)) {
+                read_depths[u][(ref_index+base) % 5] += 1;
+            }
+        }
+        int num_alts = (ref_index < 4) ? 3 : 4;
+
+		if(!do_call(read_depths, num_alts, ref_index < 4, &stats)) {
 			return;
 		}
         const bool has_single_mut = ((stats.mu1p / stats.mup) >= min_prob);
 
 		// Measure total depth and sort nucleotides in descending order
         pileup::stats_t depth_stats;
-        pileup::calculate_stats(read_depths, ref_index, &depth_stats);
+        pileup::calculate_stats(read_depths, &depth_stats);
 
         add_stats_to_output(stats, depth_stats, has_single_mut, relationship_graph, do_call.work(), &record);
 
         // Information about the site, based on depths
-        const int color = depth_stats.color;
+        const int color = 40;//depth_stats.color;
         const auto & type_info_gt = dng::pileup::AlleleDepths::type_info_gt_table[color];
         const auto & type_info = dng::pileup::AlleleDepths::type_info_table[color];
         const int refalt_count = type_info.width + (type_info.reference == 4);
@@ -330,7 +331,7 @@ int process_bam(task::Call::argument_type &arg) {
                 ad_counts[pos++] = 0;
             }
 			for(size_t k = 0; k < type_info.width; ++k) {
-                int count = read_depths[u].counts[(int)type_info.indexes[k]];
+                int count = read_depths[u][(int)type_info.indexes[k]];
                 ad_counts[pos++] = count;
 				ad_info[k+(type_info.reference == 4)] += count;
 			}
@@ -428,6 +429,7 @@ int process_bam(task::Call::argument_type &arg) {
 }
 
 int process_ad(task::Call::argument_type &arg) {
+#if 0
 	// Parse the pedigree file
     Pedigree ped = io::parse_ped(arg.ped);
 
@@ -537,12 +539,13 @@ int process_ad(task::Call::argument_type &arg) {
         record.Clear();
 
     });
-
+#endif
     return EXIT_SUCCESS;
 }
 
 // Process vcf, bcf input data
 int process_bcf(task::Call::argument_type &arg) {
+#if 0
 	// Parse the pedigree file
     Pedigree ped = io::parse_ped(arg.ped);
 
@@ -725,7 +728,7 @@ int process_bcf(task::Call::argument_type &arg) {
         vcfout.WriteRecord(record);
         record.Clear();
     });
-
+#endif
     return EXIT_SUCCESS;
 }
 
@@ -751,8 +754,8 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
     hts::bcf::Variant *record)
 {
     assert(record != nullptr);
-    const int old_color = call_stats.color;
-    const int new_color = depth_stats.color;
+    const int old_color = 40;
+    const int new_color = 40;
     const size_t num_nodes = work.num_nodes;
     const size_t num_libraries = work.library_nodes.second-work.library_nodes.first;
 

@@ -83,7 +83,7 @@ public:
         double error_rate, double error_entropy);
 
     std::pair<GenotypeArray, double> operator()(
-        allele_depths_t::const_reference ad, int num_alleles, int ploidy=2) const;
+        allele_depths_t::const_reference ad, int num_alts, int ploidy=2) const;
 
     double over_dispersion_hom() const { return over_dispersion_hom_; }
     double over_dispersion_het() const { return over_dispersion_het_; }
@@ -91,13 +91,14 @@ public:
     double ref_bias() const { return ref_bias_; }
 
 protected:
-    GenotypeArray LogHaploidGenotypes(allele_depths_t::const_reference ad, int num_alleles) const;
-    GenotypeArray LogDiploidGenotypes(allele_depths_t::const_reference ad, int num_alleles) const;
+    GenotypeArray LogHaploidGenotypes(allele_depths_t::const_reference ad, int num_alts) const;
+    GenotypeArray LogDiploidGenotypes(allele_depths_t::const_reference ad, int num_alts) const;
 
     double over_dispersion_hom_; // overdispersion of homozygotes
     double over_dispersion_het_; // overdispersion of heterozygotes
     double error_rate_;      // prob of error when homozygote is sequenced
     double ref_bias_;        // bias towards reference when heterozygote is sequenced
+    double error_entropy_;
 
     using cache_t = std::vector<std::array<double,8>>;
     using pochhammers_t = std::array<detail::log_pochhammer,8>; 
@@ -113,14 +114,14 @@ protected:
 
     inline double pochhammer(alpha a, int n) const {
         assert(n >= 0);
-        assert(0 <= a < 8);
         int t = static_cast<int>(a);
+        assert(0 <= t && t < 8);
         return (n < CACHE_SIZE) ? cache_[t][n] : pochhammers_[t](n);
     }
 
     friend std::array<double,8> make_alphas(double over_dispersion_hom, 
-        double over_dispersion_het, double error_rate, double ref_bias);
-
+        double over_dispersion_het, double ref_bias,
+        double error_rate, double error_entropy);
 };
 
 } // namespace genotype

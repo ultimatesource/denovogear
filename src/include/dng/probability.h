@@ -35,11 +35,17 @@ class LogProbability {
 public:
     struct params_t {
         double theta;
-        double hom_bias;
-        double het_bias;
-        double hap_bias;
+        double asc_bias_hom;
+        double asc_bias_het;
+        double asc_bias_hap;
+        
+        double over_dispersion_hom;
+        double over_dispersion_het;
+        double ref_bias;
+        double error_rate;
+        double error_entropy;
 
-        Genotyper::params_t genotyper_params;
+        double mutation_entropy;
     };
 
     struct value_t {
@@ -49,14 +55,12 @@ public:
 
     LogProbability(RelationshipGraph graph, params_t params);
 
-    value_t operator()(const pileup::RawDepths &depths, int ref_index);
-    value_t operator()(const pileup::AlleleDepths &depths);
+    value_t operator()(const pileup::allele_depths_t &depths, int num_alts, bool has_ref=true);
 
     const peel::workspace_t& work() const { return work_; };
 
 protected:
-    using matrices_t = std::array<TransitionMatrixVector, pileup::AlleleDepths::type_info_table_length>;
-    static constexpr int COLOR_ACGT = 40; // When color == 40 all four nucleotides are observed in order A,C,G,T
+    using matrices_t = std::array<TransitionMatrixVector, 4>;
 
     matrices_t CreateMutationMatrices(const int mutype = MUTATIONS_ALL) const;
 
@@ -67,35 +71,30 @@ protected:
     params_t params_;
     peel::workspace_t work_; // must be declared after graph_ (see constructor)
 
-
     matrices_t transition_matrices_;
 
     double prob_monomorphic_[4];
 
     Genotyper genotyper_;
 
-    GenotypeArray diploid_prior_[4]; // Holds P(G | theta)
-    GenotypeArray haploid_prior_[4]; // Holds P(G | theta)
-    GenotypeArray diploid_prior_noref_[4]; // Holds P(G | theta)
-    GenotypeArray haploid_prior_noref_[4]; // Holds P(G | theta)
+    std::array<GenotypeArray,4> diploid_prior_; // Holds P(G | theta)
+    std::array<GenotypeArray,4> haploid_prior_; // Holds P(G | theta)
+    std::array<GenotypeArray,4> diploid_prior_noref_; // Holds P(G | theta)
+    std::array<GenotypeArray,4> haploid_prior_noref_; // Holds P(G | theta)
 
     DNG_UNIT_TEST_CLASS(unittest_dng_log_probability);
 };
 
 TransitionMatrixVector create_mutation_matrices(const RelationshipGraph &pedigree,
-        int num_alleles, const int mutype = MUTATIONS_ALL);
+        int num_alleles, double entropy, const int mutype = MUTATIONS_ALL);
 
-TransitionMatrixVector create_mutation_matrices_subset(const TransitionMatrixVector &full_matrices, size_t color);
 
 inline
 LogProbability::matrices_t LogProbability::CreateMutationMatrices(const int mutype) const {
-    matrices_t ret;
     // Construct the complete matrices
-    auto full_matrix = create_mutation_matrices(graph_, params_.nuc_freq, mutype);
-
-    // Extract relevant subsets of matrices
-    for(size_t color = 0; color < dng::pileup::AlleleDepths::type_info_table_length; ++color) {
-        ret[color] = create_mutation_matrices_subset(full_matrix, color);
+    matrices_t ret;
+    for(int i=0;i<ret.size();++i) {
+        ret[i] = create_mutation_matrices(graph_, i+1, params_.mutation_entropy, mutype);
     }
     return ret;
 }
@@ -104,12 +103,12 @@ inline
 GenotypeArray LogProbability::DiploidPrior(int num_alts, bool has_ref) {
     assert(num_alts >= 0);
     if(has_ref) {
-        return (num_alts <= 3) ? diploid_prior_[num_alts]
-            : population_prior_diploid_ia(params_.theta, params_.hom_bias, params_.het_bias, true);
+        return (num_alts < 4) ? diploid_prior_[num_alts]
+            : population_prior_diploid_ia(params_.theta, params_.asc_bias_hom, params_.asc_bias_het, num_alts, true);
     } else {
         assert(num_alts >= 1);
         return (num_alts < 5) ? diploid_prior_noref_[num_alts-1]
-            : population_prior_diploid_ia(params_.theta, params_.hom_bias, params_.het_bias, false);
+            : population_prior_diploid_ia(params_.theta, params_.asc_bias_hom, params_.asc_bias_het, num_alts, false);
     }
 }
 
@@ -117,13 +116,34 @@ inline
 GenotypeArray LogProbability::HaploidPrior(int num_alts, bool has_ref) {
     assert(num_alts >= 0);
     if(has_ref) {
-        return (num_alts <= 3) ? haploid_prior_[num_alts]
-            : population_prior_haploid_ia(params_.theta, params_.hom_bias, params_.het_bias, true);
+        return (num_alts < 4) ? haploid_prior_[num_alts]
+            : population_prior_haploid_ia(params_.theta, params_.asc_bias_hap, num_alts, true);
     } else {
         assert(num_alts >= 1);
         return (num_alts < 5) ? haploid_prior_noref_[num_alts-1]
-            : population_prior_haploid_ia(params_.theta, params_.hom_bias, params_.het_bias, false);
+            : population_prior_haploid_ia(params_.theta, params_.asc_bias_hap, num_alts, false);
     }
+}
+
+template<typename A>
+inline
+LogProbability::params_t get_model_parameters(const A& a) {
+    LogProbability::params_t ret;
+    
+    ret.theta = a.theta;
+    ret.asc_bias_hom = a.asc_hom;
+    ret.asc_bias_het = a.asc_het;
+    ret.asc_bias_hap = a.asc_hap;
+        
+    ret.over_dispersion_hom = a.lib_overdisp_hom;
+    ret.over_dispersion_het = a.lib_overdisp_het;
+    ret.ref_bias = a.lib_bias;
+    ret.error_rate = a.lib_error;
+    ret.error_entropy = a.lib_entropy/M_LN2;
+
+    ret.mutation_entropy = a.mu_entropy/M_LN2;
+
+    return ret;
 }
 
 }; // namespace dng

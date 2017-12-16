@@ -44,7 +44,7 @@ public:
         int dnl;
         int dnq;
 
-        int color;
+        //int color;
 
         GenotypeArrayVector genotype_likelihoods;
 
@@ -59,13 +59,10 @@ public:
     CallMutations(double min_prob, const RelationshipGraph &graph,
             params_t params);
 
-    bool operator()(const pileup::RawDepths &depths, int ref_index,
-                    stats_t *stats);
+    bool operator()(const pileup::allele_depths_t &depths, int num_alts, bool has_ref, stats_t *stats);
 
-    bool operator()(const pileup::AlleleDepths &depths,
-                    stats_t *stats);
 protected:
-    bool Calculate(stats_t *stats, int color=COLOR_ACGT);
+    bool Calculate(stats_t *stats, int num_alts, bool has_ref);
 
     double min_prob_;
 

@@ -44,17 +44,22 @@ using MutationMatrix = TransitionMatrix;
 
 namespace Mk {
     // The Mk model of Lewis 2001 and Tuffley and Steel 1997
-    // u = (k-1)*a*t
-    MutationMatrix matrix(double u, int k) {
-        assert(k > 0);
-        MutationMatrix ret{k,k};
-        double K = k;
-        double beta = K*u/(K-1.0);
-        double p_ji = -1.0/K*expm1(-beta);
+    // beta = k*a*t and u = (k-1)*a*t
+    // entropy = log(k-1) measures the effective number of alternative alleles
+    //
+    inline
+    MutationMatrix matrix(int n, double u, double entropy) {
+        assert(n > 0);
+        assert(u >= 0.0);
+        assert(entropy >= 0.0);
+        MutationMatrix ret{n,n};
+        double K = exp(entropy);
+        double beta = (K+1.0)*u/K;
+        double p_ji = -1.0/(K+1.0)*expm1(-beta);
         double p_jj = exp(-beta) + p_ji;
 
-        for(int i=0;i<k;++i) {
-            for(int j=0;j<k;++j) {
+        for(int i=0;i<n;++i) {
+            for(int j=0;j<n;++j) {
                 ret(j,i) = (i == j) ? p_jj : p_ji;
             }
         }
@@ -94,7 +99,7 @@ inline TransitionMatrix mitosis_diploid_matrix(const MutationMatrix &m, const in
     TransitionMatrix ret{num_genotypes,num_genotypes};
 
     for(int a=0,i=0; a<num_alleles; ++a) { // loop over all child genotypes 
-        for(int b=0; b<=a; ++a, ++i) { 
+        for(int b=0; b<=a; ++b, ++i) { 
             for(int x=0,j=0; x<num_alleles; ++x) { // loop over all parent genotypes
                 for(int y=0; y<=x; ++y,++j) {
                     // x/y => a/b
@@ -197,7 +202,7 @@ inline TransitionMatrix meiosis_matrix(const int dad_ploidy, const MutationMatri
     // Fold the rows
     TransitionMatrix ret{temp.rows(), num_genotypes};
     for(int a=0,i=0; a<num_alleles; ++a) { // loop over all child genotypes 
-        for(int b=0; b<=a; ++a, ++i) {
+        for(int b=0; b<=a; ++b, ++i) {
             for(int j=0; j<temp.rows(); ++j) {
                 // fold the temp matrix
                 ret(j,i) = temp(j, a*num_alleles+b);

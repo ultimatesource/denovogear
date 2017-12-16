@@ -127,13 +127,13 @@ struct workspace_t {
         }
     }
 
-    template<typename G, typename ...A>
-    double SetGenotypeLikelihoods(const G& gt, A&&... args) {
+    template<typename G, typename D, typename ...A>
+    double SetGenotypeLikelihoods(const G& gt, const D& d, A&&... args) {
         double scale = 0.0, stemp;
         size_t u = 0;
         for(auto pos = library_nodes.first; pos < library_nodes.second; ++pos) {
             std::tie(lower[pos], stemp) =
-                gt(std::forward<A>(args)..., u++, ploidies[pos]);
+                gt(d[u++], std::forward<A>(args)..., ploidies[pos]);
             scale += stemp;
         }
         return scale;

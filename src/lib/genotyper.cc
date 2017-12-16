@@ -123,21 +123,20 @@ std::array<double,8> make_alphas(double over_dispersion_hom,
 
     using alpha = DirichletMultinomial::alpha;
 
-    ret[alpha::HOM_MATCH] = over_dispersion_hom*p1;
-    ret[alpha::HOM_ERROR] = over_dispersion_hom*p2;
+    ret[(int)alpha::HOM_MATCH] = over_dispersion_hom*p1;
+    ret[(int)alpha::HOM_ERROR] = over_dispersion_hom*p2;
     
-    ret[alpha::HET_REF] = over_dispersion_het*p3*q;
-    ret[alpha::HET_ALT] = over_dispersion_het*p3*(1.0-q);
-    ret[alpha::HET_ALTALT] = over_dispersion_het*p3*0.5;
-    ret[alpha::HET_ERROR] = over_dispersion_het*p2;
+    ret[(int)alpha::HET_REF] = over_dispersion_het*p3*q;
+    ret[(int)alpha::HET_ALT] = over_dispersion_het*p3*(1.0-q);
+    ret[(int)alpha::HET_ALTALT] = over_dispersion_het*p3*0.5;
+    ret[(int)alpha::HET_ERROR] = over_dispersion_het*p2;
 
-    ret[alpha::HOM_TOTAL] = over_dispersion_hom;
-    ret[alpha::HET_TOTAL] = over_dispersion_het;
+    ret[(int)alpha::HOM_TOTAL] = over_dispersion_hom;
+    ret[(int)alpha::HET_TOTAL] = over_dispersion_het;
 
     return ret;
 }
 
-using detail::make_alphas;
 using detail::log_sum;
 
 DirichletMultinomial::DirichletMultinomial(double over_dispersion_hom, 
@@ -159,8 +158,10 @@ DirichletMultinomial::DirichletMultinomial(double over_dispersion_hom,
 }
 
 GenotypeArray DirichletMultinomial::LogDiploidGenotypes(
-    allele_depths_t::const_reference ad, int num_alleles) const
+    allele_depths_t::const_reference ad, int num_alts) const
 {    
+    assert(num_alts >= 0);
+    const int num_alleles = num_alts + 1;
     const int sz = num_alleles*(num_alleles+1)/2;
 
     GenotypeArray ret{sz};
@@ -206,7 +207,9 @@ GenotypeArray DirichletMultinomial::LogDiploidGenotypes(
     return ret;
 }
 
-GenotypeArray DirichletMultinomial::LogHaploidGenotypes(allele_depths_t::const_reference ad, int num_alleles) const {
+GenotypeArray DirichletMultinomial::LogHaploidGenotypes(allele_depths_t::const_reference ad, int num_alts) const {
+    assert(num_alts >= 0);
+    const int num_alleles = num_alts + 1;    
     const int sz = num_alleles;
 
     GenotypeArray ret{sz};
@@ -229,12 +232,12 @@ GenotypeArray DirichletMultinomial::LogHaploidGenotypes(allele_depths_t::const_r
 
 
 std::pair<GenotypeArray, double> DirichletMultinomial::operator()(
-        allele_depths_t::const_reference ad, int num_alleles, int ploidy) const
+        allele_depths_t::const_reference ad, int num_alts, int ploidy) const
 {
     assert(ploidy == 1 || ploidy == 2);
 
-    auto log_ret = (ploidy == 2) ? LogDiploidGenotypes(ad,num_alleles)
-                                 : LogHaploidGenotypes(ad,num_alleles);
+    auto log_ret = (ploidy == 2) ? LogDiploidGenotypes(ad,num_alts)
+                                 : LogHaploidGenotypes(ad,num_alts);
 
     // Scale and calculate likelihoods
     double scale = log_ret.maxCoeff();

@@ -34,7 +34,7 @@
 
 namespace dng {
 
-typedef Eigen::Array<double, Eigen::Dynamic, 1, 0, 10, 1> GenotypeArray;
+typedef Eigen::ArrayXd GenotypeArray;
 typedef std::vector<GenotypeArray, Eigen::aligned_allocator<GenotypeArray>>
         GenotypeArrayVector;
 

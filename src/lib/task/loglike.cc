@@ -139,9 +139,6 @@ int process_bam(LogLike::argument_type &arg) {
     }
     io::Fasta reference{arg.fasta.c_str()};
 
-    // Parse Nucleotide Frequencies
-    std::array<double, 4> freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
-
     // Open input files
     using BamPileup = dng::io::BamPileup;
     BamPileup mpileup{arg.min_qlen, arg.rgtag};
@@ -174,8 +171,8 @@ int process_bam(LogLike::argument_type &arg) {
     if (!relationship_graph.Construct(ped, mpileup.libraries(), inheritance_model(arg.model),
                                       arg.mu, arg.mu_somatic, arg.mu_library,
                                       arg.normalize_somatic_trees)) {
-        throw std::runtime_error("Unable to construct peeler for pedigree; "
-                                 "possible non-zero-loop relationship_graph.");
+        throw std::invalid_argument("Unable to construct peeler for pedigree; "
+                                    "possible non-zero-loop relationship_graph.");
     }
 
     // Select libraries in the input that are used in the pedigree
@@ -188,12 +185,13 @@ int process_bam(LogLike::argument_type &arg) {
         std::cout << line << "\n";
     }
 
-    LogProbability calculate (relationship_graph,
-            { arg.theta, freqs, arg.ref_weight,
-            {arg.lib_overdisp, arg.lib_error, arg.lib_bias} } );
+    LogProbability::params_t params = get_model_parameters(arg);
+
+    LogProbability calculate (relationship_graph, params);
 
     // Pileup data
-    dng::pileup::RawDepths read_depths(mpileup.num_libraries());
+    dng::pileup::allele_depths_t read_depths;
+    read_depths.resize(boost::extents[mpileup.num_libraries()][5]);
 
     const size_t num_nodes = relationship_graph.num_nodes();
     const size_t library_start = relationship_graph.library_nodes().first;
@@ -221,7 +219,7 @@ int process_bam(LogLike::argument_type &arg) {
         size_t ref_index = seq::char_index(ref_base);
 
         // reset all depth counters
-        boost::fill(read_depths, pileup::depth_t{});
+        std::fill_n(read_depths.data(), read_depths.num_elements(), 0);
 
         // pileup on read counts
         for(std::size_t u = 0; u < data.size(); ++u) {
@@ -230,12 +228,13 @@ int process_bam(LogLike::argument_type &arg) {
                     continue;
                 }
                 std::size_t base = seq::base_index(r.base());
-                assert(read_depths[u].counts[ base ] < 65535);
+                assert(read_depths[u][(ref_index+base) % 5] < 65535);
 
-                read_depths[u].counts[ base ] += 1;
+                read_depths[u][(ref_index+base) % 5] += 1;
             }
         }
-        auto loglike = calculate(read_depths, ref_index);
+        int num_alts = (ref_index < 4) ? 3 : 4;
+        auto loglike = calculate(read_depths, num_alts, ref_index < 4);
         sum_data += loglike.log_data;
         sum_scale += loglike.log_scale;
     });
@@ -255,9 +254,6 @@ int process_ad(LogLike::argument_type &arg) {
 
     // Open Reference
     io::Fasta reference{arg.fasta.c_str()};
-
-    // Parse Nucleotide Frequencies
-    array<double, 4> freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
 
     // Print header to output
     cout_add_header_text(arg);
@@ -284,23 +280,23 @@ int process_ad(LogLike::argument_type &arg) {
     // Construct peeling algorithm from parameters and pedigree information
     InheritanceModel model = inheritance_model(arg.model);
 
-    RelationshipGraph graph;
-    if(!graph.Construct(ped, input.libraries(), model, arg.mu, arg.mu_somatic, arg.mu_library,
+    RelationshipGraph relationship_graph;
+    if(!relationship_graph.Construct(ped, input.libraries(), model, arg.mu, arg.mu_somatic, arg.mu_library,
         arg.normalize_somatic_trees)) {
         throw std::invalid_argument("Unable to construct peeler for pedigree; "
                             "possible non-zero-loop pedigree.");
     }
     // Select libraries in the input that are used in the pedigree
-    input.SelectLibraries(graph.library_names());
+    input.SelectLibraries(relationship_graph.library_names());
 
-    for(auto && line : graph.BCFHeaderLines()) {
+    for(auto && line : relationship_graph.BCFHeaderLines()) {
         cout << line << "\n";
     }
 
     // Construct function object to calculate log likelihoods
-    LogProbability calculate (graph,
-        { arg.theta, freqs, arg.ref_weight,
-        {arg.lib_overdisp, arg.lib_error, arg.lib_bias} } );
+    LogProbability::params_t params = get_model_parameters(arg);
+
+    LogProbability calculate (relationship_graph, params);
 
     stats::ExactSum sum_data, sum_scale;
 
@@ -308,9 +304,21 @@ int process_ad(LogLike::argument_type &arg) {
     if(arg.threads == 0) {
         pileup::AlleleDepths line;
         line.data().reserve(4*input.num_libraries());
+        dng::pileup::allele_depths_t read_depths;
+        read_depths.resize(boost::extents[line.num_libraries()][5]);
+
         // read each line of data into line and process it
         while(input.Read(&line)) {
-            auto loglike = calculate(line);
+            int ref_is_N = (line.color() >= 64);
+            int sz = line.num_nucleotides() + ref_is_N;
+            read_depths.resize(boost::extents[line.num_libraries()][sz]);
+            for(int i=0;i<line.num_libraries();++i) {
+                for(int a=ref_is_N;a<sz;++a) {
+                    read_depths[i][a] = line(i,a-ref_is_N);
+                }
+            }
+
+            auto loglike = calculate(read_depths, sz-1, !ref_is_N);
             sum_data += loglike.log_data;
             sum_scale += loglike.log_scale;
         }
@@ -343,11 +351,21 @@ int process_ad(LogLike::argument_type &arg) {
         // each thread needs to have its own, mutable copy of calculate
         // because calculate stores working data in a member object
         auto batch_calculate = [&,calculate](batch_t& reads) mutable {
-            stats::ExactSum sum_d, sum_s;
-            for(auto && r : reads) {
-                auto loglike = calculate(r);
-                sum_d += loglike.log_data;
-                sum_s += loglike.log_scale;
+                stats::ExactSum sum_d, sum_s;
+                dng::pileup::allele_depths_t read_depths;
+
+                for(auto && line : reads) {
+                    int ref_is_N = (line.color() >= 64);
+                    int sz = line.num_nucleotides() + ref_is_N;
+                    read_depths.resize(boost::extents[line.num_libraries()][sz]);
+                    for(int i=0;i<line.num_libraries();++i) {
+                        for(int a=ref_is_N;a<sz;++a) {
+                            read_depths[i][a] = line(i,a-ref_is_N);
+                        }
+                    }
+                    auto loglike = calculate(read_depths, sz-1, !ref_is_N);
+                    sum_d += loglike.log_data;
+                    sum_s += loglike.log_scale;
             }
             {
                 // use batch_mutex to save results and return our data object
@@ -403,9 +421,6 @@ int process_bcf(LogLike::argument_type &arg) {
     // Parse the pedigree file
     Pedigree ped = io::parse_ped(arg.ped);
 
-    // Parse Nucleotide Frequencies
-    auto freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
-
     // Read input data
     if(arg.input.size() > 1) {
         throw std::runtime_error("dng loglike can only handle one variant file at a time.");
@@ -460,21 +475,19 @@ int process_bcf(LogLike::argument_type &arg) {
         std::cout << line << "\n";
     }
 
-    LogProbability calculate (relationship_graph,
-            { arg.theta, freqs, arg.ref_weight,
-            {arg.lib_overdisp, arg.lib_error, arg.lib_bias} } );
+    LogProbability::params_t params = get_model_parameters(arg);
+
+    LogProbability calculate (relationship_graph, params);
 
     const size_t num_nodes = relationship_graph.num_nodes();
     const size_t library_start = relationship_graph.library_nodes().first;
 
-    using pileup::AlleleDepths;
-
-    AlleleDepths data;
+    dng::pileup::allele_depths_t read_depths;
+    read_depths.resize(boost::extents[num_libs][5]);
 
     // allocate space for ad. bcf_get_format_int32 uses realloc internally
     int n_ad_capacity = num_libs*5;
     auto ad = hts::bcf::make_buffer<int>(n_ad_capacity);
-
 
     // Treat sequence_data and variant data separately
     dng::stats::ExactSum sum_data;
@@ -482,27 +495,6 @@ int process_bcf(LogLike::argument_type &arg) {
     
     // run calculation based on the depths at each site.
     mpileup([&](const BcfPileup::data_type & rec) {
-        data.location(rec->rid, rec->pos);
-
-        // Identify site
-        std::string allele_str;
-        std::vector<char> allele_indexes;
-        std::vector<int>  allele_list;
-        const int num_alleles = rec->n_allele;
-        int first_is_n = 0;
-        for(int a = 0; a < num_alleles; ++a) {
-            int n = AlleleDepths::MatchAlleles(rec->d.allele[a]);
-            if(0 <= n && n <= 3) {
-                allele_indexes.push_back(n);
-                allele_list.push_back(a);
-            } else if(a == 0 && n == 4) {
-                first_is_n = 64;
-            }
-        }
-        const int color = AlleleDepths::MatchIndexes(allele_indexes);
-        assert(color != -1);
-        data.Resize(color+first_is_n, rec->n_sample);
-
         // Read all the Allele Depths for every sample into an AD array
         const int n_ad = hts::bcf::get_format_int32(header, rec, "AD", &ad, &n_ad_capacity);
         if(n_ad <= 0) {
@@ -513,21 +505,15 @@ int process_bcf(LogLike::argument_type &arg) {
 
         assert(n_ad % num_libs == 0);
 
+        // TODO: Use a container adapter
+        // TODO: Properly check for missing reference
+        // TODO: Properly check for correct number of alleles ?
+
         const int n_sz = n_ad / num_libs;
+        read_depths.resize(boost::extents[num_libs][n_sz]);
+        read_depths.assign(ad.get(), ad.get()+n_ad);
 
-        for(int i=0;i<num_libs;++i) {
-            int offset = i*n_sz;
-            for(int a=0; a<allele_indexes.size();++a) {
-                if(allele_list[a] >= n_sz || ad[offset+allele_list[a]] < 0) {
-                    data(i,a) = 0;
-                } else {
-                    data(i,a) = ad[offset+allele_list[a]];
-                }
-            }
-        }
-
-
-        auto loglike = calculate(data);
+        auto loglike = calculate(read_depths,n_sz,true);
         sum_data += loglike.log_data;
         sum_scale += loglike.log_scale;
     });
