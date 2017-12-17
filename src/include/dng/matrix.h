@@ -34,6 +34,8 @@
 
 namespace dng {
 
+const Eigen::IOFormat CLEAN_FORMAT{4, 0, ", ", "\n", "[", "]"};
+
 typedef Eigen::ArrayXd GenotypeArray;
 typedef std::vector<GenotypeArray, Eigen::aligned_allocator<GenotypeArray>>
         GenotypeArrayVector;

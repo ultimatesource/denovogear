@@ -123,16 +123,19 @@ std::array<double,8> make_alphas(double over_dispersion_hom,
 
     using alpha = DirichletMultinomial::alpha;
 
-    ret[(int)alpha::HOM_MATCH] = over_dispersion_hom*p1;
-    ret[(int)alpha::HOM_ERROR] = over_dispersion_hom*p2;
-    
-    ret[(int)alpha::HET_REF] = over_dispersion_het*p3*q;
-    ret[(int)alpha::HET_ALT] = over_dispersion_het*p3*(1.0-q);
-    ret[(int)alpha::HET_ALTALT] = over_dispersion_het*p3*0.5;
-    ret[(int)alpha::HET_ERROR] = over_dispersion_het*p2;
+    double a1 = (1.0-over_dispersion_hom)/over_dispersion_hom;
+    double a2 = (1.0-over_dispersion_het)/over_dispersion_het;
 
-    ret[(int)alpha::HOM_TOTAL] = over_dispersion_hom;
-    ret[(int)alpha::HET_TOTAL] = over_dispersion_het;
+    ret[(int)alpha::HOM_MATCH] = a1*p1;
+    ret[(int)alpha::HOM_ERROR] = a1*p2;
+    
+    ret[(int)alpha::HET_REF] = a2*p3*q;
+    ret[(int)alpha::HET_ALT] = a2*p3*(1.0-q);
+    ret[(int)alpha::HET_ALTALT] = a2*p3*0.5;
+    ret[(int)alpha::HET_ERROR] = a2*p2;
+
+    ret[(int)alpha::HOM_TOTAL] = a1;
+    ret[(int)alpha::HET_TOTAL] = a2;
 
     return ret;
 }
@@ -172,6 +175,7 @@ GenotypeArray DirichletMultinomial::LogDiploidGenotypes(
         assert( ad[pos] >= 0 );
         int d = ad[pos];
         total += d;
+
         for(int a=0,gt=0; a < num_alleles; ++a) {
             for(int b=0; b < a; ++b,++gt) {
                 // Heterozygotes
@@ -197,11 +201,14 @@ GenotypeArray DirichletMultinomial::LogDiploidGenotypes(
                 d);
         }
     } 
+
+    double het_total = pochhammer(alpha::HET_TOTAL, total);
+    double hom_total = pochhammer(alpha::HOM_TOTAL, total);
     for(int a=0,gt=0; a < num_alleles; ++a) {
         for(int b=0; b < a; ++b,++gt) {
-            ret[gt] -= pochhammer(alpha::HET_TOTAL, total);
+            ret[gt] -= het_total;
         }
-        ret[gt++] -= pochhammer(alpha::HOM_TOTAL, total);
+        ret[gt++] -= hom_total;
     }
 
     return ret;

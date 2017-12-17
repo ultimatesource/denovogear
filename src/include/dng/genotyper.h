@@ -116,7 +116,7 @@ protected:
         assert(n >= 0);
         int t = static_cast<int>(a);
         assert(0 <= t && t < 8);
-        return (n < CACHE_SIZE) ? cache_[t][n] : pochhammers_[t](n);
+        return (n < CACHE_SIZE) ? cache_[n][t] : pochhammers_[t](n);
     }
 
     friend std::array<double,8> make_alphas(double over_dispersion_hom, 

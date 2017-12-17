@@ -117,6 +117,15 @@ public:
     int32_t ref_length() const { return rlen; }
     float quality() const { return qual; }
 
+    int num_alleles() const {
+        return base()->n_allele;
+    }
+    const char* allele(int n) const {
+        assert(n < num_alleles());
+        
+        return base()->d.allele[n];
+    }
+
     // Setters
     void quality(float q) { qual = q; }
     void target(const char *chrom) {
@@ -151,6 +160,12 @@ public:
             return 0;
         }
         return bcf_update_alleles_str(header(), base(), str);
+    }
+    int alleles(const char **alleles, int num_alleles) {
+        if(alleles == nullptr) {
+            return 0;
+        }
+        return bcf_update_alleles(header(), base(), alleles, num_alleles);
     }
 
     /**
