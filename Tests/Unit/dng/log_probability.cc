@@ -35,17 +35,19 @@
 namespace dng {
     struct unittest_dng_log_probability {
         GETTER2(LogProbability, params, theta)
-        GETTER2(LogProbability, params, ref_weight)
-        GETTER2(LogProbability, params, nuc_freq)
-        GETTER2(LogProbability, params, genotyper_params)
-        GETTER1(LogProbability, haploid_prior);
-        GETTER1(LogProbability, diploid_prior);
+        GETTER2(LogProbability, params, asc_bias_hom)
+        GETTER2(LogProbability, params, asc_bias_het)
+        GETTER2(LogProbability, params, asc_bias_hap)
+        GETTER2(LogProbability, params, over_dispersion_hom)
+        GETTER2(LogProbability, params, over_dispersion_het)
+        GETTER2(LogProbability, params, ref_bias)
+        GETTER2(LogProbability, params, error_rate)
+        GETTER2(LogProbability, params, error_entropy)
+        GETTER2(LogProbability, params, mutation_entropy)
     };
 }
 
 using u = dng::unittest_dng_log_probability;
-using d4 = std::array<double, 4>;
-using d10 = std::array<double, 10>;
 
 using namespace dng;
 using namespace dng::detail;
@@ -68,22 +70,31 @@ RelationshipGraph rel_graph = []() -> RelationshipGraph {
 }();
 
 BOOST_AUTO_TEST_CASE(test_constructor_1) {
-    LogProbability::params_t params = {
-        0.001, // Theta
-        {0.3,0.2,0.2,0.3}, // Nucleotide Frequencies
-        1.0,   // Reference Weight
-        {0.0005, 0.0005, 1.02} // Genotype Likelihood
-    };
+    LogProbability::params_t params;
+    params.theta = 0.001;
+    params.asc_bias_hom = 0.0;
+    params.asc_bias_het = 0.0;
+    params.asc_bias_hap = 0.0;
+    params.over_dispersion_hom = 1e-4;
+    params.over_dispersion_het = 1e-4;
+    params.ref_bias = 1;
+    params.error_rate = 1e-4;
+    params.error_entropy = log(4);
+    params.mutation_entropy = log(4);
 
     LogProbability log_probability{rel_graph, params};
 
     BOOST_CHECK_EQUAL(u::theta(log_probability), params.theta);
-    CHECK_EQUAL_RANGES(u::nuc_freq(log_probability), params.nuc_freq);
-    BOOST_CHECK_EQUAL(u::ref_weight(log_probability), params.ref_weight);
-
-    BOOST_CHECK_EQUAL(u::genotyper_params(log_probability).over_dispersion, 0.0005);
-    BOOST_CHECK_EQUAL(u::genotyper_params(log_probability).error_rate, 0.0005);
-    BOOST_CHECK_EQUAL(u::genotyper_params(log_probability).ref_bias, 1.02);
+    BOOST_CHECK_EQUAL(u::asc_bias_hom(log_probability), params.asc_bias_hom);
+    BOOST_CHECK_EQUAL(u::asc_bias_het(log_probability), params.asc_bias_het);
+    BOOST_CHECK_EQUAL(u::asc_bias_hap(log_probability), params.asc_bias_hap);
+    
+    BOOST_CHECK_EQUAL(u::over_dispersion_hom(log_probability), params.over_dispersion_hom);
+    BOOST_CHECK_EQUAL(u::over_dispersion_het(log_probability), params.over_dispersion_het);
+    BOOST_CHECK_EQUAL(u::ref_bias(log_probability), params.ref_bias);
+    BOOST_CHECK_EQUAL(u::error_rate(log_probability), params.error_rate);
+    BOOST_CHECK_EQUAL(u::error_entropy(log_probability), params.error_entropy);
+    BOOST_CHECK_EQUAL(u::mutation_entropy(log_probability), params.mutation_entropy);
 }
 
 // BOOST_FIXTURE_TEST_CASE(test_full_transition, TrioWorkspace) {

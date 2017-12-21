@@ -1191,8 +1191,8 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Peel) {
         BOOST_REQUIRE_NO_THROW(graph.Construct(twofam_ped, twofam_libs,
             InheritanceModel::Autosomal, g, s, l, true));
 
-        auto da = f81::matrix(1e-6, {0.4, 0.2, 0.1, 0.3});
-        auto ma = f81::matrix(0.7e-6, {0.3, 0.1, 0.2, 0.4});
+        auto da = Mk::matrix(4, 1e-6, log(4));
+        auto ma = Mk::matrix(4, 0.7e-6, log(4));
 
         auto work = graph.CreateWorkspace();
 
