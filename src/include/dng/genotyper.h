@@ -72,27 +72,33 @@ private:
         return result;
     }
 };
+
+std::array<double,8> make_alphas(double over_dispersion_hom, 
+        double over_dispersion_het, double ref_bias,
+        double error_rate, double error_entropy);
+
 } // namespace detail
 
 class DirichletMultinomial {
 public:
-    using allele_depths_t = dng::pileup::allele_depths_t;
+    using depths_const_reference_type = dng::pileup::allele_depths_ref_t::const_reference;
 
     DirichletMultinomial(double over_dispersion_hom, 
         double over_dispersion_het, double ref_bias,
         double error_rate, double error_entropy);
 
     std::pair<GenotypeArray, double> operator()(
-        allele_depths_t::const_reference ad, int num_alts, int ploidy=2) const;
+        depths_const_reference_type ad, int num_alts, int ploidy=2) const;
 
     double over_dispersion_hom() const { return over_dispersion_hom_; }
     double over_dispersion_het() const { return over_dispersion_het_; }
     double error_rate() const { return error_rate_; }
     double ref_bias() const { return ref_bias_; }
+    double error_entropy() const { return error_entropy_; }
 
 protected:
-    GenotypeArray LogHaploidGenotypes(allele_depths_t::const_reference ad, int num_alts) const;
-    GenotypeArray LogDiploidGenotypes(allele_depths_t::const_reference ad, int num_alts) const;
+    GenotypeArray LogHaploidGenotypes(depths_const_reference_type ad, int num_alts) const;
+    GenotypeArray LogDiploidGenotypes(depths_const_reference_type ad, int num_alts) const;
 
     double over_dispersion_hom_; // overdispersion of homozygotes
     double over_dispersion_het_; // overdispersion of heterozygotes
@@ -119,7 +125,7 @@ protected:
         return (n < CACHE_SIZE) ? cache_[n][t] : pochhammers_[t](n);
     }
 
-    friend std::array<double,8> make_alphas(double over_dispersion_hom, 
+    friend std::array<double,8> detail::make_alphas(double over_dispersion_hom, 
         double over_dispersion_het, double ref_bias,
         double error_rate, double error_entropy);
 };

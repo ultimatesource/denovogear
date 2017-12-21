@@ -98,7 +98,7 @@ inline double log_sum_exact(double a, double b) {
 }
 }
 
-std::array<double,8> make_alphas(double over_dispersion_hom, 
+std::array<double,8> detail::make_alphas(double over_dispersion_hom, 
         double over_dispersion_het, double ref_bias,
         double error_rate, double error_entropy) {
     assert(0.0 <= over_dispersion_hom && over_dispersion_hom <= 1.0 );
@@ -149,7 +149,7 @@ DirichletMultinomial::DirichletMultinomial(double over_dispersion_hom,
     ref_bias_{ref_bias}, error_rate_{error_rate},
     error_entropy_{error_entropy}
 {
-    auto alphas = make_alphas(over_dispersion_hom, over_dispersion_hom, 
+    auto alphas = detail::make_alphas(over_dispersion_hom, over_dispersion_hom, 
         ref_bias, error_rate, error_entropy);
 
     for(int i=0; i<pochhammers_.size(); ++i) {
@@ -160,8 +160,7 @@ DirichletMultinomial::DirichletMultinomial(double over_dispersion_hom,
     }
 }
 
-GenotypeArray DirichletMultinomial::LogDiploidGenotypes(
-    allele_depths_t::const_reference ad, int num_alts) const
+GenotypeArray DirichletMultinomial::LogDiploidGenotypes(depths_const_reference_type ad, int num_alts) const
 {    
     assert(num_alts >= 0);
     const int num_alleles = num_alts + 1;
@@ -214,7 +213,7 @@ GenotypeArray DirichletMultinomial::LogDiploidGenotypes(
     return ret;
 }
 
-GenotypeArray DirichletMultinomial::LogHaploidGenotypes(allele_depths_t::const_reference ad, int num_alts) const {
+GenotypeArray DirichletMultinomial::LogHaploidGenotypes(depths_const_reference_type ad, int num_alts) const {
     assert(num_alts >= 0);
     const int num_alleles = num_alts + 1;    
     const int sz = num_alleles;
@@ -239,7 +238,7 @@ GenotypeArray DirichletMultinomial::LogHaploidGenotypes(allele_depths_t::const_r
 
 
 std::pair<GenotypeArray, double> DirichletMultinomial::operator()(
-        allele_depths_t::const_reference ad, int num_alts, int ploidy) const
+        depths_const_reference_type ad, int num_alts, int ploidy) const
 {
     assert(ploidy == 1 || ploidy == 2);
 

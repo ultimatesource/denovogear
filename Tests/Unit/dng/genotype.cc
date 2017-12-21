@@ -13,33 +13,8 @@
 using namespace dng;
 using namespace dng::genotype;
 using dng::detail::make_test_range;
-using d4 = std::array<double,4>;
 
 int g_seed_counter = 0;
-
-BOOST_AUTO_TEST_CASE(test_diploid_nucleotides) {
-    for(int a : {0,1,2,3}) {
-        for(int b : {0,1,2,3}) {
-            BOOST_TEST_CONTEXT("a=" << a << ", b=" << b) {
-                int gt = folded_diploid_genotypes_matrix[a][b];
-                
-                BOOST_CHECK((folded_diploid_nucleotides[gt][0] == a && folded_diploid_nucleotides[gt][1] == b) ||
-                    folded_diploid_nucleotides[gt][0] == b && folded_diploid_nucleotides[gt][1] == a);
-                int unfolded = a*4+b;
-                int gt2 = folded_diploid_genotypes[unfolded];
-                BOOST_CHECK((folded_diploid_nucleotides[gt2][0] == a && folded_diploid_nucleotides[gt2][1] == b) ||
-                    folded_diploid_nucleotides[gt2][0] == b && folded_diploid_nucleotides[gt2][1] == a);
-
-                if(a <= b) {
-                    BOOST_CHECK_EQUAL(unfolded_diploid_genotypes_upper[gt2], unfolded);
-                }
-                if(b <= a) {
-                    BOOST_CHECK_EQUAL(unfolded_diploid_genotypes_lower[gt2], unfolded);
-                }
-            }
-        }
-    }
-}
 
 const double low_phi = DBL_EPSILON/2.0;
 const double low_epsilon = DBL_EPSILON/2.0;
@@ -79,117 +54,137 @@ BOOST_AUTO_TEST_CASE(test_log_pochhammer) {
 
 BOOST_AUTO_TEST_CASE(test_make_alphas) {
     using dng::genotype::detail::make_alphas;
-    using boost::fill;
 
     double prec = DBL_EPSILON;
 
-    auto test = [prec](double phi, double epsilon, double omega) -> void {
-    BOOST_TEST_CONTEXT("phi=" << phi << ", epsilon=" << epsilon << ", omega=" << omega) {
-        phi = (phi >= low_phi) ? phi : low_phi;
-        epsilon = (epsilon >= low_epsilon) ? epsilon : low_epsilon;
+    auto test = [prec](double over_dispersion_hom, double over_dispersion_het, double ref_bias,
+        double error_rate, double error_entropy) {
+    BOOST_TEST_CONTEXT("over_dispersion_hom=" << over_dispersion_hom 
+                  << ", over_dispersion_het=" << over_dispersion_het
+                  << ", ref_bias=" << ref_bias
+                  << ", error_rate=" << error_rate
+                  << ", error_entropy=" << error_entropy
+    ) {
+        auto test_range = make_alphas(over_dispersion_hom, over_dispersion_het, ref_bias,
+                                      error_rate, error_entropy);
+        std::array<double, 8> expected_range;
 
-        double alpha = (1.0 - phi) / phi;
-        double e = epsilon/3.0;
-        double m = alpha*(1.0 - 3.0 * e);
-        double h = alpha*(1.0 - 2.0 * e);
-        double href = h*omega/(1.0+omega);
-        double halt = h*1.0/(1.0+omega);
-        e = alpha*e;
-
-        for(int ref : {0,1,2,3,4}) {
-            for(int a=0,gt=0;a<4;++a) { 
-                for(int b=0;b<=a;++b,++gt) {
-                BOOST_TEST_CONTEXT("ref=" << ref << ", gt=" << gt) {
-                    auto test_values = make_alphas(ref, gt, phi, epsilon, omega);
-                    std::array<double,5> expected_values;
-                    fill(expected_values, e);
-                    if(a == b) {
-                        expected_values[a] = m;
-                    } else if(a == ref) {
-                        expected_values[a] = href;
-                        expected_values[b] = halt;
-                    } else if(b == ref) {
-                        expected_values[b] = href;
-                        expected_values[a] = halt;                       
-                    } else {
-                        expected_values[a] = h/2.0;
-                        expected_values[b] = h/2.0;
-                    }
-                    expected_values[4] = alpha;
-
-                    CHECK_CLOSE_RANGES(test_values, expected_values, prec);
-                }
-            }
-            }
+        if(over_dispersion_hom < low_phi) {
+            over_dispersion_hom = low_phi;
         }
-    }
-    };
+        if(over_dispersion_het < low_phi) {
+            over_dispersion_het = low_phi;
+        }
+        if(error_rate < low_epsilon) {
+            error_rate = low_epsilon;
+        }
 
-    test(0.0005, 0.0005, 1.02);
-    test(0.0, 0.0, 1);
-    test(0.1, 0.01, 1.1);
-    test(0.001, 1e-4, 0.8);
+        double a1 = (1.0-over_dispersion_hom)/over_dispersion_hom;
+        double a2 = (1.0-over_dispersion_het)/over_dispersion_het;
+
+        expected_range[0] = a1*(1.0-error_rate);
+        expected_range[1] = a1*error_rate/exp(error_entropy);
+
+        expected_range[2] = a2*(1.0-error_rate + error_rate/exp(error_entropy))*ref_bias/(1.0+ref_bias);
+        expected_range[3] = a2*(1.0-error_rate + error_rate/exp(error_entropy))*1.0/(1.0+ref_bias);
+        expected_range[4] = a2*error_rate/exp(error_entropy);
+        expected_range[5] = a2*(1.0-error_rate + error_rate/exp(error_entropy))*0.5;
+
+        expected_range[6] = a1;
+        expected_range[7] = a2;
+
+        CHECK_CLOSE_RANGES(test_range, expected_range, prec);
+
+    }};
+
+    test(0.0005, 0.0005, 1, 0.0005, log(3));
+    test(0.0005, 0.001, 1.02, 1e-4, log(4));
+    test(0, 0, 1, 0, log(4));
 }
 
-BOOST_AUTO_TEST_CASE(test_DirichletMultinomial_RawDepths) {
+BOOST_AUTO_TEST_CASE(test_DirichletMultinomial) {
     using dng::genotype::detail::make_alphas;
     using dng::genotype::detail::log_pochhammer;
+    using depths_t = std::vector< std::vector<int> >;
 
     double prec = 2*DBL_EPSILON;
 
     xorshift64 xrand(++g_seed_counter);
 
-    auto test = [prec](const DirichletMultinomial& dm, const pileup::RawDepths& depths) -> void {
-    BOOST_TEST_CONTEXT("over_dispersion=" << dm.parameters().over_dispersion
-         << ", error_rate=" << dm.parameters().error_rate
-         << ", ref_bias=" << dm.parameters().ref_bias) {
+    auto test = [prec](const DirichletMultinomial& dm, const depths_t &depths) -> void {
+    BOOST_TEST_CONTEXT("over_dispersion_hom=" << dm.over_dispersion_hom()
+                  << ", over_dispersion_het=" << dm.over_dispersion_het()
+                  << ", ref_bias=" << dm.ref_bias()
+                  << ", error_rate=" << dm.error_rate()
+                  << ", error_entropy=" << dm.error_entropy()
+    ){
+        auto alphas = make_alphas(dm.over_dispersion_hom(), dm.over_dispersion_het(),
+            dm.ref_bias(), dm.error_rate(), dm.error_entropy());
+        std::vector<log_pochhammer> f;
+        for(auto &&a : alphas) {
+            f.emplace_back(a);
+        }
+        for(int k : {0,1,2,3,4}) {         
+            for(auto &&ad : depths) {
+                // Wrap depths 
+                boost::const_multi_array_ref<int, 2> r{ad.data(), boost::extents[1][ad.size()]};
 
-        for(int ref : {0,1,2,3,4}) {
-            std::vector<std::array<double,5>> alphas;
-            for(int gt=0;gt<10;++gt) {
-                alphas.push_back(make_alphas(ref, gt,
-                    dm.parameters().over_dispersion, dm.parameters().error_rate,
-                    dm.parameters().ref_bias));
-            }
-            for(size_t pos=0; pos < depths.size(); ++pos) {
-                std::array<double,10> log_like;
-                boost::fill(log_like, 0);
-                for(int gt=0;gt<10;++gt) {
-                    int total = 0.0;
-                    for(size_t i=0;i<4;++i) {
-                        int n = depths[pos].counts[i];
-                        total += n;
-                        log_like[gt] += log_pochhammer{alphas[gt][i]}(n);
+                BOOST_TEST_CONTEXT("ploidy=1, depths=" << rangeio::wrap(ad) << ", k=" << k) {
+                    std::vector<double> expected;
+                    for(int g=0;g<=k;++g) {
+                        double ll = 0.0;
+                        int count = 0;
+                        for(int d=0;d<ad.size();++d) {
+                            if(d == g) {
+                                ll += f[0](ad[d]);
+                            } else {
+                                ll += f[1](ad[d]);
+                            }
+                            count += ad[d];
+                        }
+                        ll -= f[6](count);
+                        expected.push_back(ll);
                     }
-                    log_like[gt] -= log_pochhammer{alphas[gt][4]}(total);
-                }
-
-                // ploidy = 2
-                BOOST_TEST_CONTEXT("ploidy=2, ref=" << ref
-                    << ", depths=" << rangeio::wrap(depths[pos].counts)) {
-                    auto expected = log_like; 
                     double expected_scale = *boost::max_element(expected);
                     for(auto &&x : expected) {
-                        x = exp(x-expected_scale);
-                    }
-                    auto results = dm(depths, ref, pos, 2);
+                         x = exp(x-expected_scale);
+                     }
+                    auto results = dm(r[0],k,1);
                     double test_scale = results.second;
                     auto test = make_test_range(results.first);
                     BOOST_CHECK_CLOSE_FRACTION(test_scale, expected_scale, prec);
                     CHECK_CLOSE_RANGES(test, expected, prec);
                 }
-                // ploidy = 1
-                BOOST_TEST_CONTEXT("ploidy=1, ref=" << ref
-                    << ", depths=" << rangeio::wrap(depths[pos].counts)) {
-                    std::array<double,4> expected = {
-                        log_like[0], log_like[2],
-                        log_like[5], log_like[9]
-                    }; 
+                BOOST_TEST_CONTEXT("ploidy=2, depths=" << rangeio::wrap(ad) << ", k=" << k) {
+                    std::vector<double> expected;
+                    for(int a=0;a<=k;++a) {
+                        for(int b=0;b<=a;++b) {
+                            double ll = 0.0;
+                            int count = 0;
+                            for(int d=0;d<ad.size();++d) {
+                                if(a == b) {
+                                    // HOM_MATCH or HOM_ERROR
+                                    ll += (d == a) ? f[0](ad[d]) : f[1](ad[d]);
+                                } else if(d != a && d != b) {
+                                    // HET_ERROR
+                                    ll += f[4](ad[d]);
+                                } else if(a != 0 && b != 0) {
+                                    // HET_ALTALT_MATCH
+                                    ll += f[5](ad[d]);
+                                } else {
+                                    ll += (d == 0) ? f[2](ad[d]) : f[3](ad[d]);
+                                }
+                                count += ad[d];
+                            }
+                            ll -= (a == b) ? f[6](count) : f[7](count);
+                            expected.push_back(ll);
+                        }
+                    }
                     double expected_scale = *boost::max_element(expected);
                     for(auto &&x : expected) {
-                        x = exp(x-expected_scale);
-                    }
-                    auto results = dm(depths, ref, pos, 1);
+                         x = exp(x-expected_scale);
+                     }
+                    auto results = dm(r[0],k,2);
                     double test_scale = results.second;
                     auto test = make_test_range(results.first);
                     BOOST_CHECK_CLOSE_FRACTION(test_scale, expected_scale, prec);
@@ -197,114 +192,26 @@ BOOST_AUTO_TEST_CASE(test_DirichletMultinomial_RawDepths) {
                 }
             }
         }
-    }
-    };
+    }};
 
-    pileup::RawDepths data;
+    depths_t ad;
     for(int i=0;i<1000;++i) {
-        pileup::depth_t d;
-        for(int i=0;i<4;++i) {
+        depths_t::value_type d;
+        for(int j=0;j<=(i%5);++j) {
             if(xrand.get_double53() < 0.5) {
-                d.counts[i] = xrand.get_uint64(100);
+                d.push_back(xrand.get_uint64(100));
             } else if(xrand.get_double53() < 0.75) {
-                d.counts[i] = xrand.get_uint64(1000);
+                d.push_back(xrand.get_uint64(1000));
             } else if(xrand.get_double53() < 0.9) {
-                d.counts[i] = xrand.get_uint64(100000);
+                d.push_back(xrand.get_uint64(100000));
             } else {
-                d.counts[i] = 0;
+                d.push_back(0);
             }
         }
-        data.push_back(d);
+        ad.push_back(d);
     }
 
-    test({0.0005, 0.0005, 1.02}, data);
-    test({0.0, 0.0, 1}, data);
-    test({0.1, 0.01, 1.1}, data);
-    test({0.001, 1e-4, 0.8}, data);
-}
-
-BOOST_AUTO_TEST_CASE(test_DirichletMultinomial_AlleleDepths) {
-    using dng::pileup::AlleleDepths;
-    using dng::pileup::RawDepths;
-
-    // The order of addition is different when working
-    // on AlleleDepths than RawDepths. This causes loss
-    // of precision when counts vary in magnitude.
-    // Only validate to FLT_EPSILON precision.
-    double prec = FLT_EPSILON;
-
-    xorshift64 xrand(++g_seed_counter);
-
-    auto test = [prec,&xrand](const DirichletMultinomial& dm) -> void {
-    BOOST_TEST_CONTEXT("over_dispersion=" << dm.parameters().over_dispersion
-         << ", error_rate=" << dm.parameters().error_rate
-         << ", ref_bias=" << dm.parameters().ref_bias) {
-        for(int color=0; color < AlleleDepths::type_info_table_length; ++color) {
-            AlleleDepths data;
-            RawDepths raw;
-            data.Resize(color, 10);
-            raw.resize(10);
-            for(auto &&a : data.data()) {
-                if(xrand.get_double53() < 0.5) {
-                    a = xrand.get_uint64(100);
-                } else if(xrand.get_double53() < 0.75) {
-                    a = xrand.get_uint64(1000);
-                } else if(xrand.get_double53() < 0.9) {
-                    a = xrand.get_uint64(10000);
-                } else {
-                    a = 0;
-                }
-            }
-            for(size_t pos=0; pos < data.num_libraries(); ++pos) {
-                boost::fill(raw[pos].counts, 0);
-                for(int i=0; i < data.num_nucleotides(); ++i) {
-                    raw[pos].counts[data.type_info().indexes[i]] = data(pos, i);
-                }
-            }
-
-            for(size_t pos=0; pos < data.num_libraries(); ++pos) {
-                // ploidy=2
-                BOOST_TEST_CONTEXT("ploidy=2, color=" << color
-                    << ", raw_depths=" << rangeio::wrap(raw[pos].counts)) {
-
-                    auto test_results = dm(data, pos, 2);
-                    double test_scale = test_results.second;
-                    auto test = make_test_range(test_results.first);
-
-                    auto expected_results = dm(raw, data.type_info().reference, pos, 2);
-                    double expected_scale = expected_results.second;
-                    std::vector<double> expected(data.type_gt_info().width);
-                    for(int i=0; i < expected.size(); ++i) {
-                        expected[i] = expected_results.first[data.type_gt_info().indexes[i]];
-                    }
-                    BOOST_CHECK_CLOSE_FRACTION(test_scale, expected_scale, prec);
-                    CHECK_CLOSE_RANGES(test, expected, prec);
-                }
-                // ploidy=1
-                BOOST_TEST_CONTEXT("ploidy=1, color=" << color
-                    << ", raw_depths=" << rangeio::wrap(raw[pos].counts)) {
-
-                    auto test_results = dm(data, pos, 1);
-                    double test_scale = test_results.second;
-                    auto test = make_test_range(test_results.first);
-
-                    auto expected_results = dm(raw, data.type_info().reference, pos, 1);
-                    double expected_scale = expected_results.second;
-                    std::vector<double> expected(data.type_info().width);
-                    for(int i=0; i < expected.size(); ++i) {
-                        expected[i] = expected_results.first[data.type_info().indexes[i]];
-                    }
-
-                    BOOST_CHECK_CLOSE_FRACTION(test_scale, expected_scale, prec);
-                    CHECK_CLOSE_RANGES(test, expected, prec);
-                }
-            }
-        }
-    }
-    };
-
-    test({0.0005, 0.0005, 1.02});
-    test({0.0, 0.0, 1});
-    test({0.1, 0.01, 1.1});
-    test({0.001, 1e-4, 0.8});    
+    test({0.0005, 0.0005, 1, 0.0005, log(3)}, ad);
+    test({0.0005, 0.001, 1.02, 1e-4, log(4)}, ad);
+    test({0, 0, 1, 0, log(4)}, ad);
 }
