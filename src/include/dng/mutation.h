@@ -131,8 +131,8 @@ inline TransitionMatrix meiosis_haploid_matrix(const MutationMatrix &m, int muty
         for(int x=0,j=0; x<num_alleles; ++x) { // loop over all parent genotypes
             for(int y=0; y<=x; ++y,++j) {
                 // x/y => i
-                int u = (i==x); // number of mutations from chrom 1
-                int v = (i==y); // number of mutations from chrom 2
+                int u = (i != x); // number of mutations from chrom 1
+                int v = (i != y); // number of mutations from chrom 2
                 if(mutype != MUTATIONS_MEAN) {
                     // Update u and v as needed
                     u = (mutype == MUTATIONS_ALL || u == mutype) ? 1 : 0;
@@ -225,11 +225,6 @@ inline TransitionMatrix meiosis_diploid_matrix(const MutationMatrix &mdad,
     return meiosis_matrix(2,mdad,2,mmom,mutype);
 }
 
-inline TransitionMatrix meiosis_diploid_matrix_xlinked(const MutationMatrix &mdad,
-        const MutationMatrix &mmom, int mutype = MUTATIONS_ALL) {
-    return meiosis_matrix(1,mdad,2,mmom,mutype);
-}
-
 inline bool population_prior_check_ia(double theta, double hom_bias, double het_bias, double hap_bias) {
     return (theta >= 0)
         && (theta*hom_bias >= -2.0 && hom_bias <= 1.0)
@@ -242,11 +237,6 @@ inline
 dng::GenotypeArray population_prior_diploid_ia(double theta, double hom_bias, double het_bias,
     int num_alts, bool known_anc=true) {
     assert(num_alts >= 0);
-
-    // Check to see if we have any alleles
-    if(!known_anc && num_alts == 0) {
-        return {};
-    }
 
     double p_hom = 1.0/(1.0+theta);
     double p_het = theta/(1.0+theta);
@@ -294,11 +284,6 @@ dng::GenotypeArray population_prior_haploid_ia(double theta, double hap_bias,
     int num_alts, bool known_anc=true) {
     assert(num_alts >= 0);
 
-    // Check to see if we have any alleles
-    if(!known_anc && num_alts == 0) {
-        return {};
-    }
-
     double k = num_alts;
     double p_R = 0.0, p_A = 0.0;
     if(known_anc) {
@@ -314,93 +299,12 @@ dng::GenotypeArray population_prior_haploid_ia(double theta, double hap_bias,
     
     dng::GenotypeArray ret{num_alts+1};
     ret(0) = p_R;
-    for(int n=0;n<(num_alts+1);++n) {
+    for(int n=1;n<=num_alts;++n) {
         ret(n) = p_A;
     }
 
     return ret;
 }
-
-// inline
-// std::array<double, 4> population_alphas(double theta,
-//         const std::array<double, 4> &nuc_freq,
-//         const std::array<double, 4> &prior) {
-//     assert(nuc_freq[0] >= 0 && nuc_freq[1] >= 0 && nuc_freq[2] >= 0 && nuc_freq[3] >= 0);
-//     assert(prior[0] >= 0 && prior[1] >= 0 && prior[2] >= 0 && prior[3] >= 0);
-
-//     double nuc_sum = nuc_freq[0] + nuc_freq[1] + nuc_freq[2] + nuc_freq[3];
-//     theta = theta/nuc_sum;
-
-//     return {{theta*nuc_freq[0] + prior[0], theta*nuc_freq[1] + prior[1],
-//              theta*nuc_freq[2] + prior[2], theta*nuc_freq[3] + prior[3]
-//     }};
-// }
-
-// inline dng::GenotypeArray population_prior_diploid_dm(double theta,
-//         const std::array<double, 4> &nuc_freq,
-//         const std::array<double, 4> &prior) {
-//     std::array<double, 4> alpha = population_alphas(theta, nuc_freq, prior);
-
-//     double alpha_sum = alpha[0] + alpha[1] + alpha[2] + alpha[3];
-//     dng::GenotypeArray ret{10};
-//     for(int i=0;i<10;++i) {
-//         int n1 = genotype::folded_diploid_nucleotides[i][0];
-//         int n2 = genotype::folded_diploid_nucleotides[i][1];
-//         if(n1 == n2) {
-//             ret(i) = alpha[n1]*(1.0 + alpha[n1]) / alpha_sum / (1.0 + alpha_sum);
-//         } else {
-//             ret(i) = 2.0 * alpha[n1]*(alpha[n2]) / alpha_sum / (1.0 + alpha_sum);
-
-//         }
-//     }
-//     return ret;
-// }
-
-
-// inline dng::GenotypeArray population_prior_haploid_dm(double theta,
-//         const std::array<double, 4> &nuc_freq,
-//         const std::array<double, 4> &prior) {
-//     std::array<double, 4> alpha = population_alphas(theta, nuc_freq, prior);
-
-//     double alpha_sum = alpha[0] + alpha[1] + alpha[2] + alpha[3];
-//     dng::GenotypeArray ret{4};
-//     ret <<  alpha[0] / alpha_sum,
-//             alpha[1] / alpha_sum,
-//             alpha[2] / alpha_sum,
-//             alpha[3] / alpha_sum;
-//     return ret;
-// }
-
-// namespace f81 {
-// // Construct an F81 mutation matrix
-// inline MutationMatrix matrix(double mu, const std::array<double, 4> &nuc_freq) {
-//     double beta = 1.0;
-//     for(auto d : nuc_freq) {
-//         beta -= d * d;
-//     }
-//     double p = -expm1(-mu / beta);
-
-//     MutationMatrix ret{4,4};
-//     for(int i = 0; i < 4; ++i) {
-//         for(int j = 0; j < 4; ++j) {
-//             ret(i, j) = nuc_freq[j] * p;
-//         }
-//         ret(i, i) += 1.0 - p;
-//     }
-//     return ret;
-// }
-
-// // Calculate the maximum likelihood estimate of mu given q fraction of observed differences
-// inline double estimate(double q, const std::array<double, 4> &nuc_freq) {
-//     double beta = 1.0;
-//     for(auto d : nuc_freq) {
-//         beta -= d * d;
-//     }
-//     return -beta * log(1.0 - q / beta);
-// }
-
-// } // namespace f81
-
 
 } // namespace dng
 
