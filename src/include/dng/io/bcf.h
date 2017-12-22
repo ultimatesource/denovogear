@@ -69,6 +69,9 @@ public:
         return reader_;
     }
 
+    template<typename A>
+    static BcfPileup open_and_setup(const A& arg);
+
 private:
     hts::bcf::SyncedReader reader_;
 
@@ -81,6 +84,25 @@ private:
 
     std::vector<regions::contig_t> contigs_;
 };
+
+template<typename A>
+inline
+BcfPileup BcfPileup::open_and_setup(const A& arg) {
+    if(arg.input.size() > 1) {
+        throw std::runtime_error("dng call can only handle one variant file at a time.");
+    }
+
+    BcfPileup mpileup;
+
+    regions::set_regions(arg.region, &mpileup);
+
+    if(mpileup.AddFile(arg.input[0].c_str()) == 0) {
+        int errnum = mpileup.reader().handle()->errnum;
+        throw std::runtime_error(bcf_sr_strerror(errnum));
+    }
+
+    return mpileup;
+}
 
 template<typename CallBack>
 void BcfPileup::operator()(CallBack call_back) {

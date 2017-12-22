@@ -27,6 +27,7 @@
 #include <deque>
 
 #include <dng/utility.h>
+#include <dng/io/utility.h>
 
 #include <boost/container/flat_map.hpp>
 #include <boost/optional.hpp>
@@ -136,6 +137,45 @@ ranges_t parse_regions(const std::string &text, const ContigIndex& index);
 
 // Parse slurped bed into ranges
 ranges_t parse_bed(const std::string &text, const ContigIndex& index);
+
+// Task helper functions
+template<typename M>
+inline
+void set_regions(std::string region, const regions::ContigIndex& index, M *mpileup) {
+    assert(mpileup != nullptr);
+    // replace arg.region with the contents of a file if needed
+    auto region_ext = io::at_slurp(region);
+    if(!region.empty()) {
+        if(region_ext == "bed") {
+            mpileup->SetRegions(regions::parse_bed(region, index));
+        } else {
+            mpileup->SetRegions(regions::parse_regions(region, index));
+        }
+    }
+}
+
+template<typename M>
+inline
+void set_regions(std::string region, M *mpileup) {
+    assert(mpileup != nullptr);
+    // replace arg.region with the contents of a file if needed
+    auto region_ext = io::at_slurp(region);
+    if(!region.empty()) {
+        if(region_ext == "bed") {
+            if(auto f = regions::parse_contig_fragments_from_bed(region)) {
+                mpileup->SetRegions(*f, false);
+            } else {
+                throw std::invalid_argument("Parsing of bed failed.");
+            }
+        } else {
+            if(auto f = regions::parse_contig_fragments_from_regions(region)) {
+                mpileup->SetRegions(*f, true);
+            } else {
+                throw std::invalid_argument("Parsing of regions failed.");
+            }
+        }
+    }
+}
 
 } // namespace dng::regions
 } // namespace dng

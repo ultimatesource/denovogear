@@ -169,6 +169,9 @@ public:
             File(hts::File(file, mode), fasta, min_mapQ, header) {
     }
 
+    File(File&&) = default;
+    File& operator=(File&&) = default;
+
     int Read(Alignment *p) {
         assert(p != nullptr);
         int ret;

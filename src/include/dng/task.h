@@ -24,6 +24,8 @@
 #include <vector>
 #include <string>
 
+#include <dng/regions.h>
+
 #include <boost/logic/tribool.hpp>
 #include <boost/logic/tribool_io.hpp>
 #include <boost/program_options.hpp>
@@ -57,12 +59,13 @@ std::ostream& operator<<(std::ostream& os, bool_switch_t b) {
 struct arg_t {
     std::vector< std::string > input;
 };
+
 }
 
 template<typename A>
 class Task {
 public:
-    typedef A   argument_type;
+    typedef A argument_type;
     typedef int result_type;
 
     int operator()(argument_type &) {

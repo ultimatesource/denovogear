@@ -75,6 +75,8 @@ public:
     explicit BamScan(File in, int min_qlen = 0) : in_(std::move(in)), next_loc_{0},
         min_qlen_{min_qlen} {}
 
+    BamScan(BamScan&&) = default;
+
     list_type operator()(utility::location_t target_loc, pool_type &pool);
 
     location_t next_loc() const { return next_loc_; }
@@ -116,6 +118,8 @@ public:
             lbtag_ = "LB";
         }
     }
+    BamPileup(BamPileup&&) = default;
+    BamPileup& operator=(BamPileup&&) = default;
 
     template<typename InFile>
     void AddFile(InFile&& f);
@@ -153,6 +157,9 @@ public:
         return ret;
     }
 
+    template<typename A>
+    static BamPileup open_and_setup(const A& arg);
+
 private:
     int Advance(regions::range_t *target_range);
 
@@ -167,16 +174,21 @@ private:
         }    
     }
 
-    // Data Used for Pileup
-    data_type data_; // Store pileup
-    utility::location_t next_scanner_location_; // Next location off the scanners
-
-    void ParseHeader(const char* text);
+    boost::optional<regions::range_t> LoadNextRegion();
 
     template<typename It>
     void ParseHeaderTokens(It it, It it_last);
 
-    boost::optional<regions::range_t> LoadNextRegion();
+    void ParseHeader(const char* text);
+
+
+    struct bam_libraries_t : dng::libraries_t {
+        std::vector<utility::StringSet> read_groups;
+    };
+
+    // Data Used for Pileup
+    data_type data_; // Store pileup
+    utility::location_t next_scanner_location_; // Next location off the scanners
 
     std::vector<detail::BamScan> scanners_;
 
@@ -185,10 +197,6 @@ private:
     pool_type pool_;
 
     int min_qlen_;
-
-    struct bam_libraries_t : dng::libraries_t {
-        std::vector<utility::StringSet> read_groups;
-    };
 
     std::string lbtag_;
 
@@ -199,6 +207,29 @@ private:
 
     DNG_UNIT_TEST_CLASS(unittest_dng_io_bam);
 };
+
+template<typename A>
+BamPileup BamPileup::open_and_setup(const A& arg) {
+
+    BamPileup mpileup{arg.min_qlen, arg.rgtag};
+    
+    for(auto && str : arg.input) {
+        hts::bam::File input{str.c_str(), "r", arg.fasta.c_str(), arg.min_mapqual, arg.header.c_str()};
+        if(!input.is_open()) {
+            throw std::runtime_error("Unable to open bam/sam/cram input file '" + str + "' for reading.");
+        }
+        mpileup.AddFile(std::move(input));
+    }
+
+    // Load contigs into an index
+    regions::ContigIndex index;
+    for(auto && a : mpileup.contigs()) {
+        index.AddContig(std::move(a));
+    }
+    regions::set_regions(arg.region, index, &mpileup);
+
+    return mpileup;
+}
 
 template<typename InFile>
 void BamPileup::AddFile(InFile&& f) {
