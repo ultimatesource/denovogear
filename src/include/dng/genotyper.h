@@ -87,8 +87,9 @@ public:
         double over_dispersion_het, double ref_bias,
         double error_rate, double error_entropy);
 
+    template<typename Range>
     std::pair<GenotypeArray, double> operator()(
-        depths_const_reference_type ad, int num_alts, int ploidy=2) const;
+        const Range& ad, int num_alts, int ploidy=2) const;
 
     double over_dispersion_hom() const { return over_dispersion_hom_; }
     double over_dispersion_het() const { return over_dispersion_het_; }
@@ -97,8 +98,12 @@ public:
     double error_entropy() const { return error_entropy_; }
 
 protected:
-    GenotypeArray LogHaploidGenotypes(depths_const_reference_type ad, int num_alts) const;
-    GenotypeArray LogDiploidGenotypes(depths_const_reference_type ad, int num_alts) const;
+
+    template<typename Range>
+    GenotypeArray LogHaploidGenotypes(const Range& ad, int num_alts) const;
+
+    template<typename Range>
+    GenotypeArray LogDiploidGenotypes(const Range& ad, int num_alts) const;
 
     double over_dispersion_hom_; // overdispersion of homozygotes
     double over_dispersion_het_; // overdispersion of heterozygotes
@@ -129,6 +134,109 @@ protected:
         double over_dispersion_het, double ref_bias,
         double error_rate, double error_entropy);
 };
+
+template<typename Range>
+GenotypeArray DirichletMultinomial::LogDiploidGenotypes(const Range& ad, int num_alts) const
+{    
+    assert(num_alts >= 0);
+    const int num_alleles = num_alts + 1;
+    const int sz = num_alleles*(num_alleles+1)/2;
+
+    GenotypeArray ret{sz};
+    ret.setZero();
+
+    int total = 0, pos=0;
+    for(auto d : ad) {
+        assert( d >= 0 );
+        total += d;
+
+        for(int a=0,gt=0; a < num_alleles; ++a) {
+            for(int b=0; b < a; ++b) {
+                // Heterozygotes
+                if(b == 0) {
+                    // gt = 0/a
+                    if(pos == b) {
+                        ret[gt++] += pochhammer(alpha::HET_REF, d);    
+                    } else if(pos == a) {
+                        ret[gt++] += pochhammer(alpha::HET_ALT, d);
+                    } else {
+                        ret[gt++] += pochhammer(alpha::HET_ERROR, d);
+                    }
+                } else {
+                    // gt = b/a
+                    if(pos == b || pos == a) {
+                        ret[gt++] += pochhammer(alpha::HET_ALTALT, d); 
+                    } else {
+                        ret[gt++] += pochhammer(alpha::HET_ERROR, d);
+                    }
+                }
+            }
+            // Homozygotes
+            if(pos == a) {
+                ret[gt++] += pochhammer(alpha::HOM_MATCH, d);
+            } else {
+                ret[gt++] += pochhammer(alpha::HOM_ERROR, d);
+            }
+        }
+        ++pos;
+    } 
+
+    double hom_total = pochhammer(alpha::HOM_TOTAL, total);
+    ret[0] -= hom_total;
+    if(num_alleles > 1) {
+        double het_total = pochhammer(alpha::HET_TOTAL, total);
+        for(int a=1,gt=1; a < num_alleles; ++a) {
+            for(int b=0; b < a; ++b) {
+                ret[gt++] -= het_total;
+            }
+            ret[gt++] -= hom_total;
+        }
+    }
+    return ret;
+}
+
+template<typename Range>
+GenotypeArray DirichletMultinomial::LogHaploidGenotypes(const Range& ad, int num_alts) const {
+    assert(num_alts >= 0);
+    const int num_alleles = num_alts + 1;    
+    const int sz = num_alleles;
+
+    GenotypeArray ret{sz};
+    ret.setZero();
+
+    int total = 0, pos = 0;
+    for(auto d : ad) {
+        assert( d >= 0 );
+        total += d;
+        for(int gt=0; gt < sz; ++gt) {
+            ret[gt] += pochhammer((gt == pos) ? alpha::HOM_MATCH : alpha::HOM_ERROR, d) ;
+        }
+        ++pos;
+    }
+    double hom_total = pochhammer(alpha::HOM_TOTAL, total);
+    for(int gt=0; gt < sz; ++gt) {
+        ret[gt] -=  hom_total;
+    }
+
+    return ret;
+}
+
+
+template<typename Range>
+std::pair<GenotypeArray, double> DirichletMultinomial::operator()(
+        const Range &ad, int num_alts, int ploidy) const
+{
+    assert(ploidy == 1 || ploidy == 2);
+
+    auto log_ret = (ploidy == 2) ? LogDiploidGenotypes(ad,num_alts)
+                                 : LogHaploidGenotypes(ad,num_alts);
+
+    // Scale and calculate likelihoods
+    double scale = log_ret.maxCoeff();
+
+    return {(log_ret - scale).exp(), scale};
+}
+
 
 } // namespace genotype
 

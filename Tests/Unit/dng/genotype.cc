@@ -124,11 +124,9 @@ BOOST_AUTO_TEST_CASE(test_DirichletMultinomial) {
         for(auto &&a : alphas) {
             f.emplace_back(a);
         }
-        for(int k : {0,1,2,3,4}) {         
+        for(int k : {0,1,3,4,5}) {         
             for(auto &&ad : depths) {
                 // Wrap depths 
-                boost::const_multi_array_ref<int, 2> r{ad.data(), boost::extents[1][ad.size()]};
-
                 BOOST_TEST_CONTEXT("ploidy=1, depths=" << rangeio::wrap(ad) << ", k=" << k) {
                     std::vector<double> expected;
                     for(int g=0;g<=k;++g) {
@@ -149,7 +147,7 @@ BOOST_AUTO_TEST_CASE(test_DirichletMultinomial) {
                     for(auto &&x : expected) {
                          x = exp(x-expected_scale);
                      }
-                    auto results = dm(r[0],k,1);
+                    auto results = dm(ad,k,1);
                     double test_scale = results.second;
                     auto test = make_test_range(results.first);
                     BOOST_CHECK_CLOSE_FRACTION(test_scale, expected_scale, prec);
@@ -172,11 +170,12 @@ BOOST_AUTO_TEST_CASE(test_DirichletMultinomial) {
                                     // HET_ALTALT_MATCH
                                     ll += f[5](ad[d]);
                                 } else {
+                                    // HET_REF or HET_ALT
                                     ll += (d == 0) ? f[2](ad[d]) : f[3](ad[d]);
                                 }
                                 count += ad[d];
                             }
-                            ll -= (a == b) ? f[6](count) : f[7](count);
+                            ll -= ((a == b) ? f[6](count) : f[7](count));
                             expected.push_back(ll);
                         }
                     }
@@ -184,9 +183,10 @@ BOOST_AUTO_TEST_CASE(test_DirichletMultinomial) {
                     for(auto &&x : expected) {
                          x = exp(x-expected_scale);
                      }
-                    auto results = dm(r[0],k,2);
+                    auto results = dm(ad,k,2);
                     double test_scale = results.second;
                     auto test = make_test_range(results.first);
+
                     BOOST_CHECK_CLOSE_FRACTION(test_scale, expected_scale, prec);
                     CHECK_CLOSE_RANGES(test, expected, prec);
                 }

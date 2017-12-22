@@ -149,7 +149,7 @@ DirichletMultinomial::DirichletMultinomial(double over_dispersion_hom,
     ref_bias_{ref_bias}, error_rate_{error_rate},
     error_entropy_{error_entropy}
 {
-    auto alphas = detail::make_alphas(over_dispersion_hom, over_dispersion_hom, 
+    auto alphas = detail::make_alphas(over_dispersion_hom, over_dispersion_het, 
         ref_bias, error_rate, error_entropy);
 
     for(int i=0; i<pochhammers_.size(); ++i) {
@@ -159,99 +159,6 @@ DirichletMultinomial::DirichletMultinomial(double over_dispersion_hom,
         }
     }
 }
-
-GenotypeArray DirichletMultinomial::LogDiploidGenotypes(depths_const_reference_type ad, int num_alts) const
-{    
-    assert(num_alts >= 0);
-    const int num_alleles = num_alts + 1;
-    const int sz = num_alleles*(num_alleles+1)/2;
-
-    GenotypeArray ret{sz};
-    ret.setZero();
-
-    int total = 0;
-    for(int pos=0; pos < ad.size(); ++pos) {
-        assert( ad[pos] >= 0 );
-        int d = ad[pos];
-        total += d;
-
-        for(int a=0,gt=0; a < num_alleles; ++a) {
-            for(int b=0; b < a; ++b,++gt) {
-                // Heterozygotes
-                if(b == 0) {
-                    // gt = 0/a
-                    ret[gt] += pochhammer(
-                        (pos == 0) ? alpha::HET_REF :
-                        (pos == a) ? alpha::HET_ALT :
-                                     alpha::HET_ERROR ,
-                        d );
-                } else {
-                    // gt = b/a
-                    ret[gt] += pochhammer(
-                        (pos == a || pos == b) ? alpha::HET_ALTALT :
-                                                 alpha::HET_ERROR ,
-                        d );
-                }
-            }
-            // Homozygotes
-            ret[gt++] += pochhammer(
-                (a == pos) ? alpha::HOM_MATCH :
-                             alpha::HOM_ERROR ,
-                d);
-        }
-    } 
-
-    double het_total = pochhammer(alpha::HET_TOTAL, total);
-    double hom_total = pochhammer(alpha::HOM_TOTAL, total);
-    for(int a=0,gt=0; a < num_alleles; ++a) {
-        for(int b=0; b < a; ++b,++gt) {
-            ret[gt] -= het_total;
-        }
-        ret[gt++] -= hom_total;
-    }
-
-    return ret;
-}
-
-GenotypeArray DirichletMultinomial::LogHaploidGenotypes(depths_const_reference_type ad, int num_alts) const {
-    assert(num_alts >= 0);
-    const int num_alleles = num_alts + 1;    
-    const int sz = num_alleles;
-
-    GenotypeArray ret{sz};
-    ret.setZero();
-
-    int total = 0;
-    for(int pos=0; pos < ad.size(); ++pos) {
-        assert( ad[pos] >= 0 );
-        int d = ad[pos];
-        total += d;
-        for(int gt=0; gt < sz; ++gt) {
-            ret[gt] += pochhammer((gt == pos) ? alpha::HOM_MATCH : alpha::HOM_ERROR, d) ;
-        }
-    }
-    for(int gt=0; gt < sz; ++gt) {
-        ret[gt] -= pochhammer(alpha::HOM_TOTAL, total) ;
-    }
-    return ret;
-}
-
-
-std::pair<GenotypeArray, double> DirichletMultinomial::operator()(
-        depths_const_reference_type ad, int num_alts, int ploidy) const
-{
-    assert(ploidy == 1 || ploidy == 2);
-
-    auto log_ret = (ploidy == 2) ? LogDiploidGenotypes(ad,num_alts)
-                                 : LogHaploidGenotypes(ad,num_alts);
-
-    // Scale and calculate likelihoods
-    double scale = log_ret.maxCoeff();
-
-    return {(log_ret - scale).exp(), scale};
-}
-
-
 
 } // namespace genotype
 } // namespace dng
