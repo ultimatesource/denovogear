@@ -60,6 +60,8 @@
 
 using namespace dng;
 
+using utility::make_array;
+
 int process_bam(task::Call::argument_type &arg);
 int process_bcf(task::Call::argument_type &arg);
 int process_ad(task::Call::argument_type &arg);
@@ -223,8 +225,7 @@ int process_bam(task::Call::argument_type &arg) {
     CallMutations do_call(arg.min_prob, relationship_graph, get_model_parameters(arg));
 
     // Pileup data
-    dng::pileup::allele_depths_t read_depths;
-    read_depths.resize(boost::extents[mpileup.num_libraries()][5]);
+    dng::pileup::allele_depths_t read_depths(make_array(mpileup.num_libraries(),5u));
 
     // Calculated stats
     CallMutations::stats_t stats;
@@ -420,10 +421,6 @@ int process_bcf(task::Call::argument_type &arg) {
     const size_t num_nodes = relationship_graph.num_nodes();
     const size_t library_start = relationship_graph.library_nodes().first;
 
-    // Read depths
-    dng::pileup::allele_depths_t read_depths;
-    read_depths.resize(boost::extents[num_libs][5]);
-
     // allocate space for ad. bcf_get_format_int32 uses realloc internally
     int n_ad_capacity = num_libs*5;
     auto ad = hts::bcf::make_buffer<int>(n_ad_capacity);
@@ -438,12 +435,14 @@ int process_bcf(task::Call::argument_type &arg) {
             // TODO: support using calculated genotype likelihoods
             return;
         }
-
         assert(n_ad % num_libs == 0);
-
         const int n_sz = n_ad / num_libs;
-        read_depths.resize(boost::extents[num_libs][n_sz]);
-        read_depths.assign(ad.get(), ad.get()+n_ad);
+
+        // replace "missing" and "end" values with 0
+        boost::replace_if(boost::make_iterator_range(ad.get(), ad.get()+n_ad),
+            [](int a) { return a < 0; }, 0 );
+
+        pileup::allele_depths_ref_t read_depths(ad.get(), make_array(num_libs,n_sz));
 
         if(!do_call(read_depths, n_sz-1, true, &stats)) {
             return;
