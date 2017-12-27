@@ -77,6 +77,10 @@ LogProbability::LogProbability(RelationshipGraph graph, params_t params) :
 LogProbability::value_t LogProbability::operator()(
     const pileup::allele_depths_t &depths, int num_alts, bool has_ref)
 {
+    if(num_alts >= transition_matrices_.size()) {
+        num_alts = transition_matrices_.size()-1;
+    }
+
     // calculate genotype likelihoods and store in the lower library vector
     double scale = work_.SetGenotypeLikelihoods(genotyper_, depths, num_alts);
 

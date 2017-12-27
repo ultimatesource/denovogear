@@ -36,6 +36,7 @@ namespace pileup {
 
 using allele_depths_t = boost::multi_array<int32_t, 2>;
 using allele_depths_ref_t = boost::multi_array_ref<int32_t, 2>;
+using allele_depths_const_ref_t = boost::const_multi_array_ref<int32_t, 2>;
 
 struct depth_t {
     int32_t counts[4]{0,0,0,0};

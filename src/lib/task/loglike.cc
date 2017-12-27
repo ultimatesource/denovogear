@@ -227,7 +227,7 @@ int process_bcf(LogLike::argument_type &arg) {
 
         pileup::allele_depths_ref_t read_depths(ad.get(), make_array(num_libs,n_sz));
 
-        auto loglike = do_loglike(read_depths,n_sz,true);
+        auto loglike = do_loglike(read_depths,n_sz-1,true);
         sum_data += loglike.log_data;
         sum_scale += loglike.log_scale;
     });
@@ -240,75 +240,49 @@ int process_bcf(LogLike::argument_type &arg) {
 
 int process_ad(LogLike::argument_type &arg) {
     using namespace std;
-    // Parse pedigree from file
-    Pedigree ped = io::parse_ped(arg.ped);
+   
+    // Read input data
+    auto mpileup = io::AdPileup::open_and_setup(arg);
 
-    // Open Reference
-    io::Fasta reference{arg.fasta.c_str()};
+    auto relationship_graph = create_relationship_graph(arg, &mpileup);
 
-    // replace arg.region with the contents of a file if needed
-    //auto region_ext = io::at_slurp(arg.region);
-    if(!arg.region.empty()) {
-        throw std::invalid_argument("--region not supported when processing ad/tad file.");
-    }
-
-    // Open input files
-    if(arg.input.size() != 1) {
-        throw std::runtime_error("can only process one ad/tad file at a time.");
-    }
-    
-    io::Ad input{arg.input[0], std::ios_base::in};
-    if(!input) {
-        throw std::runtime_error("unable to open input file '" + arg.input[0] + "'.");
-    }
-    if(input.ReadHeader() == 0) {
-        throw std::runtime_error("unable to read header from '" + input.path() + "'.");
-    }
-
-    // Construct peeling algorithm from parameters and pedigree information
-    InheritanceModel model = inheritance_model(arg.model);
-
-    RelationshipGraph relationship_graph;
-    if(!relationship_graph.Construct(ped, input.libraries(), model, arg.mu, arg.mu_somatic, arg.mu_library,
-        arg.normalize_somatic_trees)) {
-        throw std::invalid_argument("Unable to construct peeler for pedigree; "
-                            "possible non-zero-loop pedigree.");
-    }
-    // Select libraries in the input that are used in the pedigree
-    input.SelectLibraries(relationship_graph.library_names());
-
-    for(auto && line : relationship_graph.BCFHeaderLines()) {
-        cout << line << "\n";
-    }
-
-    // Construct function object to calculate log likelihoods
-    LogProbability::params_t params = get_model_parameters(arg);
-
-    LogProbability calculate (relationship_graph, params);
+    LogProbability do_loglike(relationship_graph, get_model_parameters(arg));
 
     stats::ExactSum sum_data, sum_scale;
 
-    // using a single thread to read data and process it
-    if(arg.threads == 0) {
-        pileup::AlleleDepths line;
-        line.data().reserve(4*input.num_libraries());
-        dng::pileup::allele_depths_t read_depths(make_array(line.num_libraries(),5u));
-
-        // read each line of data into line and process it
-        while(input.Read(&line)) {
-            int ref_is_N = (line.color() >= 64);
-            size_t sz = line.num_nucleotides() + ref_is_N;
+    pileup::allele_depths_t read_depths;
+    // Place the processing logic in the lambda function.
+    auto do_calculate = [&,read_depths](const decltype(mpileup)::data_type &line,
+        stats::ExactSum* p_sum_data, stats::ExactSum* p_sum_scale) mutable {
+        bool ref_is_N = (line.color() >= 64);
+        if(ref_is_N) {
+            size_t sz = line.num_nucleotides() + 1;
             read_depths.resize(make_array(line.num_libraries(),sz));
             for(int i=0;i<line.num_libraries();++i) {
-                for(int a=ref_is_N;a<sz;++a) {
-                    read_depths[i][a] = line(i,a-ref_is_N);
+                read_depths[i][0] = 0;
+                for(int a=1;a<sz;++a) {
+                    read_depths[i][a] = line(i,a-1);
                 }
             }
-
-            auto loglike = calculate(read_depths, sz-1, !ref_is_N);
-            sum_data += loglike.log_data;
-            sum_scale += loglike.log_scale;
+            auto loglike = do_loglike(read_depths, sz-1, false);
+            *p_sum_data += loglike.log_data;
+            *p_sum_scale += loglike.log_scale;
+        } else {
+            size_t sz = line.num_nucleotides();
+            dng::pileup::allele_depths_const_ref_t read_depths_ref(line.data().data(),
+                make_array(line.num_libraries(), line.num_nucleotides()));
+            auto loglike = do_loglike(read_depths_ref, sz-1, true);
+            *p_sum_data += loglike.log_data;
+            *p_sum_scale += loglike.log_scale;    
         }
+    };
+
+    // using a single thread to read data and process it
+    if(arg.threads == 0) {
+        dng::pileup::allele_depths_t read_depths(make_array(mpileup.num_libraries(),5u));
+        mpileup([&](const decltype(mpileup)::data_type &line) {
+            do_calculate(line, &sum_data, &sum_scale);
+        });
     } else {
         // Use a single thread to read data from the input
         // and multiple threads to process it.
@@ -337,22 +311,10 @@ int process_ad(LogLike::argument_type &arg) {
         // construct a lambda function which will be used for the worker threads
         // each thread needs to have its own, mutable copy of calculate
         // because calculate stores working data in a member object
-        auto batch_calculate = [&,calculate](batch_t& reads) mutable {
+        auto batch_calculate = [&,do_loglike](batch_t& reads) mutable {
                 stats::ExactSum sum_d, sum_s;
-                dng::pileup::allele_depths_t read_depths;
-
-                for(auto && line : reads) {
-                    int ref_is_N = (line.color() >= 64);
-                    size_t sz = line.num_nucleotides() + ref_is_N;
-                    read_depths.resize(make_array(line.num_libraries(),sz));
-                    for(int i=0;i<line.num_libraries();++i) {
-                        for(int a=ref_is_N;a<sz;++a) {
-                            read_depths[i][a] = line(i,a-ref_is_N);
-                        }
-                    }
-                    auto loglike = calculate(read_depths, sz-1, !ref_is_N);
-                    sum_d += loglike.log_data;
-                    sum_s += loglike.log_scale;
+            for(auto && line : reads) {
+                do_calculate(line, &sum_d, &sum_s);
             }
             {
                 // use batch_mutex to save results and return our data object
@@ -385,7 +347,7 @@ int process_ad(LogLike::argument_type &arg) {
             // read up to batch_size number of reads into the batch
             // resize if needed
             for(size_t u=0; u < batch_size; ++u) {
-                if(!input.Read(&b[u])) {
+                if(!mpileup.Read(&b[u])) {
                     b.resize(u);
                     eof = true;
                     break;
