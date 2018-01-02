@@ -73,62 +73,6 @@ LogProbability::LogProbability(RelationshipGraph graph, params_t params) :
     // }
 }
 
-// returns 'log10 P(Data ; model)-log10 scale' and log10 scaling.
-LogProbability::value_t LogProbability::operator()(
-    const pileup::allele_depths_t &depths, int num_alts, bool has_ref)
-{
-    if(num_alts >= transition_matrices_.size()) {
-        num_alts = transition_matrices_.size()-1;
-    }
-
-    // calculate genotype likelihoods and store in the lower library vector
-    double scale = work_.SetGenotypeLikelihoods(genotyper_, depths, num_alts);
-
-    // Set the prior probability of the founders given the reference
-    work_.SetGermline(DiploidPrior(num_alts, has_ref), HaploidPrior(num_alts, has_ref));
-
-    // Calculate log P(Data ; model)
-    double logdata = graph_.PeelForwards(work_, transition_matrices_[num_alts]);
-
-    return {logdata/M_LN10, scale/M_LN10};
-}
-
-// // Calculate the probability of a depths object considering only indexes
-// // TODO: make indexes a property of the pedigree
-// LogProbability::value_t LogProbability::operator()(const pileup::AlleleDepths &depths) {
-//     const int ref_index = depths.type_info().reference;
-//     const int color = depths.color();
-
-//     double scale, logdata;
-//     // For monomorphic sites we have pre-calculated the peeling part
-//     if(color < 4) {
-//         assert(depths.type_info().width == 1 && depths.type_gt_info().width == 1 && ref_index == color);
-//         // Calculate genotype likelihoods
-//         scale = work_.SetGenotypeLikelihoods(genotyper_, depths);
-
-//         // Multiply our pre-calculated peeling results with the genotype likelihoods
-//         logdata = prob_monomorphic_[color];
-//         for(auto it = work_.lower.begin()+work_.library_nodes.first;
-//             it != work_.lower.begin()+work_.library_nodes.second; ++it) {
-//             logdata *= (*it)(0);
-//         }
-//         // convert to a log-likelihood
-//         logdata = log(logdata);
-//     } else {      
-//         // Set the prior probability of the founders given the reference
-//         GenotypeArray diploid_prior = DiploidPrior(ref_index, color);
-//         GenotypeArray haploid_prior = HaploidPrior(ref_index, color);
-//         work_.SetGermline(diploid_prior, haploid_prior);
-  
-//         // Calculate genotype likelihoods
-//         scale = work_.SetGenotypeLikelihoods(genotyper_, depths);
-
-//          // Calculate log P(Data ; model)
-//         logdata = graph_.PeelForwards(work_, transition_matrices_[color]);
-//     }
-//     return {logdata/M_LN10, scale/M_LN10};
-// }
-
 // Construct the mutation matrices for each transition
 TransitionMatrixVector dng::create_mutation_matrices(const RelationshipGraph &graph,
     int num_alleles, double entropy, const int mutype) {

@@ -55,7 +55,8 @@ public:
 
     LogProbability(RelationshipGraph graph, params_t params);
 
-    value_t operator()(const pileup::allele_depths_t &depths, int num_alts, bool has_ref=true);
+    template<typename A>
+    value_t operator()(const A &depths, int num_alts, bool has_ref=true);
 
     const peel::workspace_t& work() const { return work_; };
 
@@ -85,9 +86,29 @@ protected:
     DNG_UNIT_TEST_CLASS(unittest_dng_log_probability);
 };
 
+// returns 'log10 P(Data ; model)-log10 scale' and log10 scaling.
+template<typename A>
+LogProbability::value_t LogProbability::operator()(
+    const A &depths, int num_alts, bool has_ref)
+{
+    if(num_alts >= transition_matrices_.size()) {
+        num_alts = transition_matrices_.size()-1;
+    }
+
+    // calculate genotype likelihoods and store in the lower library vector
+    double scale = work_.SetGenotypeLikelihoods(genotyper_, depths, num_alts);
+
+    // Set the prior probability of the founders given the reference
+    work_.SetGermline(DiploidPrior(num_alts, has_ref), HaploidPrior(num_alts, has_ref));
+
+    // Calculate log P(Data ; model)
+    double logdata = graph_.PeelForwards(work_, transition_matrices_[num_alts]);
+
+    return {logdata/M_LN10, scale/M_LN10};
+}
+
 TransitionMatrixVector create_mutation_matrices(const RelationshipGraph &pedigree,
         int num_alleles, double entropy, const int mutype = MUTATIONS_ALL);
-
 
 inline
 LogProbability::matrices_t LogProbability::CreateMutationMatrices(const int mutype) const {
