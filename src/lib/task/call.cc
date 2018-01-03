@@ -224,9 +224,6 @@ int process_bam(task::Call::argument_type &arg) {
     // Construct Calling Object
     CallMutations do_call(arg.min_prob, relationship_graph, get_model_parameters(arg));
 
-    // Pileup data
-    dng::pileup::allele_depths_t read_depths(make_array(mpileup.num_libraries(),5u));
-
     // Calculated stats
     CallMutations::stats_t stats;
   
@@ -241,7 +238,9 @@ int process_bam(task::Call::argument_type &arg) {
         || seq::base_index(r.base()) >= 4);
     };
 
-    auto h = mpileup.header(); // TODO: Fixme.
+    decltype(mpileup)::Depths count_alleles(mpileup.num_libraries());
+
+    auto h = mpileup.header();
 
     const double min_prob = arg.min_prob;
     mpileup([&](const decltype(mpileup)::data_type & data, utility::location_t loc) {
@@ -254,55 +253,21 @@ int process_bam(task::Call::argument_type &arg) {
         char ref_base = reference.FetchBase(h->target_name[contig],position);
         size_t ref_index = seq::char_index(ref_base);
 
-        // reset all depth counters
-        std::fill_n(read_depths.data(), read_depths.num_elements(), 0);
+        auto read_depths = count_alleles(data, ref_index, filter_read);
+        size_t sz = read_depths.shape()[1];
 
-        // pileup on read counts
-        for(std::size_t u = 0; u < data.size(); ++u) {
-            for(auto && r : data[u]) {
-                if(filter_read(r)) {
-                    continue;
-                }
-                std::size_t base = seq::base_index(r.base());
-                assert(read_depths[u][(ref_index+base) % 5] < 65535);
-
-                read_depths[u][(ref_index+base) % 5] += 1;
-            }
-        }
-        int num_alts = (ref_index < 4) ? 3 : 4;
-
-		if(!do_call(read_depths, num_alts, ref_index < 4, &stats)) {
+		if(!do_call(read_depths, sz-1, ref_index < 4, &stats)) {
 			return;
 		}
         const bool has_single_mut = ((stats.mu1p / stats.mup) >= min_prob);
+
+        record.alleles(count_alleles.alleles_str());
 
 		// Measure total depth and sort nucleotides in descending order
         pileup::stats_t depth_stats;
         pileup::calculate_stats(read_depths, &depth_stats);
 
         add_stats_to_output(stats, depth_stats, has_single_mut, relationship_graph, do_call.work(), &record);
-
-        // Information about the site, based on depths
-        const int color = 40;//depth_stats.color;
-        const auto & type_info_gt = dng::pileup::AlleleDepths::type_info_gt_table[color];
-        const auto & type_info = dng::pileup::AlleleDepths::type_info_table[color];
-        const int refalt_count = type_info.width + (type_info.reference == 4);
-
-		// Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
-		std::vector<int32_t> ad_counts(num_nodes*refalt_count, hts::bcf::int32_missing);
-		std::vector<int32_t> ad_info(type_info.width, 0);
-        size_t pos = library_start * refalt_count;
-
-		for(size_t u = 0; u < read_depths.size(); ++u) {
-            if(type_info.reference == 4) {
-                ad_counts[pos++] = 0;
-            }
-			for(size_t k = 0; k < type_info.width; ++k) {
-                int count = read_depths[u][(int)type_info.indexes[k]];
-                ad_counts[pos++] = count;
-				ad_info[k+(type_info.reference == 4)] += count;
-			}
-		}
 
 		// Calculate ADR and ADF Tags
 		std::vector<int32_t> adf_counts(num_nodes * refalt_count, hts::bcf::int32_missing);
@@ -325,7 +290,6 @@ int process_bam(task::Call::argument_type &arg) {
 			adr_counts[u] = 0;
 		}
 
-        int acgt_to_refalt_allele[4] = {-1,-1,-1,-1};
         for(int i=0;i<type_info.width;++i) {
             acgt_to_refalt_allele[(int)type_info.indexes[i]] = i + (type_info.reference == 4);
         }
@@ -489,7 +453,6 @@ int process_bcf(task::Call::argument_type &arg) {
 }
 
 int process_ad(task::Call::argument_type &arg) {
-#if 0
 	// Parse the pedigree file
     Pedigree ped = io::parse_ped(arg.ped);
 
@@ -599,7 +562,6 @@ int process_ad(task::Call::argument_type &arg) {
         record.Clear();
 
     });
-#endif
     return EXIT_SUCCESS;
 }
 

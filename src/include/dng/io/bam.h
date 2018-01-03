@@ -28,10 +28,17 @@
 
 #include <boost/optional.hpp>
 
+#include <boost/range/algorithm/sort.hpp>
+#include <boost/range/algorithm/fill.hpp>
+#include <boost/range/algorithm_ext/iota.hpp>
+
 #include <dng/pool.h>
 #include <dng/utility.h>
 #include <dng/regions.h>
 #include <dng/library.h>
+#include <dng/depths.h>
+#include <dng/utility.h>
+#include <dng/seq.h>
 
 #include <dng/hts/bam.h>
 
@@ -108,6 +115,8 @@ public:
 
     using data_type = std::vector<list_type>;
     using callback_type = void(const data_type &, utility::location_t);
+
+    struct Depths; // functor class for calculating depths from data_type
 
     template<typename CallBack>
     void operator()(CallBack func);
@@ -315,6 +324,89 @@ void BamPileup::SelectLibraries(R &range) {
         ++k;
     }
 
+}
+
+// This functor will convert aligned reads to read_depths
+struct BamPileup::Depths {
+    using read_depths_t = dng::pileup::allele_depths_t;
+    using data_type = BamPileup::data_type;
+    using filter_signature = bool(const data_type::value_type &);
+
+    Depths(size_t num_libraries);
+
+    template<typename F = filter_signature>
+    const read_depths_t& operator()(const data_type &data, size_t ref_index, F filter
+        = [](const data_type::value_type &) { return true; } );
+
+    const std::string& alleles_str() const {
+        buffer.clear();
+        size_t sz = sorted.shape()[1];
+        for(size_t u=0;u<sz;++u) {
+            if(u > 0) {
+                buffer += ',';
+            }
+            buffer += seq::indexed_char(indexes[u]);
+        }
+        return buffer;
+    }
+
+
+    // temporary data
+    read_depths_t unsorted;
+    read_depths_t sorted;
+    std::vector<int> indexes;
+
+private:
+    mutable std::string buffer;
+};
+
+// Allocate workspace based on number of libraries
+inline BamPileup::Depths::Depths(size_t num_libraries) :
+    unsorted{utility::make_array(num_libraries,5u)},
+    sorted{utility::make_array(num_libraries,5u)},
+    indexes(5)
+{
+    /*noop*/;
+}
+
+template<typename F>
+inline
+const BamPileup::Depths::read_depths_t&
+BamPileup::Depths::operator()(const data_type &data, size_t ref_index, F filter) {
+    // reset all depth counters
+    std::array<int,5> total_unsorted{0,0,0,0,0};
+    std::fill_n(unsorted.data(), unsorted.num_elements(), 0);
+
+    // pileup on read counts
+    for(std::size_t u = 0; u < data.size(); ++u) {
+        for(auto && r : data[u]) {
+            if(filter(r)) {
+                continue;
+            }
+            std::size_t base = seq::base_index(r.base());
+            assert(unsorted[u][base] < 65535);
+            unsorted[u][base] += 1;
+            total_unsorted[base] += 1;
+        }
+    }
+
+    // sort read counts
+    indexes.resize(total_unsorted.size());
+    boost::iota(indexes,0);
+    boost::sort(indexes, [&total_unsorted,ref_index](int l, int r) {
+        return l == ref_index || total_unsorted[l] > total_unsorted[r];
+    });
+    size_t sz = indexes.size();
+    for(; sz > 0 && total_unsorted[indexes[sz-1]] == 0; --sz) {
+        /*noop*/;
+    }
+    sorted.resize(utility::make_array(sorted.size(), sz));
+    for(size_t i=0;i<sorted.size();++i) {
+        for(size_t u=0;u<sz;++u) {
+            sorted[i][u] = unsorted[i][indexes[u]];
+        }
+    }
+    return sorted;
 }
 
 } //namespace io

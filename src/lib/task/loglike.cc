@@ -40,8 +40,6 @@
 #include <boost/range/algorithm/replace.hpp>
 #include <boost/range/algorithm/max_element.hpp>
 #include <boost/range/algorithm/replace_if.hpp>
-#include <boost/range/algorithm/sort.hpp>
-#include <boost/range/algorithm_ext/iota.hpp>
 
 #include <boost/algorithm/string.hpp>
 
@@ -134,21 +132,17 @@ int process_bam(LogLike::argument_type &arg) {
 
     LogProbability do_loglike(relationship_graph, get_model_parameters(arg));
 
-    // Pileup data
-    dng::pileup::allele_depths_t u_read_depths(make_array(mpileup.num_libraries(), 5u));
-    dng::pileup::allele_depths_t read_depths(make_array(mpileup.num_libraries(), 5u));
-
-    std::array<int,5> total_u_read_depths;
-
     const size_t num_nodes = relationship_graph.num_nodes();
     const size_t library_start = relationship_graph.library_nodes().first;
     const int min_basequal = arg.min_basequal;
     auto filter_read = [min_basequal](
     decltype(mpileup)::data_type::value_type::const_reference r) -> bool {
-        return (r.is_missing
+        return !(r.is_missing
         || r.base_qual() < min_basequal
         || seq::base_index(r.base()) >= 4);
     };
+
+    decltype(mpileup)::Depths count_alleles(mpileup.num_libraries());
 
     // Treat sequence_data and variant data separately
     dng::stats::ExactSum sum_data;
@@ -165,42 +159,8 @@ int process_bam(LogLike::argument_type &arg) {
         char ref_base = reference.FetchBase(h->target_name[contig],position);
         size_t ref_index = seq::char_index(ref_base);
 
-        // reset all depth counters
-        std::fill_n(u_read_depths.data(), u_read_depths.num_elements(), 0);
-        boost::fill(total_u_read_depths, 0);
-
-        // pileup on read counts
-        for(std::size_t u = 0; u < data.size(); ++u) {
-            for(auto && r : data[u]) {
-                if(filter_read(r)) {
-                    continue;
-                }
-                std::size_t base = seq::base_index(r.base());
-                assert(u_read_depths[u][base] < 65535);
-                u_read_depths[u][base] += 1;
-                total_u_read_depths[base] += 1;
-            }
-        }
-
-        // sort read counts
-        std::vector<int> indexes(total_u_read_depths.size());
-        boost::iota(indexes,0);
-        boost::sort(indexes, [&total_u_read_depths,ref_index](int l, int r) {
-            return l == ref_index || total_u_read_depths[l] > total_u_read_depths[r];
-        });
-        size_t sz = indexes.size();
-        for(; sz > 0 && total_u_read_depths[indexes[sz-1]] == 0; --sz) {
-            /*noop*/;
-        }
-        if(sz == 0) {
-            return;
-        }
-        read_depths.resize(make_array(mpileup.num_libraries(), sz));
-        for(size_t i=0;i<read_depths.size();++i) {
-            for(size_t u=0;u<sz;++u) {
-                read_depths[i][u] = u_read_depths[i][indexes[u]];
-            }
-        }
+        auto read_depths = count_alleles(data, ref_index, filter_read);
+        size_t sz = read_depths.shape()[1];
 
         auto loglike = do_loglike(read_depths, sz-1, ref_index < 4);
         sum_data += loglike.log_data;
