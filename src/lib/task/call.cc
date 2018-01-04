@@ -255,6 +255,9 @@ int process_bam(task::Call::argument_type &arg) {
 
         auto read_depths = count_alleles(data, ref_index, filter_read);
         size_t n_sz = read_depths.shape()[1];
+        if(n_sz == 0) {
+            return;
+        }
 
         if(!do_call(read_depths, n_sz-1, ref_index < 4, &stats)) {
             return;
@@ -671,8 +674,10 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
     }
     record->samples("GP", float_vector);
 
-    float_vector.assign(call_stats.node_mup.begin(), call_stats.node_mup.end());
-    record->samples("MUP", float_vector);
+    if(call_stats.mup > 0) {
+        float_vector.assign(call_stats.node_mup.begin(), call_stats.node_mup.end());
+        record->samples("MUP", float_vector);
+    }
 
     if(has_single_mut) {
         float_vector.assign(call_stats.node_mu1p.begin(), call_stats.node_mu1p.end());
