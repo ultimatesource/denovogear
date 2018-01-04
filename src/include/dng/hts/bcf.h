@@ -214,19 +214,32 @@ public:
      * @data: A list of values that will populate the sample/genotype fields. The vector
      *        should be a multiple of the number sample columns.
      */
-    int samples(const char *name, const std::vector<float> &data) {
+    int samples(const char *name, const float* data, size_t sz) {
         assert(name != nullptr);
-        return bcf_update_format_float(header(), base(), name, &data[0], data.size());
+        return bcf_update_format_float(header(), base(), name, data, sz);
     }
-    int samples(const char *name, const std::vector<int32_t> &data) {
+    int samples(const char *name, const int32_t* data, size_t sz) {
         assert(name != nullptr);
-        return bcf_update_format_int32(header(), base(), name, &data[0], data.size());
+        return bcf_update_format_int32(header(), base(), name, data, sz);
     }
-    int samples(const char *name, const std::vector<const char *> &data) {
+    int samples(const char *name, const char* const* data, size_t sz) {
         assert(name != nullptr);
         return bcf_update_format_string(header(), base(), name,
-                                        const_cast<const char **>(&data[0]), data.size());
+            const_cast<const char **>(data), sz);
+    }    
+    template<typename T, typename A>
+    int samples(const char *name, const std::vector<T, A> &data) {
+        return samples(name, data.data(), data.size());
     }
+    template<typename T, size_t N>
+    int samples(const char *name, const std::array<T, N> &data) {
+        return samples(name, data.data(), data.size());
+    }
+    template<typename T, size_t N>
+    int samples(const char *name, const T(&data)[N]) {
+        return samples(name, &data[0], N);
+    }    
+
     int samples(const char *name, const std::vector<std::string> &data) {
         std::vector<const char *> v(data.size());
         for(decltype(data.size()) u = 0; u < data.size(); ++u) {

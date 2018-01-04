@@ -101,8 +101,8 @@ void vcf_add_header_text(hts::bcf::File &vcfout, const task::Call::argument_type
     line += ",CommandLineOptions=\"";
 
 #define XM(lname, sname, desc, type, def) \
-	line +=  utility::vcf_command_line_text(XS(lname),arg.XV(lname)) + ' ';
-#	include <dng/task/call.xmh>
+    line +=  utility::vcf_command_line_text(XS(lname),arg.XV(lname)) + ' ';
+#   include <dng/task/call.xmh>
 #undef XM
     for(auto && a : arg.input) {
         line += a + ' ';
@@ -181,23 +181,23 @@ int task::Call::operator()(Call::argument_type &arg) {
     auto it = arg.input.begin();
     FileCat mode = utility::input_category(*it, FileCat::Sequence|FileCat::Pileup|FileCat::Variant, FileCat::Unknown);
     for(++it; it != arg.input.end(); ++it) {
-    	// Make sure different types of input files aren't mixed together
+        // Make sure different types of input files aren't mixed together
         if(utility::input_category(*it, FileCat::Sequence|FileCat::Pileup|FileCat::Variant, FileCat::Sequence) != mode) {
             throw std::invalid_argument("Mixing pileup, sequencing, and variant file types is not supported.");
         }
     }
 
     if(mode == utility::FileCat::Sequence) {
-    	// sam, bam, cram
-    	return process_bam(arg);
+        // sam, bam, cram
+        return process_bam(arg);
     } else if(mode == utility::FileCat::Variant) {
-    	// vcf, bcf
-    	return process_bcf(arg);
+        // vcf, bcf
+        return process_bcf(arg);
     } else if(mode == utility::FileCat::Pileup) {
-    	// tad, ad
-    	return process_ad(arg);
+        // tad, ad
+        return process_ad(arg);
     } else {
-    	throw std::invalid_argument("Unknown input data file type.");
+        throw std::invalid_argument("Unknown input data file type.");
     }
     return EXIT_FAILURE;
 }
@@ -206,7 +206,7 @@ int task::Call::operator()(Call::argument_type &arg) {
 int process_bam(task::Call::argument_type &arg) {
     // Open Reference
     if(arg.fasta.empty()){
-    	throw std::invalid_argument("Path to reference file must be specified with --fasta when processing bam/sam/cram files.");
+        throw std::invalid_argument("Path to reference file must be specified with --fasta when processing bam/sam/cram files.");
     }
     io::Fasta reference{arg.fasta.c_str()};
 
@@ -238,7 +238,7 @@ int process_bam(task::Call::argument_type &arg) {
         || seq::base_index(r.base()) >= 4);
     };
 
-    decltype(mpileup)::Depths count_alleles(mpileup.num_libraries());
+    decltype(mpileup)::Alleles count_alleles(mpileup.num_libraries());
 
     auto h = mpileup.header();
 
@@ -254,85 +254,91 @@ int process_bam(task::Call::argument_type &arg) {
         size_t ref_index = seq::char_index(ref_base);
 
         auto read_depths = count_alleles(data, ref_index, filter_read);
-        size_t sz = read_depths.shape()[1];
+        size_t n_sz = read_depths.shape()[1];
 
-		if(!do_call(read_depths, sz-1, ref_index < 4, &stats)) {
-			return;
-		}
+        if(!do_call(read_depths, n_sz-1, ref_index < 4, &stats)) {
+            return;
+        }
         const bool has_single_mut = ((stats.mu1p / stats.mup) >= min_prob);
 
         record.alleles(count_alleles.alleles_str());
 
-		// Measure total depth and sort nucleotides in descending order
+        // Measure total depth and sort nucleotides in descending order
         pileup::stats_t depth_stats;
         pileup::calculate_stats(read_depths, &depth_stats);
 
         add_stats_to_output(stats, depth_stats, has_single_mut, relationship_graph, do_call.work(), &record);
-
-		// Calculate ADR and ADF Tags
-		std::vector<int32_t> adf_counts(num_nodes * refalt_count, hts::bcf::int32_missing);
-		std::vector<int32_t> adr_counts(num_nodes * refalt_count, hts::bcf::int32_missing);
-		std::vector<int32_t> adf_info(refalt_count, 0);
-		std::vector<int32_t> adr_info(refalt_count, 0);
-
-		std::vector<int> qual_ref, qual_alt, pos_ref, pos_alt, base_ref, base_alt;
-		qual_ref.reserve(depth_stats.dp);
-		qual_alt.reserve(depth_stats.dp);
-		pos_ref.reserve(depth_stats.dp);
-		pos_alt.reserve(depth_stats.dp);
-		base_ref.reserve(depth_stats.dp);
-		base_alt.reserve(depth_stats.dp);
-		double rms_mq = 0.0;
-
-        // zero out the counts for libraries
-		for(size_t u = library_start * refalt_count; u < num_nodes * refalt_count; ++u) {
-			adf_counts[u] = 0;
-			adr_counts[u] = 0;
-		}
-
-        for(int i=0;i<type_info.width;++i) {
-            acgt_to_refalt_allele[(int)type_info.indexes[i]] = i + (type_info.reference == 4);
+        // Map character_indexes to alleles
+        std::vector<int> base_index_to_allele(count_alleles.indexes.size(),-1);
+        for(size_t u=0;u<count_alleles.indexes.size();++u) {
+            base_index_to_allele[count_alleles.indexes[u]] = u;
         }
 
-		for(size_t u = 0; u < data.size(); ++u) {
-			const size_t pos = (library_start + u) * refalt_count;
-			for(auto && r : data[u]) {
-				if(filter_read(r)) {
-					continue;
-				}
-				const size_t base_refalt = acgt_to_refalt_allele[seq::base_index(r.base())];
-				assert(base_refalt != -1);
-				const size_t base_pos = pos + base_refalt;
-				// Forward Depths, avoiding branching
-				adf_counts[base_pos]  += !r.aln.is_reversed();
-				adf_info[base_refalt] += !r.aln.is_reversed();
-				// Reverse Depths
-				adr_counts[base_pos]  += r.aln.is_reversed();
-				adr_info[base_refalt] += r.aln.is_reversed();
-				// Mapping quality
-				rms_mq += r.aln.map_qual()*r.aln.map_qual();
-				(base_refalt == 0 ? &qual_ref : &qual_alt)->push_back(r.aln.map_qual());
-				// Positions
-				(base_refalt == 0 ? &pos_ref : &pos_alt)->push_back(r.pos);
-				// Base Calls
-				(base_refalt == 0 ? &base_ref : &base_alt)->push_back(r.base_qual());
-			}
-		}
-		rms_mq = sqrt(rms_mq/(qual_ref.size()+qual_alt.size()));
+        // Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
+        std::vector<int32_t> ad_info(n_sz, 0);
+        std::vector<int32_t> adf_info(n_sz, 0);
+        std::vector<int32_t> adr_info(n_sz, 0);
+        boost::multi_array<int32_t,2> ad_counts(utility::make_array(num_nodes, n_sz));
+        boost::multi_array<int32_t,2> adf_counts(utility::make_array(num_nodes, n_sz));
+        boost::multi_array<int32_t,2> adr_counts(utility::make_array(num_nodes, n_sz));
+        size_t missing_len = library_start*n_sz;
+        std::fill_n(ad_counts.data(), missing_len, hts::bcf::int32_missing);
+        std::fill_n(ad_counts.data()+missing_len, ad_counts.num_elements()-missing_len, 0);
+        std::fill_n(adf_counts.data(), missing_len, hts::bcf::int32_missing);
+        std::fill_n(adf_counts.data()+missing_len, adf_counts.num_elements()-missing_len, 0);
+        std::fill_n(adr_counts.data(), missing_len, hts::bcf::int32_missing);
+        std::fill_n(adr_counts.data()+missing_len, adr_counts.num_elements()-missing_len, 0);
 
-        record.samples("AD", ad_counts);
-		record.samples("ADF", adf_counts);
-		record.samples("ADR", adr_counts);
+        std::vector<int> qual_ref, qual_alt, pos_ref, pos_alt, base_ref, base_alt;
+        qual_ref.reserve(depth_stats.dp);
+        qual_alt.reserve(depth_stats.dp);
+        pos_ref.reserve(depth_stats.dp);
+        pos_alt.reserve(depth_stats.dp);
+        base_ref.reserve(depth_stats.dp);
+        base_alt.reserve(depth_stats.dp);
+        double rms_mq = 0.0;
 
-        record.info("AD", ad_info);
-		record.info("ADF", adf_info);
-		record.info("ADR", adr_info);
-		record.info("MQ", static_cast<float>(rms_mq));
+        for(size_t u = 0; u < data.size(); ++u) {
+            const size_t pos = library_start + u;
+            for(auto && r : data[u]) {
+                if(filter_read(r)) {
+                    continue;
+                }
+                const size_t base_allele = base_index_to_allele[seq::base_index(r.base())];
+                assert(base_allele != -1);
+                // all depths
+                ad_counts[pos][base_allele] += 1;
+                ad_info[base_allele] += 1;
+                // Forward Depths, avoiding branching
+                adf_counts[pos][base_allele]  += !r.aln.is_reversed();
+                adf_info[base_allele] += !r.aln.is_reversed();
+                // Reverse Depths
+                adr_counts[pos][base_allele]  += r.aln.is_reversed();
+                adr_info[base_allele] += r.aln.is_reversed();
+                // Mapping quality
+                rms_mq += r.aln.map_qual()*r.aln.map_qual();
+                (base_allele == 0 ? &qual_ref : &qual_alt)->push_back(r.aln.map_qual());
+                // Positions
+                (base_allele == 0 ? &pos_ref : &pos_alt)->push_back(r.pos);
+                // Base Calls
+                (base_allele == 0 ? &base_ref : &base_alt)->push_back(r.base_qual());
+            }
+        }
+        rms_mq = sqrt(rms_mq/(qual_ref.size()+qual_alt.size()));
+
+        record.samples("AD",  ad_counts.data(), ad_counts.num_elements());
+        record.samples("ADF", adf_counts.data(), adf_counts.num_elements());
+        record.samples("ADR", adr_counts.data(), adr_counts.num_elements());
+
+        record.info("AD",  ad_info);
+        record.info("ADF", adf_info);
+        record.info("ADR", adr_info);
+        record.info("MQ", static_cast<float>(rms_mq));
 
         int a11 = adf_info[0];
         int a21 = adr_info[0];
         int a12 = 0, a22 = 0;
-        for(int k = 1; k < refalt_count; ++k) {
+        for(int k = 1; k < n_sz; ++k) {
             a12 += adf_info[k];
             a22 += adr_info[k];
         }
@@ -350,11 +356,11 @@ int process_bam(task::Call::argument_type &arg) {
             record.info("BQTa", static_cast<float>(bq_info));
         }
 
-		record.target(h->target_name[contig]);
-		record.position(position);
-		vcfout.WriteRecord(record);
-		record.Clear();
-	});
+        record.target(h->target_name[contig]);
+        record.position(position);
+        vcfout.WriteRecord(record);
+        record.Clear();
+    });
 
     return EXIT_SUCCESS;
 }
@@ -374,7 +380,7 @@ int process_bcf(task::Call::argument_type &arg) {
 
     // Read header from first file
     const bcf_hdr_t *header = mpileup.reader().header(0); // TODO: fixthis
-    const int num_libs = mpileup.num_libraries();
+    const size_t num_libs = mpileup.num_libraries();
 
     CallMutations do_call(arg.min_prob, relationship_graph, get_model_parameters(arg));
 
@@ -400,7 +406,7 @@ int process_bcf(task::Call::argument_type &arg) {
             return;
         }
         assert(n_ad % num_libs == 0);
-        const int n_sz = n_ad / num_libs;
+        const size_t n_sz = n_ad / num_libs;
 
         // replace "missing" and "end" values with 0
         boost::replace_if(boost::make_iterator_range(ad.get(), ad.get()+n_ad),
@@ -408,13 +414,14 @@ int process_bcf(task::Call::argument_type &arg) {
 
         pileup::allele_depths_ref_t read_depths(ad.get(), make_array(num_libs,n_sz));
 
+        // TODO: check that REF isn't missing
         if(!do_call(read_depths, n_sz-1, true, &stats)) {
             return;
         }
         const bool has_single_mut = ((stats.mu1p / stats.mup) >= min_prob);
         
         // Set alleles
-        record.alleles(static_cast<const char**>((void*)rec->d.allele),
+        record.alleles(const_cast<const char**>(rec->d.allele),
             (int)rec->n_allele);
 
         // Measure total depth and sort nucleotides in descending order
@@ -424,20 +431,18 @@ int process_bcf(task::Call::argument_type &arg) {
         add_stats_to_output(stats, depth_stats, has_single_mut, relationship_graph, do_call.work(), &record);
 
         // Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
-        std::vector<int32_t> ad_counts(num_nodes*n_sz, hts::bcf::int32_missing);
         std::vector<int32_t> ad_info(n_sz, 0);
-        size_t pos = library_start * n_sz;
+        boost::multi_array<int32_t,2> ad_counts(utility::make_array(num_nodes, n_sz));
+        std::fill_n(ad_counts.data(), ad_counts.num_elements(), hts::bcf::int32_missing);
 
         for(size_t u = 0; u < read_depths.size(); ++u) {
             for(size_t k = 0; k < read_depths[u].size(); ++k) {
                 int count = read_depths[u][k];
-                ad_counts[pos++] = count;
+                ad_counts[library_start+u][k] = count;
                 ad_info[k] += count;
             }
         }
-
-        record.samples("AD", ad_counts);
-
+        record.samples("AD", ad_counts.data(), ad_counts.num_elements());
         record.info("AD", ad_info);
 
         // Calculate target position and fetch sequence name
@@ -453,60 +458,20 @@ int process_bcf(task::Call::argument_type &arg) {
 }
 
 int process_ad(task::Call::argument_type &arg) {
-	// Parse the pedigree file
-    Pedigree ped = io::parse_ped(arg.ped);
+    // Read input data
+    auto mpileup = io::AdPileup::open_and_setup(arg);
 
-    // Parse Nucleotide Frequencies
-    std::array<double, 4> freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
+    auto relationship_graph = create_relationship_graph(arg, &mpileup);
 
-    // replace arg.region with the contents of a file if needed
-    //auto region_ext = io::at_slurp(arg.region);
-    if(!arg.region.empty()) {
-        throw std::invalid_argument("--region not supported when processing ad/tad file.");
-    }
-
-    // Open input files
-    if(arg.input.size() != 1) {
-        throw std::runtime_error("Can only process one ad/tad file at a time.");
-    }
-    using AdPileup = dng::io::AdPileup;
-    AdPileup mpileup{arg.input[0], std::ios_base::in};
-
-    // Construct peeling algorithm from parameters and pedigree information
-    RelationshipGraph relationship_graph;
-    if (!relationship_graph.Construct(ped, mpileup.libraries(), inheritance_model(arg.model),
-                                      arg.mu, arg.mu_somatic, arg.mu_library,
-                                      arg.normalize_somatic_trees)) {
-        throw std::runtime_error("Unable to construct peeler for pedigree; "
-                                 "possible non-zero-loop relationship_graph.");
-    }
-
-    // Select libraries in the input that are used in the pedigree
-    mpileup.SelectLibraries(relationship_graph.library_names());
-
-    // Begin writing VCF header
-    auto out_file = vcf_get_output_mode(arg);
-    hts::bcf::File vcfout(out_file.first.c_str(), out_file.second.c_str());
-    vcf_add_header_text(vcfout, arg);
-
-    for(auto && contig : mpileup.contigs()){
-        vcfout.AddContig(contig.name.c_str(), contig.length); // Add contigs to header
-    }
-    for(auto && line : relationship_graph.BCFHeaderLines()) {
-        vcfout.AddHeaderMetadata(line.c_str());  // Add pedigree info
-    }
-    for(auto && str : relationship_graph.labels()) {
-        vcfout.AddSample(str.c_str()); // Add genotype columns
-    }
-    vcfout.WriteHeader();
+    // Open Output
+    auto vcfout = open_vcf_output(arg, mpileup, relationship_graph);
 
     // Record for each output
     auto record = vcfout.InitVariant();
 
     // Construct Calling Object
     const double min_prob = arg.min_prob;
-    CallMutations do_call(min_prob, relationship_graph, {arg.theta, freqs,
-            arg.ref_weight, {arg.lib_overdisp, arg.lib_error, arg.lib_bias} });
+    CallMutations do_call(arg.min_prob, relationship_graph, get_model_parameters(arg));
 
     // Calculated stats
     CallMutations::stats_t stats;
@@ -515,11 +480,43 @@ int process_ad(task::Call::argument_type &arg) {
     const size_t num_nodes = relationship_graph.num_nodes();
     const size_t library_start = relationship_graph.library_nodes().first;
 
-    mpileup([&](const AdPileup::data_type & data) {
-        if(!do_call(data, &stats)) {
+    pileup::allele_depths_t read_depths;
+    // Place the processing logic in the lambda function.
+    auto wrapped_do_call = [&,read_depths](const decltype(mpileup)::data_type &line,
+        CallMutations::stats_t *stats) mutable -> bool 
+    {
+        bool ref_is_N = (line.color() >= 64);
+        if(ref_is_N) {
+            size_t n_sz = line.num_nucleotides() + 1;
+            read_depths.resize(make_array(line.num_libraries(), n_sz));
+            for(size_t i=0;i<line.num_libraries();++i) {
+                read_depths[i][0] = 0;
+                for(size_t a=1;a<n_sz;++a) {
+                    read_depths[i][a] = line(i,a-1);
+                }
+            }
+            return do_call(read_depths, n_sz-1, false, stats);
+        } else {
+            size_t n_sz = line.num_nucleotides();
+            dng::pileup::allele_depths_const_ref_t read_depths_ref(line.data().data(),
+                make_array(line.num_libraries(), line.num_nucleotides()));
+            return do_call(read_depths_ref, n_sz-1, true, stats);   
+        }
+    };
+
+    mpileup([&](const decltype(mpileup)::data_type & data) {
+        if(!wrapped_do_call(data, &stats)) {
             return;
         }
         const bool has_single_mut = ((stats.mu1p / stats.mup) >= min_prob);
+
+        const auto & type_gt_info = data.type_gt_info();
+        const auto & type_info = data.type_info();
+        bool ref_is_N = (data.color() >= 64);
+        const size_t n_sz = type_info.width + ref_is_N;
+
+        // Set alleles
+        record.alleles(type_info.label_htslib);
 
         // Measure total depth and sort nucleotides in descending order
         pileup::stats_t depth_stats;
@@ -527,29 +524,24 @@ int process_ad(task::Call::argument_type &arg) {
 
         add_stats_to_output(stats, depth_stats, has_single_mut, relationship_graph, do_call.work(), &record);
 
-        const int color = depth_stats.color;
-        const auto & type_info_gt = dng::pileup::AlleleDepths::type_info_gt_table[color];
-        const auto & type_info = dng::pileup::AlleleDepths::type_info_table[color];
-        const int refalt_count = type_info.width + (type_info.reference == 4);
-
         // Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
-        std::vector<int32_t> ad_counts(num_nodes*refalt_count, hts::bcf::int32_missing);
-        std::vector<int32_t> ad_info(type_info.width, 0);
-        size_t pos = library_start * refalt_count;
+        std::vector<int32_t> ad_info(n_sz, 0);
+        boost::multi_array<int32_t,2> ad_counts(utility::make_array(num_nodes, n_sz));
+        std::fill_n(ad_counts.data(), ad_counts.num_elements(), hts::bcf::int32_missing);
 
         for(size_t u = 0; u < data.num_libraries(); ++u) {
-            if(type_info.reference == 4) {
-                ad_counts[pos++] = 0;
-            }
-            for(size_t k = 0; k < data.num_nucleotides(); ++k) {
-                int count = data(u,k);
-                ad_counts[pos++] = count;
-                ad_info[k+(type_info.reference == 4)] += count;
+            for(size_t k = 0; k < n_sz; ++k) {
+                int count;
+                if(!ref_is_N) {
+                    count = data(u,k);
+                } else {
+                    count = (k == 0) ? 0 : data(u,k-1);
+                }
+                ad_counts[library_start+u][k] = count;
+                ad_info[k] += count;
             }
         }
-
-        record.samples("AD", ad_counts);
-
+        record.samples("AD", ad_counts.data(), ad_counts.num_elements());
         record.info("AD", ad_info);
 
         // Calculate target position and fetch sequence name

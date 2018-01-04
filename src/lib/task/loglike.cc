@@ -142,7 +142,7 @@ int process_bam(LogLike::argument_type &arg) {
         || seq::base_index(r.base()) >= 4);
     };
 
-    decltype(mpileup)::Depths count_alleles(mpileup.num_libraries());
+    decltype(mpileup)::Alleles count_alleles(mpileup.num_libraries());
 
     // Treat sequence_data and variant data separately
     dng::stats::ExactSum sum_data;

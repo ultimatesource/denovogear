@@ -116,7 +116,7 @@ public:
     using data_type = std::vector<list_type>;
     using callback_type = void(const data_type &, utility::location_t);
 
-    struct Depths; // functor class for calculating depths from data_type
+    struct Alleles; // functor class for calculating depths from data_type
 
     template<typename CallBack>
     void operator()(CallBack func);
@@ -327,12 +327,12 @@ void BamPileup::SelectLibraries(R &range) {
 }
 
 // This functor will convert aligned reads to read_depths
-struct BamPileup::Depths {
+struct BamPileup::Alleles {
     using read_depths_t = dng::pileup::allele_depths_t;
     using data_type = BamPileup::data_type;
     using filter_signature = bool(const data_type::value_type &);
 
-    Depths(size_t num_libraries);
+    Alleles(size_t num_libraries);
 
     template<typename F = filter_signature>
     const read_depths_t& operator()(const data_type &data, size_t ref_index, F filter
@@ -350,7 +350,6 @@ struct BamPileup::Depths {
         return buffer;
     }
 
-
     // temporary data
     read_depths_t unsorted;
     read_depths_t sorted;
@@ -361,7 +360,7 @@ private:
 };
 
 // Allocate workspace based on number of libraries
-inline BamPileup::Depths::Depths(size_t num_libraries) :
+inline BamPileup::Alleles::Alleles(size_t num_libraries) :
     unsorted{utility::make_array(num_libraries,5u)},
     sorted{utility::make_array(num_libraries,5u)},
     indexes(5)
@@ -371,8 +370,8 @@ inline BamPileup::Depths::Depths(size_t num_libraries) :
 
 template<typename F>
 inline
-const BamPileup::Depths::read_depths_t&
-BamPileup::Depths::operator()(const data_type &data, size_t ref_index, F filter) {
+const BamPileup::Alleles::read_depths_t&
+BamPileup::Alleles::operator()(const data_type &data, size_t ref_index, F filter) {
     // reset all depth counters
     std::array<int,5> total_unsorted{0,0,0,0,0};
     std::fill_n(unsorted.data(), unsorted.num_elements(), 0);
