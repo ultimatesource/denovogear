@@ -160,9 +160,9 @@ LogProbability::params_t get_model_parameters(const A& a) {
     ret.over_dispersion_het = a.lib_overdisp_het;
     ret.ref_bias = a.lib_bias;
     ret.error_rate = a.lib_error;
-    ret.error_entropy = a.lib_entropy/M_LN2;
+    ret.error_entropy = a.lib_error_entropy*M_LN2;
 
-    ret.mutation_entropy = a.mu_entropy/M_LN2;
+    ret.mutation_entropy = a.mu_entropy*M_LN2;
 
     return ret;
 }

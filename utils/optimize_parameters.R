@@ -10,35 +10,43 @@ fixed_pars = c(
 )
 
 init_pars = c(
-    "theta" = 0.247461702,
-    "lib-error" =  0.002311513,
-    "lib-overdisp" = 0.184123736,
-    "lib-bias" = 2.473174701,
-    "ref-weight" = 4.929903491
+    "theta" = 0.001,
+    "lib-error" =  0.01,
+    "lib-overdisp-hom" = 0.0001,
+    "lib-overdisp-het" = 0.0001,
+    "lib-bias" = 1,
+    "asc-hom" = 1e-8,
+    "asc-het" = 1e-8
 )
 
 link_func = list(
     logit = list(
-        do = function(x) {
+        "do" = function(x) {
             log(x)-log1p(-x)
         },
-        undo = function(x) {
+        "undo" = function(x) {
             y = exp(x)
             y/(y+1)
-        },
+        }
     ),
-    log = list(do = log, undo = exp)
+    log = list("do" = log, "undo" = exp)
 )
 
 link = c(
-    "lib-bias" = "log",
-    "lib-error" = "logit",
-    "lib-overdisp" = "logit",
+    "mu" = "logit",
     "mu-library" = "logit",
     "mu-somatic" = "logit",
-    "mu-germline" = "logit",
+    "mu-entropy" = "log",
     "theta" = "log",
-    "ref-weight" = "log"
+    "asc-hom" = "logit",
+    "asc-het" = "logit",
+    "asc-hap" = "logit",
+
+    "lib-bias" = "log",
+    "lib-error" = "logit",
+    "lib-error-entropy" = "log",
+    "lib-overdisp-hom" = "logit",
+    "lib-overdisp-het" = "logit"
 )
 
 makepars = function(x) {
@@ -57,7 +65,7 @@ unmakepars = function(x) {
 
 # Run dng loglike and extract the log like
 run_once = function(cmd, pars) {
-    scanned_args = scan(text=cmd,what=character())
+    scanned_args = scan(text=cmd,what=character(),quiet=TRUE)
     prog = scanned_args[1]
     scanned_args = scanned_args[-1]
     pars = c(fixed_pars, pars)
@@ -86,7 +94,7 @@ loglike = function(pars,cmds) {
 main = function(cmds) {
     pars = makepars(init_pars)
     o = optim(pars,loglike,cmds=cmds,method="BFGS",control=list(
-         trace=6,REPORT=1,reltol=1e-8,maxit=1000
+         trace=6,REPORT=1,reltol=1e-8,maxit=1000,parscale=rep(0.1,length(pars))
     ))
     o$par = unmakepars(o$par)
     o

@@ -35,8 +35,8 @@ XM((asc)(hap), , "ascertainment bias for reference haploids ", double, DL(0.0, "
 
 XM((lib)(bias), ,  "library/sequencing reference bias (ref/alt ratio)", double, 1)
 XM((lib)(error), , "library/sequencing error rate (per base-call)", double, DL(0.0005,"0.0005"))
+XM((lib)(error)(entropy), , "the log2 entropy of the error spectrum", double, DL(1.6, "1.6"))
 XM((lib)(overdisp)(hom), , "library/sequencing overdispersion for homozygotes (pairwise correlation of errors)", double, DL(0.0005,"0.0005"))
 XM((lib)(overdisp)(het), , "library/sequencing overdispersion for heterozygotes (pairwise correlation of errors)", double, DL(0.0005,"0.0005"))
-XM((lib)(entropy), , "the log2 entropy of the error spectrum", double, DL(1.6, "1.6"))
 
 XM((model), (M), "Inheritance model", std::string, "autosomal")
