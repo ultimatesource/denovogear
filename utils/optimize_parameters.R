@@ -1,78 +1,100 @@
 #! Rscript --vanilla
 
+options(stringsAsFactors=FALSE)
+
 library(doParallel)
 
 registerDoParallel()
 
-DNGLL_BIN = "dng"
-
 fixed_pars = c(
-    "theta" = 0.001
 )
 
 init_pars = c(
-        "lib-bias" = 1.009997e+00,
-        "lib-error" =  3.200240e-03,
-        "lib-overdisp" = 2.526826e-02,
-        "mu-somatic" = 3.276369e-04,
-        "ref-weight" = 1
+    "theta" = 0.247461702,
+    "lib-error" =  0.002311513,
+    "lib-overdisp" = 0.184123736,
+    "lib-bias" = 2.473174701,
+    "ref-weight" = 4.929903491
 )
 
-upper_pars = c(
-    "lib-bias" = 1.01,
-    "lib-error" = 0.1,
-    "lib-overdisp" = 0.5,
-    "mu-somatic" = 0.1,
-    "theta" = 10,
-    "ref-weight" = 10000
+link_func = list(
+    logit = list(
+        do = function(x) {
+            log(x)-log1p(-x)
+        },
+        undo = function(x) {
+            y = exp(x)
+            y/(y+1)
+        },
+    ),
+    log = list(do = log, undo = exp)
 )
 
-lower_pars = c(
-    "lib-bias" = 0.5,
-    "lib-error" = 1e-10,
-    "lib-overdisp" = 1e-10,
-    "mu-somatic" = 1e-15,
-    "theta" = 1e-10,
-    "ref-weight" = 1e-10
+link = c(
+    "lib-bias" = "log",
+    "lib-error" = "logit",
+    "lib-overdisp" = "logit",
+    "mu-library" = "logit",
+    "mu-somatic" = "logit",
+    "mu-germline" = "logit",
+    "theta" = "log",
+    "ref-weight" = "log"
 )
+
+makepars = function(x) {
+    for(n in names(x)) {
+        x[n] = link_func[[link[n]]]$do(x[n])
+    }
+    x
+}
+
+unmakepars = function(x) {
+    for(n in names(x)) {
+        x[n] = link_func[[link[n]]]$undo(x[n])
+    }
+    x
+}
 
 # Run dng loglike and extract the log like
-run_once = function(pars,input) {
-    pars = c(pars,fixed_pars)
+run_once = function(cmd, pars) {
+    scanned_args = scan(text=cmd,what=character())
+    prog = scanned_args[1]
+    scanned_args = scanned_args[-1]
+    pars = c(fixed_pars, pars)
     args = paste("--", names(pars), "=", pars,sep="")
-    if(grepl("dng$",DNGLL_BIN)) {
-        args = c("loglike",args)
+    o = which(scanned_args == "--")[1]
+    if(is.na(o)) {
+        args = c(scanned_args,args)
+    } else {
+        args = append(scanned_args,args,after=o-1)
     }
-    out = system2(DNGLL_BIN, args=c(args,input),stdout=TRUE,stderr=FALSE)
+    out = system2(prog, args=args,stdout=TRUE,stderr=FALSE)
     if(is.numeric(out)) {
         return(NA)
     }
-    score = strsplit(tail(out,1),"\t")[[1]][1]
+    score = strsplit(tail(out,3),"\t")[[1]][2]
     -as.numeric(score)
 }
 
-loglike = function(pars,peds,inputs) {
-    n = names(pars)
-    if(any(pars < lower_pars[n] | pars > upper_pars[n])) {
-        return(NA)
-    }
-    #print(pars)
-    results = foreach(i=seq_along(inputs),.combine=c) %dopar% run_once(c(pars, ped=peds[i]),inputs[i])
+loglike = function(pars,cmds) {
+    pars = unmakepars(pars)
+    results = foreach(cmd=cmds,.combine=c) %dopar% run_once(cmd,pars)
     total = sum(results)
     total
 }
 
-main = function(peds,inputs) {
-    pars = init_pars
-    o = optim(pars,loglike,peds=peds,inputs=inputs,method="Nelder-Mead",control=list(
-         trace=6,REPORT=1,reltol=1e-8
+main = function(cmds) {
+    pars = makepars(init_pars)
+    o = optim(pars,loglike,cmds=cmds,method="BFGS",control=list(
+         trace=6,REPORT=1,reltol=1e-8,maxit=1000
     ))
+    o$par = unmakepars(o$par)
     o
 }
 
 if(!interactive()) {
     ARGS = commandArgs(trailingOnly=TRUE)
-    data = read.csv(ARGS[1],header=F,stringsAsFactors=FALSE)
-    o = main(data$V1,data$V2)
+    cmds = readLines(ARGS[1])
+    o = main(cmds)
     print(o)
 }
