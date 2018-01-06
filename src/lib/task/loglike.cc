@@ -238,7 +238,7 @@ int process_ad(LogLike::argument_type &arg) {
 
     pileup::allele_depths_t read_depths;
     // Place the processing logic in the lambda function.
-    auto do_calculate = [&,read_depths](const decltype(mpileup)::data_type &line,
+    auto do_calculate = [&,read_depths,do_loglike](const decltype(mpileup)::data_type &line,
         stats::ExactSum* p_sum_data, stats::ExactSum* p_sum_scale) mutable {
         bool ref_is_N = (line.color() >= 64);
         if(ref_is_N) {
@@ -297,7 +297,7 @@ int process_ad(LogLike::argument_type &arg) {
         // construct a lambda function which will be used for the worker threads
         // each thread needs to have its own, mutable copy of calculate
         // because calculate stores working data in a member object
-        auto batch_calculate = [&,do_loglike](batch_t& reads) mutable {
+        auto batch_calculate = [&,do_calculate](batch_t& reads) mutable {
                 stats::ExactSum sum_d, sum_s;
             for(auto && line : reads) {
                 do_calculate(line, &sum_d, &sum_s);
