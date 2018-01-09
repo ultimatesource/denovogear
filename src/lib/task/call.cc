@@ -609,17 +609,17 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
             size_t mom_ploidy = work.ploidies[mom];
 
             size_t width = (mom_ploidy == 2) ? sz*(sz+1)/2 : sz;
-            dad = call_stats.dnt_row / width;
-            mom = call_stats.dnt_row % width;
+            size_t dad_gt = call_stats.dnt_row / width;
+            size_t mom_gt = call_stats.dnt_row % width;
 
-            append_genotype(*record, dad, dad_ploidy, &dnt);
+            append_genotype(*record, dad_gt, dad_ploidy, &dnt);
             dnt += "x";
-            append_genotype(*record, mom, mom_ploidy, &dnt);
+            append_genotype(*record, mom_gt, mom_ploidy, &dnt);
             dnt += "->";
             append_genotype(*record, call_stats.dnt_col, work.ploidies[pos], &dnt);
         } else {
             size_t par = graph.transition(pos).parent1;
-            append_genotype(*record, par, work.ploidies[par], &dnt);
+            append_genotype(*record, call_stats.dnt_row, work.ploidies[par], &dnt);
             dnt += "->";
             append_genotype(*record, call_stats.dnt_col, work.ploidies[pos], &dnt);
         }

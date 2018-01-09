@@ -7,16 +7,15 @@ library(doParallel)
 registerDoParallel()
 
 fixed_pars = c(
+    "lib-bias" = 1
 )
 
 init_pars = c(
+    "mu" = 1e-8,
     "theta" = 0.001,
     "lib-error" =  0.01,
     "lib-overdisp-hom" = 0.0001,
-    "lib-overdisp-het" = 0.0001,
-    "lib-bias" = 1,
-    "asc-hom" = 1e-8,
-    "asc-het" = 1e-8
+    "lib-overdisp-het" = 0.0001
 )
 
 link_func = list(
