@@ -56,7 +56,12 @@ public:
     LogProbability(RelationshipGraph graph, params_t params);
 
     template<typename A>
-    value_t operator()(const A &depths, int num_alts, bool has_ref=true);
+    value_t CalculateLLD(const A &depths, int num_alts, bool has_ref=true);
+
+    template<typename A>
+    value_t operator()(const A &depths, int num_alts, bool has_ref=true) {
+        return CalculateLLD(depths, num_alts, has_ref);
+    }
 
     const peel::workspace_t& work() const { return work_; };
 
@@ -88,7 +93,7 @@ protected:
 
 // returns 'log10 P(Data ; model)-log10 scale' and log10 scaling.
 template<typename A>
-LogProbability::value_t LogProbability::operator()(
+LogProbability::value_t LogProbability::CalculateLLD(
     const A &depths, int num_alts, bool has_ref)
 {
     if(num_alts >= transition_matrices_.size()) {

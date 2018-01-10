@@ -52,7 +52,7 @@ CallMutations::CallMutations(double min_prob, const RelationshipGraph &graph, pa
 }
 
 // Returns true if a mutation was found and the record was modified
-bool CallMutations::operator()(
+bool CallMutations::CalculateMUP(
     const pileup::allele_depths_t &depths, int num_alts, bool has_ref, stats_t *stats)
 {
     // calculate genotype likelihoods and store in the lower library vector
