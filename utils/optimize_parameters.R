@@ -1,4 +1,23 @@
 #! Rscript --vanilla
+#
+# Copyright (c) 2014-2018 Reed A. Cartwright
+# Authors:  Reed A. Cartwright <reed@cartwrig.ht>
+#
+# This file is part of DeNovoGear.
+#
+# DeNovoGear is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 3 of the License, or (at your option) any later
+# version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program. If not, see <http://www.gnu.org/licenses/>.
+#
+
 
 options(stringsAsFactors=FALSE)
 
@@ -7,15 +26,17 @@ library(doParallel)
 registerDoParallel()
 
 fixed_pars = c(
+    "lib-overdisp-hom" = 1e-6,
+    "lib-overdisp-het" = 1e-6,
+    "lib-error" =  0,
+    "mu" = 1e-8,
     "lib-bias" = 1
 )
 
 init_pars = c(
-    "mu" = 1e-8,
-    "theta" = 0.001,
-    "lib-error" =  0.01,
-    "lib-overdisp-hom" = 0.0001,
-    "lib-overdisp-het" = 0.0001
+    "theta" = 0.01,
+    "asc-hom" = 0.1,
+    "asc-het" = 0.1
 )
 
 link_func = list(
@@ -47,6 +68,30 @@ link = c(
     "lib-overdisp-hom" = "logit",
     "lib-overdisp-het" = "logit"
 )
+
+parscale = c(
+    "mu" = 1e-5,
+    "mu-library" = 1e-5,
+    "mu-somatic" = 1e-5,
+    "mu-entropy" = 1e-5,
+    "theta" = 1e-5,
+    "asc-hom" = 0.01,
+    "asc-het" = 0.01,
+    "asc-hap" = 0.01,
+    "lib-bias" = 1e-3,
+    "lib-error" = 1e-5,
+    "lib-error-entropy" = 1e-5,
+    "lib-overdisp-hom" = 1e-5,
+    "lib-overdisp-het" = 1e-5
+)
+parscale_multiplier = 1 #increase this value for additional sites
+
+makeparscale = function(x){
+    for(n in names(x)) {
+        x[n] = parscale_multiplier * parscale[n]
+    }
+    x
+}
 
 makepars = function(x) {
     for(n in names(x)) {
@@ -92,10 +137,12 @@ loglike = function(pars,cmds) {
 
 main = function(cmds) {
     pars = makepars(init_pars)
+    pscale = makeparscale(pars)
     o = optim(pars,loglike,cmds=cmds,method="BFGS",control=list(
-         trace=6,REPORT=1,reltol=1e-8,maxit=1000,parscale=rep(0.1,length(pars))
+         trace=6,REPORT=1,reltol=1e-8,maxit=1000,parscale=makeparscale(pars)
     ))
     o$par = unmakepars(o$par)
+    o$parscale = pscale
     o
 }
 
