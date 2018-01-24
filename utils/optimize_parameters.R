@@ -139,7 +139,7 @@ main = function(cmds) {
     pars = makepars(init_pars)
     pscale = makeparscale(pars)
     o = optim(pars,loglike,cmds=cmds,method="BFGS",control=list(
-         trace=6,REPORT=1,reltol=1e-8,maxit=1000,parscale=makeparscale(pars)
+         trace=6,REPORT=1,reltol=1e-8,maxit=1000,parscale=pscale
     ))
     o$par = unmakepars(o$par)
     o$parscale = pscale
