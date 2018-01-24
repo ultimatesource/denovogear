@@ -1,7 +1,7 @@
 #! Rscript --vanilla
 #
 # Copyright (c) 2017-2018 Reed A. Cartwright
-#                    2018 Adam J. Orr
+# Copyright (c) 2018      Adam J. Orr
 #
 # Authors:  Reed A. Cartwright <reed@cartwrig.ht>
 #           Adam J. Orr <adamjorr@gmail.com>
