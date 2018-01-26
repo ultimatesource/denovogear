@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+PYTHONPATH=@PKG_DEST@ @BIN_DEST@/treecall.py "$@"
