@@ -79,7 +79,7 @@ protected:
 
     matrices_t transition_matrices_;
 
-    double prob_monomorphic_[4];
+    double prob_monomorphic_;
 
     Genotyper genotyper_;
 
@@ -102,13 +102,24 @@ LogProbability::value_t LogProbability::CalculateLLD(
 
     // calculate genotype likelihoods and store in the lower library vector
     double scale = work_.SetGenotypeLikelihoods(genotyper_, depths, num_alts);
+    double logdata;
 
-    // Set the prior probability of the founders given the reference
-    work_.SetGermline(DiploidPrior(num_alts, has_ref), HaploidPrior(num_alts, has_ref));
+    if(num_alts == 0) {
+        // Use cached value for monomorphic sites instead of peeling.
+        logdata = prob_monomorphic_;
+        for(auto it = work_.lower.begin()+work_.library_nodes.first;
+            it != work_.lower.begin()+work_.library_nodes.second; ++it) {
+            logdata *= (*it)(0);
+        }
+        // convert to a log-likelihood
+        logdata = log(logdata);
+    } else {
+        // Set the prior probability of the founders given the reference
+        work_.SetGermline(DiploidPrior(num_alts, has_ref), HaploidPrior(num_alts, has_ref));
 
-    // Calculate log P(Data ; model)
-    double logdata = graph_.PeelForwards(work_, transition_matrices_[num_alts]);
-
+        // Calculate log P(Data ; model)
+        logdata = graph_.PeelForwards(work_, transition_matrices_[num_alts]);
+    }
     return {logdata/M_LN10, scale/M_LN10};
 }
 

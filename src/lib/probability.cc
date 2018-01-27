@@ -57,20 +57,16 @@ LogProbability::LogProbability(RelationshipGraph graph, params_t params) :
     // Calculate mutation matrices
     transition_matrices_ = CreateMutationMatrices(MUTATIONS_ALL);
 
-    // // Precalculate monomorphic histories (first 4 colors)
-    // size_t num_libraries = work_.library_nodes.second - work_.library_nodes.first;
-    // pileup::AlleleDepths depths{0,0,num_libraries,pileup::AlleleDepths::data_t(num_libraries, 0)};
-    // for(int color=0; color<4;++color) {
-    //     // setup monomorphic prior
-    //     depths.color(color);
-    //     GenotypeArray diploid_prior(1), haploid_prior(1);
-    //     diploid_prior(0) = diploid_prior_[color](pileup::AlleleDepths::type_info_gt_table[color].indexes[0]);
-    //     haploid_prior(0) = haploid_prior_[color](pileup::AlleleDepths::type_info_table[color].indexes[0]);
-    //     work_.SetGermline(diploid_prior, haploid_prior);
-    //     work_.SetGenotypeLikelihoods(genotyper_, depths);
-    //     double logdata = graph_.PeelForwards(work_, transition_matrices_[color]);
-    //     prob_monomorphic_[color] = exp(logdata);
-    // }
+    // Precalculate monomorphic histories
+    size_t num_libraries = work_.library_nodes.second - work_.library_nodes.first;
+    work_.SetGermline(diploid_prior_[0], haploid_prior_[0]);
+    boost::multi_array<int32_t, 2> genotype_likelihoods(utility::make_array(num_libraries, 1u));
+    for(auto &&a : genotype_likelihoods) {
+        a[0] = 1.0;
+    }
+    work_.SetGenotypeLikelihoods(genotype_likelihoods);
+    double logdata = graph_.PeelForwards(work_, transition_matrices_[0]);
+    prob_monomorphic_ = exp(logdata);
 }
 
 // Construct the mutation matrices for each transition

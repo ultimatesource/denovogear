@@ -138,6 +138,17 @@ struct workspace_t {
         }
         return scale;
     }
+
+    template<typename D>
+    double SetGenotypeLikelihoods(const D& d) {
+        double scale = 0.0;
+        size_t u = 0;
+        for(auto pos = library_nodes.first; pos < library_nodes.second; ++pos,++u) {
+            lower[pos].resize(d[u].size());
+            boost::copy(d[u], lower[pos].data());
+        }
+        return 0.0;
+    }    
 };
 
 typedef std::vector<std::size_t> family_members_t;
