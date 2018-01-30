@@ -139,9 +139,26 @@ struct workspace_t {
         return scale;
     }
 
+    // Set the genotype likelihoods into the lower values of the library_nodes.
+    // Scales the genotype likelihoods as needed.
+    // Input: log-likelihood values
     template<typename D>
     double SetGenotypeLikelihoods(const D& d) {
         double scale = 0.0;
+        size_t u = 0;
+        for(auto pos = library_nodes.first; pos < library_nodes.second; ++pos,++u) {
+            lower[pos].resize(d[u].size());
+            boost::copy(d[u], lower[pos].data());
+            double temp = lower[pos].maxCoeff();
+            lower[pos] = (lower[pos]-temp).exp();
+            scale += temp;
+        }
+        return scale;
+    }    
+
+    // Copy genotype likelihoods into the lower values of the library_nodes
+    template<typename D>
+    double CopyGenotypeLikelihoods(const D& d) {
         size_t u = 0;
         for(auto pos = library_nodes.first; pos < library_nodes.second; ++pos,++u) {
             lower[pos].resize(d[u].size());

@@ -64,7 +64,7 @@ LogProbability::LogProbability(RelationshipGraph graph, params_t params) :
     for(auto &&a : genotype_likelihoods) {
         a[0] = 1.0;
     }
-    work_.SetGenotypeLikelihoods(genotype_likelihoods);
+    work_.CopyGenotypeLikelihoods(genotype_likelihoods);
     double logdata = graph_.PeelForwards(work_, transition_matrices_[0]);
     prob_monomorphic_ = exp(logdata);
 }
