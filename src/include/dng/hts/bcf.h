@@ -80,7 +80,35 @@ typedef bcf1_t BareVariant;
 inline
 int get_format_int32(const bcf_hdr_t *header, BareVariant *record, const char *tag, buffer_t<int>* buffer, int *capacity) {
     int *p = buffer->get();
-    int n = bcf_get_format_int32(header, record, "AD", &p, capacity);
+    int n = bcf_get_format_int32(header, record, tag, &p, capacity);
+    if(n == -4) {
+        throw std::bad_alloc{};
+    } else if(p != buffer->get()) {
+        // update pointer
+        buffer->release();
+        buffer->reset(p);
+    }
+    return n;
+}
+
+inline
+int get_format_float(const bcf_hdr_t *header, BareVariant *record, const char *tag, buffer_t<float>* buffer, int *capacity) {
+    float *p = buffer->get();
+    int n = bcf_get_format_float(header, record, tag, &p, capacity);
+    if(n == -4) {
+        throw std::bad_alloc{};
+    } else if(p != buffer->get()) {
+        // update pointer
+        buffer->release();
+        buffer->reset(p);
+    }
+    return n;
+}
+
+inline
+int get_info_int32(const bcf_hdr_t *header, BareVariant *record, const char *tag, buffer_t<int>* buffer, int *capacity) {
+    int *p = buffer->get();
+    int n = bcf_get_info_int32(header, record, tag, &p, capacity);
     if(n == -4) {
         throw std::bad_alloc{};
     } else if(p != buffer->get()) {
