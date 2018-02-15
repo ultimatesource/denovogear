@@ -19,19 +19,21 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-
 #define BOOST_TEST_MODULE dng::log_probability
 
 #include <dng/probability.h>
+
 #include <dng/stats.h>
+#include <dng/detail/rangeio.h>
+#include <dng/task/call.h>
 
 #include <iostream>
 #include <fstream>
 #include <numeric>
 
-#include <dng/task/call.h>
 
 #include "../testing.h"
+#include "../xorshift64.h"
 
 namespace dng {
     struct unittest_dng_log_probability {
@@ -58,6 +60,8 @@ using u = dng::unittest_dng_log_probability;
 using namespace dng;
 using namespace dng::detail;
 using Sex = dng::Pedigree::Sex;
+
+int g_seed_counter = 0;
 
 // Use a lambda function to construct a global relationship graph
 const auto g_rel_graph = []() {
@@ -169,6 +173,16 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
     using ad_t = std::vector<std::vector<int>>;
     using dng::utility::make_array;
 
+    xorshift64 xrand(++g_seed_counter);
+
+    auto rexp = [&](double mean) {
+        double d = -log(xrand.get_double52())*mean;
+        if(xrand.get_double52() > 0.9) {
+            d = 0.0;
+        }
+        return static_cast<int>(d);
+    };
+
     const double prec = FLT_EPSILON;
 
     libraries_t libs = {
@@ -189,7 +203,15 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
     LogProbability log_probability{graph, g_params};
     int counter = 0;
     auto test = [&](const ad_t& depths, int num_alts, bool has_ref) {
-        BOOST_TEST_CONTEXT("counter=" << counter++) {
+        BOOST_TEST_CONTEXT("mom=" << rangeio::wrap(depths[0]) << 
+                         ", dad=" << rangeio::wrap(depths[1]) <<
+                         ", eve=" << rangeio::wrap(depths[2]) <<
+                         ", num_alts=" << num_alts <<
+                         ", has_ref=" << (int)has_ref
+        ) {
+        if(num_alts >= 4) {
+            num_alts = 3;
+        }
 
         LogProbability::value_t test_value;
         double expected_log_scale, expected_log_data;
@@ -257,7 +279,38 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
 
     test({{0},{0},{0}}, 0, true);
     test({{10},{5},{15}}, 0, true);
+    
     test({{100,0},{100,0},{50,50}}, 1, true);
+    test({{100,0},{50,50},{100,0}}, 1, true);
+    test({{50,50},{100,0},{100,0}}, 1, true);
+    
     test({{100,0,0},{50,50},{50,50,1}}, 2, true);
+    
     test({{0,100},{0,100},{0,10}}, 1, false);
+
+    for(int n=0; n<6; ++n) {
+        for(int i=0; i<100; ++i) {
+            ad_t ad(3);
+            for(auto &&a : ad) {
+                for(int j=0;j<=n;++j) {
+                    a.push_back(rexp(30));
+                }
+            }
+            test(ad, n, true);
+        }
+    }
+
+    for(int n=1; n<6; ++n) {
+        for(int i=0; i<100; ++i) {
+            ad_t ad(3);
+            for(auto &&a : ad) {
+                a.push_back(0);
+                for(int j=1;j<=n;++j) {
+                    a.push_back(rexp(30));
+                }
+            }
+            test(ad, n, false);
+        }
+    }
+
 }

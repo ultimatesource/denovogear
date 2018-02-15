@@ -22,7 +22,6 @@
 #include <dng/probability.h>
 #include <dng/mutation.h>
 
-
 using namespace dng;
 
 // graph_ will be initialized before work_, so we can reference it.
