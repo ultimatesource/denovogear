@@ -149,7 +149,7 @@ int bcf_2qcall(const bcf_hdr_t *hdr, bcf1_t *rec, Trio t, qcall_t *mom_snp,
       return err;
 
     // get I16 values from INFO field
-    std::array<int, 16> anno = std::array<int,16>();
+    std::array<int, 16> anno;
     if(read_I16(rec, hdr, anno) != 0) {
         d_rest = dp = 0;
     } else {
