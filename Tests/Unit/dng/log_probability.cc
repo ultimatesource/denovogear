@@ -209,6 +209,7 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
                          ", num_alts=" << num_alts <<
                          ", has_ref=" << (int)has_ref
         ) {
+        int num_alts_old = num_alts;
         if(num_alts >= 4) {
             num_alts = 3;
         }
@@ -268,11 +269,11 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
         expected_log_scale /= M_LN10;
         expected_log_data = log(lld.result()) / M_LN10;
 
-        test_value = log_probability.CalculateLLD(depths, num_alts, has_ref);
+        test_value = log_probability.CalculateLLD(depths, num_alts_old, has_ref);
         BOOST_CHECK_CLOSE_FRACTION(test_value.log_scale, expected_log_scale, prec);
         BOOST_CHECK_CLOSE_FRACTION(test_value.log_data, expected_log_data, prec);
 
-        test_value = log_probability(depths, num_alts, has_ref);
+        test_value = log_probability(depths, num_alts_old, has_ref);
         BOOST_CHECK_CLOSE_FRACTION(test_value.log_scale, expected_log_scale, prec);
         BOOST_CHECK_CLOSE_FRACTION(test_value.log_data, expected_log_data, prec);
     }};
@@ -284,7 +285,155 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
     test({{100,0},{50,50},{100,0}}, 1, true);
     test({{50,50},{100,0},{100,0}}, 1, true);
     
-    test({{100,0,0},{50,50},{50,50,1}}, 2, true);
+    test({{100,0,0},{50,50,0},{50,50,1}}, 2, true);
+    
+    test({{0,100},{0,100},{0,10}}, 1, false);
+
+    for(int n=0; n<6; ++n) {
+        for(int i=0; i<100; ++i) {
+            ad_t ad(3);
+            for(auto &&a : ad) {
+                for(int j=0;j<=n;++j) {
+                    a.push_back(rexp(30));
+                }
+            }
+            test(ad, n, true);
+        }
+    }
+
+    for(int n=1; n<6; ++n) {
+        for(int i=0; i<100; ++i) {
+            ad_t ad(3);
+            for(auto &&a : ad) {
+                a.push_back(0);
+                for(int j=1;j<=n;++j) {
+                    a.push_back(rexp(30));
+                }
+            }
+            test(ad, n, false);
+        }
+    }
+
+}
+
+BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_xlinked) {
+    //using ad_t = dng::pileup::allele_depths_t;
+    using ad_t = std::vector<std::vector<int>>;
+    using dng::utility::make_array;
+
+    xorshift64 xrand(++g_seed_counter);
+
+    auto rexp = [&](double mean) {
+        double d = -log(xrand.get_double52())*mean;
+        if(xrand.get_double52() > 0.9) {
+            d = 0.0;
+        }
+        return static_cast<int>(d);
+    };
+
+    const double prec = FLT_EPSILON;
+
+    libraries_t libs = {
+        {"Mom", "Dad", "Eve"},
+        {"Mom", "Dad", "Eve"}
+    };
+    Pedigree ped;
+    ped.AddMember("Dad","0","0",Sex::Male,"");
+    ped.AddMember("Mom","0","0",Sex::Female,"");
+    ped.AddMember("Eve","Dad","Mom",Sex::Female,"");
+
+    const double mu_g = 1e-8;
+    const double mu_s = 1e-8;
+    const double mu_l = 1e-8;
+    RelationshipGraph graph;
+    graph.Construct(ped, libs, InheritanceModel::XLinked, mu_g, mu_s, mu_l, true);
+
+    LogProbability log_probability{graph, g_params};
+    int counter = 0;
+    auto test = [&](const ad_t& depths, int num_alts, bool has_ref) {
+        BOOST_TEST_CONTEXT("mom=" << rangeio::wrap(depths[0]) << 
+                         ", dad=" << rangeio::wrap(depths[1]) <<
+                         ", eve=" << rangeio::wrap(depths[2]) <<
+                         ", num_alts=" << num_alts <<
+                         ", has_ref=" << (int)has_ref
+        ) {
+        int num_alts_old = num_alts;
+        if(num_alts >= 4) {
+            num_alts = 3;
+        }
+
+        LogProbability::value_t test_value;
+        double expected_log_scale, expected_log_data;
+
+        Genotyper genotyper{
+            g_params.over_dispersion_hom,
+            g_params.over_dispersion_het,
+            g_params.ref_bias,
+            g_params.error_rate,
+            g_params.error_entropy
+        };
+
+        const int hap_sz = num_alts+1;
+        const int gt_sz = hap_sz*(hap_sz+1)/2;
+
+        auto hap_prior = population_prior_haploid_ia(g_params.theta,
+                g_params.asc_bias_hap, num_alts, has_ref);
+        auto dip_prior = population_prior_diploid_ia(g_params.theta,
+                g_params.asc_bias_hom, g_params.asc_bias_het, num_alts, has_ref);
+
+        auto mom_lower = genotyper(depths[0], num_alts, 2);
+        auto dad_lower = genotyper(depths[1], num_alts, 1);
+        auto eve_lower = genotyper(depths[2], num_alts, 2);
+        expected_log_scale = mom_lower.second+dad_lower.second+eve_lower.second;
+
+        BOOST_REQUIRE_EQUAL(mom_lower.first.size(), gt_sz);
+        BOOST_REQUIRE_EQUAL(dad_lower.first.size(), hap_sz);
+        BOOST_REQUIRE_EQUAL(eve_lower.first.size(), gt_sz);
+
+        const auto m_sl = Mk::matrix(hap_sz, mu_s+mu_l, g_params.mutation_entropy);
+        const auto m_gsl = Mk::matrix(hap_sz, mu_g+mu_s+mu_l, g_params.mutation_entropy);
+
+        const auto m_eve = meiosis_matrix(1, m_gsl, 2, m_gsl);
+        const auto m_dad = mitosis_matrix(1, m_sl);
+        const auto m_mom = mitosis_matrix(2, m_sl);
+
+        dng::stats::ExactSum lld;
+        for(int dad_g=0,par=0;dad_g<hap_sz;++dad_g) {
+            for(int mom_g=0; mom_g<gt_sz;++mom_g,++par) {
+                double lld_eve = 0.0, lld_mom = 0.0, lld_dad = 0.0;
+                for(int eve=0;eve<gt_sz;++eve) {
+                    lld_eve += eve_lower.first(eve)*m_eve(par,eve);
+                }
+                for(int mom=0;mom<gt_sz;++mom) {
+                    lld_mom += mom_lower.first(mom)*m_mom(mom_g,mom);
+                }
+                for(int dad=0;dad<hap_sz;++dad) {
+                    lld_dad += dad_lower.first(dad)*m_dad(dad_g,dad);
+                }
+                lld += lld_eve*lld_mom*lld_dad*dip_prior(mom_g)*hap_prior(dad_g);
+            }
+        }
+
+        expected_log_scale /= M_LN10;
+        expected_log_data = log(lld.result()) / M_LN10;
+
+        test_value = log_probability.CalculateLLD(depths, num_alts_old, has_ref);
+        BOOST_CHECK_CLOSE_FRACTION(test_value.log_scale, expected_log_scale, prec);
+        BOOST_CHECK_CLOSE_FRACTION(test_value.log_data, expected_log_data, prec);
+
+        test_value = log_probability(depths, num_alts_old, has_ref);
+        BOOST_CHECK_CLOSE_FRACTION(test_value.log_scale, expected_log_scale, prec);
+        BOOST_CHECK_CLOSE_FRACTION(test_value.log_data, expected_log_data, prec);
+    }};
+
+    test({{0},{0},{0}}, 0, true);
+    test({{10},{5},{15}}, 0, true);
+    
+    test({{100,0},{100,0},{50,50}}, 1, true);
+    test({{100,0},{50,50},{100,0}}, 1, true);
+    test({{50,50},{100,0},{100,0}}, 1, true);
+    
+    test({{100,0,0},{50,50,0},{50,50,1}}, 2, true);
     
     test({{0,100},{0,100},{0,10}}, 1, false);
 
