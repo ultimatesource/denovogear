@@ -690,11 +690,12 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
 
     float_vector.assign(gt_count, float_missing);
     for(size_t i=0,k=work.library_nodes.first*gt_width;i<num_libraries;++i) {
-        if(work.ploidies[i] == 2) {
+        if(work.ploidies[work.library_nodes.first+i] == 2) {
             for(size_t j=0;j<gt_width;++j) {
                 float_vector[k++] = call_stats.genotype_likelihoods[i][j];
             }
-        } else if(work.ploidies[i] == 1) {
+        } else {
+            assert(work.ploidies[work.library_nodes.first+i] == 1);
             size_t j;
             for(j=0;j<num_alleles;++j) {
                 float_vector[k++] = call_stats.genotype_likelihoods[i][j];
@@ -702,7 +703,6 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
             for(;j<gt_width;++j) {
                 float_vector[k++] = float_vector_end;
             }
-
         }        
     }    
     record->samples("GL", float_vector);
