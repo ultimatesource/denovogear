@@ -410,6 +410,7 @@ int process_bcf(task::Call::argument_type &arg) {
         }
         assert(n_ad % num_libs == 0);
         const size_t n_sz = n_ad / num_libs;
+        const size_t n_alleles = (int)rec->n_allele;
 
         // replace "missing" and "end" values with 0
         boost::replace_if(boost::make_iterator_range(ad.get(), ad.get()+n_ad),
@@ -418,14 +419,13 @@ int process_bcf(task::Call::argument_type &arg) {
         pileup::allele_depths_ref_t read_depths(ad.get(), make_array(num_libs,n_sz));
 
         // TODO: check that REF isn't missing
-        if(!do_call(read_depths, n_sz-1, true, &stats)) {
+        if(!do_call(read_depths, n_alleles-1, true, &stats)) {
             return;
         }
         const bool has_single_mut = ((stats.mu1p / stats.mup) >= min_prob);
         
         // Set alleles
-        record.alleles(const_cast<const char**>(rec->d.allele),
-            (int)rec->n_allele);
+        record.alleles(const_cast<const char**>(rec->d.allele), n_alleles);
 
         // Measure total depth and sort nucleotides in descending order
         pileup::stats_t depth_stats;
@@ -434,15 +434,19 @@ int process_bcf(task::Call::argument_type &arg) {
         add_stats_to_output(stats, depth_stats, has_single_mut, relationship_graph, do_call.work(), &record);
 
         // Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
-        std::vector<int32_t> ad_info(n_sz, 0);
-        boost::multi_array<int32_t,2> ad_counts(utility::make_array(num_nodes, n_sz));
+        std::vector<int32_t> ad_info(n_alleles, 0);
+        boost::multi_array<int32_t,2> ad_counts(utility::make_array(num_nodes, n_alleles));
         std::fill_n(ad_counts.data(), ad_counts.num_elements(), hts::bcf::int32_missing);
 
         for(size_t u = 0; u < read_depths.size(); ++u) {
-            for(size_t k = 0; k < read_depths[u].size(); ++k) {
+            size_t k = 0;
+            for(; k < read_depths[u].size(); ++k) {
                 int count = read_depths[u][k];
                 ad_counts[library_start+u][k] = count;
                 ad_info[k] += count;
+            }
+            for(; k < n_alleles; ++k) {
+                ad_counts[library_start+u][k] = 0;
             }
         }
         record.samples("AD", ad_counts.data(), ad_counts.num_elements());

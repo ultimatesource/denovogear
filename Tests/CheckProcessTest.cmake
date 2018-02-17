@@ -3,6 +3,7 @@ macro(ESCAPE_STRING STR)
   string(REPLACE "\\." "%2E" ${STR} "${${STR}}")
   string(REPLACE "\\" "\\\\" ${STR} "${${STR}}")
   string(REPLACE "\n" "\\n"  ${STR} "${${STR}}")
+  string(REPLACE "\r" "\\r"  ${STR} "${${STR}}")
   string(REPLACE "\t" "\\t"  ${STR} "${${STR}}")  
 endmacro()
 
