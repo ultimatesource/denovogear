@@ -1,70 +1,14 @@
-set(Trio-CMD @DNG_CALL_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0 test1.vcf)
-set(Trio-WD "@TESTDATA_DIR@/sample_5_3/")
-set(Trio-RESULT 0)
-set(Trio-STDOUT
-  "5\t126385924\t\\.\tG\tT,C"
-  "GT:GQ:GP:MUP:MU1P:GL:DP:AD"
-  "MUP=1\;LLD=-31\\.5128\;LLS=7\\.03704\;MUX=1\;MU1P=1\;DNT=GGxGG>GT\;DNL=LB/NA12878/Solexa-135852\;DNQ=42\;DP=189\;AD=158,30,1"
-"0/0:45:0\\.999967,3\\.33278e-05,1\\.80168e-13,8\\.10694e-13,3\\.60228e-17,1\\.46068e-21:0:0:\\.,\\.,\\.,\\.,\\.,\\.:\\.:\\.,\\.,\\."
-"0/0:45:0\\.999967,3\\.33278e-05,1\\.80168e-13,8\\.10694e-13,3\\.60228e-17,1\\.46068e-21:0:0:\\.,\\.,\\.,\\.,\\.,\\.:\\.:\\.,\\.,\\."
-"0/1:255:2\\.94273e-43,1,0,0,0,0:0\\.999933:0\\.999933:-50\\.1454,0,-42\\.6333,-54\\.0266,-47\\.7971,-105\\.119:55:25,29,1"
-"0/0:128:1,1\\.62194e-13,0,4\\.82254e-21,0,0:3\\.33278e-05:3\\.33278e-05:0,-16\\.5799,-113\\.47,-16\\.5799,-113\\.47,-113\\.47:57:57,0,0"
-"0/0:147:1,1\\.99685e-15,0,1\\.99954e-26,0,0:3\\.33278e-05:3\\.33278e-05:0,-18\\.4896,-138\\.087,-21\\.9623,-138\\.388,-141\\.865:77:76,1,0"
-)
-
-set(TrioAlt-CMD @DNG_CALL_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0.001 test2.vcf)
-set(TrioAlt-WD "@TESTDATA_DIR@/sample_5_3/")
-set(TrioAlt-RESULT 0)
-set(TrioAlt-STDOUT
-  "5\t126385924\t\\.\tG\tT\t\\.\t\\.\tMUP=1\;LLD=-27\\.7231\;LLS=8\\.11716\;MUX=1\;MU1P=1\;DNT=GGxGG>GT\;DNL=LB/NA12878/Solexa-135852\;DNQ=42\;DP=188\;AD=158,30"
-  "5\t126385925\t\\.\tG\tT\t\\.\t\\.\tMUP=1\;LLD=-27\\.7231\;LLS=8\\.11716\;MUX=1\;MU1P=1\;DNT=GGxGG>GT\;DNL=LB/NA12878/Solexa-135852\;DNQ=42\;DP=188\;AD=158,30"
-  "5\t126385926\t\\.\tG\tT\t\\.\t\\.\tMUP=1\;LLD=-27\\.7231\;LLS=8\\.11716\;MUX=1\;MU1P=1\;DNT=GGxGG>GT\;DNL=LB/NA12878/Solexa-135852\;DNQ=42\;DP=188\;AD=158,30"
-)
-set(TrioAlt-STDOUT-FAIL
-  "5\t126385927\t\\.\tG\tN,X"
-  "5\t126385928\t\\.\tG\tN"
-  "5\t126385929\t\\.\tG\tX"
-)
-
-set(TrioAltRegions-CMD @DNG_CALL_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0.001 -r 5:126385921-126385925 test2.vcf.gz)
-set(TrioAltRegions-WD "@TESTDATA_DIR@/sample_5_3/")
-set(TrioAltRegions-RESULT 0)
-set(TrioAltRegions-STDOUT
-  "5\t126385924\t\\.\tG\tT\t\\.\t\\.\tMUP=1\;LLD=-27\\.7231\;LLS=8\\.11716\;MUX=1\;MU1P=1\;DNT=GGxGG>GT\;DNL=LB/NA12878/Solexa-135852\;DNQ=42\;DP=188\;AD=158,30"
-  "5\t126385925\t\\.\tG\tT\t\\.\t\\.\tMUP=1\;LLD=-27\\.7231\;LLS=8\\.11716\;MUX=1\;MU1P=1\;DNT=GGxGG>GT\;DNL=LB/NA12878/Solexa-135852\;DNQ=42\;DP=188\;AD=158,30"
-)
-set(TrioAltRegions-STDOUT-FAIL
-  "5\t126385926\t\\.\tG\tT"
-  "5\t126385927\t\\.\tG\tN,X"
-  "5\t126385928\t\\.\tG\tN"
-  "5\t126385929\t\\.\tG\tX"
-)
-
-set(TrioExtraCol-CMD @DNG_CALL_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0.001 test1_extra.vcf)
-set(TrioExtraCol-WD "@TESTDATA_DIR@/sample_5_3/")
-set(TrioExtraCol-RESULT 0)
-set(TrioExtraCol-STDOUT
-  "5\t126385924\t\\.\tG\tT,C"
-  "MUP=1\;LLD=-31\\.5128\;LLS=7\\.03704\;MUX=1\;MU1P=1\;DNT=GGxGG>GT\;DNL=LB/NA12878/Solexa-135852\;DNQ=42\;DP=189\;AD=158,30,1"
-  "GT:GQ:GP:MUP:MU1P:GL:DP:AD"
-  "0/0:45:0\\.999967,3\\.33278e-05,1\\.80168e-13,8\\.10694e-13,3\\.60228e-17,1\\.46068e-21:0:0:\\.,\\.,\\.,\\.,\\.,\\.:\\.:\\.,\\.,\\."
-  "0/0:45:0\\.999967,3\\.33278e-05,1\\.80168e-13,8\\.10694e-13,3\\.60228e-17,1\\.46068e-21:0:0:\\.,\\.,\\.,\\.,\\.,\\.:\\.:\\.,\\.,\\."
-  "0/1:255:2\\.94273e-43,1,0,0,0,0:0\\.999933:0\\.999933:-50\\.1454,0,-42\\.6333,-54\\.0266,-47\\.7971,-105\\.119:55:25,29,1"
-  "0/0:128:1,1\\.62194e-13,0,4\\.82254e-21,0,0:3\\.33278e-05:3\\.33278e-05:0,-16\\.5799,-113\\.47,-16\\.5799,-113\\.47,-113\\.47:57:57,0,0"
-  "0/0:147:1,1\\.99685e-15,0,1\\.99954e-26,0,0:3\\.33278e-05:3\\.33278e-05:0,-18\\.4896,-138\\.087,-21\\.9623,-138\\.388,-141\\.865:77:76,1,0"
-)
-
 ###############################################################################
-# Test if dng-call crashes on partial pedigree
+# Test if dng-call crashes on partial pedigrees
 
-set(PartialPed-CMD @DNG_CALL_EXE@ --ped duo.ped trio.vcf)
+set(PartialPed-CMD @DNG_CALL_EXE@ --ped ped/duo.ped bcftools/trio.call.vcf)
 set(PartialPed-WD "@TESTDATA_DIR@/human_trio/")
 set(PartialPed-RESULT 0)
 set(PartialPed-STDOUT
-  "##PEDIGREE=<ID=LB/NA12878/Solexa-135852,Original=GL/1,OriginalMR=0.0>"
+  "##PEDIGREE=<ID=LB/NA12878,Original=GL/1,OriginalMR=0.0>"
 )
 
-set(PartialPed2-CMD @DNG_CALL_EXE@ -m 0 --ped trio.ped duo.vcf)
+set(PartialPed2-CMD @DNG_CALL_EXE@ -m 0 --ped ped/trio.ped vcf/duo.vcf)
 set(PartialPed2-WD "@TESTDATA_DIR@/human_trio/")
 set(PartialPed2-RESULT 0)
 set(PartialPed2-STDOUT
@@ -76,17 +20,74 @@ set(PartialPed2-STDOUT-FAIL
 )
 
 ###############################################################################
-# Test if dng-call crashes on empty pedigree
+# Test if dng-call crashes on empty pedigrees
 
 set(EmptyPed-CMD @DNG_CALL_EXE@ --ped empty.ped trio.vcf)
 set(EmptyPed-WD "@TESTDATA_DIR@/human_trio/")
 set(EmptyPed-RESULT 0)
 
 ###############################################################################
+# Test if dng-call works on a trio
+
+set(TrioMpileup-CMD @DNG_CALL_EXE@ -p ped/trio.ped bcftools/trio.mpileup.vcf)
+set(TrioMpileup-WD "@TESTDATA_DIR@/human_trio")
+set(TrioMpileup-RESULT 0)
+set(TrioMpileup-STDOUT
+  "\r?\n5\t126385924\t\\.\tG\tT,<\\*>\t"
+  "\r?\n5\t126385924\t.*\tGT:GQ:GP:MUP:MU1P:GL:DP:AD\t"
+  "\r?\n5\t126385924\t.*\tMUP=0\\.999969\;"
+  "\r?\n5\t126385924\t.*\;LLD=-22\\.653\;"
+  "\r?\n5\t126385924\t.*\;LLS=0\\.90977\;"
+  "\r?\n5\t126385924\t.*\;MUX=0\\.999969\;"
+  "\r?\n5\t126385924\t.*\;MU1P=0\\.999969\;"
+  "\r?\n5\t126385924\t.*\;DNT=G/GxG/G->G/T\;"
+  "\r?\n5\t126385924\t.*\;DNL=LB/NA12878\;"
+  "\r?\n5\t126385924\t.*\;DNQ=127\;"
+  "\r?\n5\t126385924\t.*\;DP=113\;"
+  "\r?\n5\t126385924\t.*\;AD=92,21,0\t"
+  "\r?\n5\t126385924\t.*\t0/0:46:0\\.999973,2\\.70019e-05,0,6\\.68272e-17,0,0:0:0:\\.,\\.,\\.,\\.,\\.,\\.:\\.:\\.,\\.,\\.\t"
+  "\r?\n5\t126385924\t.*\t0/0:54:0\\.999996,3\\.85718e-06,0,2\\.89294e-14,0,0:0:0:\\.,\\.,\\.,\\.,\\.,\\.:\\.:\\.,\\.,\\.\t"
+  "\r?\n5\t126385924\t.*\t0/0:54:0\\.999996,3\\.85718e-06,0,2\\.89294e-14,0,0:0:0:0,-10\\.1127,-75\\.3322,-10\\.1127,-75\\.3322,-75\\.3322:34:34,0,0\t"
+  "\r?\n5\t126385924\t.*\t0/1:255:6\\.2615e-31,1,8\\.45815e-38,1\\.00893e-43,1\\.77965e-43,0:1:1:-38\\.5043,0,-28\\.1696,-42\\.9961,-34\\.1479,-77\\.144:35:15,20,0\t"
+  "\r?\n5\t126385924\t.*\t0/0:46:0\\.999973,2\\.70019e-05,0,6\\.68272e-17,0,0:0:0:0,-9\\.26756,-87\\.0858,-12\\.7491,-87\\.3868,-90\\.8683:44:43,1,0\r?\n"
+)
+
+###############################################################################
+# Test if dng-call supports regions
+
+set(TrioRegion-CMD @DNG_CALL_EXE@ -p ped/trio.ped -m 0 -r 5:126385921-126385925 bcftools/trio.mpileup.vcf.gz)
+set(TrioRegion-WD "@TESTDATA_DIR@/human_trio")
+set(TrioRegion-RESULT 0)
+set(TrioRegion-STDOUT
+  "\r?\n5\t126385921\t"
+  "\r?\n5\t126385922\t"
+  "\r?\n5\t126385923\t"
+  "\r?\n5\t126385924\t"
+  "\r?\n5\t126385925\t"
+)
+set(TrioRegion-STDOUT-FAIL
+  "\r?\n5\t12638592[^1-5]\t"
+  "\r?\n5\t1263859[0,1,3-9][0-9]\t"
+)
+
+###############################################################################
+# Test if dng-call ignores samples
+
+set(TrioExtraSample-CMD @DNG_CALL_EXE@ -p ped/trio.ped vcf/extra_sample.vcf)
+set(TrioExtraSample-WD "@TESTDATA_DIR@/human_trio")
+set(TrioExtraSample-RESULT 0)
+set(TrioExtraSample-STDOUT
+  "\tFORMAT\tGL/NA12892\tGL/NA12891\tLB/NA12891\tLB/NA12878\tLB/NA12892\r?\n"
+)
+set(TrioExtraSample-FAIL
+  "\tLB/FAKE(\t|\r?\n)"
+)
+
+###############################################################################
 # Test how dng-call handles missing data
 
 set(MissingData-CMD @DNG_CALL_EXE@ -m 0 --ped trio.ped trio_missing.vcf)
-set(MissingData-WD "@TESTDATA_DIR@/human_trio/")
+set(MissingData-WD "@TESTDATA_DIR@/vcf_missing_data/")
 set(MissingData-RESULT 0)
 set(MissingData-STDOUT
 "1\t1\t\\.\tA\t\\.\t\\.\t\\.\tMUP=-0\;LLD=-0\\.000911533\;LLS=-0\\.000911533\;MUX=0\;MU1P=0\;DP=0\;AD=0\tGT:GQ:GP:MUP:GL:DP:AD\t0/0:255:1:0:\\.:\\.:\\.\t0/0:255:1:0:\\.:\\.:\\.\t0/0:255:1:-?nan:0:0:0\t0/0:255:1:-?nan:0:0:0\t0/0:255:1:-?nan:0:0:0"
@@ -110,12 +111,11 @@ set(MissingData-STDOUT
 include("@CMAKE_CURRENT_SOURCE_DIR@/CheckProcessTest.cmake")
 
 CheckProcessTests(DngCall.Vcf
-  Trio
-  TrioAlt
-  TrioAltRegions
-  TrioExtraCol
   PartialPed
   PartialPed2
   EmptyPed
+  TrioMpileup
+  TrioRegion
+  TrioExtraSample
   MissingData
 )
