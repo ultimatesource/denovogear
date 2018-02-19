@@ -58,9 +58,9 @@ void writeToSNPObject(snp_object_t *mom_snp, const bcf_hdr_t *hdr, bcf1_t *rec,
 
     // Get "DP" field for each sample if it exits. Otherwise use depth estimated
     // from I16 fields 9 and 11
-    int *res_array = NULL;
-    int n_res_array = 0;
-    int n_res = bcf_get_format_int32(hdr, rec, "DP", &res_array, &n_res_array);
+    int n_res_array = n_alleles*10;
+    auto res_array = hts::bcf::make_buffer<int>(n_res_array);
+    int n_res = hts::bcf::get_format_int32(hdr, rec, "DP", &res_array, &n_res_array);
     if(n_res >= 3) {
         mom_snp->depth = res_array[i];
     } else {
@@ -100,9 +100,9 @@ void writeToIndelObject(indel_t *mom_indel, const bcf_hdr_t *hdr, bcf1_t *rec,
     mom_indel->rms_mapQ = mq;
     strcpy(mom_indel->id, hdr->samples[i]);
 
-    int *res_array = NULL;
-    int n_res_array = 0;
-    int n_res = bcf_get_format_int32(hdr, rec, "DP", &res_array, &n_res_array);
+    int n_res_array = n_alleles*10;
+    auto res_array = hts::bcf::make_buffer<int>(n_res_array);
+    int n_res = hts::bcf::get_format_int32(hdr, rec, "DP", &res_array, &n_res_array);
     if(n_res >= 3) {
         mom_indel->depth = res_array[i];
     } else {
@@ -127,7 +127,7 @@ int bcf_2qcall(const bcf_hdr_t *hdr, bcf1_t *rec, Trio t, qcall_t *mom_snp,
                indel_t *child_indel, int &flag, int pl_type) {
 
     int a[4], k, g[10], l, map[4], k1, l1, j, i, i0, /*anno[16],*/ dp, mq, d_rest,
-        /*indel = 0,*/ found_trio = 3;
+	 /*indel = 0,*/ found_trio = 3;
 
     // Check if INDEL or SNP
     int indel = (bcf_get_variant_types(rec) == hts::bcf::File::INDEL);
@@ -151,7 +151,7 @@ int bcf_2qcall(const bcf_hdr_t *hdr, bcf1_t *rec, Trio t, qcall_t *mom_snp,
     // get I16 values from INFO field
     std::array<int, 16> anno;
     if(read_I16(rec, hdr, anno) != 0) {
-        d_rest = 0;
+        d_rest = dp = 0;
     } else {
         d_rest = dp = anno[0] + anno[1] + anno[2] + anno[3];
     }
@@ -182,7 +182,7 @@ int bcf_2qcall(const bcf_hdr_t *hdr, bcf1_t *rec, Trio t, qcall_t *mom_snp,
         }
 
         a[k + 1] = nt4_table[(int)alleles[s][0]];
-        if(a[k + 1] >= 0) {
+        if(a[k + 1] >= 0 && a[k + 1] < 4) {
             map[a[k + 1]] = k + 1;
         } else {
             k1 = k + 1;

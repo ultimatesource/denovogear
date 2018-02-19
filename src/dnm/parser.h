@@ -110,9 +110,9 @@ static int8_t nt4_table[256] = {
 
 static int get_pl_fields(const bcf_hdr_t *hdr, bcf1_t *rec, int pl_type, int n_samples, sample_vals_int &pl_fields) {
   if(pl_type == BCF_HT_INT) {
-    int *pl_array = NULL;
-    int n_pl_array = 0;
-    int n_pl = bcf_get_format_int32(hdr, rec, "PL", &pl_array, &n_pl_array);
+    int n_pl_array = n_samples*10;
+    auto pl_array = hts::bcf::make_buffer<int>(n_pl_array);
+    int n_pl = hts::bcf::get_format_int32(hdr, rec, "PL", &pl_array, &n_pl_array);
     if(n_pl <= 0) {
       return -6;
     } else {
@@ -125,9 +125,9 @@ static int get_pl_fields(const bcf_hdr_t *hdr, bcf1_t *rec, int pl_type, int n_s
       return 1;
     }
   } else if(pl_type == BCF_HT_REAL) {
-    float *pl_array = NULL;
-    int n_pl_array = 0;
-    int n_pl = bcf_get_format_float(hdr, rec, "PL", &pl_array, &n_pl_array);
+    int n_pl_array = n_samples*10;
+    auto pl_array = hts::bcf::make_buffer<float>(n_pl_array);
+    int n_pl = hts::bcf::get_format_float(hdr, rec, "PL", &pl_array, &n_pl_array);
     if(n_pl <= 0) {
       return -6;
     } else {
@@ -153,9 +153,9 @@ static int get_pl_fields(const bcf_hdr_t *hdr, bcf1_t *rec, int pl_type, int n_s
 static int read_I16(bcf1_t *rec, const bcf_hdr_t *hdr, std::array<int, 16> &anno) {
     std::vector<int> i16vals;
     //vcf.GetInfoValues("I16", i16vals);
-    int *dst = NULL;
-    int n_dst = 0;
-    int array_size = bcf_get_info_int32(hdr, rec, "I16", &dst, &n_dst);
+    int n_dst = 16;
+    auto dst = hts::bcf::make_buffer<int>(n_dst);
+    int array_size = hts::bcf::get_info_int32(hdr, rec, "I16", &dst, &n_dst);
 
     if(array_size == 0) {
         return -1;
