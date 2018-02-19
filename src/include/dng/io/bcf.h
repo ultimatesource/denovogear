@@ -89,7 +89,7 @@ template<typename A>
 inline
 BcfPileup BcfPileup::open_and_setup(const A& arg) {
     if(arg.input.size() > 1) {
-        throw std::runtime_error("dng call can only handle one variant file at a time.");
+        throw std::runtime_error("processing more than one variant file at a time is not supported.");
     }
 
     BcfPileup mpileup;

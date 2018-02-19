@@ -1,18 +1,19 @@
 ###############################################################################
 # Test dng-loglike functioning with bam file
 
-set(BasicTest-CMD @DNG_LOGLIKE_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped test1.bam)
-set(BasicTest-WD "@TESTDATA_DIR@/sample_5_3/")
+set(BasicTest-CMD @DNG_LOGLIKE_EXE@ -p ped/trio.ped -f trio.fasta.gz trio.bam)
+set(BasicTest-WD "@TESTDATA_DIR@/human_trio")
 set(BasicTest-Result 0)
 set(BasicTest-STDOUT
-    "log_likelihood\tlog_hidden\tlog_observed"
-    "-101.013738899918..\t-8.08795333100022.+\t-92.9257855689178.."
+  "^log_likelihood\t-101\\.30665419860797\r?\n"
+  "log_hidden\t-8\\.3243873160692381\r?\n"
+  "log_observed\t-92\\.982266882538738\r?\n"
 )
 
 ###############################################################################
-# Test if dng-loglike crashes on empty bam
-set(EmptyBam-CMD @DNG_LOGLIKE_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped empty.bam)
-set(EmptyBam-WD "@TESTDATA_DIR@/sample_5_3/")
+# Test if dng-loglike crashes on missing bam
+set(EmptyBam-CMD @DNG_LOGLIKE_EXE@ -p ped/trio.ped -f trio.fasta.gz empty.bam)
+set(EmptyBam-WD "@TESTDATA_DIR@/human_trio")
 set(EmptyBam-Result 1)
 set(EmptyBam-STDERR
     "Unable to open bam/sam/cram input file 'empty\\.bam' for reading"
@@ -20,8 +21,8 @@ set(EmptyBam-STDERR
 
 ###############################################################################
 # Test if dng-loglike crashes on more than one input type file
-set(MultiInput-CMD @DNG_LOGLIKE_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped test1.bam test1.vcf)
-set(MultiInput-WD "@TESTDATA_DIR@/sample_5_3/")
+set(MultiInput-CMD @DNG_LOGLIKE_EXE@ -p ped/trio.ped -f trio.fasta.gz trio.bam test1.vcf)
+set(MultiInput-WD "@TESTDATA_DIR@/human_trio")
 set(MultiInput-Result 1)
 set(MultiInput-STDERR
     "Mixing sam/bam/cram, vcf/bcf, and tad/ad input files is not supported\\."
@@ -29,8 +30,8 @@ set(MultiInput-STDERR
 
 ###############################################################################
 # Test if dng-loglike crashes if fasta file is not specified
-set(NoFasta-CMD @DNG_LOGLIKE_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -p ceu.ped test1.bam)
-set(NoFasta-WD "@TESTDATA_DIR@/sample_5_3/")
+set(NoFasta-CMD @DNG_LOGLIKE_EXE@ -p ped/trio.ped trio.bam)
+set(NoFasta-WD "@TESTDATA_DIR@/human_trio")
 set(NoFasta-Result 1)
 set(NoFasta-STDERR
     "Path to reference file must be specified with --fasta when processing bam/sam/cram files\\."
@@ -38,11 +39,11 @@ set(NoFasta-STDERR
 
 ###############################################################################
 # Test if dng-loglike crashes on unknown --region file
-set(Region-CMD @DNG_LOGLIKE_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped --region region.gz test1.bam)
-set(Region-WD "@TESTDATA_DIR@/sample_5_3/")
+set(Region-CMD @DNG_LOGLIKE_EXE@ --region A -p ped/trio.ped -f trio.fasta.gz trio.bam)
+set(Region-WD "@TESTDATA_DIR@/human_trio")
 set(Region-Result 1)
 set(Region-STDERR
-    "Unknown contig name: 'region\\.gz'"
+    "Unknown contig name: 'A'"
 )
 
 ###############################################################################

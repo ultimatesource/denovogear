@@ -22,7 +22,7 @@ set(PartialPed2-STDOUT-FAIL
 ###############################################################################
 # Test if dng-call crashes on empty pedigrees
 
-set(EmptyPed-CMD @DNG_CALL_EXE@ --ped empty.ped trio.vcf)
+set(EmptyPed-CMD @DNG_CALL_EXE@ --ped ped/empty.ped bcftools/trio.call.vcf)
 set(EmptyPed-WD "@TESTDATA_DIR@/human_trio/")
 set(EmptyPed-RESULT 0)
 
@@ -51,6 +51,7 @@ set(TrioMpileup-STDOUT
   "\r?\n5\t126385924\t.*\t0/0:54:0\\.999996,3\\.85718e-06,0,2\\.89294e-14,0,0:0:0:0,-10\\.1127,-75\\.3322,-10\\.1127,-75\\.3322,-75\\.3322:34:34,0,0\t"
   "\r?\n5\t126385924\t.*\t0/1:255:6\\.2615e-31,1,8\\.45815e-38,1\\.00893e-43,1\\.77965e-43,0:1:1:-38\\.5043,0,-28\\.1696,-42\\.9961,-34\\.1479,-77\\.144:35:15,20,0\t"
   "\r?\n5\t126385924\t.*\t0/0:46:0\\.999973,2\\.70019e-05,0,6\\.68272e-17,0,0:0:0:0,-9\\.26756,-87\\.0858,-12\\.7491,-87\\.3868,-90\\.8683:44:43,1,0\r?\n"
+  "\r?\n#CHROM[^\r\n]*\r?\n[^\r\n]*\r?\n$"
 )
 
 set(TrioBcftoolsAutosomal-CMD @DNG_CALL_EXE@ -M autosomal -p ped/trio.ped bcftools/trio.call.vcf)
@@ -75,6 +76,7 @@ set(TrioBcftoolsAutosomal-STDOUT
   "\r?\n5\t126385924\t.*\t0/0:51:0\\.999992,7\\.71798e-06,0:0:0:0,-10\\.1127,-75\\.3322:34:34,0\t"
   "\r?\n5\t126385924\t.*\t0/1:255:6\\.26131e-31,1,8\\.45841e-38:1:1:-38\\.5043,0,-28\\.1696:35:15,20\t"
   "\r?\n5\t126385924\t.*\t0/0:43:0\\.999946,5\\.4029e-05,0:0:0:0,-9\\.26756,-87\\.0858:44:43,1\r?\n"
+  "\r?\n#CHROM[^\r\n]*\r?\n[^\r\n]*\r?\n$"
 )
 
 set(TrioBcftoolsXLinked-CMD @DNG_CALL_EXE@ -M xlinked -p ped/trio.ped bcftools/trio.call.vcf)
@@ -99,6 +101,7 @@ set(TrioBcftoolsXLinked-STDOUT
   "\r?\n5\t126385924\t.*\t0:255:1,0:0:0:0,-75\\.3322:34:34,0\t"
   "\r?\n5\t126385924\t.*\t0/1:255:6\\.26135e-31,1,8\\.45835e-38:1:1:-38\\.5043,0,-28\\.1696:35:15,20\t"
   "\r?\n5\t126385924\t.*\t0/0:43:0\\.999946,5\\.40295e-05,0:0:0:0,-9\\.26756,-87\\.0858:44:43,1\r?\n"
+  "\r?\n#CHROM[^\r\n]*\r?\n[^\r\n]*\r?\n$"
 )
 
 set(TrioBcftoolsYLinked-CMD @DNG_CALL_EXE@ -m 0 -M ylinked -p ped/trio.ped bcftools/trio.call.vcf)
@@ -117,7 +120,37 @@ set(TrioBcftoolsYLinked-STDOUT
   "\r?\n5\t126385924\t.*\;AD=34,0\t"
   "\r?\n5\t126385924\t.*\t0:255:1,0:\\.,\\.,\\.:\\.:\\.,\\.\t"
   "\r?\n5\t126385924\t.*\t0:255:1,0:0,-75\\.3322:34:34,0\r?\n"
+  "\r?\n#CHROM[^\r\n]*\r?\n[^\r\n]*\r?\n$"
 )
+
+###############################################################################
+# Test if dng-call works on a trio with a 6 column ped
+
+set(TrioBcftools6ColPed-CMD @DNG_CALL_EXE@ -M autosomal -p ped/trio_6col.ped bcftools/trio.call.vcf)
+set(TrioBcftools6ColPed-WD "@TESTDATA_DIR@/human_trio")
+set(TrioBcftools6ColPed-RESULT 0)
+set(TrioBcftools6ColPed-STDOUT
+  "\r?\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tGL/1\tGL/2\tLB/NA12891\tLB/NA12878\tLB/NA12892\r?\n"
+  "\r?\n5\t126385924\t\\.\tG\tT\t"
+  "\r?\n5\t126385924\t.*\tGT:GQ:GP:MUP:MU1P:GL:DP:AD\t"
+  "\r?\n5\t126385924\t.*\tMUP=0\\.999938\;"
+  "\r?\n5\t126385924\t.*\;LLD=-22\\.653\;"
+  "\r?\n5\t126385924\t.*\;LLS=0\\.909784\;"
+  "\r?\n5\t126385924\t.*\;MUX=0\\.999938\;"
+  "\r?\n5\t126385924\t.*\;MU1P=0\\.999938\;"
+  "\r?\n5\t126385924\t.*\;DNT=G/GxG/G->G/T\;"
+  "\r?\n5\t126385924\t.*\;DNL=LB/NA12878\;"
+  "\r?\n5\t126385924\t.*\;DNQ=125\;"
+  "\r?\n5\t126385924\t.*\;DP=113\;"
+  "\r?\n5\t126385924\t.*\;AD=92,21\t"
+  "\r?\n5\t126385924\t.*\t0/0:43:0\\.999946,5\\.4029e-05,0:0:0:\\.,\\.,\\.:\\.:\\.,\\.\t"
+  "\r?\n5\t126385924\t.*\t0/0:51:0\\.999992,7\\.71798e-06,0:0:0:\\.,\\.,\\.:\\.:\\.,\\.\t"
+  "\r?\n5\t126385924\t.*\t0/0:51:0\\.999992,7\\.71798e-06,0:0:0:0,-10\\.1127,-75\\.3322:34:34,0\t"
+  "\r?\n5\t126385924\t.*\t0/1:255:6\\.26131e-31,1,8\\.45841e-38:1:1:-38\\.5043,0,-28\\.1696:35:15,20\t"
+  "\r?\n5\t126385924\t.*\t0/0:43:0\\.999946,5\\.4029e-05,0:0:0:0,-9\\.26756,-87\\.0858:44:43,1\r?\n"
+  "\r?\n#CHROM[^\r\n]*\r?\n[^\r\n]*\r?\n$"
+)
+
 
 ###############################################################################
 # Test if dng-call supports regions
@@ -131,6 +164,7 @@ set(TrioRegion-STDOUT
   "\r?\n5\t126385923\t"
   "\r?\n5\t126385924\t"
   "\r?\n5\t126385925\t"
+  "\r?\n#CHROM[^\r\n]*\r?\n[^\r\n]*\r?\n[^\r\n]*\r?\n[^\r\n]*\r?\n[^\r\n]*\r?\n[^\r\n]*\r?\n"
 )
 set(TrioRegion-STDOUT-FAIL
   "\r?\n5\t12638592[^1-5]\t"
@@ -186,6 +220,7 @@ CheckProcessTests(DngCall.Vcf
   TrioBcftoolsAutosomal
   TrioBcftoolsXLinked
   TrioBcftoolsYLinked
+  TrioBcftools6ColPed
   TrioRegion
   TrioExtraSample
   MissingData

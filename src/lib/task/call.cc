@@ -345,7 +345,7 @@ int process_bam(task::Call::argument_type &arg) {
             a12 += adf_info[k];
             a22 += adr_info[k];
         }
-        if(a12+a22 > 0) {
+        if(a11+a21 > 0 && a12+a22 > 0) {
             // Fisher Exact Test for strand bias
             double fs_info = dng::stats::fisher_exact_test(a11, a12, a21, a22);
 
@@ -521,13 +521,24 @@ int process_ad(task::Call::argument_type &arg) {
         const auto & type_info = data.type_info();
         bool ref_is_N = (data.color() >= 64);
         const size_t n_sz = type_info.width + ref_is_N;
+        const size_t n_alleles = n_sz;
 
         // Set alleles
         record.alleles(type_info.label_htslib);
 
+        // Copy depths into read_depths
+        read_depths.resize(make_array(data.num_libraries(), n_sz));
+        for(size_t i=0;i<data.num_libraries();++i) {
+            if(ref_is_N) {
+                read_depths[i][0] = 0;
+            }
+            for(size_t a=ref_is_N;a<n_sz;++a) {
+                read_depths[i][a] = data(i,a-ref_is_N);
+            }
+        }
         // Measure total depth and sort nucleotides in descending order
         pileup::stats_t depth_stats;
-        pileup::calculate_stats(data, &depth_stats);
+        pileup::calculate_stats(read_depths, &depth_stats);
 
         add_stats_to_output(stats, depth_stats, has_single_mut, relationship_graph, do_call.work(), &record);
 
@@ -536,18 +547,18 @@ int process_ad(task::Call::argument_type &arg) {
         boost::multi_array<int32_t,2> ad_counts(utility::make_array(num_nodes, n_sz));
         std::fill_n(ad_counts.data(), ad_counts.num_elements(), hts::bcf::int32_missing);
 
-        for(size_t u = 0; u < data.num_libraries(); ++u) {
-            for(size_t k = 0; k < n_sz; ++k) {
-                int count;
-                if(!ref_is_N) {
-                    count = data(u,k);
-                } else {
-                    count = (k == 0) ? 0 : data(u,k-1);
-                }
+        for(size_t u = 0; u < read_depths.size(); ++u) {
+            size_t k = 0;
+            for(; k < read_depths[u].size(); ++k) {
+                int count = read_depths[u][k];
                 ad_counts[library_start+u][k] = count;
                 ad_info[k] += count;
             }
+            for(; k < n_alleles; ++k) {
+                ad_counts[library_start+u][k] = 0;
+            }
         }
+
         record.samples("AD", ad_counts.data(), ad_counts.num_elements());
         record.info("AD", ad_info);
 

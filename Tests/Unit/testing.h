@@ -165,7 +165,7 @@ struct test_range {
 
     const_iterator begin() const { return begin_; }
     const_iterator end() const { return end_; }
-    size_t size() const { return end_-begin_; }
+    size_t size() const { return std::distance(begin_, end_); }
 
     const_iterator begin_;
     const_iterator end_;

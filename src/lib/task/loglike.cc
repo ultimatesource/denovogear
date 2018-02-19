@@ -111,7 +111,7 @@ int task::LogLike::operator()(task::LogLike::argument_type &arg) {
 void output_loglike_results(std::ostream &o, double hidden, double observed) {
     // output results
     o << setprecision(std::numeric_limits<double>::max_digits10)
-         << "log_likelihood\t" << hidden+observed << "\n";
+         << "log_likelihood\t" << (hidden+observed) << "\n";
     o << setprecision(std::numeric_limits<double>::max_digits10)
          << "log_hidden\t" << hidden << "\n";
     o << setprecision(std::numeric_limits<double>::max_digits10)
@@ -137,7 +137,7 @@ int process_bam(LogLike::argument_type &arg) {
     const int min_basequal = arg.min_basequal;
     auto filter_read = [min_basequal](
     decltype(mpileup)::data_type::value_type::const_reference r) -> bool {
-        return !(r.is_missing
+        return (r.is_missing
         || r.base_qual() < min_basequal
         || seq::base_index(r.base()) >= 4);
     };
@@ -160,9 +160,12 @@ int process_bam(LogLike::argument_type &arg) {
         size_t ref_index = seq::char_index(ref_base);
 
         auto read_depths = count_alleles(data, ref_index, filter_read);
-        size_t sz = read_depths.shape()[1];
+        size_t n_sz = read_depths.shape()[1];
+        if(n_sz == 0) {
+            return;
+        }
 
-        auto loglike = do_loglike(read_depths, sz-1, ref_index < 4);
+        auto loglike = do_loglike(read_depths, n_sz-1, ref_index < 4);
         sum_data += loglike.log_data;
         sum_scale += loglike.log_scale;
     });

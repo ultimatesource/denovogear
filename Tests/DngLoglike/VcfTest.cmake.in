@@ -1,18 +1,19 @@
 ###############################################################################
 # Test dng-loglike functioning with vcf file
 
-set(BasicTest-CMD @DNG_LOGLIKE_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped test1.vcf)
-set(BasicTest-WD "@TESTDATA_DIR@/sample_5_3/")
+set(BasicTest-CMD @DNG_LOGLIKE_EXE@ -p ped/trio.ped -f trio.fasta.gz bcftools/trio.mpileup.vcf)
+set(BasicTest-WD "@TESTDATA_DIR@/human_trio")
 set(BasicTest-Result 0)
 set(BasicTest-STDOUT
-    "log_likelihood\tlog_hidden\tlog_observed"
-    "-31\\.512781885360631\t-7\\.6149721273918676\t-23\\.897809757968766"
+  "^log_likelihood\t-56\\.538888764593167\r?\n"
+  "log_hidden\t-8\\.9375321070124105\r?\n"
+  "log_observed\t-47\\.601356657580759\r?\n"
 )
 
 ###############################################################################
-# Test if dng-loglike crashes on empty vcf 
-set(EmptyVcf-CMD @DNG_LOGLIKE_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped empty.vcf)
-set(EmptyVcf-WD "@TESTDATA_DIR@/sample_5_3/")
+# Test if dng-loglike fails on missing vcf 
+set(EmptyVcf-CMD @DNG_LOGLIKE_EXE@ -p ped/trio.ped -f trio.fasta.gz empty.vcf)
+set(EmptyVcf-WD "@TESTDATA_DIR@/human_trio")
 set(EmptyVcf-Result 1)
 set(EmptyVcf-STDERR
     "No such file or directory"
@@ -20,11 +21,11 @@ set(EmptyVcf-STDERR
 
 ###############################################################################
 # Test if dng-loglike crashes on more than one input file
-set(MultiInput-CMD @DNG_LOGLIKE_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped test1.vcf test1.vcf)
-set(MultiInput-WD "@TESTDATA_DIR@/sample_5_3/")
+set(MultiInput-CMD @DNG_LOGLIKE_EXE@ -p ped/trio.ped -f trio.fasta.gz test1.vcf test1.vcf)
+set(MultiInput-WD "@TESTDATA_DIR@/human_trio")
 set(MultiInput-Result 1)
 set(MultiInput-STDERR
-    "dng loglike can only handle one variant file at a time\\."
+    "processing more than one variant file at a time is not supported\\."
 )
 
 ###############################################################################
