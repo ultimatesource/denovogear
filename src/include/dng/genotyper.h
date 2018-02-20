@@ -75,7 +75,7 @@ private:
 
 std::array<double,8> make_alphas(double over_dispersion_hom, 
         double over_dispersion_het, double ref_bias,
-        double error_rate, double error_entropy);
+        double error_rate, double error_alleles);
 
 } // namespace detail
 
@@ -84,8 +84,8 @@ public:
     using depths_const_reference_type = dng::pileup::allele_depths_ref_t::const_reference;
 
     DirichletMultinomial(double over_dispersion_hom, 
-        double over_dispersion_het, double ref_bias,
-        double error_rate, double error_entropy);
+        double over_dispersion_het, double sequencing_bias,
+        double error_rate, double error_alleles);
 
     template<typename Range>
     std::pair<GenotypeArray, double> operator()(
@@ -94,8 +94,8 @@ public:
     double over_dispersion_hom() const { return over_dispersion_hom_; }
     double over_dispersion_het() const { return over_dispersion_het_; }
     double error_rate() const { return error_rate_; }
-    double ref_bias() const { return ref_bias_; }
-    double error_entropy() const { return error_entropy_; }
+    double sequencing_bias() const { return sequencing_bias_; }
+    double error_alleles() const { return error_alleles_; }
 
 protected:
 
@@ -108,8 +108,8 @@ protected:
     double over_dispersion_hom_; // overdispersion of homozygotes
     double over_dispersion_het_; // overdispersion of heterozygotes
     double error_rate_;      // prob of error when homozygote is sequenced
-    double ref_bias_;        // bias towards reference when heterozygote is sequenced
-    double error_entropy_;
+    double sequencing_bias_;        // bias towards reference when heterozygote is sequenced
+    double error_alleles_;
 
     using cache_t = std::vector<std::array<double,8>>;
     using pochhammers_t = std::array<detail::log_pochhammer,8>; 
@@ -132,7 +132,7 @@ protected:
 
     friend std::array<double,8> detail::make_alphas(double over_dispersion_hom, 
         double over_dispersion_het, double ref_bias,
-        double error_rate, double error_entropy);
+        double error_rate, double error_alleles);
 };
 
 template<typename Range>

@@ -57,16 +57,16 @@ BOOST_AUTO_TEST_CASE(test_make_alphas) {
 
     double prec = DBL_EPSILON;
 
-    auto test = [prec](double over_dispersion_hom, double over_dispersion_het, double ref_bias,
-        double error_rate, double error_entropy) {
+    auto test = [prec](double over_dispersion_hom, double over_dispersion_het, double sequencing_bias,
+        double error_rate, double error_alleles) {
     BOOST_TEST_CONTEXT("over_dispersion_hom=" << over_dispersion_hom 
                   << ", over_dispersion_het=" << over_dispersion_het
-                  << ", ref_bias=" << ref_bias
+                  << ", sequencing_bias=" << sequencing_bias
                   << ", error_rate=" << error_rate
-                  << ", error_entropy=" << error_entropy
+                  << ", error_alleles=" << error_alleles
     ) {
-        auto test_range = make_alphas(over_dispersion_hom, over_dispersion_het, ref_bias,
-                                      error_rate, error_entropy);
+        auto test_range = make_alphas(over_dispersion_hom, over_dispersion_het, sequencing_bias,
+                                      error_rate, error_alleles);
         std::array<double, 8> expected_range;
 
         if(over_dispersion_hom < low_phi) {
@@ -83,12 +83,12 @@ BOOST_AUTO_TEST_CASE(test_make_alphas) {
         double a2 = (1.0-over_dispersion_het)/over_dispersion_het;
 
         expected_range[0] = a1*(1.0-error_rate);
-        expected_range[1] = a1*error_rate/exp(error_entropy);
+        expected_range[1] = a1*error_rate/error_alleles;
 
-        expected_range[2] = a2*(1.0-error_rate + error_rate/exp(error_entropy))*ref_bias/(1.0+ref_bias);
-        expected_range[3] = a2*(1.0-error_rate + error_rate/exp(error_entropy))*1.0/(1.0+ref_bias);
-        expected_range[4] = a2*error_rate/exp(error_entropy);
-        expected_range[5] = a2*(1.0-error_rate + error_rate/exp(error_entropy))*0.5;
+        expected_range[2] = a2*(1.0-error_rate + error_rate/error_alleles)*sequencing_bias/(1.0+sequencing_bias);
+        expected_range[3] = a2*(1.0-error_rate + error_rate/error_alleles)*1.0/(1.0+sequencing_bias);
+        expected_range[4] = a2*error_rate/error_alleles;
+        expected_range[5] = a2*(1.0-error_rate + error_rate/error_alleles)*0.5;
 
         expected_range[6] = a1;
         expected_range[7] = a2;
@@ -97,9 +97,9 @@ BOOST_AUTO_TEST_CASE(test_make_alphas) {
 
     }};
 
-    test(0.0005, 0.0005, 1, 0.0005, log(3));
-    test(0.0005, 0.001, 1.02, 1e-4, log(4));
-    test(0, 0, 1, 0, log(4));
+    test(0.0005, 0.0005, 1, 0.0005, 3);
+    test(0.0005, 0.001, 1.02, 1e-4, 4);
+    test(0, 0, 1, 0, 4);
 }
 
 BOOST_AUTO_TEST_CASE(test_DirichletMultinomial) {
@@ -114,12 +114,12 @@ BOOST_AUTO_TEST_CASE(test_DirichletMultinomial) {
     auto test = [prec](const DirichletMultinomial& dm, const depths_t &depths) -> void {
     BOOST_TEST_CONTEXT("over_dispersion_hom=" << dm.over_dispersion_hom()
                   << ", over_dispersion_het=" << dm.over_dispersion_het()
-                  << ", ref_bias=" << dm.ref_bias()
+                  << ", sequening_bias=" << dm.sequencing_bias()
                   << ", error_rate=" << dm.error_rate()
-                  << ", error_entropy=" << dm.error_entropy()
+                  << ", error_alleles=" << dm.error_alleles()
     ){
         auto alphas = make_alphas(dm.over_dispersion_hom(), dm.over_dispersion_het(),
-            dm.ref_bias(), dm.error_rate(), dm.error_entropy());
+            dm.sequencing_bias(), dm.error_rate(), dm.error_alleles());
         std::vector<log_pochhammer> f;
         for(auto &&a : alphas) {
             f.emplace_back(a);
@@ -211,7 +211,7 @@ BOOST_AUTO_TEST_CASE(test_DirichletMultinomial) {
         ad.push_back(d);
     }
 
-    test({0.0005, 0.0005, 1, 0.0005, log(3)}, ad);
-    test({0.0005, 0.001, 1.02, 1e-4, log(4)}, ad);
-    test({0, 0, 1, 0, log(4)}, ad);
+    test({0.0005, 0.0005, 1, 0.0005, 3}, ad);
+    test({0.0005, 0.001, 1.02, 1e-4, 4}, ad);
+    test({0, 0, 1, 0, 4}, ad);
 }

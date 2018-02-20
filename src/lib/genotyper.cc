@@ -99,13 +99,13 @@ inline double log_sum_exact(double a, double b) {
 }
 
 std::array<double,8> detail::make_alphas(double over_dispersion_hom, 
-        double over_dispersion_het, double ref_bias,
-        double error_rate, double error_entropy) {
+        double over_dispersion_het, double sequencing_bias,
+        double error_rate, double error_alleles) {
     assert(0.0 <= over_dispersion_hom && over_dispersion_hom <= 1.0 );
     assert(0.0 <= over_dispersion_het && over_dispersion_het <= 1.0 );
-    assert(0.0 <= ref_bias );
+    assert(0.0 <= sequencing_bias );
     assert(0.0 <= error_rate && error_rate <= 1.0 );
-    assert(0.0 <= error_entropy );
+    assert(0.0 <  error_alleles );
 
     // Adjust parameters to prevent zeros, which can cause issues with the 
     // current implementation
@@ -117,9 +117,9 @@ std::array<double,8> detail::make_alphas(double over_dispersion_hom,
 
     // assume three possible errors
     double p1 = 1.0-error_rate;
-    double p2 = error_rate/exp(error_entropy);
+    double p2 = error_rate/error_alleles;
     double p3 = p1+p2;
-    double q = ref_bias/(1.0+ref_bias);
+    double q = sequencing_bias/(1.0+sequencing_bias);
 
     using alpha = DirichletMultinomial::alpha;
 
@@ -143,14 +143,14 @@ std::array<double,8> detail::make_alphas(double over_dispersion_hom,
 using detail::log_sum;
 
 DirichletMultinomial::DirichletMultinomial(double over_dispersion_hom, 
-        double over_dispersion_het, double ref_bias, double error_rate, double error_entropy) : 
+        double over_dispersion_het, double sequencing_bias, double error_rate, double error_alleles) : 
     over_dispersion_hom_{over_dispersion_hom},
     over_dispersion_het_{over_dispersion_het},
-    ref_bias_{ref_bias}, error_rate_{error_rate},
-    error_entropy_{error_entropy}
+    sequencing_bias_{sequencing_bias}, error_rate_{error_rate},
+    error_alleles_{error_alleles}
 {
     auto alphas = detail::make_alphas(over_dispersion_hom, over_dispersion_het, 
-        ref_bias, error_rate, error_entropy);
+        sequencing_bias, error_rate, error_alleles);
 
     for(int i=0; i<pochhammers_.size(); ++i) {
         pochhammers_[i] = pochhammers_t::value_type{alphas[i]};

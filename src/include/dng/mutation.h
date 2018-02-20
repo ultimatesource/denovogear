@@ -45,15 +45,15 @@ using MutationMatrix = TransitionMatrix;
 namespace Mk {
     // The Mk model of Lewis 2001 and Tuffley and Steel 1997
     // beta = k*a*t and u = (k-1)*a*t
-    // entropy = log(k-1) measures the effective number of alternative alleles
+    // num_mutants measures the effective number of alternative alleles (entropy-based)
     //
     inline
-    MutationMatrix matrix(int n, double u, double entropy) {
+    MutationMatrix matrix(int n, double u, double num_mutants) {
         assert(n > 0);
         assert(u >= 0.0);
-        assert(entropy >= 0.0);
+        assert(num_mutants > 0.0);
         MutationMatrix ret{n,n};
-        double K = exp(entropy);
+        double K = num_mutants;
         double beta = (K+1.0)*u/K;
         double p_ji = -1.0/(K+1.0)*expm1(-beta);
         double p_jj = exp(-beta) + p_ji;

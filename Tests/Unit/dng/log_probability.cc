@@ -38,15 +38,15 @@
 namespace dng {
     struct unittest_dng_log_probability {
         GETTER2(LogProbability, params, theta)
-        GETTER2(LogProbability, params, asc_bias_hom)
-        GETTER2(LogProbability, params, asc_bias_het)
-        GETTER2(LogProbability, params, asc_bias_hap)
+        GETTER2(LogProbability, params, ref_bias_hom)
+        GETTER2(LogProbability, params, ref_bias_het)
+        GETTER2(LogProbability, params, ref_bias_hap)
         GETTER2(LogProbability, params, over_dispersion_hom)
         GETTER2(LogProbability, params, over_dispersion_het)
-        GETTER2(LogProbability, params, ref_bias)
+        GETTER2(LogProbability, params, sequencing_bias)
         GETTER2(LogProbability, params, error_rate)
-        GETTER2(LogProbability, params, error_entropy)
-        GETTER2(LogProbability, params, mutation_entropy)
+        GETTER2(LogProbability, params, error_alleles)
+        GETTER2(LogProbability, params, mutant_alleles)
 
         GETTERF(LogProbability, HaploidPrior)
         GETTERF(LogProbability, DiploidPrior)
@@ -82,15 +82,15 @@ const auto g_rel_graph = []() {
 const auto g_params = []() {
     LogProbability::params_t params;
     params.theta = 0.001;
-    params.asc_bias_hom = 0.01;
-    params.asc_bias_het = 0.011;
-    params.asc_bias_hap = 0.012;
+    params.ref_bias_hom = 0.01;
+    params.ref_bias_het = 0.011;
+    params.ref_bias_hap = 0.012;
     params.over_dispersion_hom = 1e-4;
     params.over_dispersion_het = 1e-3;
-    params.ref_bias = 1.1;
+    params.sequencing_bias = 1.1;
     params.error_rate = 2e-4;
-    params.error_entropy = log(3);
-    params.mutation_entropy = log(4);
+    params.error_alleles = 3;
+    params.mutant_alleles = 4;
 
     return params;
 }();
@@ -99,16 +99,16 @@ BOOST_AUTO_TEST_CASE(test_constructor_1) {
     LogProbability log_probability{g_rel_graph, g_params};
 
     BOOST_CHECK_EQUAL(u::theta(log_probability), g_params.theta);
-    BOOST_CHECK_EQUAL(u::asc_bias_hom(log_probability), g_params.asc_bias_hom);
-    BOOST_CHECK_EQUAL(u::asc_bias_het(log_probability), g_params.asc_bias_het);
-    BOOST_CHECK_EQUAL(u::asc_bias_hap(log_probability), g_params.asc_bias_hap);
+    BOOST_CHECK_EQUAL(u::ref_bias_hom(log_probability), g_params.ref_bias_hom);
+    BOOST_CHECK_EQUAL(u::ref_bias_het(log_probability), g_params.ref_bias_het);
+    BOOST_CHECK_EQUAL(u::ref_bias_hap(log_probability), g_params.ref_bias_hap);
     
     BOOST_CHECK_EQUAL(u::over_dispersion_hom(log_probability), g_params.over_dispersion_hom);
     BOOST_CHECK_EQUAL(u::over_dispersion_het(log_probability), g_params.over_dispersion_het);
-    BOOST_CHECK_EQUAL(u::ref_bias(log_probability), g_params.ref_bias);
+    BOOST_CHECK_EQUAL(u::sequencing_bias(log_probability), g_params.sequencing_bias);
     BOOST_CHECK_EQUAL(u::error_rate(log_probability), g_params.error_rate);
-    BOOST_CHECK_EQUAL(u::error_entropy(log_probability), g_params.error_entropy);
-    BOOST_CHECK_EQUAL(u::mutation_entropy(log_probability), g_params.mutation_entropy);
+    BOOST_CHECK_EQUAL(u::error_alleles(log_probability), g_params.error_alleles);
+    BOOST_CHECK_EQUAL(u::mutant_alleles(log_probability), g_params.mutant_alleles);
 }
 
 BOOST_AUTO_TEST_CASE(test_work) {
@@ -123,7 +123,7 @@ BOOST_AUTO_TEST_CASE(test_haploid_prior) {
     auto test = [prec, &log_probability](int num_alts) {
         BOOST_TEST_CONTEXT("num_alts=" << num_alts << " has_ref=true") {
             auto test_ = u::HaploidPrior(log_probability, num_alts, true);
-            auto expected_ = population_prior_haploid_ia(g_params.theta, g_params.asc_bias_hap, num_alts, true);
+            auto expected_ = population_prior_haploid_ia(g_params.theta, g_params.ref_bias_hap, num_alts, true);
             auto test_range = make_test_range(test_);
             auto expected_range = make_test_range(expected_);
             CHECK_CLOSE_RANGES(test_range, expected_range, prec);
@@ -131,7 +131,7 @@ BOOST_AUTO_TEST_CASE(test_haploid_prior) {
         num_alts += 1;
         BOOST_TEST_CONTEXT("num_alts=" << num_alts << " has_ref=false") {
             auto test_ = u::HaploidPrior(log_probability, num_alts, false);
-            auto expected_ = population_prior_haploid_ia(g_params.theta, g_params.asc_bias_hap, num_alts, false);
+            auto expected_ = population_prior_haploid_ia(g_params.theta, g_params.ref_bias_hap, num_alts, false);
             auto test_range = make_test_range(test_);
             auto expected_range = make_test_range(expected_);
             CHECK_CLOSE_RANGES(test_range, expected_range, prec);
@@ -149,7 +149,8 @@ BOOST_AUTO_TEST_CASE(test_diploid_prior) {
     auto test = [prec, &log_probability](int num_alts) {
         BOOST_TEST_CONTEXT("num_alts=" << num_alts << " has_ref=true") {
             auto test_ = u::DiploidPrior(log_probability, num_alts, true);
-            auto expected_ = population_prior_diploid_ia(g_params.theta, g_params.asc_bias_hom, g_params.asc_bias_het, num_alts, true);
+            auto expected_ = population_prior_diploid_ia(g_params.theta,
+                g_params.ref_bias_hom, g_params.ref_bias_het, num_alts, true);
             auto test_range = make_test_range(test_);
             auto expected_range = make_test_range(expected_);
             CHECK_CLOSE_RANGES(test_range, expected_range, prec);
@@ -157,7 +158,8 @@ BOOST_AUTO_TEST_CASE(test_diploid_prior) {
         num_alts += 1;
         BOOST_TEST_CONTEXT("num_alts=" << num_alts << " has_ref=false") {
             auto test_ = u::DiploidPrior(log_probability, num_alts, false);
-            auto expected_ = population_prior_diploid_ia(g_params.theta, g_params.asc_bias_hom, g_params.asc_bias_het, num_alts, false);
+            auto expected_ = population_prior_diploid_ia(g_params.theta,
+                g_params.ref_bias_hom, g_params.ref_bias_het, num_alts, false);
             auto test_range = make_test_range(test_);
             auto expected_range = make_test_range(expected_);
             CHECK_CLOSE_RANGES(test_range, expected_range, prec);
@@ -220,18 +222,18 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
         Genotyper genotyper{
             g_params.over_dispersion_hom,
             g_params.over_dispersion_het,
-            g_params.ref_bias,
+            g_params.sequencing_bias,
             g_params.error_rate,
-            g_params.error_entropy
+            g_params.error_alleles
         };
 
         const int hap_sz = num_alts+1;
         const int gt_sz = hap_sz*(hap_sz+1)/2;
 
         auto hap_prior = population_prior_haploid_ia(g_params.theta,
-                g_params.asc_bias_hap, num_alts, has_ref);
+                g_params.ref_bias_hap, num_alts, has_ref);
         auto dip_prior = population_prior_diploid_ia(g_params.theta,
-                g_params.asc_bias_hom, g_params.asc_bias_het, num_alts, has_ref);
+                g_params.ref_bias_hom, g_params.ref_bias_het, num_alts, has_ref);
 
         auto mom_lower = genotyper(depths[0], num_alts, 2);
         auto dad_lower = genotyper(depths[1], num_alts, 2);
@@ -242,8 +244,8 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
         BOOST_REQUIRE_EQUAL(dad_lower.first.size(), gt_sz);
         BOOST_REQUIRE_EQUAL(eve_lower.first.size(), gt_sz);
 
-        const auto m_sl = Mk::matrix(hap_sz, mu_s+mu_l, g_params.mutation_entropy);
-        const auto m_gsl = Mk::matrix(hap_sz, mu_g+mu_s+mu_l, g_params.mutation_entropy);
+        const auto m_sl = Mk::matrix(hap_sz, mu_s+mu_l, g_params.mutant_alleles);
+        const auto m_gsl = Mk::matrix(hap_sz, mu_g+mu_s+mu_l, g_params.mutant_alleles);
 
         const auto m_eve = meiosis_matrix(2, m_gsl, 2, m_gsl);
         const auto m_dad = mitosis_matrix(2, m_sl);
@@ -368,18 +370,18 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_xlinked) {
         Genotyper genotyper{
             g_params.over_dispersion_hom,
             g_params.over_dispersion_het,
-            g_params.ref_bias,
+            g_params.sequencing_bias,
             g_params.error_rate,
-            g_params.error_entropy
+            g_params.error_alleles
         };
 
         const int hap_sz = num_alts+1;
         const int gt_sz = hap_sz*(hap_sz+1)/2;
 
         auto hap_prior = population_prior_haploid_ia(g_params.theta,
-                g_params.asc_bias_hap, num_alts, has_ref);
+                g_params.ref_bias_hap, num_alts, has_ref);
         auto dip_prior = population_prior_diploid_ia(g_params.theta,
-                g_params.asc_bias_hom, g_params.asc_bias_het, num_alts, has_ref);
+                g_params.ref_bias_hom, g_params.ref_bias_het, num_alts, has_ref);
 
         auto mom_lower = genotyper(depths[0], num_alts, 2);
         auto dad_lower = genotyper(depths[1], num_alts, 1);
@@ -390,8 +392,8 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_xlinked) {
         BOOST_REQUIRE_EQUAL(dad_lower.first.size(), hap_sz);
         BOOST_REQUIRE_EQUAL(eve_lower.first.size(), gt_sz);
 
-        const auto m_sl = Mk::matrix(hap_sz, mu_s+mu_l, g_params.mutation_entropy);
-        const auto m_gsl = Mk::matrix(hap_sz, mu_g+mu_s+mu_l, g_params.mutation_entropy);
+        const auto m_sl = Mk::matrix(hap_sz, mu_s+mu_l, g_params.mutant_alleles);
+        const auto m_gsl = Mk::matrix(hap_sz, mu_g+mu_s+mu_l, g_params.mutant_alleles);
 
         const auto m_eve = meiosis_matrix(1, m_gsl, 2, m_gsl);
         const auto m_dad = mitosis_matrix(1, m_sl);

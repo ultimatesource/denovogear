@@ -44,17 +44,17 @@ using d4 = std::array<double,4>;
 // for different test functions
 template<typename F>
 void run_mutation_tests(F test, double prec = 2*DBL_EPSILON) {
-    test(4, 0.0,  log(4), prec);
-    test(1, 1e-8, log(4), prec);
+    test(4, 0.0,  4, prec);
+    test(1, 1e-8, 4, prec);
     
-    test(2, 1e-8, log(4), prec);
-    test(3, 1e-8, log(4), prec);
-    test(4, 1e-8, log(4), prec);
+    test(2, 1e-8, 4, prec);
+    test(3, 1e-8, 4, prec);
+    test(4, 1e-8, 4, prec);
     
-    test(4, 1e-8, log(4), prec);
-    test(4, 1e-9, log(5), prec);
-    test(4, 1e-6, log(6), prec); 
-    test(4, 1e-3, log(7), prec);
+    test(4, 1e-8, 4, prec);
+    test(4, 1e-9, 5, prec);
+    test(4, 1e-6, 6, prec); 
+    test(4, 1e-3, 7, prec);
 }
 
 BOOST_AUTO_TEST_CASE(test_mk) {
@@ -65,12 +65,7 @@ BOOST_AUTO_TEST_CASE(test_mk) {
         using mat = matrix<double,column_major,std::vector<double>>;
         
         // Probabilities
-        double K = exp(h)+1.0;
-        // double beta = u*K/(K-1.0);
-        // double Pii = 1.0/K+(K-1.0)/K*exp(-beta);
-        // double Pij = 1.0/K-1.0/K*exp(-beta);
-        //std::cerr << std::setprecision(std::numeric_limits<double>::max_digits10) << "Pii = " << Pii << "\n";
-        //std::cerr << std::setprecision(std::numeric_limits<double>::max_digits10) << "Pij = " << Pij << "\n";
+        double K = h+1.0;
 
         // Build matrix
         mat Q(n+1,n+1);

@@ -5,9 +5,9 @@ set(BasicTest-CMD @DNG_LOGLIKE_EXE@ -p ped/trio.ped -f trio.fasta.gz bcftools/tr
 set(BasicTest-WD "@TESTDATA_DIR@/human_trio")
 set(BasicTest-Result 0)
 set(BasicTest-STDOUT
-  "^log_likelihood\t-56\\.538888764593167\r?\n"
-  "log_hidden\t-8\\.9375321070124105\r?\n"
-  "log_observed\t-47\\.601356657580759\r?\n"
+  "^log_likelihood\t-56\\.502649095356588\r?\n"
+  "log_hidden\t-8\\.9375324030507759\r?\n"
+  "log_observed\t-47\\.565116692305814\r?\n$"
 )
 
 ###############################################################################

@@ -35,17 +35,17 @@ class LogProbability {
 public:
     struct params_t {
         double theta;
-        double asc_bias_hom;
-        double asc_bias_het;
-        double asc_bias_hap;
+        double ref_bias_hom;
+        double ref_bias_het;
+        double ref_bias_hap;
         
         double over_dispersion_hom;
         double over_dispersion_het;
-        double ref_bias;
+        double sequencing_bias;
         double error_rate;
-        double error_entropy;
+        double error_alleles;
 
-        double mutation_entropy;
+        double mutant_alleles;
     };
 
     struct value_t {
@@ -124,14 +124,14 @@ LogProbability::value_t LogProbability::CalculateLLD(
 }
 
 TransitionMatrixVector create_mutation_matrices(const RelationshipGraph &pedigree,
-        int num_alleles, double entropy, const int mutype = MUTATIONS_ALL);
+        int num_alleles, double num_mutants, const int mutype = MUTATIONS_ALL);
 
 inline
 LogProbability::matrices_t LogProbability::CreateMutationMatrices(const int mutype) const {
     // Construct the complete matrices
     matrices_t ret;
     for(int i=0;i<ret.size();++i) {
-        ret[i] = create_mutation_matrices(graph_, i+1, params_.mutation_entropy, mutype);
+        ret[i] = create_mutation_matrices(graph_, i+1, params_.mutant_alleles, mutype);
     }
     return ret;
 }
@@ -141,11 +141,13 @@ GenotypeArray LogProbability::DiploidPrior(int num_alts, bool has_ref) {
     assert(num_alts >= 0);
     if(has_ref) {
         return (num_alts < 4) ? diploid_prior_[num_alts]
-            : population_prior_diploid_ia(params_.theta, params_.asc_bias_hom, params_.asc_bias_het, num_alts, true);
+            : population_prior_diploid_ia(params_.theta, params_.ref_bias_hom,
+                params_.ref_bias_het, num_alts, true);
     } else {
         assert(num_alts >= 1);
         return (num_alts < 5) ? diploid_prior_noref_[num_alts-1]
-            : population_prior_diploid_ia(params_.theta, params_.asc_bias_hom, params_.asc_bias_het, num_alts, false);
+            : population_prior_diploid_ia(params_.theta, params_.ref_bias_hom,
+                 params_.ref_bias_het, num_alts, false);
     }
 }
 
@@ -154,11 +156,11 @@ GenotypeArray LogProbability::HaploidPrior(int num_alts, bool has_ref) {
     assert(num_alts >= 0);
     if(has_ref) {
         return (num_alts < 4) ? haploid_prior_[num_alts]
-            : population_prior_haploid_ia(params_.theta, params_.asc_bias_hap, num_alts, true);
+            : population_prior_haploid_ia(params_.theta, params_.ref_bias_hap, num_alts, true);
     } else {
         assert(num_alts >= 1);
         return (num_alts < 5) ? haploid_prior_noref_[num_alts-1]
-            : population_prior_haploid_ia(params_.theta, params_.asc_bias_hap, num_alts, false);
+            : population_prior_haploid_ia(params_.theta, params_.ref_bias_hap, num_alts, false);
     }
 }
 
@@ -168,17 +170,17 @@ LogProbability::params_t get_model_parameters(const A& a) {
     LogProbability::params_t ret;
     
     ret.theta = a.theta;
-    ret.asc_bias_hom = a.asc_hom;
-    ret.asc_bias_het = a.asc_het;
-    ret.asc_bias_hap = a.asc_hap;
+    ret.ref_bias_hom = a.ref_bias_hom;
+    ret.ref_bias_het = a.ref_bias_het;
+    ret.ref_bias_hap = a.ref_bias_hap;
         
     ret.over_dispersion_hom = a.lib_overdisp_hom;
     ret.over_dispersion_het = a.lib_overdisp_het;
-    ret.ref_bias = a.lib_bias;
+    ret.sequencing_bias = a.lib_bias;
     ret.error_rate = a.lib_error;
-    ret.error_entropy = a.lib_error_entropy*M_LN2;
+    ret.error_alleles = a.lib_error_alleles;
 
-    ret.mutation_entropy = a.mu_entropy*M_LN2;
+    ret.mutant_alleles = a.mu_alleles;
 
     return ret;
 }
