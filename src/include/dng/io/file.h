@@ -22,7 +22,6 @@
 #define DNG_IO_FILE_H
 
 #include <boost/filesystem.hpp>
-#include <boost/filesystem/fstream.hpp>
 #include <tuple>
 #include <iostream>
 
@@ -34,6 +33,10 @@ namespace io {
 class File {
 public:
     File() = default;
+    
+    File(File&& other);
+
+    File& operator=(File&& other);
 
     explicit File(const std::string &filename, std::ios_base::openmode mode = std::ios_base::in) {
         Open(filename, mode);
@@ -46,7 +49,7 @@ public:
             // don't do anything, just setup type
         } else if(path_ != "-") {
             // if path is not "-" open a file
-            file_.open(path_, mode);
+            file_.open(path_.c_str(), mode);
             // if file is open, associate it with the stream
             if(file_.is_open()) {
                 buffer_ = file_.rdbuf();
@@ -83,12 +86,46 @@ protected:
 
 private:
     bool is_open_{false};
-    boost::filesystem::fstream file_;
+    std::fstream file_;
 };
+
+inline
+File::File(File&& other) : 
+    buffer_{std::move(other.buffer_)},
+    path_{std::move(other.path_)},
+    type_label_{std::move(other.type_label_)},
+    file_{std::move(other.file_)}
+{
+    std::streambuf *buffer = other.stream_.rdbuf();
+    Attach(buffer);
+    other.Attach(nullptr);
+} 
+
+inline
+File& File::operator=(File&& other) {
+    if(this == &other) {
+        return *this;
+    }
+
+    buffer_ = std::move(other.buffer_);
+    path_ = std::move(other.path_);
+    type_label_ = std::move(other.type_label_);
+
+    file_ = std::move(other.file_);
+
+    std::streambuf *buffer = other.stream_.rdbuf();
+    Attach(buffer);
+    other.Attach(nullptr);
+
+    return *this;
+}
 
 class BinaryFile : public File {
 public:
     BinaryFile() = default;
+
+    BinaryFile(BinaryFile&&) = default;
+    BinaryFile& operator=(BinaryFile&&) = default;
     
     explicit BinaryFile(const std::string &filename, std::ios_base::openmode mode = std::ios_base::in) {
         Open(filename, mode);

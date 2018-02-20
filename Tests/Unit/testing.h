@@ -28,7 +28,9 @@
 #include <boost/version.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
+#include <boost/range/algorithm/copy.hpp>
 #include <boost/range/size.hpp>
+#include <boost/range/iterator_range_core.hpp>
 
 #define GETTER1( C, V ) \
     static auto V(const C& x) -> const decltype(x.V##_)& { return x.V##_; } \
@@ -119,6 +121,7 @@
     BOOST_TEST( L == R, ::boost::test_tools::per_element() ); \
     } while(false) \
 /**/
+
 #endif
 
 namespace dng {
@@ -148,21 +151,21 @@ struct AutoTempFile {
 // function to create a 
 
 namespace {
-template<typename T>
+template<typename It>
 struct test_range {
-    using iterator = T;
-    using const_iterator = T;
-    using value_type = typename std::iterator_traits<T>::value_type;
-    using reference = typename std::iterator_traits<T>::reference;
-    using difference_type = typename std::iterator_traits<T>::difference_type;
-    using pointer = typename std::iterator_traits<T>::pointer;
-    using iterator_category = typename std::iterator_traits<T>::iterator_category;
+    // using iterator = T;
+    using const_iterator = It;
+    using value_type = typename std::iterator_traits<It>::value_type;
+    // using reference = typename std::iterator_traits<T>::reference;
+    // using difference_type = typename std::iterator_traits<T>::difference_type;
+    // using pointer = typename std::iterator_traits<T>::pointer;
+    // using iterator_category = typename std::iterator_traits<T>::iterator_category;
     
-    test_range(T b, T e) : begin_{b}, end_{e} { }
+    test_range(It const& b, It const &e) : begin_{b}, end_{e} { }
 
     const_iterator begin() const { return begin_; }
     const_iterator end() const { return end_; }
-    difference_type size() const { return std::distance(begin(),end()); }
+    size_t size() const { return std::distance(begin_, end_); }
 
     const_iterator begin_;
     const_iterator end_;
@@ -207,6 +210,9 @@ auto make_test_range(const T (&a)[N]) -> test_range<const T*>
 }
 
 } // anonymous namespace
+
+using boost::make_iterator_range;
+using boost::make_iterator_range_n;
 
 } // namespace dng::detail
 } // namespace dng

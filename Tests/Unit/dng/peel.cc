@@ -130,7 +130,7 @@ BOOST_AUTO_TEST_CASE(test_peel_up_fast) {
         BOOST_TEST_CONTEXT("ploidy0=" << ploidy0
                         << ", ploidy1=" << ploidy1
                         << ", test_num=" << test_num) {
-            auto m = f81::matrix(1e-6, {0.4, 0.2, 0.1, 0.3});
+            auto m = Mk::matrix(4, 1e-6, log(4));
 
             // setup data
             std::vector<double> lower0(sz0), lower1(sz1),
@@ -191,7 +191,7 @@ BOOST_AUTO_TEST_CASE(test_peel_up) {
         BOOST_TEST_CONTEXT("ploidy0=" << ploidy0
                         << ", ploidy1=" << ploidy1
                         << ", test_num=" << test_num) {
-            auto m = f81::matrix(1e-6, {0.4, 0.2, 0.1, 0.3});
+            auto m = Mk::matrix(4, 1e-6, log(4));
 
             // setup data
             std::vector<double> lower0(sz0), lower1(sz1),
@@ -253,7 +253,7 @@ BOOST_AUTO_TEST_CASE(test_peel_down_fast) {
         BOOST_TEST_CONTEXT("ploidy0=" << ploidy0
                         << ", ploidy1=" << ploidy1
                         << ", test_num=" << test_num) {
-            auto m = f81::matrix(1e-6, {0.4, 0.2, 0.1, 0.3});
+            auto m = Mk::matrix(4, 1e-6, log(4));
 
             // setup data
             std::vector<double> upper0(sz0), upper1(sz1), expected_upper1(sz1);
@@ -313,7 +313,7 @@ BOOST_AUTO_TEST_CASE(test_peel_down) {
         BOOST_TEST_CONTEXT("ploidy0=" << ploidy0
                         << ", ploidy1=" << ploidy1
                         << ", test_num=" << test_num) {
-            auto m = f81::matrix(1e-6, {0.4, 0.2, 0.1, 0.3});
+            auto m = Mk::matrix(4, 1e-6, log(4));
 
             // setup data
             std::vector<double> lower0(sz0), upper0(sz0), upper1(sz1), expected_upper1(sz1);
@@ -383,8 +383,8 @@ BOOST_AUTO_TEST_CASE(test_peel_tofather_fast) {
         BOOST_TEST_CONTEXT("ploidy0=" << ploidy0
                         << ", ploidy1=" << ploidy1
                         << ", test_num=" << test_num) {
-            auto da = f81::matrix(1e-6, {0.4, 0.2, 0.1, 0.3});
-            auto ma = f81::matrix(0.7e-6, {0.3, 0.1, 0.2, 0.4});
+            auto da = Mk::matrix(4, 1e-6, log(4));
+            auto ma = Mk::matrix(4, 0.7e-6, log(4));
 
             // setup data
             std::vector<double> lower0(sz0), lower1(sz1), lower2(sz2), lower3(sz3), 
@@ -476,8 +476,8 @@ BOOST_AUTO_TEST_CASE(test_peel_tofather) {
         BOOST_TEST_CONTEXT("ploidy0=" << ploidy0
                         << ", ploidy1=" << ploidy1
                         << ", test_num=" << test_num) {
-            auto da = f81::matrix(1e-6, {0.4, 0.2, 0.1, 0.3});
-            auto ma = f81::matrix(0.7e-6, {0.3, 0.1, 0.2, 0.4});
+            auto da = Mk::matrix(4, 1e-6, log(4));
+            auto ma = Mk::matrix(4, 0.7e-6, log(4));
 
             // setup data
             std::vector<double> lower0(sz0), lower1(sz1), lower2(sz2), lower3(sz3), 
@@ -571,8 +571,8 @@ BOOST_AUTO_TEST_CASE(test_peel_tomother_fast) {
         BOOST_TEST_CONTEXT("ploidy0=" << ploidy0
                         << ", ploidy1=" << ploidy1
                         << ", test_num=" << test_num) {
-            auto da = f81::matrix(1e-6, {0.4, 0.2, 0.1, 0.3});
-            auto ma = f81::matrix(0.7e-6, {0.3, 0.1, 0.2, 0.4});
+            auto da = Mk::matrix(4, 1e-6, log(4));
+            auto ma = Mk::matrix(4, 0.7e-6, log(4));
 
             // setup data
             std::vector<double> lower0(sz0), lower1(sz1), lower2(sz2), lower3(sz3), 
@@ -664,8 +664,8 @@ BOOST_AUTO_TEST_CASE(test_peel_tomother) {
         BOOST_TEST_CONTEXT("ploidy0=" << ploidy0
                         << ", ploidy1=" << ploidy1
                         << ", test_num=" << test_num) {
-            auto da = f81::matrix(1e-6, {0.4, 0.2, 0.1, 0.3});
-            auto ma = f81::matrix(0.7e-6, {0.3, 0.1, 0.2, 0.4});
+            auto da = Mk::matrix(4, 1e-6, log(4));
+            auto ma = Mk::matrix(4, 0.7e-6, log(4));
 
             // setup data
             std::vector<double> lower0(sz0), lower1(sz1), lower2(sz2), lower3(sz3),
@@ -757,8 +757,8 @@ BOOST_AUTO_TEST_CASE(test_peel_tochild_fast) {
         BOOST_TEST_CONTEXT("ploidy0=" << ploidy0
                         << ", ploidy1=" << ploidy1
                         << ", test_num=" << test_num) {
-            auto da = f81::matrix(1e-6, {0.4, 0.2, 0.1, 0.3});
-            auto ma = f81::matrix(0.7e-6, {0.3, 0.1, 0.2, 0.4});
+            auto da = Mk::matrix(4, 1e-6, log(4));
+            auto ma = Mk::matrix(4, 0.7e-6, log(4));
 
             // setup data
             std::vector<double> lower0(sz0), lower1(sz1), lower2(sz2), 
@@ -849,8 +849,8 @@ BOOST_AUTO_TEST_CASE(test_peel_tochild) {
         BOOST_TEST_CONTEXT("ploidy0=" << ploidy0
                         << ", ploidy1=" << ploidy1
                         << ", test_num=" << test_num) {
-            auto da = f81::matrix(1e-6, {0.4, 0.2, 0.1, 0.3});
-            auto ma = f81::matrix(0.7e-6, {0.3, 0.1, 0.2, 0.4});
+            auto da = Mk::matrix(4, 1e-6, log(4));
+            auto ma = Mk::matrix(4, 0.7e-6, log(4));
 
             // setup data
             std::vector<double> lower0(sz0), lower1(sz1), lower2(sz2), lower3(sz3), 
@@ -953,7 +953,7 @@ BOOST_AUTO_TEST_CASE(test_peel_up_reverse) {
         BOOST_TEST_CONTEXT("ploidy0=" << ploidy0
                         << ", ploidy1=" << ploidy1
                         << ", test_num=" << test_num) {
-            auto m = f81::matrix(1e-6, {0.4, 0.2, 0.1, 0.3});
+            auto m =  Mk::matrix(4, 1e-6, log(4));
 
             // setup data
             std::vector<double> lower0(sz0), lower1(sz1), upper0(sz0),
@@ -1037,7 +1037,7 @@ BOOST_AUTO_TEST_CASE(test_peel_down_reverse) {
         BOOST_TEST_CONTEXT("ploidy0=" << ploidy0
                         << ", ploidy1=" << ploidy1
                         << ", test_num=" << test_num) {
-            auto m = f81::matrix(1e-6, {0.4, 0.2, 0.1, 0.3});
+            auto m =  Mk::matrix(4, 1e-6, log(4));
 
             // setup data
             std::vector<double> lower0(sz0), lower1(sz1), upper0(sz0),
@@ -1121,8 +1121,8 @@ BOOST_AUTO_TEST_CASE(test_peel_tofather_reverse) {
                         << ", ploidy2=" << ploidy2
                         << ", ploidy3=" << ploidy3
                         << ", test_num=" << test_num) {
-            auto da = f81::matrix(1e-6, {0.4, 0.2, 0.1, 0.3});
-            auto ma = f81::matrix(0.7e-6, {0.3, 0.1, 0.2, 0.4});
+            auto da = Mk::matrix(4, 1e-6, log(4));
+            auto ma = Mk::matrix(4, 0.7e-6, log(4));
 
             // setup data
             std::vector<double> lower0(sz0), lower1(sz1), lower2(sz2), lower3(sz3), 
@@ -1292,8 +1292,8 @@ BOOST_AUTO_TEST_CASE(test_peel_tomother_reverse) {
                         << ", ploidy2=" << ploidy2
                         << ", ploidy3=" << ploidy3
                         << ", test_num=" << test_num) {
-            auto da = f81::matrix(1e-6, {0.4, 0.2, 0.1, 0.3});
-            auto ma = f81::matrix(0.7e-6, {0.3, 0.1, 0.2, 0.4});
+            auto da = Mk::matrix(4, 1e-6, log(4));
+            auto ma = Mk::matrix(4, 0.7e-6, log(4));
 
             // setup data
             std::vector<double> lower0(sz0), lower1(sz1), lower2(sz2), lower3(sz3), 
@@ -1463,8 +1463,8 @@ BOOST_AUTO_TEST_CASE(test_peel_tochild_reverse) {
                         << ", ploidy2=" << ploidy2
                         << ", ploidy3=" << ploidy3
                         << ", test_num=" << test_num) {
-            auto da = f81::matrix(1e-6, {0.4, 0.2, 0.1, 0.3});
-            auto ma = f81::matrix(0.7e-6, {0.3, 0.1, 0.2, 0.4});
+            auto da = Mk::matrix(4, 1e-6, log(4));
+            auto ma = Mk::matrix(4, 0.7e-6, log(4));
 
             // setup data
             std::vector<double> lower0(sz0), lower1(sz1), lower2(sz2), lower3(sz3), 

@@ -1,72 +1,74 @@
 ###############################################################################
 # Test if dng-call can identify mutations correctly from a bam file
 
-set(Trio-CMD @DNG_CALL_EXE@ --mu-somatic 1e-8 --mu-library 1e-8 -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0.001 test1.bam)
-set(Trio-WD "@TESTDATA_DIR@/sample_5_3/")
+set(Trio-CMD @DNG_CALL_EXE@ -p ped/trio.ped -f trio.fasta.gz trio.bam)
+set(Trio-WD "@TESTDATA_DIR@/human_trio")
 set(Trio-RESULT 0)
 set(Trio-STDOUT
-  "5\t126385924\t\\.\tG\tT"
-  "MUP=1\;LLD=-24\\.1035\;LLS=5\\.08836\;MUX=1\;MU1P=1\;DNT=GGxGG>GT\;DNL=LB/NA12878/Solexa-135852\;DNQ=42\;DP=148\;AD=123,25\;ADF=63,13\;ADR=60,12\;MQ=60\;FS=0\;MQTa=-1\\.32794\;RPTa=-0\\.589021\;BQTa=4\\.73538"
-  "GT:GQ:GP:MUP:MU1P:GL:DP:AD:ADF:ADR"
-  "0/0:45:0\\.999967,3\\.33278e-05,1\\.80168e-13:0:0:\\.,\\.,\\.:\\.:\\.,\\.:\\.,\\.:\\.,\\."
-  "0/0:45:0\\.999967,3\\.33296e-05,1\\.80188e-13:0:0:\\.,\\.,\\.:\\.:\\.,\\.:\\.,\\.:\\.,\\."
-  "0/0:108:1,1\\.62464e-11,0:3\\.33278e-05:3\\.33278e-05:0,-14\\.5792,-102\\.373:50:50,0:31,0:19,0"
-  "0/1:255:2\\.27065e-37,1,2\\.83581e-41:0\\.999933:0\\.999933:-44\\.2578,0,-32\\.3313:42:18,24:10,13:8,11"
-  "0/0:87:1,1\\.79201e-09,0:3\\.33278e-05:3\\.33278e-05:0,-12\\.5366,-106\\.561:56:55,1:22,0:33,1"
+  "\r?\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tGL/NA12892\tGL/NA12891\tLB/NA12891/Solexa-135851\tLB/NA12878/Solexa-135852\tLB/NA12892/Solexa-135853\r?\n"
+  "\r?\n5\t126385924\t\\.\tG\tT\t"
+  "\r?\n5\t126385924\t.*\tGT:GQ:GP:MUP:MU1P:GL:DP:AD:ADF:ADR\t"
+  "\r?\n5\t126385924\t.*\tMUP=1\;"
+  "\r?\n5\t126385924\t.*\;LLD=-24\\.7648\;"
+  "\r?\n5\t126385924\t.*\;LLS=4\\.42715\;"
+  "\r?\n5\t126385924\t.*\;MUX=1\;"
+  "\r?\n5\t126385924\t.*\;MU1P=1\;"
+  "\r?\n5\t126385924\t.*\;DNT=G/GxG/G->G/T\;"
+  "\r?\n5\t126385924\t.*\;DNL=LB/NA12878/Solexa-135852\;"
+  "\r?\n5\t126385924\t.*\;DNQ=160\;"
+  "\r?\n5\t126385924\t.*\;DP=148\;"
+  "\r?\n5\t126385924\t.*\;AD=123,25\;ADF=63,13\;ADR=60,12\;"
+  "\r?\n5\t126385924\t.*\;MQ=60\;"
+  "\r?\n5\t126385924\t.*\;FS=0\;"
+  "\r?\n5\t126385924\t.*\;MQTa=-1\\.32794\;"
+  "\r?\n5\t126385924\t.*\;RPTa=-0\\.589021\;"
+  "\r?\n5\t126385924\t.*\;BQTa=4\\.73538\t"
+  "\r?\n5\t126385924\t.*\t0/0:78:1,1\\.73251e-08,0:0:0:\\.,\\.,\\.:\\.:\\.,\\.:\\.,\\.:\\.,\\.\t"
+  "\r?\n5\t126385924\t.*\t0/0:98:1,1\\.62971e-10,0:0:0:\\.,\\.,\\.:\\.:\\.,\\.:\\.,\\.:\\.,\\.\t"
+  "\r?\n5\t126385924\t.*\t0/0:98:1,1\\.62971e-10,0:0:0:0,-14\\.7881,-102\\.373:50:50,0:31,0:19,0\t"
+  "\r?\n5\t126385924\t.*\t0/1:255:1\\.04014e-36,1,5\\.48748e-42:1:1:-44\\.2839,0,-32\\.3575:42:18,24:10,13:8,11\t"
+  "\r?\n5\t126385924\t.*\t0/0:78:1,1\\.73251e-08,0:0:0:0,-12\\.7615,-106\\.561:56:55,1:22,0:33,1\r?\n"
+  "\r?\n#CHROM[^\r\n]*\r?\n[^\r\n]*\r?\n$"
 )
 
 ###############################################################################
-# Test if dng-call --rgtag "LB" works properly
+# Test if dng-call --rgtag works properly
 
-set(TagLB-CMD @DNG_CALL_EXE@ --rgtag "LB" -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0.001 test1.bam)
-set(TagLB-WD "@TESTDATA_DIR@/sample_5_3/")
+set(TagLB-CMD @DNG_CALL_EXE@ --rgtag "LB" -p ped/trio.ped -f trio.fasta.gz trio.bam)
+set(TagLB-WD "@TESTDATA_DIR@/human_trio")
 set(TagLB-RESULT 0)
 set(TagLB-STDOUT
-  "FORMAT\tGL/1\tGL/2\tLB/NA12891/Solexa-135851\tLB/NA12878/Solexa-135852\tLB/NA12892/Solexa-135853"
+  "FORMAT\tGL/NA12892\tGL/NA12891\tLB/NA12891/Solexa-135851\tLB/NA12878/Solexa-135852\tLB/NA12892/Solexa-135853\r?\n"
 )
 
-###############################################################################
-# Test if dng-call --rgtag "SM" works properly
-
-set(TagSM-CMD @DNG_CALL_EXE@ --rgtag "SM" -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0.001 test1.bam)
-set(TagSM-WD "@TESTDATA_DIR@/sample_5_3/")
+set(TagSM-CMD @DNG_CALL_EXE@ --rgtag "SM" -p ped/trio.ped -f trio.fasta.gz trio.bam)
+set(TagSM-WD "@TESTDATA_DIR@/human_trio")
 set(TagSM-RESULT 0)
 set(TagSM-STDOUT
-  "FORMAT\tGL/1\tGL/2\tLB/NA12891\tLB/NA12878\tLB/NA12892"
+  "FORMAT\tGL/NA12892\tGL/NA12891\tLB/NA12891\tLB/NA12878\tLB/NA12892\r?\n"
 )
 
-###############################################################################
-# Test if dng-call --rgtag "ID" works properly
-
-set(TagID-CMD @DNG_CALL_EXE@ --rgtag "ID" -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0.001 test1.bam)
-set(TagID-WD "@TESTDATA_DIR@/sample_5_3/")
+set(TagID-CMD @DNG_CALL_EXE@ --rgtag "ID" -p ped/trio.ped -f trio.fasta.gz trio.bam)
+set(TagID-WD "@TESTDATA_DIR@/human_trio")
 set(TagID-RESULT 0)
 set(TagID-STDOUT
-  "FORMAT\tGL/1\tGL/2\tSM/NA12891\tSM/NA12892\tSM/NA12878\tLB/NA12891/H03N7\\.1\tLB/NA12891/H03N7\\.2\tLB/NA12891/H05F1\\.2\tLB/NA12878/H06HD\\.1\tLB/NA12878/H06HD\\.2\tLB/NA12892/H06JH\\.1\tLB/NA12892/H06JH\\.2\tLB/NA12878/H06JU\\.1\tLB/NA12892/H06JU\\.2"
+  "FORMAT\tGL/NA12892\tGL/NA12891\tSM/NA12892\tSM/NA12891\tSM/NA12878\tLB/NA12891/H03N7\\.1\tLB/NA12891/H03N7\\.2\tLB/NA12891/H05F1\\.2\tLB/NA12878/H06HD\\.1\tLB/NA12878/H06HD\\.2\tLB/NA12892/H06JH\\.1\tLB/NA12892/H06JH\\.2\tLB/NA12878/H06JU\\.1\tLB/NA12892/H06JU\\.2\r?\n"
 )
-
 
 ###############################################################################
 # Test if dng-call --header works properly
 
-set(SepHeader1-CMD @DNG_CALL_EXE@ -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0.001 --header test1_hdr.sam test1_nohdr.sam)
-set(SepHeader1-WD "@TESTDATA_DIR@/sep_header/")
+set(SepHeader1-CMD @DNG_CALL_EXE@ --header trio_new_header.sam -p ped/trio.ped -f trio.fasta.gz trio.bam)
+set(SepHeader1-WD "@TESTDATA_DIR@/human_trio")
 set(SepHeader1-RESULT 0)
 set(SepHeader1-STDOUT
-  "FORMAT\tGL/1\tGL/2\tLB/NA12891/Solexa-135851\tLB/NA12878/Solexa-135852\tLB/NA12892/Solexa-135853"
-)
-
-set(SepHeader2-CMD @DNG_CALL_EXE@ -f sample-5.3_ref.fasta.gz -p ceu.ped -m 0.001 -h test1_hdr.sam test1_nohdr.sam)
-set(SepHeader2-WD "@TESTDATA_DIR@/sep_header/")
-set(SepHeader2-RESULT 0)
-set(SepHeader2-STDOUT
-  "FORMAT\tGL/1\tGL/2\tLB/NA12891/Solexa-135851\tLB/NA12878/Solexa-135852\tLB/NA12892/Solexa-135853"
+  "FORMAT\tGL/NA12892\tGL/NA12891\tLB/NA12891\tLB/NA12878\tLB/NA12892\r?\n"
 )
 
 ###############################################################################
 # Test if dng-call crashes on partial pedigree
 
-set(PartialPed-CMD @DNG_CALL_EXE@ --ped duo.ped --fasta trio.fasta.gz trio.bam)
+set(PartialPed-CMD @DNG_CALL_EXE@ --ped ped/duo.ped --fasta trio.fasta.gz trio.bam)
 set(PartialPed-WD "@TESTDATA_DIR@/human_trio/")
 set(PartialPed-RESULT 0)
 set(PartialPed-STDOUT
@@ -76,7 +78,7 @@ set(PartialPed-STDOUT
 ###############################################################################
 # Test if dng-call crashes on empty pedigree
 
-set(EmptyPed-CMD @DNG_CALL_EXE@ --ped empty.ped --fasta trio.fasta.gz trio.bam)
+set(EmptyPed-CMD @DNG_CALL_EXE@ --ped ped/empty.ped --fasta trio.fasta.gz trio.bam)
 set(EmptyPed-WD "@TESTDATA_DIR@/human_trio/")
 set(EmptyPed-RESULT 0)
 
@@ -85,20 +87,22 @@ set(EmptyPed-RESULT 0)
 
 # "5:126,385,700-126,385,704 5:126,385,706-126,385,710"
 
-set(Region1-CMD @DNG_CALL_EXE@ -m 0 --region "5:126,385,700-126,385,704 5:126,385,706-126,385,710" --ped trio.ped --fasta trio.fasta.gz trio.bam)
+set(Region1-CMD @DNG_CALL_EXE@ -m 0 --region "5:126,385,700-126,385,704 5:126,385,706-126,385,710" --ped ped/trio.ped --fasta trio.fasta.gz trio.bam)
 set(Region1-WD "@TESTDATA_DIR@/human_trio/")
 set(Region1-RESULT 0)
 set(Region1-STDOUT
-  "5\t126385700"
-  "5\t126385701"
-  "5\t126385702"
-  "5\t126385703"
-  "5\t126385704"
-  "5\t126385706"
-  "5\t126385707"
-  "5\t126385708"
-  "5\t126385709"
-  "5\t126385710"
+  "\r?\n5\t126385700\t"
+  "\r?\n5\t126385701\t"
+  "\r?\n5\t126385702\t"
+  "\r?\n5\t126385703\t"
+  "\r?\n5\t126385704\t"
+  "\r?\n5\t126385706\t"
+  "\r?\n5\t126385707\t"
+  "\r?\n5\t126385708\t"
+  "\r?\n5\t126385709\t"
+  "\r?\n5\t126385710\t"
+  "\r?\n#CHROM[^\r\n]*\r?\n[^\r\n]*\r?\n[^\r\n]*\r?\n[^\r\n]*\r?\n[^\r\n]*\r?\n[^\r\n]*\r?\n[^\r\n]*\r?\n[^\r\n]*\r?\n[^\r\n]*\r?\n[^\r\n]*\r?\n[^\r\n]*\r?\n$"
+
 )
 set(Region1-STDOUT-FAIL
   "5\t126385705"
@@ -115,7 +119,6 @@ CheckProcessTests(DngCall.Bam
   TagSM
   TagID
   SepHeader1
-  SepHeader2
   PartialPed
   EmptyPed
   Region1

@@ -33,6 +33,8 @@
 #include <dng/detail/graph.h>
 #include <dng/detail/unit_test.h>
 
+#include <dng/io/ped.h>
+
 namespace dng {
 
 enum struct InheritanceModel {
@@ -209,17 +211,27 @@ private:
             const Graph &pedigree_graph);
 
     DNG_UNIT_TEST_CLASS(unittest_dng_relationship_graph);
-
-    // DNG_UNIT_TEST(test_pedigree_inspect);
-    // DNG_UNIT_TEST(test_parse_io_pedigree);
-    // DNG_UNIT_TEST(test_add_lib_from_rgs);
-    // DNG_UNIT_TEST(test_update_edge_lengths);
-    // DNG_UNIT_TEST(test_simplify_pedigree);
-    // DNG_UNIT_TEST(test_update_labels_node_ids);
-    // DNG_UNIT_TEST(test_create_families_info);
-    // DNG_UNIT_TEST(test_create_peeling_ops);
-    // DNG_UNIT_TEST(test_peeling_forward_each_op);
 };
+
+template<typename A, typename M>
+inline
+RelationshipGraph create_relationship_graph(const A& arg, M* mpileup) {
+    assert(mpileup != nullptr);
+    // Parse Pedigree from File
+    Pedigree ped = io::parse_ped(arg.ped);
+    // Construct peeling algorithm from parameters and pedigree information
+    RelationshipGraph relationship_graph;
+    if (!relationship_graph.Construct(ped, mpileup->libraries(), inheritance_model(arg.model),
+                                      arg.mu, arg.mu_somatic, arg.mu_library,
+                                      arg.normalize_somatic_trees)) {
+        throw std::runtime_error("Unable to construct peeler for pedigree; "
+                                 "possible non-zero-loop relationship_graph.");
+    }
+    // Select libraries in the input that are used in the pedigree
+    mpileup->SelectLibraries(relationship_graph.library_names());
+
+    return relationship_graph;
+}
 
 }; // namespace dng
 

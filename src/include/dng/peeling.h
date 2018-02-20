@@ -127,17 +127,45 @@ struct workspace_t {
         }
     }
 
-    template<typename G, typename ...A>
-    double SetGenotypeLikelihoods(const G& gt, A&&... args) {
+    template<typename G, typename D, typename ...A>
+    double SetGenotypeLikelihoods(const G& gt, const D& d, A&&... args) {
         double scale = 0.0, stemp;
         size_t u = 0;
         for(auto pos = library_nodes.first; pos < library_nodes.second; ++pos) {
             std::tie(lower[pos], stemp) =
-                gt(std::forward<A>(args)..., u++, ploidies[pos]);
+                gt(d[u++], std::forward<A>(args)..., ploidies[pos]);
             scale += stemp;
         }
         return scale;
     }
+
+    // Set the genotype likelihoods into the lower values of the library_nodes.
+    // Scales the genotype likelihoods as needed.
+    // Input: log-likelihood values
+    template<typename D>
+    double SetGenotypeLikelihoods(const D& d) {
+        double scale = 0.0;
+        size_t u = 0;
+        for(auto pos = library_nodes.first; pos < library_nodes.second; ++pos,++u) {
+            lower[pos].resize(d[u].size());
+            boost::copy(d[u], lower[pos].data());
+            double temp = lower[pos].maxCoeff();
+            lower[pos] = (lower[pos]-temp).exp();
+            scale += temp;
+        }
+        return scale;
+    }    
+
+    // Copy genotype likelihoods into the lower values of the library_nodes
+    template<typename D>
+    double CopyGenotypeLikelihoods(const D& d) {
+        size_t u = 0;
+        for(auto pos = library_nodes.first; pos < library_nodes.second; ++pos,++u) {
+            lower[pos].resize(d[u].size());
+            boost::copy(d[u], lower[pos].data());
+        }
+        return 0.0;
+    }    
 };
 
 typedef std::vector<std::size_t> family_members_t;

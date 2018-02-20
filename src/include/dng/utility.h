@@ -28,6 +28,8 @@
 #include <climits>
 #include <chrono>
 #include <limits>
+#include <array>
+#include <type_traits>
 
 #include <boost/spirit/include/support_ascii.hpp>
 #include <boost/spirit/include/qi_real.hpp>
@@ -324,6 +326,21 @@ inline T set_high_bit(T x) {
   T mask = 1;
   mask <<= std::numeric_limits<typename std::make_signed<T>::type>::digits;
   return x | mask;
+}
+
+// this make_array implementation taken from
+// https://gist.github.com/klmr/2775736
+template <typename... T>
+inline
+constexpr auto make_array(T&&... values) ->
+        std::array<
+            typename std::decay<
+                typename std::common_type<T...>::type>::type,
+            sizeof...(T)> {
+    return std::array<
+        typename std::decay<
+            typename std::common_type<T...>::type>::type,
+        sizeof...(T)>{std::forward<T>(values)...};
 }
 
 } // namespace dng::utility

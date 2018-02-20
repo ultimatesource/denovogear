@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016 Steven H. Wu
- * Copyright (c) 2017 Reed A. Cartwright
+ * Copyright (c) 2017-2018 Reed A. Cartwright
  * Authors:  Steven H. Wu <stevenwu@asu.edu>
  *           Reed A. Cartwright <reed@cartwrig.ht>
  *
@@ -19,40 +19,52 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-
 #define BOOST_TEST_MODULE dng::log_probability
 
 #include <dng/probability.h>
+
+#include <dng/stats.h>
+#include <dng/detail/rangeio.h>
+#include <dng/task/call.h>
 
 #include <iostream>
 #include <fstream>
 #include <numeric>
 
-#include <dng/task/call.h>
 
 #include "../testing.h"
+#include "../xorshift64.h"
 
 namespace dng {
     struct unittest_dng_log_probability {
         GETTER2(LogProbability, params, theta)
-        GETTER2(LogProbability, params, ref_weight)
-        GETTER2(LogProbability, params, nuc_freq)
-        GETTER2(LogProbability, params, genotyper_params)
-        GETTER1(LogProbability, haploid_prior);
-        GETTER1(LogProbability, diploid_prior);
+        GETTER2(LogProbability, params, ref_bias_hom)
+        GETTER2(LogProbability, params, ref_bias_het)
+        GETTER2(LogProbability, params, ref_bias_hap)
+        GETTER2(LogProbability, params, over_dispersion_hom)
+        GETTER2(LogProbability, params, over_dispersion_het)
+        GETTER2(LogProbability, params, sequencing_bias)
+        GETTER2(LogProbability, params, error_rate)
+        GETTER2(LogProbability, params, error_alleles)
+        GETTER2(LogProbability, params, mutant_alleles)
+
+        GETTERF(LogProbability, HaploidPrior)
+        GETTERF(LogProbability, DiploidPrior)
+
+        GETTER1(LogProbability, work)
     };
 }
 
 using u = dng::unittest_dng_log_probability;
-using d4 = std::array<double, 4>;
-using d10 = std::array<double, 10>;
 
 using namespace dng;
 using namespace dng::detail;
 using Sex = dng::Pedigree::Sex;
 
+int g_seed_counter = 0;
+
 // Use a lambda function to construct a global relationship graph
-RelationshipGraph rel_graph = []() -> RelationshipGraph {
+const auto g_rel_graph = []() {
     libraries_t libs = {
         {"Mom", "Dad", "Eve"},
         {"Mom", "Dad", "Eve"}
@@ -67,155 +79,389 @@ RelationshipGraph rel_graph = []() -> RelationshipGraph {
     return g;
 }();
 
+const auto g_params = []() {
+    LogProbability::params_t params;
+    params.theta = 0.001;
+    params.ref_bias_hom = 0.01;
+    params.ref_bias_het = 0.011;
+    params.ref_bias_hap = 0.012;
+    params.over_dispersion_hom = 1e-4;
+    params.over_dispersion_het = 1e-3;
+    params.sequencing_bias = 1.1;
+    params.error_rate = 2e-4;
+    params.error_alleles = 3;
+    params.mutant_alleles = 4;
+
+    return params;
+}();
+
 BOOST_AUTO_TEST_CASE(test_constructor_1) {
-    LogProbability::params_t params = {
-        0.001, // Theta
-        {0.3,0.2,0.2,0.3}, // Nucleotide Frequencies
-        1.0,   // Reference Weight
-        {0.0005, 0.0005, 1.02} // Genotype Likelihood
-    };
+    LogProbability log_probability{g_rel_graph, g_params};
 
-    LogProbability log_probability{rel_graph, params};
-
-    BOOST_CHECK_EQUAL(u::theta(log_probability), params.theta);
-    CHECK_EQUAL_RANGES(u::nuc_freq(log_probability), params.nuc_freq);
-    BOOST_CHECK_EQUAL(u::ref_weight(log_probability), params.ref_weight);
-
-    BOOST_CHECK_EQUAL(u::genotyper_params(log_probability).over_dispersion, 0.0005);
-    BOOST_CHECK_EQUAL(u::genotyper_params(log_probability).error_rate, 0.0005);
-    BOOST_CHECK_EQUAL(u::genotyper_params(log_probability).ref_bias, 1.02);
+    BOOST_CHECK_EQUAL(u::theta(log_probability), g_params.theta);
+    BOOST_CHECK_EQUAL(u::ref_bias_hom(log_probability), g_params.ref_bias_hom);
+    BOOST_CHECK_EQUAL(u::ref_bias_het(log_probability), g_params.ref_bias_het);
+    BOOST_CHECK_EQUAL(u::ref_bias_hap(log_probability), g_params.ref_bias_hap);
+    
+    BOOST_CHECK_EQUAL(u::over_dispersion_hom(log_probability), g_params.over_dispersion_hom);
+    BOOST_CHECK_EQUAL(u::over_dispersion_het(log_probability), g_params.over_dispersion_het);
+    BOOST_CHECK_EQUAL(u::sequencing_bias(log_probability), g_params.sequencing_bias);
+    BOOST_CHECK_EQUAL(u::error_rate(log_probability), g_params.error_rate);
+    BOOST_CHECK_EQUAL(u::error_alleles(log_probability), g_params.error_alleles);
+    BOOST_CHECK_EQUAL(u::mutant_alleles(log_probability), g_params.mutant_alleles);
 }
 
-// BOOST_FIXTURE_TEST_CASE(test_full_transition, TrioWorkspace) {
+BOOST_AUTO_TEST_CASE(test_work) {
+    LogProbability log_probability{g_rel_graph, g_params};
+    BOOST_CHECK_EQUAL(&u::work(log_probability), &log_probability.work());
+}
 
-//     // std::array<double, 4> freqs{0.3, 0.2, 0.2, 0.3};
-//     // double mu = 1e-8;
-//     // auto dad = f81::matrix(3*mu, freqs);
-//     // auto mom = f81::matrix(3*mu, freqs);
+BOOST_AUTO_TEST_CASE(test_haploid_prior) {
+    const double prec = 2.0*DBL_EPSILON;
+    LogProbability log_probability{g_rel_graph, g_params};
 
-//     // auto exp_germline_full = meiosis_diploid_matrix(dad, mom);
-//     // auto exp_germline_nomut = meiosis_diploid_matrix(dad, mom, 0);
-//     // auto exp_germline_posmut = exp_germline_full - exp_germline_nomut;
-//     // auto exp_germline_onemut = meiosis_diploid_matrix(dad, mom, 1);
-//     // auto exp_germline_mean = meiosis_diploid_mean_matrix(dad, mom);
+    auto test = [prec, &log_probability](int num_alts) {
+        BOOST_TEST_CONTEXT("num_alts=" << num_alts << " has_ref=true") {
+            auto test_ = u::HaploidPrior(log_probability, num_alts, true);
+            auto expected_ = population_prior_haploid_ia(g_params.theta, g_params.ref_bias_hap, num_alts, true);
+            auto test_range = make_test_range(test_);
+            auto expected_range = make_test_range(expected_);
+            CHECK_CLOSE_RANGES(test_range, expected_range, prec);
+        }
+        num_alts += 1;
+        BOOST_TEST_CONTEXT("num_alts=" << num_alts << " has_ref=false") {
+            auto test_ = u::HaploidPrior(log_probability, num_alts, false);
+            auto expected_ = population_prior_haploid_ia(g_params.theta, g_params.ref_bias_hap, num_alts, false);
+            auto test_range = make_test_range(test_);
+            auto expected_range = make_test_range(expected_);
+            CHECK_CLOSE_RANGES(test_range, expected_range, prec);
+        }
+    };
+    for(int i=0;i<10;++i) {
+        test(i);
+    }
+}
 
+BOOST_AUTO_TEST_CASE(test_diploid_prior) {
+    const double prec = 2.0*DBL_EPSILON;
+    LogProbability log_probability{g_rel_graph, g_params};
 
-//     // auto orig = f81::matrix(2*mu, freqs);
-//     // auto exp_somatic_full = mitosis_diploid_matrix(orig);
-//     // auto exp_somatic_nomut = mitosis_diploid_matrix(orig, 0);
-//     // auto exp_somatic_posmut = exp_somatic_full - exp_somatic_nomut;
-//     // auto exp_somatic_onemut = mitosis_diploid_matrix(orig, 1);
-//     // auto exp_somatic_mean = mitosis_diploid_mean_matrix(orig);
+    auto test = [prec, &log_probability](int num_alts) {
+        BOOST_TEST_CONTEXT("num_alts=" << num_alts << " has_ref=true") {
+            auto test_ = u::DiploidPrior(log_probability, num_alts, true);
+            auto expected_ = population_prior_diploid_ia(g_params.theta,
+                g_params.ref_bias_hom, g_params.ref_bias_het, num_alts, true);
+            auto test_range = make_test_range(test_);
+            auto expected_range = make_test_range(expected_);
+            CHECK_CLOSE_RANGES(test_range, expected_range, prec);
+        }
+        num_alts += 1;
+        BOOST_TEST_CONTEXT("num_alts=" << num_alts << " has_ref=false") {
+            auto test_ = u::DiploidPrior(log_probability, num_alts, false);
+            auto expected_ = population_prior_diploid_ia(g_params.theta,
+                g_params.ref_bias_hom, g_params.ref_bias_het, num_alts, false);
+            auto test_range = make_test_range(test_);
+            auto expected_range = make_test_range(expected_);
+            CHECK_CLOSE_RANGES(test_range, expected_range, prec);
+        }
+    };
+    for(int i=0;i<10;++i) {
+        test(i);
+    }
+}
 
-//     // std::vector<TransitionMatrix> exp_full {{},{},exp_germline_full, exp_somatic_full, exp_somatic_full};
-//     // std::vector<TransitionMatrix> exp_nomut {{},{},exp_germline_nomut, exp_somatic_nomut, exp_somatic_nomut};
-//     // std::vector<TransitionMatrix> exp_posmut {{},{},exp_germline_posmut, exp_somatic_posmut, exp_somatic_posmut};
-//     // std::vector<TransitionMatrix> exp_onemut {{},{},exp_germline_onemut, exp_somatic_onemut, exp_somatic_onemut};
-//     // std::vector<TransitionMatrix> exp_mean {{},{},exp_germline_mean, exp_somatic_mean, exp_somatic_mean};
+BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
+    //using ad_t = dng::pileup::allele_depths_t;
+    using ad_t = std::vector<std::vector<int>>;
+    using dng::utility::make_array;
 
-//     // FindMutations find_mutation {min_prob, r_graph, test_param_1};
-//     // auto full_matrices = find_mutation.full_transition_matrices_;
-//     // auto nomut_matrices = find_mutation.nomut_transition_matrices_;
-//     // auto posmut_matrices = find_mutation.posmut_transition_matrices_;
-//     // auto onemut_matrices = find_mutation.onemut_transition_matrices_;
-//     // auto mean_matrices = find_mutation.mean_matrices_;
-//     // for (int i = 0; i < 5; ++i) {
-//     //     boost_check_matrix(exp_full[i], full_matrices[i]);
-//     //     boost_check_matrix(exp_nomut[i], nomut_matrices[i]);
-//     //     boost_check_matrix(exp_posmut[i], posmut_matrices[i]);
-//     //     boost_check_matrix(exp_onemut[i], onemut_matrices[i]);
-//     //     boost_check_matrix(exp_mean[i], mean_matrices[i]);
-//     // }
-// }
+    xorshift64 xrand(++g_seed_counter);
 
+    auto rexp = [&](double mean) {
+        double d = -log(xrand.get_double52())*mean;
+        if(xrand.get_double52() > 0.9) {
+            d = 0.0;
+        }
+        return static_cast<int>(d);
+    };
 
-// BOOST_FIXTURE_TEST_CASE(test_operator, TrioWorkspace) {
+    const double prec = FLT_EPSILON;
 
+    libraries_t libs = {
+        {"Mom", "Dad", "Eve"},
+        {"Mom", "Dad", "Eve"}
+    };
+    Pedigree ped;
+    ped.AddMember("Dad","0","0",Sex::Male,"");
+    ped.AddMember("Mom","0","0",Sex::Female,"");
+    ped.AddMember("Eve","Dad","Mom",Sex::Female,"");
 
-// //     std::vector<peel::family_members_t> family {
-// //             {1,4},
-// //             {0,1,2},
-// //             {0,3}
-// //     };
-// //     FindMutations::stats_t mutation_stats;
-// // //    MutationStats stats(min_prob);
-// //     FindMutations find_mutation{min_prob, r_graph, test_param_1};
-// //     find_mutation(read_depths, ref_index, &mutation_stats);
+    const double mu_g = 1e-8;
+    const double mu_s = 1e-8;
+    const double mu_l = 1e-8;
+    RelationshipGraph graph;
+    graph.Construct(ped, libs, InheritanceModel::Autosomal, mu_g, mu_s, mu_l, true);
 
+    LogProbability log_probability{graph, g_params};
+    int counter = 0;
+    auto test = [&](const ad_t& depths, int num_alts, bool has_ref) {
+        BOOST_TEST_CONTEXT("mom=" << rangeio::wrap(depths[0]) << 
+                         ", dad=" << rangeio::wrap(depths[1]) <<
+                         ", eve=" << rangeio::wrap(depths[2]) <<
+                         ", num_alts=" << num_alts <<
+                         ", has_ref=" << (int)has_ref
+        ) {
+        int num_alts_old = num_alts;
+        if(num_alts >= 4) {
+            num_alts = 3;
+        }
 
-// //     double scale = setup_workspace(ref_index, read_depths);
+        LogProbability::value_t test_value;
+        double expected_log_scale, expected_log_data;
 
-// //     //Test basic stats
-// //     auto nomut_matrices = find_mutation.nomut_transition_matrices_;
-// //     workspace.CleanupFast();
-// //     dng::peel::up(workspace, family[0], nomut_matrices);
-// //     dng::peel::to_father_fast(workspace, family[1], nomut_matrices);
-// //     dng::peel::up(workspace, family[2], nomut_matrices);
-// //     double result_nomut = log((workspace.lower[0] * workspace.upper[0]).sum());
+        Genotyper genotyper{
+            g_params.over_dispersion_hom,
+            g_params.over_dispersion_het,
+            g_params.sequencing_bias,
+            g_params.error_rate,
+            g_params.error_alleles
+        };
 
+        const int hap_sz = num_alts+1;
+        const int gt_sz = hap_sz*(hap_sz+1)/2;
 
-// //     auto full_matrices = find_mutation.full_transition_matrices_;
-// //     workspace.CleanupFast();
-// //     dng::peel::up(workspace, family[0], full_matrices );
-// //     dng::peel::to_father(workspace, family[1], full_matrices );
-// //     dng::peel::up(workspace, family[2], full_matrices );
-// //     double result_full = log((workspace.lower[0] * workspace.upper[0]).sum());
+        auto hap_prior = population_prior_haploid_ia(g_params.theta,
+                g_params.ref_bias_hap, num_alts, has_ref);
+        auto dip_prior = population_prior_diploid_ia(g_params.theta,
+                g_params.ref_bias_hom, g_params.ref_bias_het, num_alts, has_ref);
 
+        auto mom_lower = genotyper(depths[0], num_alts, 2);
+        auto dad_lower = genotyper(depths[1], num_alts, 2);
+        auto eve_lower = genotyper(depths[2], num_alts, 2);
+        expected_log_scale = mom_lower.second+dad_lower.second+eve_lower.second;
 
-// //     // P(mutation | Data ; model) = 1 - [ P(Data, nomut ; model) / P(Data ; model) ]
-// //     const double expected_mup = -std::expm1(result_nomut - result_full);
-// //     const double expected_lld = (result_full +scale) / M_LN10;
-// //     const double expected_llh = result_full / M_LN10;
+        BOOST_REQUIRE_EQUAL(mom_lower.first.size(), gt_sz);
+        BOOST_REQUIRE_EQUAL(dad_lower.first.size(), gt_sz);
+        BOOST_REQUIRE_EQUAL(eve_lower.first.size(), gt_sz);
 
-// //     BOOST_CHECK_CLOSE(expected_mup, mutation_stats.mup, BOOST_CLOSE_PERCENTAGE_THRESHOLD);
-// //     BOOST_CHECK_CLOSE(expected_lld, mutation_stats.lld, BOOST_CLOSE_PERCENTAGE_THRESHOLD);
-// // //    BOOST_CHECK_CLOSE(expected_llh, mutation_stats.llh, BOOST_CLOSE_PERCENTAGE_THRESHOLD);
+        const auto m_sl = Mk::matrix(hap_sz, mu_s+mu_l, g_params.mutant_alleles);
+        const auto m_gsl = Mk::matrix(hap_sz, mu_g+mu_s+mu_l, g_params.mutant_alleles);
 
-// //     //Test posterior
-// //     full_matrices = find_mutation.full_transition_matrices_;
-// //     workspace.CleanupFast();
-// //     dng::peel::up(workspace, family[0], full_matrices );
-// //     dng::peel::to_father(workspace, family[1], full_matrices );
-// //     dng::peel::up(workspace, family[2], full_matrices );
+        const auto m_eve = meiosis_matrix(2, m_gsl, 2, m_gsl);
+        const auto m_dad = mitosis_matrix(2, m_sl);
+        const auto m_mom = mitosis_matrix(2, m_sl);
 
-// //     dng::peel::up_reverse(workspace, family[2], full_matrices );
-// //     dng::peel::to_father_reverse(workspace, family[1], full_matrices );
-// //     dng::peel::up_reverse(workspace, family[0], full_matrices );
+        dng::stats::ExactSum lld;
+        for(int dad_g=0,par=0;dad_g<gt_sz;++dad_g) {
+            for(int mom_g=0; mom_g<gt_sz;++mom_g,++par) {
+                double lld_eve = 0.0, lld_mom = 0.0, lld_dad = 0.0;
+                for(int eve=0;eve<gt_sz;++eve) {
+                    lld_eve += eve_lower.first(eve)*m_eve(par,eve);
+                }
+                for(int mom=0;mom<gt_sz;++mom) {
+                    lld_mom += mom_lower.first(mom)*m_mom(mom_g,mom);
+                }
+                for(int dad=0;dad<gt_sz;++dad) {
+                    lld_dad += dad_lower.first(dad)*m_dad(dad_g,dad);
+                }
+                lld += lld_eve*lld_mom*lld_dad*dip_prior(mom_g)*dip_prior(dad_g);
+            }
+        }
 
-// //     dng::GenotypeArray expected_posterior;
-// //     for (std::size_t i = 0; i < workspace.num_nodes; ++i) {
-// //         expected_posterior = workspace.lower[i] * workspace.upper[i];
-// //         expected_posterior /= expected_posterior.sum();
+        expected_log_scale /= M_LN10;
+        expected_log_data = log(lld.result()) / M_LN10;
 
-// //         boost_check_close_vector(expected_posterior,
-// //         		mutation_stats.posterior_probabilities[i]);
-// //     }
+        test_value = log_probability.CalculateLLD(depths, num_alts_old, has_ref);
+        BOOST_CHECK_CLOSE_FRACTION(test_value.log_scale, expected_log_scale, prec);
+        BOOST_CHECK_CLOSE_FRACTION(test_value.log_data, expected_log_data, prec);
 
+        test_value = log_probability(depths, num_alts_old, has_ref);
+        BOOST_CHECK_CLOSE_FRACTION(test_value.log_scale, expected_log_scale, prec);
+        BOOST_CHECK_CLOSE_FRACTION(test_value.log_data, expected_log_data, prec);
+    }};
 
+    test({{0},{0},{0}}, 0, true);
+    test({{10},{5},{15}}, 0, true);
+    
+    test({{100,0},{100,0},{50,50}}, 1, true);
+    test({{100,0},{50,50},{100,0}}, 1, true);
+    test({{50,50},{100,0},{100,0}}, 1, true);
+    
+    test({{100,0,0},{50,50,0},{50,50,1}}, 2, true);
+    
+    test({{0,100},{0,100},{0,10}}, 1, false);
 
-// }
+    for(int n=0; n<6; ++n) {
+        for(int i=0; i<100; ++i) {
+            ad_t ad(3);
+            for(auto &&a : ad) {
+                for(int j=0;j<=n;++j) {
+                    a.push_back(rexp(30));
+                }
+            }
+            test(ad, n, true);
+        }
+    }
 
+    for(int n=1; n<6; ++n) {
+        for(int i=0; i<100; ++i) {
+            ad_t ad(3);
+            for(auto &&a : ad) {
+                a.push_back(0);
+                for(int j=1;j<=n;++j) {
+                    a.push_back(rexp(30));
+                }
+            }
+            test(ad, n, false);
+        }
+    }
 
-// BOOST_FIXTURE_TEST_CASE(test_calculate_mutation_expected, TrioWorkspace) {
+}
 
-// //     FindMutations find_mutation{min_prob, r_graph, test_param_1};
+BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_xlinked) {
+    //using ad_t = dng::pileup::allele_depths_t;
+    using ad_t = std::vector<std::vector<int>>;
+    using dng::utility::make_array;
 
-// //     FindMutations::stats_t mutation_stats;
-// // //    MutationStats mutation_stats(min_prob);
-// //     find_mutation(read_depths, ref_index, &mutation_stats);
+    xorshift64 xrand(++g_seed_counter);
 
-// //     BOOST_CHECK_SMALL(0.116189 - mutation_stats.mup, 1e-6);
-// //     BOOST_CHECK_SMALL(-30.5967 - mutation_stats.lld, 1e-4);
-// // //    BOOST_CHECK_SMALL(-6.68014 - mutation_stats.llh, 1e-5);
-// //     BOOST_CHECK_SMALL(0.116189 - mutation_stats.mux, 1e-6);
-// //     BOOST_CHECK_SMALL(0.116189 - mutation_stats.mu1p, 1e-6);
+    auto rexp = [&](double mean) {
+        double d = -log(xrand.get_double52())*mean;
+        if(xrand.get_double52() > 0.9) {
+            d = 0.0;
+        }
+        return static_cast<int>(d);
+    };
 
-// //     BOOST_CHECK_EQUAL("GGxGG>GT", mutation_stats.dnt);
-// //     BOOST_CHECK_EQUAL("LB-NA12878:Solexa-135852", mutation_stats.dnl);
-// //     BOOST_CHECK_EQUAL(42, mutation_stats.dnq);
+    const double prec = FLT_EPSILON;
 
-// // #if CALCULATE_ENTROPY == 1
-// //     BOOST_CHECK_EQUAL(100, mutation_stats.dnc);
-// // #endif
+    libraries_t libs = {
+        {"Mom", "Dad", "Eve"},
+        {"Mom", "Dad", "Eve"}
+    };
+    Pedigree ped;
+    ped.AddMember("Dad","0","0",Sex::Male,"");
+    ped.AddMember("Mom","0","0",Sex::Female,"");
+    ped.AddMember("Eve","Dad","Mom",Sex::Female,"");
 
-// }
+    const double mu_g = 1e-8;
+    const double mu_s = 1e-8;
+    const double mu_l = 1e-8;
+    RelationshipGraph graph;
+    graph.Construct(ped, libs, InheritanceModel::XLinked, mu_g, mu_s, mu_l, true);
+
+    LogProbability log_probability{graph, g_params};
+    int counter = 0;
+    auto test = [&](const ad_t& depths, int num_alts, bool has_ref) {
+        BOOST_TEST_CONTEXT("mom=" << rangeio::wrap(depths[0]) << 
+                         ", dad=" << rangeio::wrap(depths[1]) <<
+                         ", eve=" << rangeio::wrap(depths[2]) <<
+                         ", num_alts=" << num_alts <<
+                         ", has_ref=" << (int)has_ref
+        ) {
+        int num_alts_old = num_alts;
+        if(num_alts >= 4) {
+            num_alts = 3;
+        }
+
+        LogProbability::value_t test_value;
+        double expected_log_scale, expected_log_data;
+
+        Genotyper genotyper{
+            g_params.over_dispersion_hom,
+            g_params.over_dispersion_het,
+            g_params.sequencing_bias,
+            g_params.error_rate,
+            g_params.error_alleles
+        };
+
+        const int hap_sz = num_alts+1;
+        const int gt_sz = hap_sz*(hap_sz+1)/2;
+
+        auto hap_prior = population_prior_haploid_ia(g_params.theta,
+                g_params.ref_bias_hap, num_alts, has_ref);
+        auto dip_prior = population_prior_diploid_ia(g_params.theta,
+                g_params.ref_bias_hom, g_params.ref_bias_het, num_alts, has_ref);
+
+        auto mom_lower = genotyper(depths[0], num_alts, 2);
+        auto dad_lower = genotyper(depths[1], num_alts, 1);
+        auto eve_lower = genotyper(depths[2], num_alts, 2);
+        expected_log_scale = mom_lower.second+dad_lower.second+eve_lower.second;
+
+        BOOST_REQUIRE_EQUAL(mom_lower.first.size(), gt_sz);
+        BOOST_REQUIRE_EQUAL(dad_lower.first.size(), hap_sz);
+        BOOST_REQUIRE_EQUAL(eve_lower.first.size(), gt_sz);
+
+        const auto m_sl = Mk::matrix(hap_sz, mu_s+mu_l, g_params.mutant_alleles);
+        const auto m_gsl = Mk::matrix(hap_sz, mu_g+mu_s+mu_l, g_params.mutant_alleles);
+
+        const auto m_eve = meiosis_matrix(1, m_gsl, 2, m_gsl);
+        const auto m_dad = mitosis_matrix(1, m_sl);
+        const auto m_mom = mitosis_matrix(2, m_sl);
+
+        dng::stats::ExactSum lld;
+        for(int dad_g=0,par=0;dad_g<hap_sz;++dad_g) {
+            for(int mom_g=0; mom_g<gt_sz;++mom_g,++par) {
+                double lld_eve = 0.0, lld_mom = 0.0, lld_dad = 0.0;
+                for(int eve=0;eve<gt_sz;++eve) {
+                    lld_eve += eve_lower.first(eve)*m_eve(par,eve);
+                }
+                for(int mom=0;mom<gt_sz;++mom) {
+                    lld_mom += mom_lower.first(mom)*m_mom(mom_g,mom);
+                }
+                for(int dad=0;dad<hap_sz;++dad) {
+                    lld_dad += dad_lower.first(dad)*m_dad(dad_g,dad);
+                }
+                lld += lld_eve*lld_mom*lld_dad*dip_prior(mom_g)*hap_prior(dad_g);
+            }
+        }
+
+        expected_log_scale /= M_LN10;
+        expected_log_data = log(lld.result()) / M_LN10;
+
+        test_value = log_probability.CalculateLLD(depths, num_alts_old, has_ref);
+        BOOST_CHECK_CLOSE_FRACTION(test_value.log_scale, expected_log_scale, prec);
+        BOOST_CHECK_CLOSE_FRACTION(test_value.log_data, expected_log_data, prec);
+
+        test_value = log_probability(depths, num_alts_old, has_ref);
+        BOOST_CHECK_CLOSE_FRACTION(test_value.log_scale, expected_log_scale, prec);
+        BOOST_CHECK_CLOSE_FRACTION(test_value.log_data, expected_log_data, prec);
+    }};
+
+    test({{0},{0},{0}}, 0, true);
+    test({{10},{5},{15}}, 0, true);
+    
+    test({{100,0},{100,0},{50,50}}, 1, true);
+    test({{100,0},{50,50},{100,0}}, 1, true);
+    test({{50,50},{100,0},{100,0}}, 1, true);
+    
+    test({{100,0,0},{50,50,0},{50,50,1}}, 2, true);
+    
+    test({{0,100},{0,100},{0,10}}, 1, false);
+
+    for(int n=0; n<6; ++n) {
+        for(int i=0; i<100; ++i) {
+            ad_t ad(3);
+            for(auto &&a : ad) {
+                for(int j=0;j<=n;++j) {
+                    a.push_back(rexp(30));
+                }
+            }
+            test(ad, n, true);
+        }
+    }
+
+    for(int n=1; n<6; ++n) {
+        for(int i=0; i<100; ++i) {
+            ad_t ad(3);
+            for(auto &&a : ad) {
+                a.push_back(0);
+                for(int j=1;j<=n;++j) {
+                    a.push_back(rexp(30));
+                }
+            }
+            test(ad, n, false);
+        }
+    }
+
+}

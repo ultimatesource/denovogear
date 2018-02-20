@@ -28,10 +28,17 @@
 
 #include <boost/optional.hpp>
 
+#include <boost/range/algorithm/sort.hpp>
+#include <boost/range/algorithm/fill.hpp>
+#include <boost/range/algorithm_ext/iota.hpp>
+
 #include <dng/pool.h>
 #include <dng/utility.h>
 #include <dng/regions.h>
 #include <dng/library.h>
+#include <dng/depths.h>
+#include <dng/utility.h>
+#include <dng/seq.h>
 
 #include <dng/hts/bam.h>
 
@@ -75,6 +82,8 @@ public:
     explicit BamScan(File in, int min_qlen = 0) : in_(std::move(in)), next_loc_{0},
         min_qlen_{min_qlen} {}
 
+    BamScan(BamScan&&) = default;
+
     list_type operator()(utility::location_t target_loc, pool_type &pool);
 
     location_t next_loc() const { return next_loc_; }
@@ -107,6 +116,8 @@ public:
     using data_type = std::vector<list_type>;
     using callback_type = void(const data_type &, utility::location_t);
 
+    struct Alleles; // functor class for calculating depths from data_type
+
     template<typename CallBack>
     void operator()(CallBack func);
 
@@ -116,6 +127,8 @@ public:
             lbtag_ = "LB";
         }
     }
+    BamPileup(BamPileup&&) = default;
+    BamPileup& operator=(BamPileup&&) = default;
 
     template<typename InFile>
     void AddFile(InFile&& f);
@@ -153,6 +166,9 @@ public:
         return ret;
     }
 
+    template<typename A>
+    static BamPileup open_and_setup(const A& arg);
+
 private:
     int Advance(regions::range_t *target_range);
 
@@ -167,16 +183,21 @@ private:
         }    
     }
 
-    // Data Used for Pileup
-    data_type data_; // Store pileup
-    utility::location_t next_scanner_location_; // Next location off the scanners
-
-    void ParseHeader(const char* text);
+    boost::optional<regions::range_t> LoadNextRegion();
 
     template<typename It>
     void ParseHeaderTokens(It it, It it_last);
 
-    boost::optional<regions::range_t> LoadNextRegion();
+    void ParseHeader(const char* text);
+
+
+    struct bam_libraries_t : dng::libraries_t {
+        std::vector<utility::StringSet> read_groups;
+    };
+
+    // Data Used for Pileup
+    data_type data_; // Store pileup
+    utility::location_t next_scanner_location_; // Next location off the scanners
 
     std::vector<detail::BamScan> scanners_;
 
@@ -185,10 +206,6 @@ private:
     pool_type pool_;
 
     int min_qlen_;
-
-    struct bam_libraries_t : dng::libraries_t {
-        std::vector<utility::StringSet> read_groups;
-    };
 
     std::string lbtag_;
 
@@ -199,6 +216,29 @@ private:
 
     DNG_UNIT_TEST_CLASS(unittest_dng_io_bam);
 };
+
+template<typename A>
+BamPileup BamPileup::open_and_setup(const A& arg) {
+
+    BamPileup mpileup{arg.min_qlen, arg.rgtag};
+    
+    for(auto && str : arg.input) {
+        hts::bam::File input{str.c_str(), "r", arg.fasta.c_str(), arg.min_mapqual, arg.header.c_str()};
+        if(!input.is_open()) {
+            throw std::runtime_error("Unable to open bam/sam/cram input file '" + str + "' for reading.");
+        }
+        mpileup.AddFile(std::move(input));
+    }
+
+    // Load contigs into an index
+    regions::ContigIndex index;
+    for(auto && a : mpileup.contigs()) {
+        index.AddContig(std::move(a));
+    }
+    regions::set_regions(arg.region, index, &mpileup);
+
+    return mpileup;
+}
 
 template<typename InFile>
 void BamPileup::AddFile(InFile&& f) {
@@ -284,6 +324,88 @@ void BamPileup::SelectLibraries(R &range) {
         ++k;
     }
 
+}
+
+// This functor will convert aligned reads to read_depths
+struct BamPileup::Alleles {
+    using read_depths_t = dng::pileup::allele_depths_t;
+    using data_type = BamPileup::data_type;
+    using filter_signature = bool(const data_type::value_type &);
+
+    Alleles(size_t num_libraries);
+
+    template<typename F = filter_signature>
+    const read_depths_t& operator()(const data_type &data, size_t ref_index, F filter
+        = [](const data_type::value_type &) { return true; } );
+
+    const std::string& alleles_str() const {
+        buffer.clear();
+        size_t sz = sorted.shape()[1];
+        for(size_t u=0;u<sz;++u) {
+            if(u > 0) {
+                buffer += ',';
+            }
+            buffer += seq::indexed_char(indexes[u]);
+        }
+        return buffer;
+    }
+
+    // temporary data
+    read_depths_t unsorted;
+    read_depths_t sorted;
+    std::vector<int> indexes;
+
+private:
+    mutable std::string buffer;
+};
+
+// Allocate workspace based on number of libraries
+inline BamPileup::Alleles::Alleles(size_t num_libraries) :
+    unsorted{utility::make_array(num_libraries,5u)},
+    sorted{utility::make_array(num_libraries,5u)},
+    indexes(5)
+{
+    /*noop*/;
+}
+
+template<typename F>
+inline
+const BamPileup::Alleles::read_depths_t&
+BamPileup::Alleles::operator()(const data_type &data, size_t ref_index, F filter) {
+    // reset all depth counters
+    std::array<int,5> total_unsorted{0,0,0,0,0};
+    std::fill_n(unsorted.data(), unsorted.num_elements(), 0);
+
+    // pileup on read counts
+    for(std::size_t u = 0; u < data.size(); ++u) {
+        for(auto && r : data[u]) {
+            if(filter(r)) {
+                continue;
+            }
+            std::size_t base = seq::base_index(r.base());
+            assert(unsorted[u][base] < 65535);
+            unsorted[u][base] += 1;
+            total_unsorted[base] += 1;
+        }
+    }
+
+    // sort read counts
+    indexes.resize(total_unsorted.size());
+    boost::iota(indexes,0);
+    boost::sort(indexes, [&total_unsorted,ref_index](int l, int r) {
+        return l == ref_index || total_unsorted[l] > total_unsorted[r];
+    });
+    size_t sz = indexes.size();
+    for(; sz > 0 && total_unsorted[indexes[sz-1]] == 0; --sz) {
+        /*noop*/;
+    }
+    sorted.resize(utility::make_array(sorted.size(), sz));
+    for(size_t i=0;i<sorted.size();++i) {
+        for(size_t u=0;u<sz;++u) {
+            sorted[i][u] = unsorted[i][indexes[u]];
+        }
+    }
+    return sorted;
 }
 
 } //namespace io

@@ -34,7 +34,9 @@
 
 namespace dng {
 
-typedef Eigen::Array<double, Eigen::Dynamic, 1, 0, 10, 1> GenotypeArray;
+const Eigen::IOFormat CLEAN_FORMAT{4, 0, ", ", "\n", "[", "]"};
+
+typedef Eigen::ArrayXd GenotypeArray;
 typedef std::vector<GenotypeArray, Eigen::aligned_allocator<GenotypeArray>>
         GenotypeArrayVector;
 
@@ -47,8 +49,6 @@ typedef Eigen::ArrayXXd TemporaryMatrix;
 
 typedef Eigen::ArrayXd ParentArray;
 typedef std::vector<ParentArray> ParentArrayVector;
-
-typedef Eigen::Matrix4d MutationMatrix;
 
 template<typename A, typename B>
 inline auto kronecker_product_coef(const A &a, const B &b, std::size_t i,

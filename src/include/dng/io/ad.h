@@ -68,6 +68,8 @@ public:
     }
     explicit Ad(const char *filename, std::ios_base::openmode mode = std::ios_base::in) : Ad(std::string{filename},mode) { }
 
+    Ad(Ad&&) = default;
+
     void Open(const std::string &filename, std::ios_base::openmode mode = std::ios_base::in);
 
     int ReadHeader();
@@ -168,6 +170,16 @@ public:
     template<typename CallBack>
     void operator()(CallBack func);
 
+    int Read(data_type* pline);
+
+    AdPileup(AdPileup&& other) : file_{std::move(other.file_)} { }
+
+    AdPileup& operator=(AdPileup&&) = default;
+
+    AdPileup(const AdPileup &) = delete;
+    AdPileup(AdPileup &) = delete;
+    AdPileup& operator=(const AdPileup&) = delete;
+
     template<typename... Args>
     AdPileup(Args&&... args) : file_{std::forward<Args>(args)...} {
         if(!file_) {
@@ -194,18 +206,45 @@ public:
         return file_.contigs();
     }
 
+    template<typename A>
+    static AdPileup open_and_setup(const A& arg);
+
 private:
     Ad file_;
 };
 
+template<typename A>
+AdPileup AdPileup::open_and_setup(const A& arg) {
+    if(!arg.region.empty()) {
+        throw std::invalid_argument("--region not supported when processing ad/tad file.");
+    }
+
+    // Open input files
+    if(arg.input.size() != 1) {
+        throw std::runtime_error("can only process one ad/tad file at a time.");
+    }
+
+    AdPileup mpileup{arg.input[0], std::ios_base::in};
+    
+    return mpileup;
+}
+
+
 template<typename Callback>
-inline void AdPileup::operator()(Callback func) {
+inline
+void AdPileup::operator()(Callback func) {
     data_type line;
     line.data().reserve(4*num_libraries());
-    while(file_.Read(&line)) {
+    while(Read(&line)) {
         func(line);
     }
 }
+
+inline
+int AdPileup::Read(data_type* pline) {
+    return file_.Read(pline);
+}
+
 
 inline
 void Ad::Open(const std::string &filename, std::ios_base::openmode mode) {

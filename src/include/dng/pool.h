@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 Reed A. Cartwright
+ * Copyright (c) 2014-2017 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -27,9 +27,9 @@
 
 #include <boost/version.hpp>
 #include <boost/intrusive/list.hpp>
-#include <boost/noncopyable.hpp>
 
-#if defined(BOOST_VERSION) && BOOST_VERSION < 105500
+#if defined BOOST_VERSION && BOOST_VERSION < 105500
+
 // boost::intrusive::is_safe_autounlink was first defined in version 1.55
 namespace boost {
 namespace intrusive {
@@ -59,7 +59,7 @@ node_link_mode_t;
 typedef boost::intrusive::list_base_hook<detail::node_link_mode_t> PoolNode;
 
 template<typename Node>
-class IntrusivePool : boost::noncopyable {
+class IntrusivePool {
 public:
     typedef Node node_type;
     typedef boost::intrusive::list<node_type> list_type;
@@ -75,6 +75,9 @@ public:
         store_.reserve(64);
         Expand();
     }
+
+    IntrusivePool(IntrusivePool&&) = default;
+    IntrusivePool& operator=(IntrusivePool&&) = default;
 
     node_type *Malloc() {
         // Check the inactive list first

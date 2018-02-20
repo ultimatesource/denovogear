@@ -47,10 +47,9 @@ public:
         assert(a > 0.0);
         a_ = a;
         ah_ = a - 0.5;
-        loga_ = log(a);
         agh_ = a + Lanczos::g() - 0.5;
         la_ = log(Lanczos::lanczos_sum(a));
-        logam1_ = loga_-1.0;
+        logam1_ = log(a)-1.0;
     }
 
     double operator()(int n) const {
@@ -58,7 +57,7 @@ public:
     }
 private:
     // store these values for later usage
-    double a_, loga_, agh_, ah_, la_, logam1_;
+    double a_, agh_, ah_, la_, logam1_;
 
     double lnpoch_pos(double n) const {
         assert(n >= 0.0);
@@ -74,127 +73,170 @@ private:
     }
 };
 
-std::array<double,5>
-make_alphas(int reference, int genotype, double phi, double epsilon, double omega);
-}
+std::array<double,8> make_alphas(double over_dispersion_hom, 
+        double over_dispersion_het, double ref_bias,
+        double error_rate, double error_alleles);
 
-constexpr int folded_diploid_nucleotides[10][2] = {
-    {0, 0},
-    {0, 1}, {1, 1},
-    {0, 2}, {1, 2}, {2, 2},
-    {0, 3}, {1, 3}, {2, 3}, {3, 3}
-};
-
-// converts from unfolded genotype [0-15] to a folded genotype [0-10]
-constexpr int folded_diploid_genotypes_matrix[4][4] = {
-    {0, 1, 3, 6},
-    {1, 2, 4, 7},
-    {3, 4, 5, 8},
-    {6, 7, 8, 9}
-};
-
-constexpr int folded_diploid_genotypes[16] = {0, 1, 3, 6, 1, 2, 4, 7, 3, 4, 5, 8, 6, 7, 8, 9};
-
-// converts from a folded genotype to an unfolded genotype
-constexpr int unfolded_diploid_genotypes_upper[10] = {0, 1, 5, 2, 6,10, 3, 7,11,15};
-constexpr int unfolded_diploid_genotypes_lower[10] = {0, 4, 5, 8, 9,10,12,13,14,15};
+} // namespace detail
 
 class DirichletMultinomial {
 public:
-    struct params_t {
-        double over_dispersion;     // overdispersion parameter
-        double error_rate; // prob of error when homozygote is sequenced
-        double ref_bias;   // bias towards reference when heterozygote is sequenced
+    using depths_const_reference_type = dng::pileup::allele_depths_ref_t::const_reference;
+
+    DirichletMultinomial(double over_dispersion_hom, 
+        double over_dispersion_het, double sequencing_bias,
+        double error_rate, double error_alleles);
+
+    template<typename Range>
+    std::pair<GenotypeArray, double> operator()(
+        const Range& ad, int num_alts, int ploidy=2) const;
+
+    double over_dispersion_hom() const { return over_dispersion_hom_; }
+    double over_dispersion_het() const { return over_dispersion_het_; }
+    double error_rate() const { return error_rate_; }
+    double sequencing_bias() const { return sequencing_bias_; }
+    double error_alleles() const { return error_alleles_; }
+
+protected:
+
+    template<typename Range>
+    GenotypeArray LogHaploidGenotypes(const Range& ad, int num_alts) const;
+
+    template<typename Range>
+    GenotypeArray LogDiploidGenotypes(const Range& ad, int num_alts) const;
+
+    double over_dispersion_hom_; // overdispersion of homozygotes
+    double over_dispersion_het_; // overdispersion of heterozygotes
+    double error_rate_;      // prob of error when homozygote is sequenced
+    double sequencing_bias_;        // bias towards reference when heterozygote is sequenced
+    double error_alleles_;
+
+    using cache_t = std::vector<std::array<double,8>>;
+    using pochhammers_t = std::array<detail::log_pochhammer,8>; 
+    static constexpr int CACHE_SIZE = 512;
+    cache_t cache_{CACHE_SIZE};
+    pochhammers_t pochhammers_;
+
+    enum struct alpha {
+        HOM_MATCH = 0, HOM_ERROR,
+        HET_REF, HET_ALT, HET_ERROR,
+        HET_ALTALT, HOM_TOTAL, HET_TOTAL
     };
-    explicit DirichletMultinomial(params_t params);
 
-    DirichletMultinomial(double over_dispersion, double error_rate, double ref_bias) :
-        DirichletMultinomial(params_t{over_dispersion, error_rate, ref_bias}) {
-
+    inline double pochhammer(alpha a, int n) const {
+        assert(n >= 0);
+        int t = static_cast<int>(a);
+        assert(0 <= t && t < 8);
+        return (n < CACHE_SIZE) ? cache_[n][t] : pochhammers_[t](n);
     }
 
-    std::pair<GenotypeArray, double> operator()(
-        const pileup::AlleleDepths& depths, size_t pos, int ploidy=2) const;
-
-    std::pair<GenotypeArray, double> operator()(
-        const pileup::RawDepths& depths, int ref_allele, size_t pos, int ploidy=2) const;
-
-    const params_t & parameters() const { return params_; }
-
-protected:
-
-    // NOTE: a = reference; b = genotype; c = nucleotide; d = depth
-    // NOTE: cache_[d][a][c][b]  = log_pochamer(alpha1[a][b][c],d)
-    typedef double cache_type;
-    typedef std::vector<std::array<std::array<std::array<cache_type,10>, 5>,5>> cache_t;
-
-    typedef detail::log_pochhammer model_type;
-
-    typedef std::vector<std::array<std::array<model_type,10>, 5>> model_cache_t;
-
-    static constexpr int kCacheSize = 512;
-
-    cache_t cache_{kCacheSize};
-    model_cache_t models_{5};
-
-    params_t params_;
+    friend std::array<double,8> detail::make_alphas(double over_dispersion_hom, 
+        double over_dispersion_het, double ref_bias,
+        double error_rate, double error_alleles);
 };
 
-class DirichletMultinomialMixture {
-public:
-    struct params_t {
-        double pi;      // probability of this component
-        double phi;     // overdispersion parameter
-        double epsilon; // prob of error when homozygote is sequenced
-        double omega;   // bias towards reference when heterozygote is sequenced
-        // fraction of reads that are ref is omega/(1+omega)
-        // Construct a params_t from a string of comma separated values
-        params_t(const std::string &str) {
-            auto f = utility::parse_double_list(str, ',', 4);
-            if(!f.second) {
-                throw std::runtime_error("Unable to parse genotype-likelihood parameters. "
-                                         "It must be a comma separated list of floating-point numbers.");
+template<typename Range>
+GenotypeArray DirichletMultinomial::LogDiploidGenotypes(const Range& ad, int num_alts) const
+{    
+    assert(num_alts >= 0);
+    const int num_alleles = num_alts + 1;
+    const int sz = num_alleles*(num_alleles+1)/2;
+
+    GenotypeArray ret{sz};
+    ret.setZero();
+
+    int total = 0, pos=0;
+    for(auto d : ad) {
+        assert( d >= 0 );
+        total += d;
+
+        for(int a=0,gt=0; a < num_alleles; ++a) {
+            for(int b=0; b < a; ++b) {
+                // Heterozygotes
+                if(b == 0) {
+                    // gt = 0/a
+                    if(pos == b) {
+                        ret[gt++] += pochhammer(alpha::HET_REF, d);    
+                    } else if(pos == a) {
+                        ret[gt++] += pochhammer(alpha::HET_ALT, d);
+                    } else {
+                        ret[gt++] += pochhammer(alpha::HET_ERROR, d);
+                    }
+                } else {
+                    // gt = b/a
+                    if(pos == b || pos == a) {
+                        ret[gt++] += pochhammer(alpha::HET_ALTALT, d); 
+                    } else {
+                        ret[gt++] += pochhammer(alpha::HET_ERROR, d);
+                    }
+                }
             }
-            if(f.first.size() != 4) {
-                throw std::runtime_error("Wrong number of values for genotype-likelihood parameters. "
-                                         "Expected 4; found " + std::to_string(f.first.size()) + ".");
+            // Homozygotes
+            if(pos == a) {
+                ret[gt++] += pochhammer(alpha::HOM_MATCH, d);
+            } else {
+                ret[gt++] += pochhammer(alpha::HOM_ERROR, d);
             }
-            pi = f.first[0];
-            phi = f.first[1];
-            epsilon = f.first[2];
-            omega = f.first[3];
         }
-        params_t() { }
-    };
+        ++pos;
+    } 
 
-    DirichletMultinomialMixture(params_t model_a, params_t model_b);
+    double hom_total = pochhammer(alpha::HOM_TOTAL, total);
+    ret[0] -= hom_total;
+    if(num_alleles > 1) {
+        double het_total = pochhammer(alpha::HET_TOTAL, total);
+        for(int a=1,gt=1; a < num_alleles; ++a) {
+            for(int b=0; b < a; ++b) {
+                ret[gt++] -= het_total;
+            }
+            ret[gt++] -= hom_total;
+        }
+    }
+    return ret;
+}
 
-    std::pair<GenotypeArray, double> operator()(
-        const pileup::AlleleDepths& depths, size_t pos, int ploidy=2) const;
+template<typename Range>
+GenotypeArray DirichletMultinomial::LogHaploidGenotypes(const Range& ad, int num_alts) const {
+    assert(num_alts >= 0);
+    const int num_alleles = num_alts + 1;    
+    const int sz = num_alleles;
 
-    std::pair<GenotypeArray, double> operator()(
-        const pileup::RawDepths& depths, size_t pos, int ref_allele, int ploidy=2) const;
+    GenotypeArray ret{sz};
+    ret.setZero();
 
-protected:
+    int total = 0, pos = 0;
+    for(auto d : ad) {
+        assert( d >= 0 );
+        total += d;
+        for(int gt=0; gt < sz; ++gt) {
+            ret[gt] += pochhammer((gt == pos) ? alpha::HOM_MATCH : alpha::HOM_ERROR, d) ;
+        }
+        ++pos;
+    }
+    double hom_total = pochhammer(alpha::HOM_TOTAL, total);
+    for(int gt=0; gt < sz; ++gt) {
+        ret[gt] -=  hom_total;
+    }
 
-    // NOTE: a = reference; b = genotype; c = nucleotide; d = depth
-    // NOTE: cache_[d][a][c][0][b]  = log_pochamer(alpha1[a][b][c],d)
-    // NOTE: cache_[d][a][c][1][b]  = log_pochamer(alpha2[a][b][c],d)
-    typedef double cache_type;
-    typedef std::vector<std::array<std::array<std::array<std::array<cache_type,10>, 2>, 5>,5>> cache_t;
-
-    typedef detail::log_pochhammer model_type;
-
-    typedef std::vector<std::array<std::array<std::array<model_type,10>, 2>, 5>> model_cache_t;
+    return ret;
+}
 
 
-    static constexpr int kCacheSize = 512;
+template<typename Range>
+std::pair<GenotypeArray, double> DirichletMultinomial::operator()(
+        const Range &ad, int num_alts, int ploidy) const
+{
+    assert(ploidy == 1 || ploidy == 2);
 
-    cache_t cache_{kCacheSize};
-    model_cache_t models_{5};
+    auto log_ret = (ploidy == 2) ? LogDiploidGenotypes(ad,num_alts)
+                                 : LogHaploidGenotypes(ad,num_alts);
 
-    double f1_, f2_; // log(f) and log(1-f)
-};
+    // Scale and calculate likelihoods
+    double scale = log_ret.maxCoeff();
+
+    return {(log_ret - scale).exp(), scale};
+}
+
 
 } // namespace genotype
 
@@ -203,4 +245,3 @@ using Genotyper = genotype::DirichletMultinomial;
 } // namespace dng
 
 #endif // DNG_LIKELIHOOD_H
-

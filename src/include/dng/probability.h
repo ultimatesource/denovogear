@@ -35,10 +35,17 @@ class LogProbability {
 public:
     struct params_t {
         double theta;
-        std::array<double, 4> nuc_freq;
-        double ref_weight;
+        double ref_bias_hom;
+        double ref_bias_het;
+        double ref_bias_hap;
+        
+        double over_dispersion_hom;
+        double over_dispersion_het;
+        double sequencing_bias;
+        double error_rate;
+        double error_alleles;
 
-        Genotyper::params_t genotyper_params;
+        double mutant_alleles;
     };
 
     struct value_t {
@@ -48,77 +55,134 @@ public:
 
     LogProbability(RelationshipGraph graph, params_t params);
 
-    value_t operator()(const pileup::RawDepths &depths, int ref_index);
-    value_t operator()(const pileup::AlleleDepths &depths);
+    template<typename A>
+    value_t CalculateLLD(const A &depths, int num_alts, bool has_ref=true);
+
+    template<typename A>
+    value_t operator()(const A &depths, int num_alts, bool has_ref=true) {
+        return CalculateLLD(depths, num_alts, has_ref);
+    }
 
     const peel::workspace_t& work() const { return work_; };
 
 protected:
-    using matrices_t = std::array<TransitionMatrixVector, pileup::AlleleDepths::type_info_table_length>;
-    static constexpr int COLOR_ACGT = 40; // When color == 40 all four nucleotides are observed in order A,C,G,T
+    using matrices_t = std::array<TransitionMatrixVector, 4>;
 
     matrices_t CreateMutationMatrices(const int mutype = MUTATIONS_ALL) const;
 
-    GenotypeArray DiploidPrior(int ref_index, int color);
-    GenotypeArray HaploidPrior(int ref_index, int color);
+    GenotypeArray DiploidPrior(int num_alts, bool has_ref=true);
+    GenotypeArray HaploidPrior(int num_alts, bool has_ref=true);
 
     RelationshipGraph graph_;
     params_t params_;
     peel::workspace_t work_; // must be declared after graph_ (see constructor)
 
-
     matrices_t transition_matrices_;
 
-    double prob_monomorphic_[4];
+    double prob_monomorphic_;
 
     Genotyper genotyper_;
 
-    GenotypeArray diploid_prior_[5]; // Holds P(G | theta)
-    GenotypeArray haploid_prior_[5]; // Holds P(G | theta)
+    std::array<GenotypeArray,4> diploid_prior_; // Holds P(G | theta)
+    std::array<GenotypeArray,4> haploid_prior_; // Holds P(G | theta)
+    std::array<GenotypeArray,4> diploid_prior_noref_; // Holds P(G | theta)
+    std::array<GenotypeArray,4> haploid_prior_noref_; // Holds P(G | theta)
 
     DNG_UNIT_TEST_CLASS(unittest_dng_log_probability);
 };
 
-TransitionMatrixVector create_mutation_matrices(const RelationshipGraph &pedigree,
-        const std::array<double, 4> &nuc_freq, const int mutype = MUTATIONS_ALL);
+// returns 'log10 P(Data ; model)-log10 scale' and log10 scaling.
+template<typename A>
+LogProbability::value_t LogProbability::CalculateLLD(
+    const A &depths, int num_alts, bool has_ref)
+{
+    if(num_alts >= transition_matrices_.size()) {
+        num_alts = transition_matrices_.size()-1;
+    }
 
-TransitionMatrixVector create_mutation_matrices_subset(const TransitionMatrixVector &full_matrices, size_t color);
+    // calculate genotype likelihoods and store in the lower library vector
+    double scale = work_.SetGenotypeLikelihoods(genotyper_, depths, num_alts);
+    double logdata;
+
+    if(num_alts == 0) {
+        // Use cached value for monomorphic sites instead of peeling.
+        logdata = prob_monomorphic_;
+        for(auto it = work_.lower.begin()+work_.library_nodes.first;
+            it != work_.lower.begin()+work_.library_nodes.second; ++it) {
+            logdata *= (*it)(0);
+        }
+        // convert to a log-likelihood
+        logdata = log(logdata);
+    } else {
+        // Set the prior probability of the founders given the reference
+        work_.SetGermline(DiploidPrior(num_alts, has_ref), HaploidPrior(num_alts, has_ref));
+
+        // Calculate log P(Data ; model)
+        logdata = graph_.PeelForwards(work_, transition_matrices_[num_alts]);
+    }
+    return {logdata/M_LN10, scale/M_LN10};
+}
+
+TransitionMatrixVector create_mutation_matrices(const RelationshipGraph &pedigree,
+        int num_alleles, double num_mutants, const int mutype = MUTATIONS_ALL);
 
 inline
 LogProbability::matrices_t LogProbability::CreateMutationMatrices(const int mutype) const {
-    matrices_t ret;
     // Construct the complete matrices
-    auto full_matrix = create_mutation_matrices(graph_, params_.nuc_freq, mutype);
-
-    // Extract relevant subsets of matrices
-    for(size_t color = 0; color < dng::pileup::AlleleDepths::type_info_table_length; ++color) {
-        ret[color] = create_mutation_matrices_subset(full_matrix, color);
+    matrices_t ret;
+    for(int i=0;i<ret.size();++i) {
+        ret[i] = create_mutation_matrices(graph_, i+1, params_.mutant_alleles, mutype);
     }
     return ret;
 }
 
 inline
-GenotypeArray LogProbability::DiploidPrior(int ref_index, int color) {
-    using AlleleDepths = dng::pileup::AlleleDepths;
-    auto &type_info = AlleleDepths::type_info_gt_table[color];
-    const int width = type_info.width;
-    GenotypeArray prior(width);
-    for(int i=0;i<width;++i) {
-        prior(i) = diploid_prior_[ref_index](type_info.indexes[i]);
+GenotypeArray LogProbability::DiploidPrior(int num_alts, bool has_ref) {
+    assert(num_alts >= 0);
+    if(has_ref) {
+        return (num_alts < 4) ? diploid_prior_[num_alts]
+            : population_prior_diploid_ia(params_.theta, params_.ref_bias_hom,
+                params_.ref_bias_het, num_alts, true);
+    } else {
+        assert(num_alts >= 1);
+        return (num_alts < 5) ? diploid_prior_noref_[num_alts-1]
+            : population_prior_diploid_ia(params_.theta, params_.ref_bias_hom,
+                 params_.ref_bias_het, num_alts, false);
     }
-    return prior;
 }
 
 inline
-GenotypeArray LogProbability::HaploidPrior(int ref_index, int color) {
-    using AlleleDepths = dng::pileup::AlleleDepths;
-    auto &type_info = AlleleDepths::type_info_table[color];
-    const int width = type_info.width;
-    GenotypeArray prior(width);
-    for(int i=0;i<width;++i) {
-        prior(i) = haploid_prior_[ref_index](type_info.indexes[i]);
+GenotypeArray LogProbability::HaploidPrior(int num_alts, bool has_ref) {
+    assert(num_alts >= 0);
+    if(has_ref) {
+        return (num_alts < 4) ? haploid_prior_[num_alts]
+            : population_prior_haploid_ia(params_.theta, params_.ref_bias_hap, num_alts, true);
+    } else {
+        assert(num_alts >= 1);
+        return (num_alts < 5) ? haploid_prior_noref_[num_alts-1]
+            : population_prior_haploid_ia(params_.theta, params_.ref_bias_hap, num_alts, false);
     }
-    return prior;
+}
+
+template<typename A>
+inline
+LogProbability::params_t get_model_parameters(const A& a) {
+    LogProbability::params_t ret;
+    
+    ret.theta = a.theta;
+    ret.ref_bias_hom = a.ref_bias_hom;
+    ret.ref_bias_het = a.ref_bias_het;
+    ret.ref_bias_hap = a.ref_bias_hap;
+        
+    ret.over_dispersion_hom = a.lib_overdisp_hom;
+    ret.over_dispersion_het = a.lib_overdisp_het;
+    ret.sequencing_bias = a.lib_bias;
+    ret.error_rate = a.lib_error;
+    ret.error_alleles = a.lib_error_alleles;
+
+    ret.mutant_alleles = a.mu_alleles;
+
+    return ret;
 }
 
 }; // namespace dng

@@ -25,6 +25,7 @@
 #include <cstdint>
 #include <unordered_map>
 
+#include <boost/multi_array.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/functional/hash.hpp>
 
@@ -32,6 +33,10 @@
 
 namespace dng {
 namespace pileup {
+
+using allele_depths_t = boost::multi_array<int32_t, 2>;
+using allele_depths_ref_t = boost::multi_array_ref<int32_t, 2>;
+using allele_depths_const_ref_t = boost::const_multi_array_ref<int32_t, 2>;
 
 struct depth_t {
     int32_t counts[4]{0,0,0,0};
@@ -45,7 +50,7 @@ struct container_hash {
     std::size_t operator()(Container const& c) const {
         return boost::hash_range(c.begin(), c.end());
     }
-};    
+};
 
 };
 
@@ -100,8 +105,8 @@ public:
 
     static int8_t ColorDropN(int8_t color) { return color & 0x3F;}
 
-    typedef std::vector<int32_t> data_t;
-    typedef data_t::size_type size_type;
+    using data_t = std::vector<int32_t>;
+    using size_type = data_t::size_type;
 
     AlleleDepths() : location_{0}, color_{0}, num_libraries_{0} { }
 
@@ -300,87 +305,39 @@ struct stats_t {
     std::vector<int> total_depths;
     int dp;
     double log_null;
-    uint8_t color;
 };
 
 inline
-void calculate_stats(const RawDepths& d, int ref_index, stats_t *stats) {
+void calculate_stats(const pileup::allele_depths_t& d, stats_t *stats) {
     assert(stats != nullptr);
 
     // Measure the total depths, per-lib and overall
     int dp = 0;
-    depth_t total;
+    stats->total_depths.assign(d.shape()[1] , 0);
     stats->node_dp.clear();
     for(auto && a : d) {
         int n = 0;
-        for(int i=0;i<4;++i) {
-            total.counts[i] += a.counts[i];
-            n += a.counts[i];
+        for(int i=0;i<a.size();++i) {
+            stats->total_depths[i] += a[i];
+            n += a[i];
         }
         dp += n;
         stats->node_dp.push_back(n);
     }
-    stats->total_depths.assign(std::begin(total.counts), std::end(total.counts));
     stats->dp = dp;
 
     // calculate the log-likelihood of the null hypothesis that all reads come from binomial
     double log_null = 0.0;
     if(dp > 0) {
         log_null = -dp*log10(dp);
-        for(int i=0;i<4;++i) {
-            if(total.counts[i] > 0) {
-                log_null += total.counts[i]*log10(total.counts[i]);
-            }
-        }
-    }
-    stats->log_null = log_null;
-
-    int first_is_N = 0;
-    if(ref_index < 4) {
-        total.counts[ref_index] = utility::set_high_bit(total.counts[ref_index]);
-    } else {
-        first_is_N = 64;
-    }
-    stats->color = raw_counts_to_color(total)+first_is_N;
-}
-
-inline
-void calculate_stats(const AlleleDepths& d, stats_t *stats) {
-    assert(stats != nullptr);
-
-    // Copy color
-    stats->color = d.color();
-
-    // Measure the total depths, per-lib and overall
-    int dp = 0;
-    std::vector<int> total(d.num_nucleotides(), 0);
-
-    stats->node_dp.clear();
-    for(size_t lib=0; lib < d.num_libraries(); ++lib) {
-        int n = 0;
-        for(size_t j=0; j < d.num_nucleotides(); ++j) {
-            total[j] += d(lib,j);
-            n += d(lib,j);
-        }
-        dp += n;
-        stats->node_dp.push_back(n);
-    }
-    stats->total_depths = total;
-    stats->dp = dp;
-
-    // calculate the log-likelihood of the null hypothesis that all reads come from binomial
-    double log_null = 0.0;
-    if(dp > 0) {
-        log_null = -dp*log10(dp);
-        for(auto &&a : total) {
-            if(a > 0) {
-                log_null += a*log10(a);                
+        for(int i=0; i < stats->total_depths.size(); ++i) {
+            if(stats->total_depths[i] > 0) {
+                log_null += stats->total_depths[i]*log10(stats->total_depths[i]);
             }
         }
     }
     stats->log_null = log_null;
 }
-
 
 } // namespace pileup
 } // namespace dng

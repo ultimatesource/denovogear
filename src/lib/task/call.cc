@@ -52,7 +52,6 @@
 #include <dng/io/bam.h>
 #include <dng/io/bcf.h>
 #include <dng/io/ad.h>
-#include <dng/io/ped.h>
 
 #include <htslib/faidx.h>
 #include <htslib/khash.h>
@@ -60,6 +59,8 @@
 #include "version.h"
 
 using namespace dng;
+
+using utility::make_array;
 
 int process_bam(task::Call::argument_type &arg);
 int process_bcf(task::Call::argument_type &arg);
@@ -74,7 +75,7 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
 // Helper function to determines if output should be bcf file, vcf file, or stdout. Also
 // parses filename "bcf:<file>" --> "<file>"
 std::pair<std::string, std::string> vcf_get_output_mode(
-    task::Call::argument_type &arg) {
+    const task::Call::argument_type &arg) {
     using boost::algorithm::iequals;
 
     if(arg.output.empty() || arg.output == "-")
@@ -92,7 +93,7 @@ std::pair<std::string, std::string> vcf_get_output_mode(
 }
 
 // Helper function for writing the vcf header information
-void vcf_add_header_text(hts::bcf::File &vcfout, task::Call::argument_type &arg) {
+void vcf_add_header_text(hts::bcf::File &vcfout, const task::Call::argument_type &arg) {
     using namespace std;
     string line{"##DeNovoGearCommandLine=<ID=dng-call,Version="
                 PACKAGE_VERSION ","};
@@ -100,8 +101,8 @@ void vcf_add_header_text(hts::bcf::File &vcfout, task::Call::argument_type &arg)
     line += ",CommandLineOptions=\"";
 
 #define XM(lname, sname, desc, type, def) \
-	line +=  utility::vcf_command_line_text(XS(lname),arg.XV(lname)) + ' ';
-#	include <dng/task/call.xmh>
+    line +=  utility::vcf_command_line_text(XS(lname),arg.XV(lname)) + ' ';
+#   include <dng/task/call.xmh>
 #undef XM
     for(auto && a : arg.input) {
         line += a + ' ';
@@ -142,6 +143,29 @@ void vcf_add_header_text(hts::bcf::File &vcfout, task::Call::argument_type &arg)
     vcfout.AddHeaderMetadata("##FORMAT=<ID=MU1P,Number=1,Type=Float,Description=\"Conditional probability that this node contains a de novo mutation given only 1 de novo mutation at this site\">");
 }
 
+template<typename A, typename M, typename R>
+hts::bcf::File open_vcf_output(const A& arg, const M& mpileup, const R& relationship_graph) {
+   // Begin writing VCF header
+    auto out_file = vcf_get_output_mode(arg);
+    hts::bcf::File vcfout(out_file.first.c_str(), out_file.second.c_str());
+    vcf_add_header_text(vcfout, arg);
+
+    for(auto && contig : mpileup.contigs()) {
+        vcfout.AddContig(contig.name.c_str(), contig.length); // Add contigs to header
+    }
+    for(auto && line : relationship_graph.BCFHeaderLines()) {
+        vcfout.AddHeaderMetadata(line.c_str());  // Add pedigree info
+    }
+
+    // Finish Header
+    for(auto && str : relationship_graph.labels()) {
+        vcfout.AddSample(str.c_str()); // Add genotype columns
+    }
+    vcfout.WriteHeader();
+
+    return vcfout;
+}
+
 using namespace hts::bcf;
 using dng::utility::lphred;
 using dng::utility::phred;
@@ -157,110 +181,48 @@ int task::Call::operator()(Call::argument_type &arg) {
     auto it = arg.input.begin();
     FileCat mode = utility::input_category(*it, FileCat::Sequence|FileCat::Pileup|FileCat::Variant, FileCat::Unknown);
     for(++it; it != arg.input.end(); ++it) {
-    	// Make sure different types of input files aren't mixed together
+        // Make sure different types of input files aren't mixed together
         if(utility::input_category(*it, FileCat::Sequence|FileCat::Pileup|FileCat::Variant, FileCat::Sequence) != mode) {
             throw std::invalid_argument("Mixing pileup, sequencing, and variant file types is not supported.");
         }
     }
 
     if(mode == utility::FileCat::Sequence) {
-    	// sam, bam, cram
-    	return process_bam(arg);
+        // sam, bam, cram
+        return process_bam(arg);
     } else if(mode == utility::FileCat::Variant) {
-    	// vcf, bcf
-    	return process_bcf(arg);
+        // vcf, bcf
+        return process_bcf(arg);
     } else if(mode == utility::FileCat::Pileup) {
-    	// tad, ad
-    	return process_ad(arg);
+        // tad, ad
+        return process_ad(arg);
     } else {
-    	throw std::invalid_argument("Unknown input data file type.");
+        throw std::invalid_argument("Unknown input data file type.");
     }
     return EXIT_FAILURE;
 }
 
 // Processes bam, sam, and cram files.
 int process_bam(task::Call::argument_type &arg) {
-    // Parse pedigree from file
-    Pedigree ped = io::parse_ped(arg.ped);
-
     // Open Reference
     if(arg.fasta.empty()){
-    	throw std::invalid_argument("Path to reference file must be specified with --fasta when processing bam/sam/cram files.");
+        throw std::invalid_argument("Path to reference file must be specified with --fasta when processing bam/sam/cram files.");
     }
     io::Fasta reference{arg.fasta.c_str()};
 
-    // Parse Nucleotide Frequencies
-    std::array<double, 4> freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
-
     // Open input files
-    using BamPileup = dng::io::BamPileup;
-    BamPileup mpileup{arg.min_qlen, arg.rgtag};
-    for(auto && str : arg.input) {
-        hts::bam::File input{str.c_str(), "r", arg.fasta.c_str(), arg.min_mapqual, arg.header.c_str()};
-        if(!input.is_open()) {
-            throw std::runtime_error("Unable to open bam/sam/cram input file '" + str + "' for reading.");
-        }
-        mpileup.AddFile(std::move(input));
-    }
+    auto mpileup = io::BamPileup::open_and_setup(arg);
 
-    // Load contigs into an index
-    regions::ContigIndex index;
-    for(auto && a : mpileup.contigs()) {
-        index.AddContig(std::move(a));
-    }
+    auto relationship_graph = create_relationship_graph(arg, &mpileup);
 
-    // replace arg.region with the contents of a file if needed
-    auto region_ext = io::at_slurp(arg.region);
-    if(!arg.region.empty()) {
-        if(region_ext == "bed") {
-            mpileup.SetRegions(regions::parse_bed(arg.region, index));
-        } else {
-            mpileup.SetRegions(regions::parse_regions(arg.region, index));
-        }
-    }
-
-    // Construct peeling algorithm from parameters and pedigree information
-    RelationshipGraph relationship_graph;
-    if (!relationship_graph.Construct(ped, mpileup.libraries(), inheritance_model(arg.model),
-                                      arg.mu, arg.mu_somatic, arg.mu_library,
-                                      arg.normalize_somatic_trees)) {
-        throw std::runtime_error("Unable to construct peeler for pedigree; "
-                                 "possible non-zero-loop relationship_graph.");
-    }
-
-    // Select libraries in the input that are used in the pedigree
-    mpileup.SelectLibraries(relationship_graph.library_names());
-
-    // Write VCF output header
-    auto out_file = vcf_get_output_mode(arg);
-    hts::bcf::File vcfout(out_file.first.c_str(), out_file.second.c_str());
-    vcf_add_header_text(vcfout, arg);
-
-    // User the header from the first file to determine the contigs
-    for(auto && contig : mpileup.contigs()) {
-    	vcfout.AddContig(contig.name.c_str(), contig.length); // Add contigs to header
-    }
-
-    for(auto && line : relationship_graph.BCFHeaderLines()) {
-    	vcfout.AddHeaderMetadata(line.c_str()); // Add pedigree information
-    }
-
-    // Finish Header
-    for(auto && str : relationship_graph.labels()) {
-        vcfout.AddSample(str.c_str()); // Create samples
-    }
-    vcfout.WriteHeader();
+    // Open Output
+    auto vcfout = open_vcf_output(arg, mpileup, relationship_graph);
 
     // Record for each output
     auto record = vcfout.InitVariant();
 
     // Construct Calling Object
-    const double min_prob = arg.min_prob;
-    CallMutations do_call(min_prob, relationship_graph, {arg.theta, freqs,
-            arg.ref_weight, {arg.lib_overdisp, arg.lib_error, arg.lib_bias} });
-
-    // Pileup data
-    dng::pileup::RawDepths read_depths(mpileup.num_libraries());
+    CallMutations do_call(arg.min_prob, relationship_graph, get_model_parameters(arg));
 
     // Calculated stats
     CallMutations::stats_t stats;
@@ -270,15 +232,18 @@ int process_bam(task::Call::argument_type &arg) {
     const size_t library_start = relationship_graph.library_nodes().first;
     const int min_basequal = arg.min_basequal;
     auto filter_read = [min_basequal](
-    BamPileup::data_type::value_type::const_reference r) -> bool {
+    decltype(mpileup)::data_type::value_type::const_reference r) -> bool {
         return (r.is_missing
         || r.base_qual() < min_basequal
         || seq::base_index(r.base()) >= 4);
     };
 
-    auto h = mpileup.header(); // TODO: Fixme.
+    decltype(mpileup)::Alleles count_alleles(mpileup.num_libraries());
 
-    mpileup([&](const BamPileup::data_type & data, utility::location_t loc) {
+    auto h = mpileup.header();
+
+    const double min_prob = arg.min_prob;
+    mpileup([&](const decltype(mpileup)::data_type & data, utility::location_t loc) {
         // Calculate target position and fetch sequence name
         int contig = utility::location_to_contig(loc);
         int position = utility::location_to_position(loc);
@@ -288,123 +253,99 @@ int process_bam(task::Call::argument_type &arg) {
         char ref_base = reference.FetchBase(h->target_name[contig],position);
         size_t ref_index = seq::char_index(ref_base);
 
-		// reset all depth counters
-        boost::fill(read_depths, pileup::depth_t{});
-
-		// pileup on read counts
-		for(std::size_t u = 0; u < data.size(); ++u) {
-			for(auto && r : data[u]) {
-				if(filter_read(r)) {
-					continue;
-				}
-                std::size_t base = seq::base_index(r.base());
-                assert(read_depths[u].counts[ base ] < 65535);
-
-                read_depths[u].counts[ base ] += 1;
-			}
-		}
-		if(!do_call(read_depths, ref_index, &stats)) {
-			return;
-		}
-        const bool has_single_mut = ((stats.mu1p / stats.mup) >= min_prob);
-
-		// Measure total depth and sort nucleotides in descending order
-        pileup::stats_t depth_stats;
-        pileup::calculate_stats(read_depths, ref_index, &depth_stats);
-
-        add_stats_to_output(stats, depth_stats, has_single_mut, relationship_graph, do_call.work(), &record);
-
-        // Information about the site, based on depths
-        const int color = depth_stats.color;
-        const auto & type_info_gt = dng::pileup::AlleleDepths::type_info_gt_table[color];
-        const auto & type_info = dng::pileup::AlleleDepths::type_info_table[color];
-        const int refalt_count = type_info.width + (type_info.reference == 4);
-
-		// Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
-		std::vector<int32_t> ad_counts(num_nodes*refalt_count, hts::bcf::int32_missing);
-		std::vector<int32_t> ad_info(type_info.width, 0);
-        size_t pos = library_start * refalt_count;
-
-		for(size_t u = 0; u < read_depths.size(); ++u) {
-            if(type_info.reference == 4) {
-                ad_counts[pos++] = 0;
-            }
-			for(size_t k = 0; k < type_info.width; ++k) {
-                int count = read_depths[u].counts[(int)type_info.indexes[k]];
-                ad_counts[pos++] = count;
-				ad_info[k+(type_info.reference == 4)] += count;
-			}
-		}
-
-		// Calculate ADR and ADF Tags
-		std::vector<int32_t> adf_counts(num_nodes * refalt_count, hts::bcf::int32_missing);
-		std::vector<int32_t> adr_counts(num_nodes * refalt_count, hts::bcf::int32_missing);
-		std::vector<int32_t> adf_info(refalt_count, 0);
-		std::vector<int32_t> adr_info(refalt_count, 0);
-
-		std::vector<int> qual_ref, qual_alt, pos_ref, pos_alt, base_ref, base_alt;
-		qual_ref.reserve(depth_stats.dp);
-		qual_alt.reserve(depth_stats.dp);
-		pos_ref.reserve(depth_stats.dp);
-		pos_alt.reserve(depth_stats.dp);
-		base_ref.reserve(depth_stats.dp);
-		base_alt.reserve(depth_stats.dp);
-		double rms_mq = 0.0;
-
-        // zero out the counts for libraries
-		for(size_t u = library_start * refalt_count; u < num_nodes * refalt_count; ++u) {
-			adf_counts[u] = 0;
-			adr_counts[u] = 0;
-		}
-
-        int acgt_to_refalt_allele[4] = {-1,-1,-1,-1};
-        for(int i=0;i<type_info.width;++i) {
-            acgt_to_refalt_allele[(int)type_info.indexes[i]] = i + (type_info.reference == 4);
+        auto read_depths = count_alleles(data, ref_index, filter_read);
+        size_t n_sz = read_depths.shape()[1];
+        if(n_sz == 0) {
+            return;
         }
 
-		for(size_t u = 0; u < data.size(); ++u) {
-			const size_t pos = (library_start + u) * refalt_count;
-			for(auto && r : data[u]) {
-				if(filter_read(r)) {
-					continue;
-				}
-				const size_t base_refalt = acgt_to_refalt_allele[seq::base_index(r.base())];
-				assert(base_refalt != -1);
-				const size_t base_pos = pos + base_refalt;
-				// Forward Depths, avoiding branching
-				adf_counts[base_pos]  += !r.aln.is_reversed();
-				adf_info[base_refalt] += !r.aln.is_reversed();
-				// Reverse Depths
-				adr_counts[base_pos]  += r.aln.is_reversed();
-				adr_info[base_refalt] += r.aln.is_reversed();
-				// Mapping quality
-				rms_mq += r.aln.map_qual()*r.aln.map_qual();
-				(base_refalt == 0 ? &qual_ref : &qual_alt)->push_back(r.aln.map_qual());
-				// Positions
-				(base_refalt == 0 ? &pos_ref : &pos_alt)->push_back(r.pos);
-				// Base Calls
-				(base_refalt == 0 ? &base_ref : &base_alt)->push_back(r.base_qual());
-			}
-		}
-		rms_mq = sqrt(rms_mq/(qual_ref.size()+qual_alt.size()));
+        if(!do_call(read_depths, n_sz-1, ref_index < 4, &stats)) {
+            return;
+        }
+        const bool has_single_mut = ((stats.mu1p / stats.mup) >= min_prob);
 
-        record.samples("AD", ad_counts);
-		record.samples("ADF", adf_counts);
-		record.samples("ADR", adr_counts);
+        record.alleles(count_alleles.alleles_str());
 
-        record.info("AD", ad_info);
-		record.info("ADF", adf_info);
-		record.info("ADR", adr_info);
-		record.info("MQ", static_cast<float>(rms_mq));
+        // Measure total depth and sort nucleotides in descending order
+        pileup::stats_t depth_stats;
+        pileup::calculate_stats(read_depths, &depth_stats);
+
+        add_stats_to_output(stats, depth_stats, has_single_mut, relationship_graph, do_call.work(), &record);
+        // Map character_indexes to alleles
+        std::vector<int> base_index_to_allele(count_alleles.indexes.size(),-1);
+        for(size_t u=0;u<count_alleles.indexes.size();++u) {
+            base_index_to_allele[count_alleles.indexes[u]] = u;
+        }
+
+        // Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
+        std::vector<int32_t> ad_info(n_sz, 0);
+        std::vector<int32_t> adf_info(n_sz, 0);
+        std::vector<int32_t> adr_info(n_sz, 0);
+        boost::multi_array<int32_t,2> ad_counts(utility::make_array(num_nodes, n_sz));
+        boost::multi_array<int32_t,2> adf_counts(utility::make_array(num_nodes, n_sz));
+        boost::multi_array<int32_t,2> adr_counts(utility::make_array(num_nodes, n_sz));
+        size_t missing_len = library_start*n_sz;
+        std::fill_n(ad_counts.data(), missing_len, hts::bcf::int32_missing);
+        std::fill_n(ad_counts.data()+missing_len, ad_counts.num_elements()-missing_len, 0);
+        std::fill_n(adf_counts.data(), missing_len, hts::bcf::int32_missing);
+        std::fill_n(adf_counts.data()+missing_len, adf_counts.num_elements()-missing_len, 0);
+        std::fill_n(adr_counts.data(), missing_len, hts::bcf::int32_missing);
+        std::fill_n(adr_counts.data()+missing_len, adr_counts.num_elements()-missing_len, 0);
+
+        std::vector<int> qual_ref, qual_alt, pos_ref, pos_alt, base_ref, base_alt;
+        qual_ref.reserve(depth_stats.dp);
+        qual_alt.reserve(depth_stats.dp);
+        pos_ref.reserve(depth_stats.dp);
+        pos_alt.reserve(depth_stats.dp);
+        base_ref.reserve(depth_stats.dp);
+        base_alt.reserve(depth_stats.dp);
+        double rms_mq = 0.0;
+
+        for(size_t u = 0; u < data.size(); ++u) {
+            const size_t pos = library_start + u;
+            for(auto && r : data[u]) {
+                if(filter_read(r)) {
+                    continue;
+                }
+                const size_t base_allele = base_index_to_allele[seq::base_index(r.base())];
+                assert(base_allele != -1);
+                // all depths
+                ad_counts[pos][base_allele] += 1;
+                ad_info[base_allele] += 1;
+                // Forward Depths, avoiding branching
+                adf_counts[pos][base_allele]  += !r.aln.is_reversed();
+                adf_info[base_allele] += !r.aln.is_reversed();
+                // Reverse Depths
+                adr_counts[pos][base_allele]  += r.aln.is_reversed();
+                adr_info[base_allele] += r.aln.is_reversed();
+                // Mapping quality
+                rms_mq += r.aln.map_qual()*r.aln.map_qual();
+                (base_allele == 0 ? &qual_ref : &qual_alt)->push_back(r.aln.map_qual());
+                // Positions
+                (base_allele == 0 ? &pos_ref : &pos_alt)->push_back(r.pos);
+                // Base Calls
+                (base_allele == 0 ? &base_ref : &base_alt)->push_back(r.base_qual());
+            }
+        }
+        rms_mq = sqrt(rms_mq/(qual_ref.size()+qual_alt.size()));
+
+        record.samples("AD",  ad_counts.data(), ad_counts.num_elements());
+        record.samples("ADF", adf_counts.data(), adf_counts.num_elements());
+        record.samples("ADR", adr_counts.data(), adr_counts.num_elements());
+
+        record.info("AD",  ad_info);
+        record.info("ADF", adf_info);
+        record.info("ADR", adr_info);
+        record.info("MQ", static_cast<float>(rms_mq));
 
         int a11 = adf_info[0];
         int a21 = adr_info[0];
         int a12 = 0, a22 = 0;
-        for(int k = 1; k < refalt_count; ++k) {
+        for(int k = 1; k < n_sz; ++k) {
             a12 += adf_info[k];
             a22 += adr_info[k];
         }
-        if(a12+a22 > 0) {
+        if(a11+a21 > 0 && a12+a22 > 0) {
             // Fisher Exact Test for strand bias
             double fs_info = dng::stats::fisher_exact_test(a11, a12, a21, a22);
 
@@ -418,70 +359,126 @@ int process_bam(task::Call::argument_type &arg) {
             record.info("BQTa", static_cast<float>(bq_info));
         }
 
-		record.target(h->target_name[contig]);
-		record.position(position);
-		vcfout.WriteRecord(record);
-		record.Clear();
-	});
+        record.target(h->target_name[contig]);
+        record.position(position);
+        vcfout.WriteRecord(record);
+        record.Clear();
+    });
 
     return EXIT_SUCCESS;
 }
 
+// Process vcf, bcf input data
+int process_bcf(task::Call::argument_type &arg) {
+    // Read input data
+    auto mpileup = io::BcfPileup::open_and_setup(arg);
+
+    auto relationship_graph = create_relationship_graph(arg, &mpileup);
+
+    // Open Output
+    auto vcfout = open_vcf_output(arg, mpileup, relationship_graph);
+
+    // Record for each output
+    auto record = vcfout.InitVariant();
+
+    // Read header from first file
+    const bcf_hdr_t *header = mpileup.reader().header(0); // TODO: fixthis
+    const size_t num_libs = mpileup.num_libraries();
+
+    CallMutations do_call(arg.min_prob, relationship_graph, get_model_parameters(arg));
+
+    // Calculated stats
+    CallMutations::stats_t stats;
+
+    // Parameters used by site calculation function
+    const size_t num_nodes = relationship_graph.num_nodes();
+    const size_t library_start = relationship_graph.library_nodes().first;
+
+    // allocate space for ad. bcf_get_format_int32 uses realloc internally
+    int n_ad_capacity = num_libs*5;
+    auto ad = hts::bcf::make_buffer<int>(n_ad_capacity);
+
+    const double min_prob = arg.min_prob;
+    // run calculation based on the depths at each site.
+    mpileup([&](const decltype(mpileup)::data_type & rec) {
+        // Read all the Allele Depths for every sample into an AD array
+        const int n_ad = hts::bcf::get_format_int32(header, rec, "AD", &ad, &n_ad_capacity);
+        if(n_ad <= 0) {
+            // AD tag is missing, so we do nothing at this time
+            // TODO: support using calculated genotype likelihoods
+            return;
+        }
+        assert(n_ad % num_libs == 0);
+        const size_t n_sz = n_ad / num_libs;
+        const size_t n_alleles = (int)rec->n_allele;
+
+        // replace "missing" and "end" values with 0
+        boost::replace_if(boost::make_iterator_range(ad.get(), ad.get()+n_ad),
+            [](int a) { return a < 0; }, 0 );
+
+        pileup::allele_depths_ref_t read_depths(ad.get(), make_array(num_libs,n_sz));
+
+        // TODO: check that REF isn't missing
+        if(!do_call(read_depths, n_alleles-1, true, &stats)) {
+            return;
+        }
+        const bool has_single_mut = ((stats.mu1p / stats.mup) >= min_prob);
+        
+        // Set alleles
+        record.alleles(const_cast<const char**>(rec->d.allele), n_alleles);
+
+        // Measure total depth and sort nucleotides in descending order
+        pileup::stats_t depth_stats;
+        pileup::calculate_stats(read_depths, &depth_stats);
+
+        add_stats_to_output(stats, depth_stats, has_single_mut, relationship_graph, do_call.work(), &record);
+
+        // Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
+        std::vector<int32_t> ad_info(n_alleles, 0);
+        boost::multi_array<int32_t,2> ad_counts(utility::make_array(num_nodes, n_alleles));
+        std::fill_n(ad_counts.data(), ad_counts.num_elements(), hts::bcf::int32_missing);
+
+        for(size_t u = 0; u < read_depths.size(); ++u) {
+            size_t k = 0;
+            for(; k < read_depths[u].size(); ++k) {
+                int count = read_depths[u][k];
+                ad_counts[library_start+u][k] = count;
+                ad_info[k] += count;
+            }
+            for(; k < n_alleles; ++k) {
+                ad_counts[library_start+u][k] = 0;
+            }
+        }
+        record.samples("AD", ad_counts.data(), ad_counts.num_elements());
+        record.info("AD", ad_info);
+
+        // Calculate target position and fetch sequence name
+        int contig =  rec->rid;
+        int position = rec->pos;
+
+        record.target(mpileup.contigs()[contig].name.c_str());
+        record.position(position);
+        vcfout.WriteRecord(record);
+        record.Clear();
+    });
+    return EXIT_SUCCESS;
+}
+
 int process_ad(task::Call::argument_type &arg) {
-	// Parse the pedigree file
-    Pedigree ped = io::parse_ped(arg.ped);
+    // Read input data
+    auto mpileup = io::AdPileup::open_and_setup(arg);
 
-    // Parse Nucleotide Frequencies
-    std::array<double, 4> freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
+    auto relationship_graph = create_relationship_graph(arg, &mpileup);
 
-    // replace arg.region with the contents of a file if needed
-    //auto region_ext = io::at_slurp(arg.region);
-    if(!arg.region.empty()) {
-        throw std::invalid_argument("--region not supported when processing ad/tad file.");
-    }
-
-    // Open input files
-    if(arg.input.size() != 1) {
-        throw std::runtime_error("Can only process one ad/tad file at a time.");
-    }
-    using AdPileup = dng::io::AdPileup;
-    AdPileup mpileup{arg.input[0], std::ios_base::in};
-
-    // Construct peeling algorithm from parameters and pedigree information
-    RelationshipGraph relationship_graph;
-    if (!relationship_graph.Construct(ped, mpileup.libraries(), inheritance_model(arg.model),
-                                      arg.mu, arg.mu_somatic, arg.mu_library,
-                                      arg.normalize_somatic_trees)) {
-        throw std::runtime_error("Unable to construct peeler for pedigree; "
-                                 "possible non-zero-loop relationship_graph.");
-    }
-
-    // Select libraries in the input that are used in the pedigree
-    mpileup.SelectLibraries(relationship_graph.library_names());
-
-    // Begin writing VCF header
-    auto out_file = vcf_get_output_mode(arg);
-    hts::bcf::File vcfout(out_file.first.c_str(), out_file.second.c_str());
-    vcf_add_header_text(vcfout, arg);
-
-    for(auto && contig : mpileup.contigs()){
-        vcfout.AddContig(contig.name.c_str(), contig.length); // Add contigs to header
-    }
-    for(auto && line : relationship_graph.BCFHeaderLines()) {
-        vcfout.AddHeaderMetadata(line.c_str());  // Add pedigree info
-    }
-    for(auto && str : relationship_graph.labels()) {
-        vcfout.AddSample(str.c_str()); // Add genotype columns
-    }
-    vcfout.WriteHeader();
+    // Open Output
+    auto vcfout = open_vcf_output(arg, mpileup, relationship_graph);
 
     // Record for each output
     auto record = vcfout.InitVariant();
 
     // Construct Calling Object
     const double min_prob = arg.min_prob;
-    CallMutations do_call(min_prob, relationship_graph, {arg.theta, freqs,
-            arg.ref_weight, {arg.lib_overdisp, arg.lib_error, arg.lib_bias} });
+    CallMutations do_call(arg.min_prob, relationship_graph, get_model_parameters(arg));
 
     // Calculated stats
     CallMutations::stats_t stats;
@@ -490,230 +487,79 @@ int process_ad(task::Call::argument_type &arg) {
     const size_t num_nodes = relationship_graph.num_nodes();
     const size_t library_start = relationship_graph.library_nodes().first;
 
-    mpileup([&](const AdPileup::data_type & data) {
-        if(!do_call(data, &stats)) {
-            return;
-        }
-        const bool has_single_mut = ((stats.mu1p / stats.mup) >= min_prob);
-
-        // Measure total depth and sort nucleotides in descending order
-        pileup::stats_t depth_stats;
-        pileup::calculate_stats(data, &depth_stats);
-
-        add_stats_to_output(stats, depth_stats, has_single_mut, relationship_graph, do_call.work(), &record);
-
-        const int color = depth_stats.color;
-        const auto & type_info_gt = dng::pileup::AlleleDepths::type_info_gt_table[color];
-        const auto & type_info = dng::pileup::AlleleDepths::type_info_table[color];
-        const int refalt_count = type_info.width + (type_info.reference == 4);
-
-        // Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
-        std::vector<int32_t> ad_counts(num_nodes*refalt_count, hts::bcf::int32_missing);
-        std::vector<int32_t> ad_info(type_info.width, 0);
-        size_t pos = library_start * refalt_count;
-
-        for(size_t u = 0; u < data.num_libraries(); ++u) {
-            if(type_info.reference == 4) {
-                ad_counts[pos++] = 0;
-            }
-            for(size_t k = 0; k < data.num_nucleotides(); ++k) {
-                int count = data(u,k);
-                ad_counts[pos++] = count;
-                ad_info[k+(type_info.reference == 4)] += count;
-            }
-        }
-
-        record.samples("AD", ad_counts);
-
-        record.info("AD", ad_info);
-
-        // Calculate target position and fetch sequence name
-        int contig = utility::location_to_contig(data.location());
-        int position = utility::location_to_position(data.location());
-
-        record.target(mpileup.contigs()[contig].name.c_str());
-        record.position(position);
-        vcfout.WriteRecord(record);
-        record.Clear();
-
-    });
-
-    return EXIT_SUCCESS;
-}
-
-// Process vcf, bcf input data
-int process_bcf(task::Call::argument_type &arg) {
-	// Parse the pedigree file
-    Pedigree ped = io::parse_ped(arg.ped);
-
-    // Parse Nucleotide Frequencies
-    auto freqs = utility::parse_nuc_freqs(arg.nuc_freqs);
-
-    // Read input data
-    if(arg.input.size() > 1) {
-    	throw std::runtime_error("dng call can only handle one variant file at a time.");
-    }
-
-    using dng::io::BcfPileup;
-    BcfPileup mpileup;
-
-    // replace arg.region with the contents of a file if needed
-    auto region_ext = io::at_slurp(arg.region);
-    if(!arg.region.empty()) {
-        if(region_ext == "bed") {
-            if(auto f = regions::parse_contig_fragments_from_bed(arg.region)) {
-                mpileup.SetRegions(*f, false);
-            } else {
-                throw std::invalid_argument("Parsing of bed failed.");
-            }
-        } else {
-            if(auto f = regions::parse_contig_fragments_from_regions(arg.region)) {
-                mpileup.SetRegions(*f, true);
-            } else {
-                throw std::invalid_argument("Parsing of regions failed.");
-            }
-        }
-    }
-
-    if(mpileup.AddFile(arg.input[0].c_str()) == 0) {
-        int errnum = mpileup.reader().handle()->errnum;
-        throw std::runtime_error(bcf_sr_strerror(errnum));
-    }
-
-    // Construct peeling algorithm from parameters and pedigree information
-    InheritanceModel model = inheritance_model(arg.model);
-
-    dng::RelationshipGraph relationship_graph;
-    if (!relationship_graph.Construct(ped, mpileup.libraries(), model,
-                                      arg.mu, arg.mu_somatic, arg.mu_library,
-                                      arg.normalize_somatic_trees)) {
-        throw std::runtime_error("Unable to construct peeler for pedigree; "
-                                 "possible non-zero-loop relationship_graph.");
-    }
-    mpileup.SelectLibraries(relationship_graph.library_names());
-
-    // Begin writing VCF header
-    auto out_file = vcf_get_output_mode(arg);
-    hts::bcf::File vcfout(out_file.first.c_str(), out_file.second.c_str());
-    vcf_add_header_text(vcfout, arg);
-
-    // Read header from first file
-    const bcf_hdr_t *header = mpileup.reader().header(0); // TODO: fixthis
-    const int num_libs = mpileup.num_libraries();
-
-    for(auto && contig : mpileup.contigs()) {
-        vcfout.AddContig(contig.name.c_str(), contig.length); // Add contigs to header
-    }
-    for(auto && line : relationship_graph.BCFHeaderLines()) {
-        vcfout.AddHeaderMetadata(line.c_str());  // Add pedigree info
-    }
-
-    // Finish Header
-    for(auto && str : relationship_graph.labels()) {
-        vcfout.AddSample(str.c_str()); // Add genotype columns
-    }
-    vcfout.WriteHeader();
-
-    // Record for each output
-    auto record = vcfout.InitVariant();
-
-    double min_prob = arg.min_prob;
-    CallMutations do_call(min_prob, relationship_graph, {arg.theta, freqs,
-            arg.ref_weight, {arg.lib_overdisp, arg.lib_error, arg.lib_bias} });
-
-    // Calculated stats
-    CallMutations::stats_t stats;
-
-    // Parameters used by site calculation function
-    const size_t num_nodes = relationship_graph.num_nodes();
-    const size_t library_start = relationship_graph.library_nodes().first;
-
-    using pileup::AlleleDepths;
-
-    AlleleDepths data;
-
-    // allocate space for ad. bcf_get_format_int32 uses realloc internally
-    int n_ad_capacity = num_libs*5;
-    auto ad = hts::bcf::make_buffer<int>(n_ad_capacity);
-
-    // run calculation based on the depths at each site.
-    mpileup([&](const BcfPileup::data_type & rec) {
-        data.location(rec->rid, rec->pos);
-
-        // Identify site
-        std::string allele_str;
-        std::vector<char> allele_indexes;
-        std::vector<int>  allele_list;
-        const int num_alleles = rec->n_allele;
-        int first_is_n = 0;
-        for(int a = 0; a < num_alleles; ++a) {
-            int n = AlleleDepths::MatchAlleles(rec->d.allele[a]);
-            if(0 <= n && n <= 3) {
-                allele_indexes.push_back(n);
-                allele_list.push_back(a);
-            } else if(a == 0 && n == 4) {
-                first_is_n = 64;
-            }
-        }
-        const int color = AlleleDepths::MatchIndexes(allele_indexes);
-        assert(color != -1);
-        data.Resize(color+first_is_n, rec->n_sample);
-
-        // Read all the Allele Depths for every sample into an AD array
-        const int n_ad = hts::bcf::get_format_int32(header, rec, "AD", &ad, &n_ad_capacity);
-        if(n_ad <= 0) {
-            // AD tag is missing, so we do nothing at this time
-            // TODO: support using calculated genotype likelihoods
-            return;
-        }
-
-        assert(n_ad % num_libs == 0);
-
-        const int n_sz = n_ad / num_libs;
-
-        for(int i=0;i<num_libs;++i) {
-            int offset = i*n_sz;
-            for(int a=0; a<allele_indexes.size();++a) {
-                if(allele_list[a] >= n_sz || ad[offset+allele_list[a]] < 0) {
-                    data(i,a) = 0;
-                } else {
-                    data(i,a) = ad[offset+allele_list[a]];
+    pileup::allele_depths_t read_depths;
+    // Place the processing logic in the lambda function.
+    auto wrapped_do_call = [&,read_depths](const decltype(mpileup)::data_type &line,
+        CallMutations::stats_t *stats) mutable -> bool 
+    {
+        bool ref_is_N = (line.color() >= 64);
+        if(ref_is_N) {
+            size_t n_sz = line.num_nucleotides() + 1;
+            read_depths.resize(make_array(line.num_libraries(), n_sz));
+            for(size_t i=0;i<line.num_libraries();++i) {
+                read_depths[i][0] = 0;
+                for(size_t a=1;a<n_sz;++a) {
+                    read_depths[i][a] = line(i,a-1);
                 }
             }
+            return do_call(read_depths, n_sz-1, false, stats);
+        } else {
+            size_t n_sz = line.num_nucleotides();
+            dng::pileup::allele_depths_const_ref_t read_depths_ref(line.data().data(),
+                make_array(line.num_libraries(), line.num_nucleotides()));
+            return do_call(read_depths_ref, n_sz-1, true, stats);   
         }
+    };
 
-        if(!do_call(data, &stats)) {
+    mpileup([&](const decltype(mpileup)::data_type & data) {
+        if(!wrapped_do_call(data, &stats)) {
             return;
         }
         const bool has_single_mut = ((stats.mu1p / stats.mup) >= min_prob);
+
+        const auto & type_gt_info = data.type_gt_info();
+        const auto & type_info = data.type_info();
+        bool ref_is_N = (data.color() >= 64);
+        const size_t n_sz = type_info.width + ref_is_N;
+        const size_t n_alleles = n_sz;
+
+        // Set alleles
+        record.alleles(type_info.label_htslib);
+
+        // Copy depths into read_depths
+        read_depths.resize(make_array(data.num_libraries(), n_sz));
+        for(size_t i=0;i<data.num_libraries();++i) {
+            if(ref_is_N) {
+                read_depths[i][0] = 0;
+            }
+            for(size_t a=ref_is_N;a<n_sz;++a) {
+                read_depths[i][a] = data(i,a-ref_is_N);
+            }
+        }
         // Measure total depth and sort nucleotides in descending order
         pileup::stats_t depth_stats;
-        pileup::calculate_stats(data, &depth_stats);
+        pileup::calculate_stats(read_depths, &depth_stats);
 
         add_stats_to_output(stats, depth_stats, has_single_mut, relationship_graph, do_call.work(), &record);
 
-        const auto & type_info_gt = dng::pileup::AlleleDepths::type_info_gt_table[color];
-        const auto & type_info = dng::pileup::AlleleDepths::type_info_table[color];
-        const int refalt_count = type_info.width + (type_info.reference == 4);
-
         // Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
-        std::vector<int32_t> ad_counts(num_nodes*refalt_count, hts::bcf::int32_missing);
-        std::vector<int32_t> ad_info(type_info.width, 0);
-        size_t pos = library_start * refalt_count;
+        std::vector<int32_t> ad_info(n_sz, 0);
+        boost::multi_array<int32_t,2> ad_counts(utility::make_array(num_nodes, n_sz));
+        std::fill_n(ad_counts.data(), ad_counts.num_elements(), hts::bcf::int32_missing);
 
-        for(size_t u = 0; u < data.num_libraries(); ++u) {
-            if(type_info.reference == 4) {
-                ad_counts[pos++] = 0;
+        for(size_t u = 0; u < read_depths.size(); ++u) {
+            size_t k = 0;
+            for(; k < read_depths[u].size(); ++k) {
+                int count = read_depths[u][k];
+                ad_counts[library_start+u][k] = count;
+                ad_info[k] += count;
             }
-            for(size_t k = 0; k < data.num_nucleotides(); ++k) {
-                int count = data(u,k);
-                ad_counts[pos++] = count;
-                ad_info[k+(type_info.reference == 4)] += count;
+            for(; k < n_alleles; ++k) {
+                ad_counts[library_start+u][k] = 0;
             }
         }
 
-        record.samples("AD", ad_counts);
-
+        record.samples("AD", ad_counts.data(), ad_counts.num_elements());
         record.info("AD", ad_info);
 
         // Calculate target position and fetch sequence name
@@ -724,24 +570,26 @@ int process_bcf(task::Call::argument_type &arg) {
         record.position(position);
         vcfout.WriteRecord(record);
         record.Clear();
-    });
 
+    });
     return EXIT_SUCCESS;
 }
 
-std::string genotype_string(int gt, int ploidy, int color);
+void append_genotype(const hts::bcf::Variant& rec, int gt, int ploidy, std::string* str) {
+    assert(str != nullptr);
+    assert(ploidy == 1 || ploidy == 2);
+    assert(0 <= gt);
 
-inline
-int reencode_genotype(int gt, int ploidy, int from_color, int to_color) {
-    assert(0 <= from_color && from_color < pileup::AlleleDepths::type_info_table_length);
-    assert(0 <= to_color && to_color < pileup::AlleleDepths::type_info_table_length);
-    const auto & type_info_gt_table = dng::pileup::AlleleDepths::type_info_gt_table;
-    const auto & type_info_table = dng::pileup::AlleleDepths::type_info_table;
-    return (from_color == to_color) ? gt :
-           (ploidy == 2) ? utility::find_position(type_info_gt_table[to_color].indexes,
-                               type_info_gt_table[from_color].indexes[gt])
-                         : utility::find_position(type_info_table[to_color].indexes,
-                               type_info_table[from_color].indexes[gt]);
+    using namespace hts::bcf;
+
+    if(ploidy == 1) {
+        str->append(rec.allele(gt));
+    } else {
+        auto ab = alleles_from_genotype(gt);
+        str->append(rec.allele(ab.first));
+        str->append("/");
+        str->append(rec.allele(ab.second));
+    }
 }
 
 void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup::stats_t& depth_stats,
@@ -750,16 +598,11 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
     const peel::workspace_t &work,
     hts::bcf::Variant *record)
 {
+    using namespace hts::bcf;
+
     assert(record != nullptr);
-    const int old_color = call_stats.color;
-    const int new_color = depth_stats.color;
     const size_t num_nodes = work.num_nodes;
     const size_t num_libraries = work.library_nodes.second-work.library_nodes.first;
-
-    const auto & type_info_gt_table = dng::pileup::AlleleDepths::type_info_gt_table;
-    const auto & type_info_table = dng::pileup::AlleleDepths::type_info_table;
-
-    record->alleles(type_info_table[new_color].label_htslib);
 
     record->info("MUP", static_cast<float>(call_stats.mup));
     record->info("LLD", static_cast<float>(call_stats.lld));
@@ -771,42 +614,34 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
     if(has_single_mut) {
         std::string dnt;
         size_t pos = call_stats.dnl;
-        size_t child = reencode_genotype(call_stats.dnt_col, work.ploidies[pos], old_color, new_color);
-        size_t new_width = (work.ploidies[pos] == 2) ? type_info_gt_table[new_color].width 
-                                                     : type_info_table[new_color].width;
-        // Only output records if child's mutant genotype is compatible with the site
-        if(child < new_width) {
-            if(graph.transitions()[pos].type == dng::RelationshipGraph::TransitionType::Trio) {
-                assert(work.ploidies[pos] == 2);
-                size_t dad = graph.transition(pos).parent1;
-                size_t dad_ploidy = work.ploidies[dad];
-                size_t mom = graph.transition(pos).parent2;
-                size_t mom_ploidy = work.ploidies[mom];
+        int sz = record->num_alleles();
 
-                size_t width = (mom_ploidy == 2) ? type_info_gt_table[old_color].width : type_info_table[old_color].width;
-                dad = call_stats.dnt_row / width;
-                mom = call_stats.dnt_row % width;
-                dad = reencode_genotype(dad, dad_ploidy, old_color, new_color);
-                mom = reencode_genotype(mom, mom_ploidy, old_color, new_color);
+        if(graph.transitions()[pos].type == dng::RelationshipGraph::TransitionType::Trio) {
+            assert(work.ploidies[pos] == 2);
+            size_t dad = graph.transition(pos).parent1;
+            size_t dad_ploidy = work.ploidies[dad];
+            size_t mom = graph.transition(pos).parent2;
+            size_t mom_ploidy = work.ploidies[mom];
 
-                dnt = genotype_string(dad, dad_ploidy, new_color);
-                dnt += 'x';
-                dnt += genotype_string(mom, mom_ploidy, new_color);
-                dnt += '>';
-                dnt += genotype_string(child, work.ploidies[pos], new_color);
-            } else {
-                size_t par_pos = graph.transition(pos).parent1;
-                size_t par   = reencode_genotype(call_stats.dnt_row, work.ploidies[par_pos], old_color, new_color);
+            size_t width = (mom_ploidy == 2) ? sz*(sz+1)/2 : sz;
+            size_t dad_gt = call_stats.dnt_row / width;
+            size_t mom_gt = call_stats.dnt_row % width;
 
-                dnt = genotype_string(par, work.ploidies[par_pos], new_color);
-                dnt += '>';
-                dnt += genotype_string(child, work.ploidies[pos], new_color);
-            }
-            record->info("DNT", dnt);
-
-            record->info("DNL", graph.label(pos));
-            record->info("DNQ", call_stats.dnq);
+            append_genotype(*record, dad_gt, dad_ploidy, &dnt);
+            dnt += "x";
+            append_genotype(*record, mom_gt, mom_ploidy, &dnt);
+            dnt += "->";
+            append_genotype(*record, call_stats.dnt_col, work.ploidies[pos], &dnt);
+        } else {
+            size_t par = graph.transition(pos).parent1;
+            append_genotype(*record, call_stats.dnt_row, work.ploidies[par], &dnt);
+            dnt += "->";
+            append_genotype(*record, call_stats.dnt_col, work.ploidies[pos], &dnt);
         }
+        record->info("DNT", dnt);
+
+        record->info("DNL", graph.label(pos));
+        record->info("DNQ", call_stats.dnq);
     }
 
     record->info("DP", depth_stats.dp);
@@ -818,106 +653,74 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
 
     assert(call_stats.best_genotypes.size() == num_nodes);
     for(size_t i=0;i<num_nodes;++i) {
+        assert(work.ploidies[i] == 1 || work.ploidies[i] == 2);
         auto best = call_stats.best_genotypes[i];
         if(work.ploidies[i] == 2) {
-            size_t pos = reencode_genotype(best, 2, old_color, new_color);
-            assert(pos < type_info_gt_table[new_color].width);
-            int32_vector[2*i] = dng::pileup::AlleleDepths::encoded_alleles_diploid_unphased[pos][0];
-            int32_vector[2*i+1] = dng::pileup::AlleleDepths::encoded_alleles_diploid_unphased[pos][1];
-        } else if(work.ploidies[i] == 1) {
-            size_t pos = reencode_genotype(best, 1, old_color, new_color);
-            assert(pos < type_info_table[new_color].width);
-            int32_vector[2*i] = dng::pileup::AlleleDepths::encoded_alleles_haploid[pos][0];
-            int32_vector[2*i+1] = dng::pileup::AlleleDepths::encoded_alleles_haploid[pos][1];
+            auto ab = alleles_from_genotype(best);
+            int32_vector[2*i] = encode_allele_unphased(ab.first);
+            int32_vector[2*i+1] = encode_allele_unphased(ab.second);
         } else {
-            assert(0); // should not be reached, only ploidies of 1 and 2 are supported
+            int32_vector[2*i] = encode_allele_unphased(best);
+            int32_vector[2*i+1] = int32_vector_end;
         }
     }
     record->sample_genotypes(int32_vector);
     record->samples("GQ", call_stats.genotype_qualities);
 
-    const size_t gt_width = type_info_gt_table[new_color].width;
+    const size_t num_alleles = record->num_alleles();
+    const size_t gt_width = num_alleles*(num_alleles+1)/2;
     const size_t gt_count = gt_width*num_nodes;
-    float_vector.assign(gt_count, hts::bcf::float_missing);
+    float_vector.assign(gt_count, float_missing);
+
     for(size_t i=0,k=0;i<num_nodes;++i) {
         if(work.ploidies[i] == 2) {
             for(size_t j=0;j<gt_width;++j) {
-                size_t pos = reencode_genotype(j, 2, new_color, old_color);
-                assert(pos < type_info_gt_table[old_color].width);
-                float_vector[k++] = call_stats.posterior_probabilities[i][pos];
+                float_vector[k++] = call_stats.posterior_probabilities[i][j];
             }
         } else if(work.ploidies[i] == 1) {
             size_t j;
-            for(j=0;j<type_info_table[new_color].width;++j) {
-                size_t pos = reencode_genotype(j, 1, new_color, old_color);
-                assert(pos < type_info_table[old_color].width);
-                float_vector[k++] = call_stats.posterior_probabilities[i][pos];
+            for(j=0;j<num_alleles;++j) {
+                float_vector[k++] = call_stats.posterior_probabilities[i][j];
             }
             for(;j<gt_width;++j) {
-                float_vector[k++] = hts::bcf::float_vector_end;
+                float_vector[k++] = float_vector_end;
             }
         }
     }
     record->samples("GP", float_vector);
 
-    float_vector.assign(call_stats.node_mup.begin(), call_stats.node_mup.end());
-    record->samples("MUP", float_vector);
+    if(call_stats.mup > 0) {
+        float_vector.assign(call_stats.node_mup.begin(), call_stats.node_mup.end());
+        record->samples("MUP", float_vector);
+    }
 
     if(has_single_mut) {
         float_vector.assign(call_stats.node_mu1p.begin(), call_stats.node_mu1p.end());
         record->samples("MU1P", float_vector);
     }
 
-    float_vector.assign(gt_count, hts::bcf::float_missing);
+    float_vector.assign(gt_count, float_missing);
     for(size_t i=0,k=work.library_nodes.first*gt_width;i<num_libraries;++i) {
-        if(work.ploidies[i] == 2) {
+        if(work.ploidies[work.library_nodes.first+i] == 2) {
             for(size_t j=0;j<gt_width;++j) {
-                size_t pos = reencode_genotype(j, 2, new_color, old_color);
-                assert(pos < type_info_gt_table[old_color].width);
-                float_vector[k++] = call_stats.genotype_likelihoods[i][pos];
+                float_vector[k++] = call_stats.genotype_likelihoods[i][j];
             }
-        } else if(work.ploidies[i] == 1) {
+        } else {
+            assert(work.ploidies[work.library_nodes.first+i] == 1);
             size_t j;
-            for(j=0;j<type_info_table[new_color].width;++j) {
-                size_t pos = reencode_genotype(j, 1, new_color, old_color);
-                assert(pos < type_info_table[old_color].width);
-                float_vector[k++] = call_stats.genotype_likelihoods[i][pos];
+            for(j=0;j<num_alleles;++j) {
+                float_vector[k++] = call_stats.genotype_likelihoods[i][j];
             }
             for(;j<gt_width;++j) {
-                float_vector[k++] = hts::bcf::float_vector_end;
+                float_vector[k++] = float_vector_end;
             }
-
         }        
     }    
     record->samples("GL", float_vector);
 
-    int32_vector.assign(num_nodes, hts::bcf::int32_missing);
+    int32_vector.assign(num_nodes, int32_missing);
     for(size_t i=0,k=work.library_nodes.first;i<num_libraries;++i) {
         int32_vector[k++] = depth_stats.node_dp[i];
     }    
     record->samples("DP", int32_vector);
-}
-
-std::string genotype_string(int gt, int ploidy, int color) {
-    using AlleleDepths = dng::pileup::AlleleDepths;
-    assert(0 <= color && color < AlleleDepths::type_info_table_length);
-    auto & type_info = AlleleDepths::type_info_table[color];
-    auto & type_info_gt = AlleleDepths::type_info_gt_table[color];
-
-    std::string out;
-    if(ploidy == 2) {
-        int a = AlleleDepths::alleles_diploid[gt][0] + (type_info.reference == 4);
-        int b = AlleleDepths::alleles_diploid[gt][1] + (type_info.reference == 4);
-        assert(0 <= a && a < strlen(type_info.label_upper));
-        assert(0 <= b && b < strlen(type_info.label_upper));
-        out += type_info.label_upper[a];
-        out += type_info.label_upper[b];
-    } else if(ploidy == 1) {
-        int a = gt + (type_info.reference == 4);
-        assert(0 <= a && a < strlen(type_info.label_upper));        
-        out += type_info.label_upper[a];
-    } else {
-        assert(0); // should not reach here
-    }
-    return out;
 }

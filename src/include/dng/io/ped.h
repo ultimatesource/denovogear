@@ -47,7 +47,7 @@ Pedigree Ped::Parse() {
 }
 
 inline
-Pedigree parse_ped(std::string &path) {
+Pedigree parse_ped(const std::string &path) {
     if(path.empty()) {
         throw std::invalid_argument("Path to ped file is empty.");
     }

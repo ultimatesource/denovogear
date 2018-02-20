@@ -178,6 +178,8 @@ bool dng::RelationshipGraph::Construct(const Pedigree& pedigree,
 void dng::RelationshipGraph::ConstructPeelingMachine() {
     using namespace dng::peel;
     peeling_functions_.clear();
+    peeling_functions_ops_.clear();
+    peeling_reverse_functions_.clear();
     peeling_functions_.reserve(peeling_ops_.size());
     peeling_functions_ops_.reserve(peeling_ops_.size());
     peeling_reverse_functions_.reserve(peeling_ops_.size());
@@ -423,8 +425,6 @@ void prune_pedigree_maternal(Graph &pedigree_graph);
 void prune_pedigree_paternal(Graph &pedigree_graph);
 
 void prune_pedigree(Graph &pedigree_graph, InheritanceModel model) {
-    //boost::write_graphviz(std::cerr, pedigree_graph);
-
     switch(model) {
     case InheritanceModel::Autosomal:
         return prune_pedigree_autosomal(pedigree_graph);
@@ -443,7 +443,6 @@ void prune_pedigree(Graph &pedigree_graph, InheritanceModel model) {
     default:
         throw std::invalid_argument("Selected inheritance model invalid or not implemented yet.");
     }
-    //boost::write_graphviz(std::cerr, pedigree_graph);
 }
 
 void prune_pedigree_autosomal(Graph &pedigree_graph) {
@@ -590,7 +589,6 @@ void prune_pedigree_paternal(Graph &pedigree_graph) {
         ploidies[v] = 1;
     }
 }
-
 
 vertex_t parse_pedigree_table(Graph &pedigree_graph,
         const dng::Pedigree &pedigree, bool normalize_somatic_trees) {
