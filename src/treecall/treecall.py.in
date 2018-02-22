@@ -195,7 +195,7 @@ def annotate_main(args):
         tree: tree file (newick) 
         vcf: vcf file
     """
-    print(args, file=sys.stderr)
+    #print(args, file=sys.stderr)
 
     vcf_reader = vcf.Reader(filename=args.vcf)  #just need sample names here and the order found in the vcf file, which corresponds to numbers in the gtcall file
     samplenames = vcf_reader.samples
@@ -359,7 +359,7 @@ if __name__ == '__main__':
 
     #nbjoin uses neighbor_main, read_vcf, make_base_prior (normalize_PL), make_mut_matrix (phred2p, gtype_distance), make_D (pairwise_diff, normalize2d_PL, phred2p), init_star_tree, neighbor_joining
     #init_tree, populate_tree_PL, calc_mut_likelihoods (p2phred), recursive_NNI (nearest_neighbor_interchange, update_PL, score), recursive_reroot (reroot, update_PL)
-    parser_nbjoin = subp.add_parser('nbjoin', help='neighbor-joining')
+    parser_nbjoin = subp.add_parser('search', help='search tree space for maximum likelihood lineage trees')
     parser_nbjoin.add_argument('vcf', metavar='<vcf>', type=str, help='input vcf/vcf.gz file, "-" for stdin')
     parser_nbjoin.add_argument('output', metavar='output', type=str, help='output basename')
     parser_nbjoin.add_argument('-m', metavar='INT', dest='mu', type=int, default=80, help='mutation rate in Phred scale, default 80')
@@ -368,7 +368,7 @@ if __name__ == '__main__':
     parser_nbjoin.set_defaults(func=neighbor_main)
 
     #gtype uses genotype_main
-    parser_gtype = subp.add_parser('gtype', help='genotype samples with help of a lineage tree')
+    parser_gtype = subp.add_parser('genotype', help='genotype samples with help of a lineage tree')
     parser_gtype.add_argument('vcf', metavar='<vcf>', type=str, help='input vcf/vcf.gz file, "-" for stdin')
     parser_gtype.add_argument('output', metavar='<output>', type=str, help='output basename')
     parser_gtype.add_argument('-t', metavar='FILE', dest='tree', type=str, required=True, help='lineage tree')
@@ -378,7 +378,7 @@ if __name__ == '__main__':
     parser_gtype.set_defaults(func=genotype_main)
 
     #annot uses annotate_main
-    parser_annot = subp.add_parser('annot', help='annotate lineage tree with genotype calls')
+    parser_annot = subp.add_parser('annotate', help='annotate lineage tree with genotype calls')
     parser_annot.add_argument('vcf', metavar='<vcf>', type=str, help='input vcf/vcf.gz file, "-" for stdin')
     parser_annot.add_argument('gtcall', metavar='<gtcall>', type=str, help='input gtype calls, "-" for stdin')
     parser_annot.add_argument('output', metavar='<outnwk>', type=str, help='output tree in Newick format')

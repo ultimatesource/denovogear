@@ -42,7 +42,7 @@ def neighbor_main(args):
     
     """
    
-    print(args, file=sys.stderr)
+    #print(args, file=sys.stderr)
     vcffile, variants, DPRs, PLs = read_vcf(args.vcf, args.min_ev)
     #variants =  np.array (tuple): variant info (chrom, pos, ref)  for each variant
     #DPRs = np.array (int): Number of high-quality bases observed for each of the 2 most common alleles for each variant
@@ -61,7 +61,7 @@ def neighbor_main(args):
     fo = open(args.output+'.scores.txt','w')
     
     for i in range(n_smpl+2):  #10 different starting trees
-        print('Tree '+str(i+1)+' of '+str(n_smpl+2))
+        print('Tree search '+str(i+1)+' of '+str(n_smpl+2)+' ...')
         tree = init_star_tree(n_smpl)
         internals = np.arange(n_smpl)
         
@@ -96,25 +96,25 @@ def neighbor_main(args):
             #print(best_tree)
             best_tree,best_PL,rerooted = recursive_reroot(best_tree.copy(), PLs,mm0, mm1, base_prior,DELTA)  #why are brlens negative?
             #print(best_tree)
-            print('PL_per_site = %.4f' % (best_PL/n_site))
+            #print('PL_per_site = %.4f' % (best_PL/n_site))
             #best_tree.write(outfile=args.output+'.'+str(i)+'.tre', format=5)  #write best tree
             #replace sample numbers with actual names
             for node in best_tree.traverse("postorder"):
                 if node.is_leaf():
                     node.name=vcffile.samples[int(node.name)]
                 
-            best_tree.write(outfile=args.output+'.'+str(i)+'.tre', format=9)  #write best tree - no brlens
-            fo.write(str(i) + ' ' + str(best_PL) + "\n")
+            best_tree.write(outfile=args.output+'.'+str(i+1)+'.tree', format=9)  #write best tree - no brlens
+            fo.write(str(i+1) + '\t' + str(best_PL) + "\n")
             allscores.append(best_PL)
         i+=1
     
-    print(allscores)
+    #print(allscores)
     
     fo.close
     
     #get number of best tree - index of highest score
     besttreenum = allscores.index(min(allscores))
-    copyfile(args.output+'.'+str(besttreenum)+'.tre', args.output+'.best.tre') #write best tree to file with best name
+    copyfile(args.output+'.'+str(besttreenum+1)+'.tree', args.output+'.best.tree') #write best tree to file with best name
     
     
 def init_star_tree(n):
@@ -184,7 +184,7 @@ def neighbor_joining(D, tree, internals):
         D (np.array): update pairwise differences now there are internal nodes to compare
     
     """
-    print('neighbor_joining() begin', end=' ', file=sys.stderr)
+    #print('neighbor_joining() begin', end=' ', file=sys.stderr)
     m = len(internals)
     while m > 2:  #if m is 2 then only two connected to root
         d = D[internals[:,None],internals]  #initially D matrix w/o 0 distance btwn internal nodes; then add in nodes as they have distances
@@ -218,9 +218,9 @@ def neighbor_joining(D, tree, internals):
         internals = np.delete(internals, [i,j])
         internals = np.append(internals, l)
         m = len(internals)
-        print('.', end='', file=sys.stderr)
+        #print('.', end='', file=sys.stderr)
 
-    print(' done', file=sys.stderr)
+    #print(' done', file=sys.stderr)
     return D,tree
 
 def update_PL(node, mm0, mm1):
@@ -287,10 +287,10 @@ def partition(PLs, tree, sidx, min_ev):
             
     """
     
-    if tree.is_root():
-        print('partition() begin', end=' ', file=sys.stderr)
+    #if tree.is_root():
+        #print('partition() begin', end=' ', file=sys.stderr)
     m = len(sidx) # number of samples under current node
-    print(m, end='.', file=sys.stderr)
+    #print(m, end='.', file=sys.stderr)
     if m == 2:
         child1 = tree.add_child(name=str(sidx[0]))
         child1.add_features(samples=np.atleast_1d(sidx[0]))
@@ -314,8 +314,8 @@ def partition(PLs, tree, sidx, min_ev):
     else:
         print('m<=1: shouldn\'t reach here', file=sys.stderr)
         sys.exit(1)
-    if tree.is_root():
-        print(' done', file=sys.stderr)
+    #if tree.is_root():
+        #print(' done', file=sys.stderr)
 
 
 def calc_minimum_pt_cost(PLs, smat, min_ev):
@@ -436,7 +436,7 @@ def recursive_reroot(tree, PLs,mm0, mm1, base_prior,DELTA):
     starting at tips, work up tree, get best way of rooting subtree 
     """
 
-    print('recursive_reroot() begin', file=sys.stderr)
+    #print('recursive_reroot() begin', file=sys.stderr)
     PL = score(tree, base_prior)
     for node in tree.iter_descendants('postorder'):  #go through all nodes including tips but not root
         rerooted = 0
@@ -478,9 +478,9 @@ def recursive_reroot(tree, PLs,mm0, mm1, base_prior,DELTA):
         #print(tree)
         #print(PL)
         
-    print(' done', end='', file=sys.stderr)
-    print(tree)
-    print(PL)
+    #print(' done', end='', file=sys.stderr)
+    #print(tree)
+    #print(PL)
     return tree,PL,rerooted
 
 
@@ -591,7 +591,7 @@ def recursive_NNI(tree, PLs, mm0, mm1, base_prior,DELTA):
     tree resulting from each round of nni (working from tips to root) printed to trees_tried.txt
     
     """
-    print('recursive_NNI() begin', end=' ', file=sys.stderr)
+    #print('recursive_NNI() begin', end=' ', file=sys.stderr)
     PL = score(tree, base_prior)
     #goes until can get through tree w/o nni at any node
     #a la phylip
@@ -600,14 +600,14 @@ def recursive_NNI(tree, PLs, mm0, mm1, base_prior,DELTA):
     #print(PL)
     while(num_nnis>0):
         num_nnis=0
-        print('Start nni round')
+        #print('Start nni round')
 #        for node in tree.traverse('postorder'):
 #            print(node)
         for node in tree.traverse('postorder'):
             #goes through each node, does nni if better
             if node.is_leaf():
                 continue
-            print('.', end='', file=sys.stderr)
+            #print('.', end='', file=sys.stderr)
             #print(node)
             possible_rearrangements = nearest_neighbor_interchange(node.copy(),PLs, mm0, mm1, base_prior,DELTA)
 #            print('Original original tree:')
@@ -689,7 +689,7 @@ def recursive_NNI(tree, PLs, mm0, mm1, base_prior,DELTA):
         #print(str(num_nnis)+' nnis', end='', file=sys.stderr)
         #print(PL)
         
-    print(' done', file=sys.stderr)
-    print(tree)
-    print(PL)
+    #print(' done', file=sys.stderr)
+    #print(tree)
+    #print(PL)
     return tree,PL_new

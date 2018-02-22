@@ -34,7 +34,7 @@ def read_vcf_records(filename, maxn=1000):
         vcffile.samples = list of sample names
 
     """    
-    print('read sites', end = ' ', file=sys.stderr)
+    #print('read sites', end = ' ', file=sys.stderr)
     
     vcffile = vcf.Reader(open(filename, 'r'))
     variants,ADs,PLs = [],[],[]
@@ -85,7 +85,7 @@ def read_vcf_records(filename, maxn=1000):
     assert num_geno == 10
  #   DPRs = np.array(ADs)
 
-    print(' done', file=sys.stderr)
+    # print(' done', file=sys.stderr)
     return variants, ADs, PLs, vcffile.samples
 
 def genotype_main(args):
@@ -102,7 +102,7 @@ def genotype_main(args):
     """
     
     GTYPE10 = np.array(('AA','AC','AG','AT','CC','CG','CT','GG','GT','TT'))
-    print(args, file=sys.stderr)
+    # print(args, file=sys.stderr)
     
     variants, DPRs, PLs, samplenames = read_vcf_records(args.vcf)
 
@@ -122,17 +122,17 @@ def genotype_main(args):
     records,records2,score = genotype(PLs, tree, variants, mm, mm0, mm1, base_prior,samplenames)
     #records are: chrom,pos,ref,null_P,mut_P,MLE_null_base_gtype,MLE_null_base_gtype_P,MLE_mut_base_gtype,MLE_mut_base_gtype_P,MLE_mut_location,MLE_mut_samples
     
-    fout = open(args.output, 'w')
-    fout.write('\t'.join(['chrom','pos','ref','null_P','mut_P','MLE_null_base_gtype','MLE_null_base_gtype_P','MLE_mut_base_gtype','MLE_mut_base_gtype_P','MLE_mut_location','MLE_mut_samples']))
-    fout.write("\n")
-    #fout = open(args.output, 'a')
-    np.savetxt(fout, records, fmt=['%s','%d','%s','%.2e','%.2e','%s','%.2e','%s','%s','%.2e','%d','%s'], delimiter='\t')
-    fout.close()
-    print('sum(PL) = %.2f' % score)
+    # fout = open(args.output, 'w')
+    # fout.write('\t'.join(['chrom','pos','ref','null_P','mut_P','MLE_null_base_gtype','MLE_null_base_gtype_P','MLE_mut_base_gtype','MLE_alt_gtype','MLE_mut_base_gtype_P','MLE_mut_location','MLE_mut_samples']))
+    # fout.write("\n")
+    # #fout = open(args.output, 'a')
+    # np.savetxt(fout, records, fmt=['%s','%d','%s','%.2e','%.2e','%s','%.2e','%s','%s','%.2e','%d','%s'], delimiter='\t')
+    # fout.close()
+    # print('sum(PL) = %.2f' % score)
     
-    #duplicate output with human readable leaf get_leaf_names    fout = open(args.output, 'w')
-    fout = open(args.output+'.names', 'w')
-    fout.write('\t'.join(['chrom','pos','ref','null_P','mut_P','MLE_null_base_gtype','MLE_null_base_gtype_P','MLE_mut_base_gtype','MLE_mut_base_gtype_P','MLE_mut_location','MLE_mut_samples']))
+    #output with human readable leaf get_leaf_names    fout = open(args.output, 'w')
+    fout = open(args.output, 'w')
+    fout.write('\t'.join(['chrom','pos','ref','null_P','mut_P','MLE_null_base_gtype','MLE_null_base_gtype_P','MLE_mut_base_gtype','MLE_alt_gtype','MLE_mut_base_gtype_P','MLE_mut_location','MLE_mut_samples']))
     fout.write("\n")
     #fout = open(args.output, 'a')
     np.savetxt(fout, records2, fmt=['%s','%d','%s','%.2e','%.2e','%s','%.2e','%s','%s','%.2e','%d','%s'], delimiter='\t')

@@ -91,7 +91,7 @@ def read_vcf(filename, evidence=60):
     #variants,ADs,PLs = variants[k_ev],ADs[k_ev],PLs[k_ev]
     #commented about above bc it's probably filtering uncertain variants but that's the whole point of treecall, and we're not sure what it's doing anyway
 
-    print(' done', file=sys.stderr)
+    #print(' done', file=sys.stderr)
     return vcffile, variants, ADs, PLs
 
 def init_tree(tree):
