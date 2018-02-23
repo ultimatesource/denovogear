@@ -209,7 +209,7 @@ def annotate_main(args):
 
     gtcall = read_gtcall(args.gtcall)
     for node in tree.iter_descendants('postorder'):
-        k = gtcall['mut_smpl'] == ','.join(map(str,node.sid))
+        k = gtcall['mut_smpl'] == ','.join(map(str,[samplenames[sid] for sid in node.sid]))
         node.dist = k.sum()     #add number of mutations as distance on tree
     for node in tree.traverse("postorder"):
         if node.is_leaf():
