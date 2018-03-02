@@ -9,6 +9,14 @@ libfind_pkg_detect(HTSLIB htslib FIND_PATH htslib/hts.h FIND_LIBRARY hts)
 if(NOT HTSLIB_VERSION)
   if(HTSLIB_PKGCONF_VERSION)
     set(HTSLIB_VERSION "${HTSLIB_PKGCONF_VERSION}")
+  else()
+    set(cmd "-c")
+    set(args "htsfile --version | grep -o -E '[0-9.]+' | head -1")
+    execute_process(
+      COMMAND bash ${cmd} ${args}
+      OUTPUT_VARIABLE version
+    )
+    set(HTSLIB_VERSION ${version})
   endif()
 endif()
 
