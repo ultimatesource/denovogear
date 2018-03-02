@@ -151,17 +151,17 @@ struct AutoTempFile {
 // function to create a 
 
 namespace {
-template<typename T>
+template<typename It>
 struct test_range {
-    using iterator = T;
-    using const_iterator = T;
-    using value_type = typename std::iterator_traits<T>::value_type;
-    using reference = typename std::iterator_traits<T>::reference;
-    using difference_type = typename std::iterator_traits<T>::difference_type;
-    using pointer = typename std::iterator_traits<T>::pointer;
-    using iterator_category = typename std::iterator_traits<T>::iterator_category;
+    using iterator = It;
+    using const_iterator = It;
+    using value_type = typename std::iterator_traits<It>::value_type;
+    using reference = typename std::iterator_traits<It>::reference;
+    using difference_type = typename std::iterator_traits<It>::difference_type;
+    using pointer = typename std::iterator_traits<It>::pointer;
+    using iterator_category = typename std::iterator_traits<It>::iterator_category;
     
-    test_range(T b, T e) : begin_{b}, end_{e} { }
+    test_range(It const& b, It const& e) : begin_{b}, end_{e} { }
 
     const_iterator begin() const { return begin_; }
     const_iterator end() const { return end_; }

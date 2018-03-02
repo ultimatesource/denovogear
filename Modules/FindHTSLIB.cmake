@@ -10,13 +10,13 @@ if(NOT HTSLIB_VERSION)
   if(HTSLIB_PKGCONF_VERSION)
     set(HTSLIB_VERSION "${HTSLIB_PKGCONF_VERSION}")
   else()
-    set(cmd "-c")
-    set(args "htsfile --version | grep -o -E '[0-9.]+' | head -1")
+    FIND_PROGRAM(HTSLIB_EXECUTABLE NAMES htsfile)
     execute_process(
-      COMMAND bash ${cmd} ${args}
-      OUTPUT_VARIABLE version
+      COMMAND htsfile "--version"
+      OUTPUT_VARIABLE hts_version_raw
     )
-    set(HTSLIB_VERSION ${version})
+    string(REGEX MATCH "[0-9.]+" hts_version ${hts_version_raw})
+    set(HTSLIB_VERSION ${hts_version})
   endif()
 endif()
 
