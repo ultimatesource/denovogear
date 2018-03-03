@@ -24,6 +24,7 @@
 #include <boost/filesystem.hpp>
 #include <tuple>
 #include <iostream>
+#include <fstream>
 
 #include <dng/utility.h>
 
