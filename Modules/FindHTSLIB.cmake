@@ -12,11 +12,12 @@ if(NOT HTSLIB_VERSION)
   else()
     FIND_PROGRAM(HTSLIB_EXECUTABLE NAMES htsfile)
     execute_process(
-      COMMAND htsfile "--version"
+      COMMAND ${HTSLIB_EXECUTABLE} "--version"
       OUTPUT_VARIABLE hts_version_raw
     )
-    string(REGEX MATCH "[0-9.]+" hts_version ${hts_version_raw})
-    set(HTSLIB_VERSION ${hts_version})
+    if(hts_version_raw MATCHES "htsfile \\(htslib\\) ([0-9.]+)")
+      set(HTSLIB_VERSION ${CMAKE_MATCH_1})
+    endif()
   endif()
 endif()
 
