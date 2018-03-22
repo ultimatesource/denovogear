@@ -225,7 +225,7 @@ inline TransitionMatrix meiosis_diploid_matrix(const MutationMatrix &mdad,
     return meiosis_matrix(2,mdad,2,mmom,mutype);
 }
 
-inline bool population_prior_check_ia(double theta, double hom_bias, double het_bias, double hap_bias) {
+inline bool population_prior_check(double theta, double hom_bias, double het_bias, double hap_bias) {
     return (theta >= 0)
         && (theta*hom_bias >= -2.0 && hom_bias <= 1.0)
         && (theta*het_bias >= -2.0 && het_bias <= 1.0)
@@ -300,7 +300,7 @@ dng::GenotypeArray population_prior_haploid(int num_obs_alleles, double theta, d
     
     dng::GenotypeArray ret{num_obs_alleles};
     ret(0) = p_R;
-    for(int n=1;n<=num_obs_alleles;++n) {
+    for(int n=1;n<num_obs_alleles;++n) {
         ret(n) = p_A;
     }
 
