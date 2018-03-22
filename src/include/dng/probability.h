@@ -98,8 +98,8 @@ LogProbability::value_t LogProbability::CalculateLLD(
     const A &depths, int num_obs_alleles, bool has_ref)
 {
     assert(num_obs_alleles >= 1);
-    if(num_obs_alleles-1 >= transition_matrices_.size()) {
-        num_obs_alleles = transition_matrices_.size()-2;
+    if(num_obs_alleles > transition_matrices_.size()) {
+        num_obs_alleles = transition_matrices_.size();
     }
 
     // calculate genotype likelihoods and store in the lower library vector
