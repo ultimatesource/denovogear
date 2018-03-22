@@ -58,20 +58,19 @@ void run_mutation_tests(F test, double prec = 2*DBL_EPSILON) {
 }
 
 BOOST_AUTO_TEST_CASE(test_mk) {
-    auto test = [](int n, double u, double h, double prec) -> void {
-        BOOST_TEST_CONTEXT("n=" << n << ", u=" << u << ", h=" << h)
+    auto test = [](int n, double u, double k, double prec) -> void {
+        BOOST_TEST_CONTEXT("n=" << n << ", u=" << u << ", k=" << k)
     {
+        assert(n <= k);
+
         using namespace boost::numeric::ublas;
         using mat = matrix<double,column_major,std::vector<double>>;
         
-        // Probabilities
-        double K = h+1.0;
-
         // Build matrix
         mat Q(n+1,n+1);
 
-        vector<double> freqs(n+1, 1.0/K);
-        freqs[n] = 1.0-n/K;
+        vector<double> freqs(n+1, 1.0/k);
+        freqs[n] = 1.0-n/k;
 
         for(int i=0; i<=n; ++i) {
             for(int j=0; j<=n; ++j) {
@@ -81,7 +80,7 @@ BOOST_AUTO_TEST_CASE(test_mk) {
         }
 
         // Scale matrix into substitution time
-        Q *= K/(K-1);
+        Q *= k/(k-1);
 
         mat P = identity_matrix<double>(n+1);
         mat m = P;
@@ -103,7 +102,7 @@ BOOST_AUTO_TEST_CASE(test_mk) {
             }
         }
 
-        auto test_matrix_ = Mk::matrix(n, u, h);
+        auto test_matrix_ = Mk::matrix(n, u, k);
         auto test_matrix = make_test_range(test_matrix_);
         CHECK_CLOSE_RANGES( test_matrix, expected_matrix, prec);
     }
@@ -114,10 +113,10 @@ BOOST_AUTO_TEST_CASE(test_mk) {
 
 
 BOOST_AUTO_TEST_CASE(test_mitosis_haploid_matrix) {
-    auto test = [](int n, double u, double h, double prec) -> void {
-        BOOST_TEST_CONTEXT("n=" << n << ", u=" << u << ", h=" << h)
+    auto test = [](int n, double u, double k, double prec) -> void {
+        BOOST_TEST_CONTEXT("n=" << n << ", u=" << u << ", k=" << k)
     {
-        auto m = Mk::matrix(n, u, h);
+        auto m = Mk::matrix(n, u, k);
 
         // Testing default
         auto x_default = mitosis_haploid_matrix(m);
@@ -191,10 +190,10 @@ BOOST_AUTO_TEST_CASE(test_mitosis_haploid_matrix) {
 
 
 BOOST_AUTO_TEST_CASE(test_mitosis_diploid_matrix) {
-    auto test = [](int n, double u, double h, double prec) -> void {
-        BOOST_TEST_CONTEXT("n=" << n << ", u=" << u << ", h=" << h)
+    auto test = [](int n, double u, double k, double prec) -> void {
+        BOOST_TEST_CONTEXT("n=" << n << ", u=" << u << ", k=" << k)
     {
-        auto f = Mk::matrix(n, u, h);
+        auto f = Mk::matrix(n, u, k);
         int n2 = (n*(n+1)/2);
 
         // compute n*n x n*n mutation matrix
@@ -345,10 +344,10 @@ BOOST_AUTO_TEST_CASE(test_mitosis_diploid_matrix) {
 
 
 BOOST_AUTO_TEST_CASE(test_meiosis_haploid_matrix) {
-    auto test = [](int n, double u, double h, double prec) -> void {
-        BOOST_TEST_CONTEXT("n=" << n << ", u=" << u << ", h=" << h)
+    auto test = [](int n, double u, double k, double prec) -> void {
+        BOOST_TEST_CONTEXT("n=" << n << ", u=" << u << ", k=" << k)
     {
-        auto f = Mk::matrix(n, u, h);
+        auto f = Mk::matrix(n, u, k);
         int n2 = (n*(n+1)/2);
         
         std::vector<double> m(n*n2);
@@ -442,10 +441,10 @@ BOOST_AUTO_TEST_CASE(test_meiosis_haploid_matrix) {
 
 
 BOOST_AUTO_TEST_CASE(test_mitosis_matrix) {
-    auto test = [](int n, double u, double h, double prec) -> void {
-        BOOST_TEST_CONTEXT("n=" << n << ", u=" << u << ", h=" << h)
+    auto test = [](int n, double u, double k, double prec) -> void {
+        BOOST_TEST_CONTEXT("n=" << n << ", u=" << u << ", k=" << k)
     {
-        auto f = Mk::matrix(n, u, h);
+        auto f = Mk::matrix(n, u, k);
         int n2 = (n*(n+1)/2);
 
         // Ploidy 1
@@ -491,10 +490,10 @@ BOOST_AUTO_TEST_CASE(test_mitosis_matrix) {
 
 
 BOOST_AUTO_TEST_CASE(test_gamete_matrix) {
-    auto test = [](int n, double u, double h, double prec) -> void {
-        BOOST_TEST_CONTEXT("n=" << n << ", u=" << u << ", h=" << h)
+    auto test = [](int n, double u, double k, double prec) -> void {
+        BOOST_TEST_CONTEXT("n=" << n << ", u=" << u << ", k=" << k)
     {
-        auto f = Mk::matrix(n, u, h);
+        auto f = Mk::matrix(n, u, k);
         int n2 = (n*(n+1)/2);
 
         // Ploidy 1
@@ -641,12 +640,12 @@ BOOST_AUTO_TEST_CASE(test_meiosis_matrix) {
         }}
     }};
 
-    auto test = [&](int n, double dad_u, double mom_u, double h, double prec) -> void {
+    auto test = [&](int n, double dad_u, double mom_u, double k, double prec) -> void {
         BOOST_TEST_CONTEXT("n=" << n << ", dad_u=" << dad_u
-                                <<  ", mom_u=" << mom_u << ", h=" << h)
+                                <<  ", mom_u=" << mom_u << ", k=" << k)
     {
-        auto dad = Mk::matrix(n, dad_u, h);
-        auto mom = Mk::matrix(n, mom_u, h);
+        auto dad = Mk::matrix(n, dad_u, k);
+        auto mom = Mk::matrix(n, mom_u, k);
 
         test_ploidy(2, dad, 2, mom, prec);
         test_ploidy(1, dad, 2, mom, prec);

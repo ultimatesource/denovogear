@@ -48,14 +48,14 @@ namespace Mk {
     // num_mutants measures the effective number of alternative alleles (entropy-based)
     //
     inline
-    MutationMatrix matrix(int n, double u, double num_mutants) {
+    MutationMatrix matrix(int n, double u, double num_alleles) {
         assert(n > 0);
         assert(u >= 0.0);
-        assert(num_mutants > 0.0);
+        assert(num_alleles >= 1.0);
         MutationMatrix ret{n,n};
-        double K = num_mutants;
-        double beta = (K+1.0)*u/K;
-        double p_ji = -1.0/(K+1.0)*expm1(-beta);
+        double k = num_alleles;
+        double beta = k*u/(k-1.0);
+        double p_ji = -1.0/k*expm1(-beta);
         double p_jj = exp(-beta) + p_ji;
 
         for(int i=0;i<n;++i) {

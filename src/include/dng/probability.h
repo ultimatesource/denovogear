@@ -56,11 +56,11 @@ public:
     LogProbability(RelationshipGraph graph, params_t params);
 
     template<typename A>
-    value_t CalculateLLD(const A &depths, int num_alts, bool has_ref=true);
+    value_t CalculateLLD(const A &depths, int num_obs_alleles, bool has_ref);
 
     template<typename A>
-    value_t operator()(const A &depths, int num_alts, bool has_ref=true) {
-        return CalculateLLD(depths, num_alts, has_ref);
+    value_t operator()(const A &depths, int num_obs_alleles, bool has_ref) {
+        return CalculateLLD(depths, num_obs_alleles, has_ref);
     }
 
     const peel::workspace_t& work() const { return work_; };
@@ -95,17 +95,18 @@ protected:
 // returns 'log10 P(Data ; model)-log10 scale' and log10 scaling.
 template<typename A>
 LogProbability::value_t LogProbability::CalculateLLD(
-    const A &depths, int num_observed_alleles, bool has_ref)
+    const A &depths, int num_obs_alleles, bool has_ref)
 {
-    if(num_alts >= transition_matrices_.size()) {
-        num_alts = transition_matrices_.size()-1;
+    assert(num_obs_alleles >= 1);
+    if(num_obs_alleles-1 >= transition_matrices_.size()) {
+        num_obs_alleles = transition_matrices_.size()-2;
     }
 
     // calculate genotype likelihoods and store in the lower library vector
-    double scale = work_.SetGenotypeLikelihoods(genotyper_, depths, num_alts);
+    double scale = work_.SetGenotypeLikelihoods(genotyper_, depths, num_obs_alleles);
     double logdata;
 
-    if(num_alts == 0) {
+    if(num_obs_alleles == 1) {
         // Use cached value for monomorphic sites instead of peeling.
         logdata = prob_monomorphic_;
         for(auto it = work_.lower.begin()+work_.library_nodes.first;
@@ -116,10 +117,10 @@ LogProbability::value_t LogProbability::CalculateLLD(
         logdata = log(logdata);
     } else {
         // Set the prior probability of the founders given the reference
-        work_.SetGermline(DiploidPrior(num_alts, has_ref), HaploidPrior(num_alts, has_ref));
+        work_.SetGermline(DiploidPrior(num_obs_alleles, has_ref), HaploidPrior(num_obs_alleles, has_ref));
 
         // Calculate log P(Data ; model)
-        logdata = graph_.PeelForwards(work_, transition_matrices_[num_alts]);
+        logdata = graph_.PeelForwards(work_, transition_matrices_[num_obs_alleles-1]);
     }
     return {logdata/M_LN10, scale/M_LN10};
 }
@@ -139,14 +140,14 @@ LogProbability::matrices_t LogProbability::CreateMutationMatrices(const int muty
 
 inline
 GenotypeArray LogProbability::DiploidPrior(int num_obs_alleles, bool has_ref) {
-    assert(num_obs_alleles >= 0);
+    assert(num_obs_alleles >= 1);
     if(has_ref) {
-        return (num_obs_alleles < diploid_prior_.size()) ? diploid_prior_[num_obs_alleles]
+        return (num_obs_alleles-1 < diploid_prior_.size()) ? diploid_prior_[num_obs_alleles-1]
             : population_prior_diploid(num_obs_alleles, params_.theta, params_.ref_bias_hom,
                 params_.ref_bias_het, params_.k_alleles, true);
     } else {
-        assert(num_obs_alleles >= 1);
-        return (num_obs_alleles-1 < diploid_prior_noref_.size()) ? diploid_prior_noref_[num_obs_alleles-1]
+        assert(num_obs_alleles >= 2);
+        return (num_obs_alleles-2 < diploid_prior_noref_.size()) ? diploid_prior_noref_[num_obs_alleles-2]
             : population_prior_diploid(num_obs_alleles, params_.theta, params_.ref_bias_hom,
                  params_.ref_bias_het, params_.k_alleles, false);
     }
@@ -154,13 +155,13 @@ GenotypeArray LogProbability::DiploidPrior(int num_obs_alleles, bool has_ref) {
 
 inline
 GenotypeArray LogProbability::HaploidPrior(int num_obs_alleles, bool has_ref) {
-    assert(num_obs_alleles >= 0);
+    assert(num_obs_alleles >= 1);
     if(has_ref) {
-        return (num_obs_alleles < haploid_prior_.size()) ? haploid_prior_[num_obs_alleles]
+        return (num_obs_alleles < haploid_prior_.size()) ? haploid_prior_[num_obs_alleles-1]
             : population_prior_haploid(num_obs_alleles, params_.theta, params_.ref_bias_hap, params_.k_alleles, true);
     } else {
-        assert(num_obs_alleles >= 1);
-        return (num_obs_alleles-1 < haploid_prior_noref_.size()) ? haploid_prior_noref_[num_obs_alleles-1]
+        assert(num_obs_alleles >= 2);
+        return (num_obs_alleles-1 < haploid_prior_noref_.size()) ? haploid_prior_noref_[num_obs_alleles-2]
             : population_prior_haploid(num_obs_alleles, params_.theta, params_.ref_bias_hap, params_.k_alleles, false);
     }
 }
