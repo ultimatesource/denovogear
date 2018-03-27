@@ -100,12 +100,12 @@ inline double log_sum_exact(double a, double b) {
 
 std::array<double,8> detail::make_alphas(double over_dispersion_hom, 
         double over_dispersion_het, double sequencing_bias,
-        double error_rate, double error_alleles) {
+        double error_rate, double k_alleles) {
     assert(0.0 <= over_dispersion_hom && over_dispersion_hom <= 1.0 );
     assert(0.0 <= over_dispersion_het && over_dispersion_het <= 1.0 );
     assert(0.0 <= sequencing_bias );
     assert(0.0 <= error_rate && error_rate <= 1.0 );
-    assert(0.0 <  error_alleles );
+    assert(0.0 <  k_alleles );
 
     // Adjust parameters to prevent zeros, which can cause issues with the 
     // current implementation
@@ -117,7 +117,7 @@ std::array<double,8> detail::make_alphas(double over_dispersion_hom,
 
     // assume three possible errors
     double p1 = 1.0-error_rate;
-    double p2 = error_rate/error_alleles;
+    double p2 = error_rate/(k_alleles-1.0);
     double p3 = p1+p2;
     double q = sequencing_bias/(1.0+sequencing_bias);
 
@@ -143,14 +143,14 @@ std::array<double,8> detail::make_alphas(double over_dispersion_hom,
 using detail::log_sum;
 
 DirichletMultinomial::DirichletMultinomial(double over_dispersion_hom, 
-        double over_dispersion_het, double sequencing_bias, double error_rate, double error_alleles) : 
+        double over_dispersion_het, double sequencing_bias, double error_rate, double k_alleles) : 
     over_dispersion_hom_{over_dispersion_hom},
     over_dispersion_het_{over_dispersion_het},
     sequencing_bias_{sequencing_bias}, error_rate_{error_rate},
-    error_alleles_{error_alleles}
+    k_alleles_{k_alleles}
 {
     auto alphas = detail::make_alphas(over_dispersion_hom, over_dispersion_het, 
-        sequencing_bias, error_rate, error_alleles);
+        sequencing_bias, error_rate, k_alleles);
 
     for(int i=0; i<pochhammers_.size(); ++i) {
         pochhammers_[i] = pochhammers_t::value_type{alphas[i]};

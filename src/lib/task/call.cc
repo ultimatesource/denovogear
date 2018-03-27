@@ -259,7 +259,7 @@ int process_bam(task::Call::argument_type &arg) {
             return;
         }
 
-        if(!do_call(read_depths, n_sz-1, ref_index < 4, &stats)) {
+        if(!do_call(read_depths, n_sz, ref_index < 4, &stats)) {
             return;
         }
         const bool has_single_mut = ((stats.mu1p / stats.mup) >= min_prob);
@@ -419,7 +419,7 @@ int process_bcf(task::Call::argument_type &arg) {
         pileup::allele_depths_ref_t read_depths(ad.get(), make_array(num_libs,n_sz));
 
         // TODO: check that REF isn't missing
-        if(!do_call(read_depths, n_alleles-1, true, &stats)) {
+        if(!do_call(read_depths, n_alleles, true, &stats)) {
             return;
         }
         const bool has_single_mut = ((stats.mu1p / stats.mup) >= min_prob);
@@ -502,12 +502,12 @@ int process_ad(task::Call::argument_type &arg) {
                     read_depths[i][a] = line(i,a-1);
                 }
             }
-            return do_call(read_depths, n_sz-1, false, stats);
+            return do_call(read_depths, n_sz, false, stats);
         } else {
             size_t n_sz = line.num_nucleotides();
             dng::pileup::allele_depths_const_ref_t read_depths_ref(line.data().data(),
                 make_array(line.num_libraries(), line.num_nucleotides()));
-            return do_call(read_depths_ref, n_sz-1, true, stats);   
+            return do_call(read_depths_ref, n_sz, true, stats);   
         }
     };
 

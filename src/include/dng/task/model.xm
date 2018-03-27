@@ -26,16 +26,16 @@
 XM((mu), , "the germline mutation rate", double, DL(1e-8, "1e-8"))
 XM((mu)(somatic), , "the somatic mutation rate", double, DL(0.0, "0"))
 XM((mu)(library), , "the library prep mutation rate", double, DL(0.0, "0"))
-XM((mu)(alleles), , "the effective number of mutant alleles", double, DL(4.0, "4"))
 
-XM((theta), , "the population diversity", double, DL(0.001, "0.001"))
+XM((theta), ,          "the population diversity", double, DL(0.001, "0.001"))
+XM((kalleles), ,       "the effective number of different alleles that may exist at a site", double, DL(5.0, "5"))
 XM((ref)(bias)(hom), , "ascertainment bias for reference homozygotes ", double, DL(0.0, "0"))
 XM((ref)(bias)(het), , "ascertainment bias for ref/alt heterozygotes ", double, DL(0.0, "0"))
 XM((ref)(bias)(hap), , "ascertainment bias for reference haploids ", double, DL(0.0, "0"))
 
 XM((lib)(bias), ,  "library/sequencing reference bias (ref/alt ratio)", double, 1)
 XM((lib)(error), , "library/sequencing error rate (per base-call)", double, DL(0.0005,"0.0005"))
-XM((lib)(error)(alleles), , "the effective number of error alleles", double, DL(3.0, "3"))
+XM((lib)(kbases), , "the effective number of different bases that may be called at a site", double, DL(4.0, "4"))
 XM((lib)(overdisp)(hom), , "library/sequencing overdispersion for homozygotes (pairwise correlation of errors)", double, DL(0.0005,"0.0005"))
 XM((lib)(overdisp)(het), , "library/sequencing overdispersion for heterozygotes (pairwise correlation of errors)", double, DL(0.0005,"0.0005"))
 
