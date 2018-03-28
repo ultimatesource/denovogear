@@ -265,7 +265,7 @@ typedef EnumFlags<FileCat> FileCatSet;
 
 // converts an extension to a file category
 FileCat file_category(const std::string &ext);
-// converts and input file to category and will throw if value is not supported
+// converts an input file to category and will throw if value is not supported
 FileCat input_category(const std::string &in, FileCatSet mask, FileCat def = FileCat::Unknown);
 
 // create a timestamp that contains the date and epoch

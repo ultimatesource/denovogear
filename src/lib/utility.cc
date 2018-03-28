@@ -92,7 +92,6 @@ FileCat file_category(const std::string &ext) {
 
 
 FileCat input_category(const std::string &in, FileCatSet mask, FileCat def) {
-
     std::string ext = extract_file_type(in).first;
     if(ext == "gz" || ext == "gzip" || ext == "bgz") {
     	std::string extr = boost::filesystem::change_extension(in, "").string();
@@ -105,7 +104,7 @@ FileCat input_category(const std::string &in, FileCatSet mask, FileCat def) {
     if(mask & cat) {
         return cat;
     } else {
-        throw std::runtime_error("Argument error: file type '" + ext + "' not supported. Input file was '" + in + "'.");
+        throw std::invalid_argument("file type '" + ext + "' not supported. Input file was '" + in + "'.");
     }
     return FileCat::Unknown;
 }
