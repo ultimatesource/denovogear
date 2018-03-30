@@ -5,8 +5,8 @@ set(BasicTest-CMD @DNG_LOGLIKE_EXE@ -p ped/trio.ped -f trio.fasta.gz trio.cram)
 set(BasicTest-WD "@TESTDATA_DIR@/human_trio")
 set(BasicTest-Result 0)
 set(BasicTest-STDOUT
-  "^log_likelihood\t-101\\.22401576961295\r?\n"
-  "log_hidden\t-8\\.3243882380757768\r?\n"
+  "^log_likelihood\t-101\\.84920557795397\r?\n"
+  "\r?\nlog_hidden\t-8\\.9495780464168035\r?\n"
   "log_observed\t-92\\.899627531537163\r?\n$"
 )
 
@@ -46,6 +46,12 @@ set(Region-STDERR
     "Unknown contig name: 'A'"
 )
 
+###############################################################################
+# Test if dng-loglike works on a pipe
+set(PipedTrio-CMD sh -c "cat trio.cram | @DNG_LOGLIKE_EXE@ -p ped/trio.ped -f trio.fasta.gz cram:-")
+set(PipedTrio-WD ${BasicTest-WD})
+set(PipedTrio-RESULT ${BasicTest-RESULT})
+set(PipedTrio-STDOUT ${BasicTest-STDOUT})
 
 ###############################################################################
 # Add Tests
@@ -58,4 +64,5 @@ CheckProcessTests(DngLoglike.Cram
     MultiInput
     NoFasta
     Region
+    PipedTrio
 )

@@ -59,14 +59,14 @@ public:
     CallMutations(double min_prob, const RelationshipGraph &graph,
             params_t params);
 
-    bool CalculateMUP(const pileup::allele_depths_t &depths, int num_alts, bool has_ref, stats_t *stats);    
+    bool CalculateMUP(const pileup::allele_depths_t &depths, int num_obs_alleles, bool has_ref, stats_t *stats);    
 
-    bool operator()(const pileup::allele_depths_t &depths, int num_alts, bool has_ref, stats_t *stats) {
-        return CalculateMUP(depths, num_alts, has_ref, stats);
+    bool operator()(const pileup::allele_depths_t &depths, int num_obs_alleles, bool has_ref, stats_t *stats) {
+        return CalculateMUP(depths, num_obs_alleles, has_ref, stats);
     }
 
 protected:
-    bool Calculate(stats_t *stats, int num_alts, bool has_ref);
+    bool Calculate(stats_t *stats, int num_obs_alleles, bool has_ref);
 
     double min_prob_;
 

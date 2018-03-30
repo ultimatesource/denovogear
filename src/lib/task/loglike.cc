@@ -165,7 +165,7 @@ int process_bam(LogLike::argument_type &arg) {
             return;
         }
 
-        auto loglike = do_loglike(read_depths, n_sz-1, ref_index < 4);
+        auto loglike = do_loglike(read_depths, n_sz, ref_index < 4);
         sum_data += loglike.log_data;
         sum_scale += loglike.log_scale;
     });
@@ -216,7 +216,7 @@ int process_bcf(LogLike::argument_type &arg) {
 
         pileup::allele_depths_ref_t read_depths(ad.get(), make_array(num_libs,n_sz));
 
-        auto loglike = do_loglike(read_depths,n_sz-1,true);
+        auto loglike = do_loglike(read_depths,n_sz,true);
         sum_data += loglike.log_data;
         sum_scale += loglike.log_scale;
     });
@@ -253,14 +253,14 @@ int process_ad(LogLike::argument_type &arg) {
                     read_depths[i][a] = line(i,a-1);
                 }
             }
-            auto loglike = do_loglike(read_depths, sz-1, false);
+            auto loglike = do_loglike(read_depths, sz, false);
             *p_sum_data += loglike.log_data;
             *p_sum_scale += loglike.log_scale;
         } else {
             size_t sz = line.num_nucleotides();
             dng::pileup::allele_depths_const_ref_t read_depths_ref(line.data().data(),
                 make_array(line.num_libraries(), line.num_nucleotides()));
-            auto loglike = do_loglike(read_depths_ref, sz-1, true);
+            auto loglike = do_loglike(read_depths_ref, sz, true);
             *p_sum_data += loglike.log_data;
             *p_sum_scale += loglike.log_scale;    
         }

@@ -5,9 +5,9 @@ set(BasicTest-CMD @DNG_LOGLIKE_EXE@ -p ped/trio.ped -f trio.fasta.gz trio.bam)
 set(BasicTest-WD "@TESTDATA_DIR@/human_trio")
 set(BasicTest-Result 0)
 set(BasicTest-STDOUT
-  "^log_likelihood\t-101\\.22401576961295\r?\n"
-  "log_hidden\t-8\\.3243882380757768\r?\n"
-  "log_observed\t-92\\.899627531537163\r?\n$"
+  "^log_likelihood\t-101\\.84920557795397\r?\n"
+  "\r?\nlog_hidden\t-8\\.9495780464168035\r?\n"
+  "\r?\nlog_observed\t-92\\.899627531537163\r?\n$"
 )
 
 ###############################################################################
@@ -47,6 +47,13 @@ set(Region-STDERR
 )
 
 ###############################################################################
+# Test if dng-loglike works on a pipe
+set(PipedTrio-CMD sh -c "cat trio.bam | @DNG_LOGLIKE_EXE@ -p ped/trio.ped -f trio.fasta.gz bam:-")
+set(PipedTrio-WD ${BasicTest-WD})
+set(PipedTrio-RESULT ${BasicTest-RESULT})
+set(PipedTrio-STDOUT ${BasicTest-STDOUT})
+
+###############################################################################
 # Add Tests
 
 include("@CMAKE_CURRENT_SOURCE_DIR@/CheckProcessTest.cmake")
@@ -57,4 +64,5 @@ CheckProcessTests(DngLoglike.Bam
     MultiInput
     NoFasta
     Region
+    PipedTrio
 )

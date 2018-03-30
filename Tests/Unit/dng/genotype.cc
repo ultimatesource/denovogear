@@ -58,15 +58,15 @@ BOOST_AUTO_TEST_CASE(test_make_alphas) {
     double prec = DBL_EPSILON;
 
     auto test = [prec](double over_dispersion_hom, double over_dispersion_het, double sequencing_bias,
-        double error_rate, double error_alleles) {
+        double error_rate, double k_alleles) {
     BOOST_TEST_CONTEXT("over_dispersion_hom=" << over_dispersion_hom 
                   << ", over_dispersion_het=" << over_dispersion_het
                   << ", sequencing_bias=" << sequencing_bias
                   << ", error_rate=" << error_rate
-                  << ", error_alleles=" << error_alleles
+                  << ", k_alleles=" << k_alleles
     ) {
         auto test_range = make_alphas(over_dispersion_hom, over_dispersion_het, sequencing_bias,
-                                      error_rate, error_alleles);
+                                      error_rate, k_alleles);
         std::array<double, 8> expected_range;
 
         if(over_dispersion_hom < low_phi) {
@@ -83,12 +83,12 @@ BOOST_AUTO_TEST_CASE(test_make_alphas) {
         double a2 = (1.0-over_dispersion_het)/over_dispersion_het;
 
         expected_range[0] = a1*(1.0-error_rate);
-        expected_range[1] = a1*error_rate/error_alleles;
+        expected_range[1] = a1*error_rate/(k_alleles-1.0);
 
-        expected_range[2] = a2*(1.0-error_rate + error_rate/error_alleles)*sequencing_bias/(1.0+sequencing_bias);
-        expected_range[3] = a2*(1.0-error_rate + error_rate/error_alleles)*1.0/(1.0+sequencing_bias);
-        expected_range[4] = a2*error_rate/error_alleles;
-        expected_range[5] = a2*(1.0-error_rate + error_rate/error_alleles)*0.5;
+        expected_range[2] = a2*(1.0-error_rate + error_rate/(k_alleles-1.0))*sequencing_bias/(1.0+sequencing_bias);
+        expected_range[3] = a2*(1.0-error_rate + error_rate/(k_alleles-1.0))*1.0/(1.0+sequencing_bias);
+        expected_range[4] = a2*error_rate/(k_alleles-1.0);
+        expected_range[5] = a2*(1.0-error_rate + error_rate/(k_alleles-1.0))*0.5;
 
         expected_range[6] = a1;
         expected_range[7] = a2;
@@ -116,20 +116,20 @@ BOOST_AUTO_TEST_CASE(test_DirichletMultinomial) {
                   << ", over_dispersion_het=" << dm.over_dispersion_het()
                   << ", sequening_bias=" << dm.sequencing_bias()
                   << ", error_rate=" << dm.error_rate()
-                  << ", error_alleles=" << dm.error_alleles()
+                  << ", k_alleles=" << dm.k_alleles()
     ){
         auto alphas = make_alphas(dm.over_dispersion_hom(), dm.over_dispersion_het(),
-            dm.sequencing_bias(), dm.error_rate(), dm.error_alleles());
+            dm.sequencing_bias(), dm.error_rate(), dm.k_alleles());
         std::vector<log_pochhammer> f;
         for(auto &&a : alphas) {
             f.emplace_back(a);
         }
-        for(int k : {0,1,3,4,5}) {         
+        for(int k : {1,2,3,4,5}) {
             for(auto &&ad : depths) {
                 // Wrap depths 
                 BOOST_TEST_CONTEXT("ploidy=1, depths=" << rangeio::wrap(ad) << ", k=" << k) {
                     std::vector<double> expected;
-                    for(int g=0;g<=k;++g) {
+                    for(int g=0;g<k;++g) {
                         double ll = 0.0;
                         int count = 0;
                         for(int d=0;d<ad.size();++d) {
@@ -155,7 +155,7 @@ BOOST_AUTO_TEST_CASE(test_DirichletMultinomial) {
                 }
                 BOOST_TEST_CONTEXT("ploidy=2, depths=" << rangeio::wrap(ad) << ", k=" << k) {
                     std::vector<double> expected;
-                    for(int a=0;a<=k;++a) {
+                    for(int a=0;a<k;++a) {
                         for(int b=0;b<=a;++b) {
                             double ll = 0.0;
                             int count = 0;
@@ -211,7 +211,7 @@ BOOST_AUTO_TEST_CASE(test_DirichletMultinomial) {
         ad.push_back(d);
     }
 
-    test({0.0005, 0.0005, 1, 0.0005, 3}, ad);
-    test({0.0005, 0.001, 1.02, 1e-4, 4}, ad);
-    test({0, 0, 1, 0, 4}, ad);
+    test({0.0005, 0.0005, 1, 0.0005, 4}, ad);
+    test({0.0005, 0.001, 1.02, 1e-4, 5}, ad);
+    test({0, 0, 1, 0, 5}, ad);
 }

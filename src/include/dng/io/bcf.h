@@ -134,7 +134,9 @@ int BcfPileup::AddFile(const char* filename) {
     int index = reader_.num_readers();
     assert(index == 0); // only support one input file at this time
 
-    if(reader_.AddReader(filename) == 0) {
+    auto file = utility::extract_file_type(filename);
+
+    if(reader_.AddReader(file.second.c_str()) == 0) {
         return 0;
     }
     ParseSampleLabels(index);

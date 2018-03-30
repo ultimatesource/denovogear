@@ -85,31 +85,31 @@ public:
 
     DirichletMultinomial(double over_dispersion_hom, 
         double over_dispersion_het, double sequencing_bias,
-        double error_rate, double error_alleles);
+        double error_rate, double k_alleles);
 
     template<typename Range>
     std::pair<GenotypeArray, double> operator()(
-        const Range& ad, int num_alts, int ploidy=2) const;
+        const Range& ad, int num_obs_alleles, int ploidy) const;
 
     double over_dispersion_hom() const { return over_dispersion_hom_; }
     double over_dispersion_het() const { return over_dispersion_het_; }
     double error_rate() const { return error_rate_; }
     double sequencing_bias() const { return sequencing_bias_; }
-    double error_alleles() const { return error_alleles_; }
+    double k_alleles() const { return k_alleles_; }
 
 protected:
 
     template<typename Range>
-    GenotypeArray LogHaploidGenotypes(const Range& ad, int num_alts) const;
+    GenotypeArray LogHaploidGenotypes(const Range& ad, int num_obs_alleles) const;
 
     template<typename Range>
-    GenotypeArray LogDiploidGenotypes(const Range& ad, int num_alts) const;
+    GenotypeArray LogDiploidGenotypes(const Range& ad, int num_obs_alleles) const;
 
     double over_dispersion_hom_; // overdispersion of homozygotes
     double over_dispersion_het_; // overdispersion of heterozygotes
     double error_rate_;      // prob of error when homozygote is sequenced
     double sequencing_bias_;        // bias towards reference when heterozygote is sequenced
-    double error_alleles_;
+    double k_alleles_;
 
     using cache_t = std::vector<std::array<double,8>>;
     using pochhammers_t = std::array<detail::log_pochhammer,8>; 
@@ -132,15 +132,14 @@ protected:
 
     friend std::array<double,8> detail::make_alphas(double over_dispersion_hom, 
         double over_dispersion_het, double ref_bias,
-        double error_rate, double error_alleles);
+        double error_rate, double k_alleles);
 };
 
 template<typename Range>
-GenotypeArray DirichletMultinomial::LogDiploidGenotypes(const Range& ad, int num_alts) const
+GenotypeArray DirichletMultinomial::LogDiploidGenotypes(const Range& ad, int num_obs_alleles) const
 {    
-    assert(num_alts >= 0);
-    const int num_alleles = num_alts + 1;
-    const int sz = num_alleles*(num_alleles+1)/2;
+    assert(num_obs_alleles >= 1);
+    const int sz = num_obs_alleles*(num_obs_alleles+1)/2;
 
     GenotypeArray ret{sz};
     ret.setZero();
@@ -150,7 +149,7 @@ GenotypeArray DirichletMultinomial::LogDiploidGenotypes(const Range& ad, int num
         assert( d >= 0 );
         total += d;
 
-        for(int a=0,gt=0; a < num_alleles; ++a) {
+        for(int a=0,gt=0; a < num_obs_alleles; ++a) {
             for(int b=0; b < a; ++b) {
                 // Heterozygotes
                 if(b == 0) {
@@ -183,9 +182,9 @@ GenotypeArray DirichletMultinomial::LogDiploidGenotypes(const Range& ad, int num
 
     double hom_total = pochhammer(alpha::HOM_TOTAL, total);
     ret[0] -= hom_total;
-    if(num_alleles > 1) {
+    if(num_obs_alleles > 1) {
         double het_total = pochhammer(alpha::HET_TOTAL, total);
-        for(int a=1,gt=1; a < num_alleles; ++a) {
+        for(int a=1,gt=1; a < num_obs_alleles; ++a) {
             for(int b=0; b < a; ++b) {
                 ret[gt++] -= het_total;
             }
@@ -196,10 +195,9 @@ GenotypeArray DirichletMultinomial::LogDiploidGenotypes(const Range& ad, int num
 }
 
 template<typename Range>
-GenotypeArray DirichletMultinomial::LogHaploidGenotypes(const Range& ad, int num_alts) const {
-    assert(num_alts >= 0);
-    const int num_alleles = num_alts + 1;    
-    const int sz = num_alleles;
+GenotypeArray DirichletMultinomial::LogHaploidGenotypes(const Range& ad, int num_obs_alleles) const {
+    assert(num_obs_alleles >= 1); 
+    const int sz = num_obs_alleles;
 
     GenotypeArray ret{sz};
     ret.setZero();
@@ -224,12 +222,13 @@ GenotypeArray DirichletMultinomial::LogHaploidGenotypes(const Range& ad, int num
 
 template<typename Range>
 std::pair<GenotypeArray, double> DirichletMultinomial::operator()(
-        const Range &ad, int num_alts, int ploidy) const
+        const Range &ad, int num_obs_alleles, int ploidy) const
 {
+    assert(num_obs_alleles >= 1);
     assert(ploidy == 1 || ploidy == 2);
 
-    auto log_ret = (ploidy == 2) ? LogDiploidGenotypes(ad,num_alts)
-                                 : LogHaploidGenotypes(ad,num_alts);
+    auto log_ret = (ploidy == 2) ? LogDiploidGenotypes(ad,num_obs_alleles)
+                                 : LogHaploidGenotypes(ad,num_obs_alleles);
 
     // Scale and calculate likelihoods
     double scale = log_ret.maxCoeff();

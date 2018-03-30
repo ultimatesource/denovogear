@@ -5,9 +5,9 @@ set(BasicTest-CMD @DNG_LOGLIKE_EXE@ -p ped/trio.ped tad/trio.tad)
 set(BasicTest-WD "@TESTDATA_DIR@/human_trio")
 set(BasicTest-Result 0)
 set(BasicTest-STDOUT
-  "^log_likelihood\t-101\\.22401576961295\r?\n"
-  "log_hidden\t-8\\.3243882380757768\r?\n"
-  "log_observed\t-92\\.899627531537163\r?\n$"
+  "^log_likelihood\t-101\\.84920557795397\r?\n"
+  "\r?\nlog_hidden\t-8\\.9495780464168035\r?\n"
+  "\r?\nlog_observed\t-92\\.899627531537163\r?\n$"
 )
 
 ###############################################################################
@@ -25,9 +25,9 @@ set(Threads-CMD @DNG_LOGLIKE_EXE@  --threads=2 -p ped/trio.ped tad/trio.tad)
 set(Threads-WD "@TESTDATA_DIR@/human_trio")
 set(Threads-Result 0)
 set(Threads-STDOUT
-  "^log_likelihood\t-101\\.22401576961295\r?\n"
-  "log_hidden\t-8\\.3243882380757768\r?\n"
-  "log_observed\t-92\\.899627531537163\r?\n$"
+  "^log_likelihood\t-101\\.84920557795397\r?\n"
+  "\r?\nlog_hidden\t-8\\.9495780464168035\r?\n"
+  "\r?\nlog_observed\t-92\\.899627531537163\r?\n$"
 )
 
 ###############################################################################
