@@ -47,6 +47,13 @@ set(Region-STDERR
 )
 
 ###############################################################################
+# Test if dng-loglike works on a pipe
+set(PipedTrio-CMD sh -c "cat trio.bam | @DNG_LOGLIKE_EXE@ -p ped/trio.ped -f trio.fasta.gz bam:-")
+set(PipedTrio-WD ${BasicTest-WD})
+set(PipedTrio-RESULT ${BasicTest-RESULT})
+set(PipedTrio-STDOUT ${BasicTest-STDOUT})
+
+###############################################################################
 # Add Tests
 
 include("@CMAKE_CURRENT_SOURCE_DIR@/CheckProcessTest.cmake")
@@ -57,4 +64,5 @@ CheckProcessTests(DngLoglike.Bam
     MultiInput
     NoFasta
     Region
+    PipedTrio
 )

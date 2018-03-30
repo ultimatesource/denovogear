@@ -210,8 +210,8 @@ set(MissingData-STDOUT
 # Test if dng-call works on a pipe
 
 set(PipedTrio-CMD sh -c "cat bcftools/trio.mpileup.vcf | @DNG_CALL_EXE@ -p ped/trio.ped vcf:-")
-set(PipedTrio-WD "@TESTDATA_DIR@/human_trio")
-set(PipedTrio-RESULT 0)
+set(PipedTrio-WD ${Trio-WD})
+set(PipedTrio-RESULT ${Trio-RESULT})
 set(PipedTrio-STDOUT ${TrioMpileup-STDOUT})
 
 ###############################################################################

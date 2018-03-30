@@ -1,7 +1,7 @@
 ###############################################################################
 # Test dng-loglike functioning with vcf file
 
-set(BasicTest-CMD @DNG_LOGLIKE_EXE@ -p ped/trio.ped -f trio.fasta.gz bcftools/trio.mpileup.vcf)
+set(BasicTest-CMD @DNG_LOGLIKE_EXE@ -p ped/trio.ped bcftools/trio.mpileup.vcf)
 set(BasicTest-WD "@TESTDATA_DIR@/human_trio")
 set(BasicTest-Result 0)
 set(BasicTest-STDOUT
@@ -29,6 +29,13 @@ set(MultiInput-STDERR
 )
 
 ###############################################################################
+# Test if dng-loglike works on a pipe
+set(PipedTrio-CMD sh -c "cat bcftools/trio.mpileup.vcf | @DNG_LOGLIKE_EXE@ -p ped/trio.ped vcf:-")
+set(PipedTrio-WD ${BasicTest-WD})
+set(PipedTrio-RESULT ${BasicTest-RESULT})
+set(PipedTrio-STDOUT ${BasicTest-STDOUT})
+
+###############################################################################
 # Add Tests
 
 include("@CMAKE_CURRENT_SOURCE_DIR@/CheckProcessTest.cmake")
@@ -37,4 +44,5 @@ CheckProcessTests(DngLoglike.Vcf
     BasicTest
     EmptyVcf
     MultiInput
+    PipedTrio
 )
