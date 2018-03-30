@@ -46,6 +46,12 @@ set(Region-STDERR
     "Unknown contig name: 'A'"
 )
 
+###############################################################################
+# Test if dng-loglike works on a pipe
+set(PipedTrio-CMD sh -c "cat trio.cram | @DNG_LOGLIKE_EXE@ -p ped/trio.ped -f trio.fasta.gz cram:-")
+set(PipedTrio-WD ${BasicTest-WD})
+set(PipedTrio-RESULT ${BasicTest-RESULT})
+set(PipedTrio-STDOUT ${BasicTest-STDOUT})
 
 ###############################################################################
 # Add Tests
@@ -58,4 +64,5 @@ CheckProcessTests(DngLoglike.Cram
     MultiInput
     NoFasta
     Region
+    PipedTrio
 )

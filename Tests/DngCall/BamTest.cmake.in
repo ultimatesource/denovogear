@@ -109,6 +109,14 @@ set(Region1-STDOUT-FAIL
 )
 
 ###############################################################################
+# Test if dng-call can identify mutations correctly from a pipe
+
+set(PipedTrio-CMD sh -c "cat trio.bam | @DNG_CALL_EXE@ -p ped/trio.ped -f trio.fasta.gz bam:-")
+set(PipedTrio-WD ${Trio-WD})
+set(PipedTrio-RESULT ${Trio-RESULT})
+set(PipedTrio-STDOUT ${Trio-STDOUT})
+
+###############################################################################
 # Add Tests
 
 include("@CMAKE_CURRENT_SOURCE_DIR@/CheckProcessTest.cmake")
@@ -122,4 +130,5 @@ CheckProcessTests(DngCall.Bam
   PartialPed
   EmptyPed
   Region1
+  PipedTrio
 )

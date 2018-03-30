@@ -207,6 +207,14 @@ set(MissingData-STDOUT
 )
 
 ###############################################################################
+# Test if dng-call works on a pipe
+
+set(PipedTrio-CMD sh -c "cat bcftools/trio.mpileup.vcf | @DNG_CALL_EXE@ -p ped/trio.ped vcf:-")
+set(PipedTrio-WD ${TrioMpileup-WD})
+set(PipedTrio-RESULT ${TrioMpileup-RESULT})
+set(PipedTrio-STDOUT ${TrioMpileup-STDOUT})
+
+###############################################################################
 # Add Tests
 
 include("@CMAKE_CURRENT_SOURCE_DIR@/CheckProcessTest.cmake")
@@ -223,4 +231,5 @@ CheckProcessTests(DngCall.Vcf
   TrioRegion
   TrioExtraSample
   MissingData
+  PipedTrio
 )
