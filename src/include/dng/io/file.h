@@ -63,7 +63,7 @@ public:
         } else {
             return Attach(std::cout.rdbuf());
         }
-        return false;
+        return Attach(nullptr);
     }
     bool Attach(std::streambuf *buffer) {
         stream_.rdbuf(buffer);
