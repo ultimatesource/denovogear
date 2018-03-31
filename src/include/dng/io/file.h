@@ -46,14 +46,16 @@ public:
     bool Open(const std::string &filename, std::ios_base::openmode mode = std::ios_base::in) {
         std::tie(type_label_, path_) = utility::extract_file_type(filename);
         buffer_ = nullptr;
+        file_.reset();
         if(path_.empty()) {
             // don't do anything, just setup type
         } else if(path_ != "-") {
             // if path is not "-" open a file
-            file_.open(path_.c_str(), mode);
+            file_.reset(new std::fstream);
+            file_.get()->open(path_.c_str(), mode);
             // if file is open, associate it with the stream
-            if(file_.is_open()) {
-                buffer_ = file_.rdbuf();
+            if(file_.get()->is_open()) {
+                buffer_ = file_.get()->rdbuf();
             }
         } else if((mode & std::ios_base::in) == (mode & std::ios_base::out)) {
             // can't do anything if both are set or none are set
@@ -87,7 +89,8 @@ protected:
 
 private:
     bool is_open_{false};
-    std::fstream file_;
+    
+    std::unique_ptr<std::fstream> file_;
 };
 
 inline
