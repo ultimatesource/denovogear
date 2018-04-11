@@ -110,8 +110,7 @@ int get_numeric(const bcf_hdr_t *header, BareVariant *record, const char *tag, b
     int tag_id = bcf_hdr_id2int(header, BCF_DT_ID, tag);
     int type = bcf_hdr_id2type(header,BCF_HL_FMT,tag_id);
     int n;
-    // check if tag is of type int
-    if(type == BCF_HT_INT) {//1) {
+    if(type == BCF_HT_INT) {
 	float *p = buffer->get();
 	n = bcf_get_format_int32(header, record, tag, (int*) &p, capacity);
 	if(n == -4) {
@@ -121,7 +120,7 @@ int get_numeric(const bcf_hdr_t *header, BareVariant *record, const char *tag, b
 	    buffer->release();
 	    buffer->reset(p);
 	} else {
-	    // cast to float and store back into the buffer
+	    // cast value to float and store back into the buffer
 	    for(int i=0; i<n; i++) {
 		int tmp;
 		memcpy(&tmp, p+i, sizeof(int));
