@@ -1,4 +1,4 @@
-#! Rscript --vanilla
+#!/usr/bin/Rscript --vanilla
 #
 # Copyright (c) 2017-2018 Reed A. Cartwright
 # Copyright (c) 2018      Adam J. Orr
@@ -21,94 +21,54 @@
 # this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-
 options(stringsAsFactors=FALSE)
 
 library(doParallel)
+library(dfoptim)
 
 registerDoParallel()
 
 fixed_pars = c(
-    "lib-overdisp-hom" = 1e-6,
-    "lib-overdisp-het" = 1e-6,
-    "lib-error" =  0,
-    "mu" = 1e-8,
+    "mu" = 0,
     "lib-bias" = 1
 )
 
 init_pars = c(
-    "theta" = 0.01,
-    "asc-hom" = 0.1,
-    "asc-het" = 0.1
+    "theta" = 0.021359190,
+    "lib-error" = 0.001256881,
+    "ref-bias-hom" = 0.938929627,
+    "ref-bias-het" = 0.757601819,
+    "lib-overdisp-hom" = 0.001,
+    "lib-overdisp-het" = 0.001
 )
 
-link_func = list(
-    logit = list(
-        "do" = function(x) {
-            log(x)-log1p(-x)
-        },
-        "undo" = function(x) {
-            y = exp(x)
-            y/(y+1)
-        }
-    ),
-    log = list("do" = log, "undo" = exp)
+lower_pars = c(
+    "mu" = 0,
+    "mu-library" = 0,
+    "mu-somatic" = 0,   
+    "theta" = 0,
+    "ref-bias-hom" = -1,
+    "ref-bias-het" = -1,
+    "ref-bias-hap" = -1,
+    "lib-bias" = 0,
+    "lib-error" = 0,
+    "lib-overdisp-hom" = 0,
+    "lib-overdisp-het" = 0  
 )
 
-link = c(
-    "mu" = "logit",
-    "mu-library" = "logit",
-    "mu-somatic" = "logit",
-    "mu-entropy" = "log",
-    "theta" = "log",
-    "asc-hom" = "logit",
-    "asc-het" = "logit",
-    "asc-hap" = "logit",
-
-    "lib-bias" = "log",
-    "lib-error" = "logit",
-    "lib-error-entropy" = "log",
-    "lib-overdisp-hom" = "logit",
-    "lib-overdisp-het" = "logit"
+upper_pars = c(
+    "mu" = 1,
+    "mu-library" = 1,
+    "mu-somatic" = 1,
+    "theta" = 1,
+    "ref-bias-hom" = 1,
+    "ref-bias-het" = 1,
+    "ref-bias-hap" = 1,
+    "lib-bias" = 2,
+    "lib-error" = 1,
+    "lib-overdisp-hom" = 1,
+    "lib-overdisp-het" = 1
 )
-
-parscale = c(
-    "mu" = 1e-5,
-    "mu-library" = 1e-5,
-    "mu-somatic" = 1e-5,
-    "mu-entropy" = 1e-5,
-    "theta" = 1e-5,
-    "asc-hom" = 0.01,
-    "asc-het" = 0.01,
-    "asc-hap" = 0.01,
-    "lib-bias" = 1e-3,
-    "lib-error" = 1e-5,
-    "lib-error-entropy" = 1e-5,
-    "lib-overdisp-hom" = 1e-5,
-    "lib-overdisp-het" = 1e-5
-)
-parscale_multiplier = 1 #increase this value for additional sites
-
-makeparscale = function(x){
-    for(n in names(x)) {
-        x[n] = parscale_multiplier * parscale[n]
-    }
-    x
-}
-
-makepars = function(x) {
-    for(n in names(x)) {
-        x[n] = link_func[[link[n]]]$do(x[n])
-    }
-    x
-}
-
-unmakepars = function(x) {
-    for(n in names(x)) {
-        x[n] = link_func[[link[n]]]$undo(x[n])
-    }
-    x
-}
 
 # Run dng loglike and extract the log like
 run_once = function(cmd, pars) {
@@ -131,21 +91,21 @@ run_once = function(cmd, pars) {
     -as.numeric(score)
 }
 
-loglike = function(pars,cmds) {
-    pars = unmakepars(pars)
+loglike = function(pars,cmds,names) {
+    names(pars) = names
     results = foreach(cmd=cmds,.combine=c) %dopar% run_once(cmd,pars)
     total = sum(results)
     total
 }
 
 main = function(cmds) {
-    pars = makepars(init_pars)
-    pscale = makeparscale(pars)
-    o = optim(pars,loglike,cmds=cmds,method="BFGS",control=list(
-         trace=6,REPORT=1,reltol=1e-8,maxit=1000,parscale=pscale
+    pars = init_pars
+    par_names=names(pars)
+    o = nmkb(pars,loglike,lower=lower_pars[par_names],upper=upper_pars[par_names],
+         cmds=cmds,names=par_names,control=list(
+         trace=TRUE,tol=1e-6
     ))
-    o$par = unmakepars(o$par)
-    o$parscale = pscale
+    names(o$par) = par_names
     o
 }
 
@@ -155,3 +115,4 @@ if(!interactive()) {
     o = main(cmds)
     print(o)
 }
+
