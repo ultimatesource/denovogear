@@ -106,6 +106,45 @@ int get_format_float(const bcf_hdr_t *header, BareVariant *record, const char *t
 }
 
 inline
+int get_numeric(const bcf_hdr_t *header, BareVariant *record, const char *tag, buffer_t<float>* buffer, int *capacity) {
+    int tag_id = bcf_hdr_id2int(header, BCF_DT_ID, tag);
+    int type = bcf_hdr_id2type(header,BCF_HL_FMT,tag_id);
+    int n;
+    // check if tag is of type int
+    if(type == BCF_HT_INT) {//1) {
+	float *p = buffer->get();
+	n = bcf_get_format_int32(header, record, tag, (int*) &p, capacity);
+	if(n == -4) {
+	    throw std::bad_alloc{};
+	} else if(p != buffer->get()) {
+	    // update pointer
+	    buffer->release();
+	    buffer->reset(p);
+	} else {
+	    // cast to float and store back into the buffer
+	    for(int i=0; i<n; i++) {
+		int tmp;
+		memcpy(&tmp, p+i, sizeof(int));
+		p[i] = static_cast<float>(tmp);
+	    }
+	}
+    } else if(type = BCF_HT_REAL) {
+	float *p = buffer->get();
+	n = bcf_get_format_float(header, record, tag, &p, capacity);
+	if(n == -4) {
+	    throw std::bad_alloc{};
+	} else if(p != buffer->get()) {
+	    // update pointer
+	    buffer->release();
+	    buffer->reset(p);
+	}
+    } else {
+	return -1;
+    }
+    return n;
+}
+
+inline
 int get_info_int32(const bcf_hdr_t *header, BareVariant *record, const char *tag, buffer_t<int>* buffer, int *capacity) {
     int *p = buffer->get();
     int n = bcf_get_info_int32(header, record, tag, &p, capacity);

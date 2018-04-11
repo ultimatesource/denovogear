@@ -109,25 +109,9 @@ static int8_t nt4_table[256] = {
 };
 
 static int get_pl_fields(const bcf_hdr_t *hdr, bcf1_t *rec, int pl_type, int n_samples, sample_vals_int &pl_fields) {
-  if(pl_type == BCF_HT_INT) {
-    int n_pl_array = n_samples*10;
-    auto pl_array = hts::bcf::make_buffer<int>(n_pl_array);
-    int n_pl = hts::bcf::get_format_int32(hdr, rec, "PL", &pl_array, &n_pl_array);
-    if(n_pl <= 0) {
-      return -6;
-    } else {
-      pl_fields.resize(n_samples);
-      int sample_len = n_pl / n_samples;
-      for(int a = 0; a < n_pl; a++) {
-	int sample_index = a / sample_len;
-	pl_fields[sample_index].push_back(pl_array[a]);
-      }
-      return 1;
-    }
-  } else if(pl_type == BCF_HT_REAL) {
     int n_pl_array = n_samples*10;
     auto pl_array = hts::bcf::make_buffer<float>(n_pl_array);
-    int n_pl = hts::bcf::get_format_float(hdr, rec, "PL", &pl_array, &n_pl_array);
+    int n_pl = hts::bcf::get_numeric(hdr, rec, "PL", &pl_array, &n_pl_array);
     if(n_pl <= 0) {
       return -6;
     } else {
@@ -139,13 +123,8 @@ static int get_pl_fields(const bcf_hdr_t *hdr, bcf1_t *rec, int pl_type, int n_s
 	int val = int(pl_array[a] + 0.5);
 	pl_fields[sample_index].push_back(val);
       }
-      return 1;
     }
-
-
-  } else {
-    return -6;
-  }
+    return 1;
 }
 
 
