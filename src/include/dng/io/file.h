@@ -45,57 +45,51 @@ public:
 
     bool Open(const std::string &filename, std::ios_base::openmode mode = std::ios_base::in) {
         std::tie(type_label_, path_) = utility::extract_file_type(filename);
-        buffer_ = nullptr;
         if(path_.empty()) {
             // don't do anything, just setup type
         } else if(path_ != "-") {
             // if path is not "-" open a file
-            file_.open(path_.c_str(), mode);
+            buffer_.reset(new std::filebuf);
+            std::filebuf *p = static_cast<std::filebuf*>(buffer_.get());
+            p->open(path_.c_str(), mode);
             // if file is open, associate it with the stream
-            if(file_.is_open()) {
-                buffer_ = file_.rdbuf();
+            if(p->is_open()) {
+                return Attach(buffer_.get());
             }
         } else if((mode & std::ios_base::in) == (mode & std::ios_base::out)) {
             // can't do anything if both are set or none are set
         } else if(mode & std::ios_base::in) {
-            buffer_ = std::cin.rdbuf();
+            return Attach(std::cin.rdbuf());
         } else {
-            buffer_ = std::cout.rdbuf();
+            return Attach(std::cout.rdbuf());
         }
-        return Attach();
+        return Attach(nullptr);
     }
     bool Attach(std::streambuf *buffer) {
-        is_open_ = (buffer != nullptr);
         stream_.rdbuf(buffer);
         stream_.unsetf(std::ios_base::skipws);
-        return is_open_;
-    }
-    bool Attach() {
-        return Attach(buffer_);
+        return is_open();
     }
 
-    bool is_open() const { return is_open_; }
+    bool is_open() const { return stream_.rdbuf() != nullptr; }
     operator bool() const { return is_open(); }
 
     std::string path() const { return path_.native(); }
 
 protected:
     std::iostream stream_{nullptr};
-    std::streambuf *buffer_{nullptr};
     boost::filesystem::path path_;
     std::string type_label_;
 
 private:
-    bool is_open_{false};
-    std::fstream file_;
+    std::unique_ptr<std::streambuf> buffer_;    
 };
 
 inline
 File::File(File&& other) : 
     buffer_{std::move(other.buffer_)},
     path_{std::move(other.path_)},
-    type_label_{std::move(other.type_label_)},
-    file_{std::move(other.file_)}
+    type_label_{std::move(other.type_label_)}
 {
     std::streambuf *buffer = other.stream_.rdbuf();
     Attach(buffer);
@@ -111,8 +105,6 @@ File& File::operator=(File&& other) {
     buffer_ = std::move(other.buffer_);
     path_ = std::move(other.path_);
     type_label_ = std::move(other.type_label_);
-
-    file_ = std::move(other.file_);
 
     std::streambuf *buffer = other.stream_.rdbuf();
     Attach(buffer);

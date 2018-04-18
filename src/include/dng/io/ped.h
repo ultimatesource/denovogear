@@ -43,7 +43,7 @@ Pedigree Ped::Parse() {
     if(!is_open()) {
         return {};
     }
-    return Pedigree::parse_text(io::istreambuf_range(buffer_));
+    return Pedigree::parse_text(io::istreambuf_range(stream_.rdbuf()));
 }
 
 inline
