@@ -3,12 +3,13 @@
 	[
 		{
 			"path": "../../",
-			"folder_exclude_patterns": ["build/"]
+			"folder_exclude_patterns": ["./build/"]
 		}
 	],
 	"settings": {
     	"tab_size": 4,
-    	"translate_tabs_to_spaces": true
+    	"translate_tabs_to_spaces": true,
+        "compile_commands": "${project_path}"
 	},
     "SublimeLinter":
     {
@@ -17,11 +18,12 @@
         	"clang": {
 				"extra_flags": "-Wall -std=c++11 -Wno-pragma-once-outside-header",
             	"include_dirs": [
-                	"${project_folder}/../../src/include/",
-                	"${project_folder}/src",
+                	"${project_path}/../../src/include/",
+                	"${project_path}/src",
                 	"/usr/include/eigen3",
                 	"/usr/include/eigen3/unsupported"
-            	]
+            	],
+                "disable": true
             }
         }
     },

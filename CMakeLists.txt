@@ -56,6 +56,11 @@ IF(CMAKE_BUILD_TYPE)
     message(FATAL_ERROR "Unsupported build type \"${CMAKE_BUILD_TYPE}\". Allowed values are Debug, Release, RelWithDebInfo, and None (case-insensitive).")
   endif()
   message(STATUS "Compiling with build type '${CMAKE_BUILD_TYPE}'.")
+  if(cmake_build_type_tolower STREQUAL "debug")
+    if(NOT DEFINED CMAKE_EXPORT_COMPILE_COMMANDS)
+      set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+    endif()
+  endif()
 ENDIF()
 
 
