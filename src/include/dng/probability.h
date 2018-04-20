@@ -33,6 +33,22 @@ namespace dng {
 
 class LogProbability {
 public:
+    struct params_t;
+    struct value_t;
+    static constexpr int MAXIMUM_NUMBER_ALLELES = 4;
+
+    LogProbability(RelationshipGraph graph, params_t params);
+
+    template<typename A>
+    void SetupWorkspace(const A &depths, int num_obs_alleles, bool has_ref);
+
+    value_t CalculateLLD();
+
+    template<typename A>
+    value_t CalculateLLD(const A &depths, int num_obs_alleles, bool has_ref);
+
+    const peel::workspace_t& work() const { return work_; };
+
     struct params_t {
         double theta;
         double ref_bias_hom;
@@ -50,23 +66,10 @@ public:
 
     struct value_t {
         double log_data;
-        double log_scale;        
+        double log_scale;
     };
-
-    LogProbability(RelationshipGraph graph, params_t params);
-
-    template<typename A>
-    LogProbability& SetupWorkspace(const A &depths, int num_obs_alleles, bool has_ref);
-
-    value_t CalculateLLD();
-
-    template<typename A>
-    value_t CalculateLLD(const A &depths, int num_obs_alleles, bool has_ref);
-
-    const peel::workspace_t& work() const { return work_; };
-
 protected:
-    using matrices_t = std::array<TransitionMatrixVector, 4>;
+    using matrices_t = std::array<TransitionMatrixVector, MAXIMUM_NUMBER_ALLELES>;
 
     matrices_t CreateMutationMatrices(const int mutype = MUTATIONS_ALL) const;
 
@@ -83,28 +86,27 @@ protected:
 
     Genotyper genotyper_;
 
-    std::array<GenotypeArray,4> diploid_prior_; // Holds P(G | theta)
-    std::array<GenotypeArray,4> haploid_prior_; // Holds P(G | theta)
+    using prior_t = std::array<GenotypeArray, MAXIMUM_NUMBER_ALLELES>;
+
+    prior_t diploid_prior_; // Holds P(G | theta)
+    prior_t haploid_prior_; // Holds P(G | theta)
     
-    std::array<GenotypeArray,4> diploid_prior_noref_; // Holds P(G | theta)
-    std::array<GenotypeArray,4> haploid_prior_noref_; // Holds P(G | theta)
+    prior_t diploid_prior_noref_; // Holds P(G | theta)
+    prior_t haploid_prior_noref_; // Holds P(G | theta)
 
     DNG_UNIT_TEST_CLASS(unittest_dng_log_probability);
 };
 
-
 template<typename A>
-LogProbability& LogProbability::SetupWorkspace(const A &depths, int num_obs_alleles, bool has_ref) {
+void LogProbability::SetupWorkspace(const A &depths, int num_obs_alleles, bool has_ref) {
     assert(num_obs_alleles >= 1);
-    if(num_obs_alleles > transition_matrices_.size()) {
-        num_obs_alleles = transition_matrices_.size();
+    if(num_obs_alleles > MAXIMUM_NUMBER_ALLELES) {
+        num_obs_alleles = MAXIMUM_NUMBER_ALLELES;
     }
     work_.matrix_index = num_obs_alleles-1;
 
     work_.CalculateGenotypeLikelihoods(genotyper_, depths, num_obs_alleles);
     work_.SetGermline(DiploidPrior(num_obs_alleles, has_ref), HaploidPrior(num_obs_alleles, has_ref));
-
-    return *this;
 }
 
 // returns 'log10 P(Data ; model)-log10 scale' and log10 scaling.
@@ -120,8 +122,8 @@ LogProbability::value_t LogProbability::CalculateLLD(
     const A &depths, int num_obs_alleles, bool has_ref)
 {
     assert(num_obs_alleles >= 1);
-    if(num_obs_alleles > transition_matrices_.size()) {
-        num_obs_alleles = transition_matrices_.size();
+    if(num_obs_alleles > MAXIMUM_NUMBER_ALLELES) {
+        num_obs_alleles = MAXIMUM_NUMBER_ALLELES;
     }
     work_.matrix_index = num_obs_alleles-1;
 

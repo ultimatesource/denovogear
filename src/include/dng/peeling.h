@@ -160,7 +160,18 @@ struct workspace_t {
             lower[pos].resize(d[u].size());
             boost::copy(d[u], lower[pos].data());
         }
-    }    
+    }
+
+    // Set all genotype likelihoods to 1
+    void ClearGenotypeLikelihoods(size_t num_of_obs_alleles) {
+        scale = 0.0;
+        size_t hap_sz = num_of_obs_alleles;
+        size_t gt_sz = hap_sz*(hap_sz+1)/2;
+        for(auto pos = library_nodes.first; pos < library_nodes.second; ++pos) {
+            assert(ploidies[pos] == 1 || ploidies[pos] == 2);
+            lower[pos].setOnes( (ploidies[pos] == 2) ? gt_sz : hap_sz );
+        }
+    }   
 };
 
 typedef std::vector<std::size_t> family_members_t;

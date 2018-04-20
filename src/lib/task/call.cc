@@ -644,10 +644,15 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
             dnt += "->";
             append_genotype(*record, call_stats.dnt_col, work.ploidies[pos], &dnt);
         }
+
+        record->info("LLD1", static_cast<float>(call_stats.lld1));
+        record->info("LLS1", static_cast<float>(call_stats.lld1-depth_stats.log_null));
+
         record->info("DNT", dnt);
 
         record->info("DNL", graph.label(pos));
         record->info("DNQ", call_stats.dnq);
+
     }
 
     record->info("DP", depth_stats.dp);

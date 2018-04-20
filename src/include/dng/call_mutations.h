@@ -35,8 +35,8 @@ public:
     CallMutations(double min_prob, const RelationshipGraph &graph, params_t params);
 
     struct stats_t {
-        double ll_zero;
-        double ll_all;
+        double ln_zero;
+        double ln_all;
 
         double mup;
         double lld;
@@ -74,6 +74,8 @@ protected:
     matrices_t oneplus_mutation_matrices_;
     matrices_t mean_mutation_matrices_;
 
+    std::array<double, MAXIMUM_NUMBER_ALLELES> log10_one_mutation_; 
+
     DNG_UNIT_TEST_CLASS(unittest_dng_call_mutations);
 };
 
@@ -88,8 +90,8 @@ double CallMutations::CalculateMUP(stats_t *stats) {
     double mup = -std::expm1(numerator - denominator);
     if(stats != nullptr) {
         stats->mup = mup;
-        stats->ll_all = denominator;
-        stats->ll_zero = numerator;
+        stats->ln_all = denominator;
+        stats->ln_zero = numerator;
     }
     return mup;
 }
