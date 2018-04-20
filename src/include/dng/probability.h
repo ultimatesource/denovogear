@@ -103,7 +103,7 @@ LogProbability::value_t LogProbability::CalculateLLD(
     }
 
     // calculate genotype likelihoods and store in the lower library vector
-    double scale = work_.SetGenotypeLikelihoods(genotyper_, depths, num_obs_alleles);
+    work_.SetGenotypeLikelihoods(genotyper_, depths, num_obs_alleles);
     double logdata;
 
     if(num_obs_alleles == 1) {
@@ -122,7 +122,7 @@ LogProbability::value_t LogProbability::CalculateLLD(
         // Calculate log P(Data ; model)
         logdata = graph_.PeelForwards(work_, transition_matrices_[num_obs_alleles-1]);
     }
-    return {logdata/M_LN10, scale/M_LN10};
+    return {logdata/M_LN10, work_.scale/M_LN10};
 }
 
 TransitionMatrixVector create_mutation_matrices(const RelationshipGraph &pedigree,

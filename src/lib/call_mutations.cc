@@ -56,20 +56,20 @@ bool CallMutations::CalculateMUP(
     const pileup::allele_depths_t &depths, int num_obs_alleles, bool has_ref, stats_t *stats)
 {
     // calculate genotype likelihoods and store in the lower library vector
-    double scale = work_.SetGenotypeLikelihoods(genotyper_, depths, num_obs_alleles);
+    work_.SetGenotypeLikelihoods(genotyper_, depths, num_obs_alleles);
 
     // Set the prior probability of the founders given the reference
     work_.SetGermline(DiploidPrior(num_obs_alleles, has_ref), HaploidPrior(num_obs_alleles, has_ref));
 
-    bool found = Calculate(stats, num_obs_alleles, has_ref);
+    bool found = CalculateMutationStats(num_obs_alleles, has_ref, stats);
     if(found && stats != nullptr) {
-        stats->lld += scale/M_LN10;
+        stats->lld += work_.scale/M_LN10;
     }
 
     return found;
 }
 
-bool CallMutations::Calculate(stats_t *stats, int num_obs_alleles, bool has_ref) {
+bool CallMutations::CalculateMutationStats(int num_obs_alleles, bool has_ref, stats_t *stats) {
     const int matrix_index = num_obs_alleles-1;
 
     // Now peel numerator

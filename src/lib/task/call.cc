@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 Reed A. Cartwright
+ * Copyright (c) 2014-2018 Reed A. Cartwright
  * Copyright (c) 2015-2016 Kael Dai
  * Copyright (c) 2016 Steven H. Wu
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
@@ -116,8 +116,10 @@ void vcf_add_header_text(hts::bcf::File &vcfout, const task::Call::argument_type
     vcfout.AddHeaderMetadata("##INFO=<ID=MUP,Number=1,Type=Float,Description=\"Probability of at least 1 de novo mutation\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=MU1P,Number=1,Type=Float,Description=\"Probability of exactly 1 de novo mutation\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=MUX,Number=1,Type=Float,Description=\"Expected number of de novo mutations\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=LLD,Number=1,Type=Float,Description=\"Log10-likelihood of observed data at the site\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=LLS,Number=1,Type=Float,Description=\"Scaled log10-likelihood of observed data at the site\">");
+    vcfout.AddHeaderMetadata("##INFO=<ID=LLD,Number=1,Type=Float,Description=\"Log10-likelihood of observed data\">");
+    vcfout.AddHeaderMetadata("##INFO=<ID=LLS,Number=1,Type=Float,Description=\"LLD scaled by log10-likelihood of an optimized multinomial model\">");
+    vcfout.AddHeaderMetadata("##INFO=<ID=LLD1,Number=1,Type=Float,Description=\"Log10-likelihood of observed data assuming 1 mutation.\">");
+    vcfout.AddHeaderMetadata("##INFO=<ID=LLS1,Number=1,Type=Float,Description=\"LLD1 scaled by log10-likelihood of an optimized multinomial model\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=DNT,Number=1,Type=String,Description=\"De novo type\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=DNL,Number=1,Type=String,Description=\"De novo location\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=DNQ,Number=1,Type=Integer,Description=\"Phread-scaled de novo quality\">");

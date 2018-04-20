@@ -105,8 +105,7 @@ public:
         for(auto r : roots_) {
             ret += log((work.lower[r] * work.upper[r]).sum());
         }
-
-        work.forward_result = ret;
+        
         return ret;
     }
 

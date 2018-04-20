@@ -36,6 +36,7 @@ public:
     struct stats_t {
         double mup;
         double lld;
+        double lld1;
         double mux;
 
         double mu1p;
@@ -43,8 +44,6 @@ public:
         int dnt_col;
         int dnl;
         int dnq;
-
-        //int color;
 
         GenotypeArrayVector genotype_likelihoods;
 
@@ -66,7 +65,7 @@ public:
     }
 
 protected:
-    bool Calculate(stats_t *stats, int num_obs_alleles, bool has_ref);
+    bool CalculateMutationStats(int num_obs_alleles, bool has_ref, stats_t *stats);
 
     double min_prob_;
 

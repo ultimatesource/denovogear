@@ -41,7 +41,7 @@ struct workspace_t {
     ParentArrayVector super; // Holds P(~Descendent_Data & G=g) for parent nodes
 
     bool dirty_lower = false;
-    double forward_result;
+    double scale = 0.0;
     // Temporary data used by some peeling ops
     TemporaryMatrix temp_buffer;
 
@@ -90,13 +90,12 @@ struct workspace_t {
         assert(founder_nodes.first <= founder_nodes.second);
         assert(founder_nodes.second <= germline_nodes.second);
 
-        // Set the Upper and Lowers of the Founder Nodes
+        // Set the Upper of the Founder Nodes
         for(auto i = founder_nodes.first; i < founder_nodes.second; ++i) {
             upper[i] = prior;
-            lower[i].setOnes(prior.size());
         }
-        // Also set the lowers of any germline node
-        for(auto i = founder_nodes.second; i < germline_nodes.second; ++i) {
+        // Set the lowers of any germline node
+        for(auto i = founder_nodes.first; i < germline_nodes.second; ++i) {
             lower[i].setOnes(prior.size());
         }
     }
@@ -105,19 +104,17 @@ struct workspace_t {
         assert(founder_nodes.first <= founder_nodes.second);
         assert(founder_nodes.second <= germline_nodes.second);
         
-        // Set the Upper and Lowers of the Founder Nodes
+        // Set the Upper of the Founder Nodes
         for(auto i = founder_nodes.first; i < founder_nodes.second; ++i) {
             assert(ploidies[i] == 2 || ploidies[i] == 1);
             if(ploidies[i] == 2) {
                 upper[i] = diploid_prior;
-                lower[i].setOnes(diploid_prior.size());
             } else {
                 upper[i] = haploid_prior;
-                lower[i].setOnes(haploid_prior.size());  
             }
         }
-        // Also set the lowers of any germline node
-        for(auto i = founder_nodes.second; i < germline_nodes.second; ++i) {
+        // Set the lowers of any germline node
+        for(auto i = founder_nodes.first; i < germline_nodes.second; ++i) {
             assert(ploidies[i] == 2 || ploidies[i] == 1);
              if(ploidies[i] == 2) {
                 lower[i].setOnes(diploid_prior.size());
@@ -128,23 +125,23 @@ struct workspace_t {
     }
 
     template<typename G, typename D, typename ...A>
-    double SetGenotypeLikelihoods(const G& gt, const D& d, A&&... args) {
-        double scale = 0.0, stemp;
+    void SetGenotypeLikelihoods(const G& gt, const D& d, A&&... args) {
+        double stemp;
+        scale = 0.0;
         size_t u = 0;
         for(auto pos = library_nodes.first; pos < library_nodes.second; ++pos) {
             std::tie(lower[pos], stemp) =
                 gt(d[u++], std::forward<A>(args)..., ploidies[pos]);
             scale += stemp;
         }
-        return scale;
     }
 
     // Set the genotype likelihoods into the lower values of the library_nodes.
     // Scales the genotype likelihoods as needed.
     // Input: log-likelihood values
     template<typename D>
-    double SetGenotypeLikelihoods(const D& d) {
-        double scale = 0.0;
+    void SetGenotypeLikelihoods(const D& d) {
+        scale = 0.0;
         size_t u = 0;
         for(auto pos = library_nodes.first; pos < library_nodes.second; ++pos,++u) {
             lower[pos].resize(d[u].size());
@@ -153,18 +150,17 @@ struct workspace_t {
             lower[pos] = (lower[pos]-temp).exp();
             scale += temp;
         }
-        return scale;
     }    
 
     // Copy genotype likelihoods into the lower values of the library_nodes
     template<typename D>
-    double CopyGenotypeLikelihoods(const D& d) {
+    void CopyGenotypeLikelihoods(const D& d) {
+        scale = 0.0;
         size_t u = 0;
         for(auto pos = library_nodes.first; pos < library_nodes.second; ++pos,++u) {
             lower[pos].resize(d[u].size());
             boost::copy(d[u], lower[pos].data());
         }
-        return 0.0;
     }    
 };
 
