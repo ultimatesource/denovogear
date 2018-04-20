@@ -56,7 +56,6 @@ CallMutations::CallMutations(double min_prob, const RelationshipGraph &graph, pa
         work_.ClearGenotypeLikelihoods(num_obs_alleles);
         work_.SetGermline(DiploidPrior(num_obs_alleles, true), HaploidPrior(num_obs_alleles, true));
         log10_one_mutation_[num_obs_alleles-1] = log10(CalculateMU1P(nullptr));
-        std::cerr << log10_one_mutation_[num_obs_alleles-1] << "\n";
     }
 }
 
@@ -72,7 +71,7 @@ bool CallMutations::CalculateMutationStats(stats_t *stats) {
     if(stats == nullptr) {
         return true;
     }
-    stats->lld = (stats->ln_all + work_.scale)/M_LN10;
+    stats->lld = (stats->ln_all + work_.ln_scale)/M_LN10;
 
     graph_.PeelBackwards(work_, transition_matrices_[matrix_index]);
 
@@ -172,13 +171,12 @@ double CallMutations::CalculateMU1P(stats_t *stats) {
     stats->mu1p = total*exp(stats->ln_zero - stats->ln_all);
 
     // NOTE: if site doesn't have a known reference, this will be biased
-    stats->lld1 = log10(total) + stats->ln_zero/M_LN10 - log10_one_mutation_[matrix_index];
+    stats->lld1 = log10(total) + (stats->ln_zero+work_.ln_scale)/M_LN10 - log10_one_mutation_[matrix_index];
 
     stats->dnq = dng::utility::lphred<int>(1.0 - (max_coeff / total), 255);
     stats->dnl = dn_location;
     stats->dnt_row = dn_row;
     stats->dnt_col = dn_col;
-
 
     return stats->mu1p;
 }

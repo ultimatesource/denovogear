@@ -41,7 +41,7 @@ struct workspace_t {
     ParentArrayVector super; // Holds P(~Descendent_Data & G=g) for parent nodes
 
     bool dirty_lower = false;
-    double scale = 0.0;
+    double ln_scale = 0.0;
     size_t matrix_index = 0;
 
     // Temporary data used by some peeling ops
@@ -128,10 +128,10 @@ struct workspace_t {
 
     template<typename G, typename D, typename ...A>
     void CalculateGenotypeLikelihoods(const G& gt, const D& d, A&&... args) {
-        scale = 0.0;
+        ln_scale = 0.0;
         size_t u = 0;
         for(auto pos = library_nodes.first; pos < library_nodes.second; ++pos) {
-            scale += gt(d[u++], std::forward<A>(args)..., ploidies[pos], &lower[pos]);
+            ln_scale += gt(d[u++], std::forward<A>(args)..., ploidies[pos], &lower[pos]);
         }
     }
 
@@ -140,21 +140,21 @@ struct workspace_t {
     // Input: log-likelihood values
     template<typename D>
     void SetGenotypeLikelihoods(const D& d) {
-        scale = 0.0;
+        ln_scale = 0.0;
         size_t u = 0;
         for(auto pos = library_nodes.first; pos < library_nodes.second; ++pos,++u) {
             lower[pos].resize(d[u].size());
             boost::copy(d[u], lower[pos].data());
             double temp = lower[pos].maxCoeff();
             lower[pos] = (lower[pos]-temp).exp();
-            scale += temp;
+            ln_scale += temp;
         }
     }    
 
     // Copy genotype likelihoods into the lower values of the library_nodes
     template<typename D>
     void CopyGenotypeLikelihoods(const D& d) {
-        scale = 0.0;
+        ln_scale = 0.0;
         size_t u = 0;
         for(auto pos = library_nodes.first; pos < library_nodes.second; ++pos,++u) {
             lower[pos].resize(d[u].size());
@@ -164,7 +164,7 @@ struct workspace_t {
 
     // Set all genotype likelihoods to 1
     void ClearGenotypeLikelihoods(size_t num_of_obs_alleles) {
-        scale = 0.0;
+        ln_scale = 0.0;
         size_t hap_sz = num_of_obs_alleles;
         size_t gt_sz = hap_sz*(hap_sz+1)/2;
         for(auto pos = library_nodes.first; pos < library_nodes.second; ++pos) {

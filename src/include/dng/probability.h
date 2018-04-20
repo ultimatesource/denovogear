@@ -113,7 +113,7 @@ void LogProbability::SetupWorkspace(const A &depths, int num_obs_alleles, bool h
 inline
 LogProbability::value_t LogProbability::CalculateLLD() {
     double logdata = graph_.PeelForwards(work_, transition_matrices_[work_.matrix_index]);
-    return {logdata/M_LN10, work_.scale/M_LN10};
+    return {logdata/M_LN10, work_.ln_scale/M_LN10};
 }
 
 // returns 'log10 P(Data ; model)-log10 scale' and log10 scaling.
@@ -140,7 +140,7 @@ LogProbability::value_t LogProbability::CalculateLLD(
         logdata *= (*it)(0);
     }
     // convert to a log-likelihood
-    return {log10(logdata), work_.scale/M_LN10};
+    return {log10(logdata), work_.ln_scale/M_LN10};
 }
 
 TransitionMatrixVector create_mutation_matrices(const RelationshipGraph &pedigree,
