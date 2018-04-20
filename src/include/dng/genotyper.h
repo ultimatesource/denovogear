@@ -88,8 +88,8 @@ public:
         double error_rate, double k_alleles);
 
     template<typename Range>
-    std::pair<GenotypeArray, double> operator()(
-        const Range& ad, int num_obs_alleles, int ploidy) const;
+    double operator()(const Range& ad, int num_obs_alleles, int ploidy,
+        GenotypeArray *output) const;
 
     double over_dispersion_hom() const { return over_dispersion_hom_; }
     double over_dispersion_het() const { return over_dispersion_het_; }
@@ -100,10 +100,10 @@ public:
 protected:
 
     template<typename Range>
-    GenotypeArray LogHaploidGenotypes(const Range& ad, int num_obs_alleles) const;
+    void LogHaploidGenotypes(const Range& ad, int num_obs_alleles, GenotypeArray *output) const;
 
     template<typename Range>
-    GenotypeArray LogDiploidGenotypes(const Range& ad, int num_obs_alleles) const;
+    void LogDiploidGenotypes(const Range& ad, int num_obs_alleles, GenotypeArray *output) const;
 
     double over_dispersion_hom_; // overdispersion of homozygotes
     double over_dispersion_het_; // overdispersion of heterozygotes
@@ -136,13 +136,13 @@ protected:
 };
 
 template<typename Range>
-GenotypeArray DirichletMultinomial::LogDiploidGenotypes(const Range& ad, int num_obs_alleles) const
-{    
+void DirichletMultinomial::LogDiploidGenotypes(const Range& ad, int num_obs_alleles, GenotypeArray *output) const {    
     assert(num_obs_alleles >= 1);
+    assert(output != nullptr);
     const int sz = num_obs_alleles*(num_obs_alleles+1)/2;
 
-    GenotypeArray ret{sz};
-    ret.setZero();
+    auto &ret = *output;
+    ret.setZero(sz);
 
     int total = 0, pos=0;
     for(auto d : ad) {
@@ -191,16 +191,16 @@ GenotypeArray DirichletMultinomial::LogDiploidGenotypes(const Range& ad, int num
             ret[gt++] -= hom_total;
         }
     }
-    return ret;
 }
 
 template<typename Range>
-GenotypeArray DirichletMultinomial::LogHaploidGenotypes(const Range& ad, int num_obs_alleles) const {
+void DirichletMultinomial::LogHaploidGenotypes(const Range& ad, int num_obs_alleles, GenotypeArray *output) const {
     assert(num_obs_alleles >= 1); 
+    assert(output != nullptr);
     const int sz = num_obs_alleles;
 
-    GenotypeArray ret{sz};
-    ret.setZero();
+    auto &ret = *output;
+    ret.setZero(sz);
 
     int total = 0, pos = 0;
     for(auto d : ad) {
@@ -215,25 +215,27 @@ GenotypeArray DirichletMultinomial::LogHaploidGenotypes(const Range& ad, int num
     for(int gt=0; gt < sz; ++gt) {
         ret[gt] -=  hom_total;
     }
-
-    return ret;
 }
 
 
 template<typename Range>
-std::pair<GenotypeArray, double> DirichletMultinomial::operator()(
-        const Range &ad, int num_obs_alleles, int ploidy) const
+double DirichletMultinomial::operator()(const Range &ad, int num_obs_alleles, int ploidy,
+    GenotypeArray *output) const
 {
+    assert(output != nullptr); 
     assert(num_obs_alleles >= 1);
     assert(ploidy == 1 || ploidy == 2);
 
-    auto log_ret = (ploidy == 2) ? LogDiploidGenotypes(ad,num_obs_alleles)
-                                 : LogHaploidGenotypes(ad,num_obs_alleles);
+    if(ploidy == 2) {
+        LogDiploidGenotypes(ad,num_obs_alleles,output);
+    } else {
+        LogHaploidGenotypes(ad,num_obs_alleles,output);
+    }
 
     // Scale and calculate likelihoods
-    double scale = log_ret.maxCoeff();
-
-    return {(log_ret - scale).exp(), scale};
+    double scale = output->maxCoeff();
+    *output = (*output - scale).exp();
+    return scale;
 }
 
 

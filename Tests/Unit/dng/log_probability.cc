@@ -237,14 +237,15 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
         auto dip_prior = population_prior_diploid(num_obs_alleles, g_params.theta,
                 g_params.ref_bias_hom, g_params.ref_bias_het, g_params.k_alleles, has_ref);
 
-        auto mom_lower = genotyper(depths[0], num_obs_alleles, 2);
-        auto dad_lower = genotyper(depths[1], num_obs_alleles, 2);
-        auto eve_lower = genotyper(depths[2], num_obs_alleles, 2);
-        expected_log_scale = mom_lower.second+dad_lower.second+eve_lower.second;
+        GenotypeArray mom_lower, dad_lower, eve_lower;
+        expected_log_scale = 0.0;
+        expected_log_scale += genotyper(depths[0], num_obs_alleles, 2, &mom_lower);
+        expected_log_scale += genotyper(depths[1], num_obs_alleles, 2, &dad_lower);
+        expected_log_scale += genotyper(depths[2], num_obs_alleles, 2, &eve_lower);
 
-        BOOST_REQUIRE_EQUAL(mom_lower.first.size(), gt_sz);
-        BOOST_REQUIRE_EQUAL(dad_lower.first.size(), gt_sz);
-        BOOST_REQUIRE_EQUAL(eve_lower.first.size(), gt_sz);
+        BOOST_REQUIRE_EQUAL(mom_lower.size(), gt_sz);
+        BOOST_REQUIRE_EQUAL(dad_lower.size(), gt_sz);
+        BOOST_REQUIRE_EQUAL(eve_lower.size(), gt_sz);
 
         const auto m_sl = Mk::matrix(hap_sz, mu_s+mu_l, g_params.k_alleles);
         const auto m_gsl = Mk::matrix(hap_sz, mu_g+mu_s+mu_l, g_params.k_alleles);
@@ -258,13 +259,13 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
             for(int mom_g=0; mom_g<gt_sz;++mom_g,++par) {
                 double lld_eve = 0.0, lld_mom = 0.0, lld_dad = 0.0;
                 for(int eve=0;eve<gt_sz;++eve) {
-                    lld_eve += eve_lower.first(eve)*m_eve(par,eve);
+                    lld_eve += eve_lower(eve)*m_eve(par,eve);
                 }
                 for(int mom=0;mom<gt_sz;++mom) {
-                    lld_mom += mom_lower.first(mom)*m_mom(mom_g,mom);
+                    lld_mom += mom_lower(mom)*m_mom(mom_g,mom);
                 }
                 for(int dad=0;dad<gt_sz;++dad) {
-                    lld_dad += dad_lower.first(dad)*m_dad(dad_g,dad);
+                    lld_dad += dad_lower(dad)*m_dad(dad_g,dad);
                 }
                 lld += lld_eve*lld_mom*lld_dad*dip_prior(mom_g)*dip_prior(dad_g);
             }
@@ -385,14 +386,15 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_xlinked) {
         auto dip_prior = population_prior_diploid(num_obs_alleles, g_params.theta,
                 g_params.ref_bias_hom, g_params.ref_bias_het, g_params.k_alleles, has_ref);
 
-        auto mom_lower = genotyper(depths[0], num_obs_alleles, 2);
-        auto dad_lower = genotyper(depths[1], num_obs_alleles, 1);
-        auto eve_lower = genotyper(depths[2], num_obs_alleles, 2);
-        expected_log_scale = mom_lower.second+dad_lower.second+eve_lower.second;
+        GenotypeArray mom_lower, dad_lower, eve_lower;
+        expected_log_scale = 0.0;
+        expected_log_scale += genotyper(depths[0], num_obs_alleles, 2, &mom_lower);
+        expected_log_scale += genotyper(depths[1], num_obs_alleles, 1, &dad_lower);
+        expected_log_scale += genotyper(depths[2], num_obs_alleles, 2, &eve_lower);
 
-        BOOST_REQUIRE_EQUAL(mom_lower.first.size(), gt_sz);
-        BOOST_REQUIRE_EQUAL(dad_lower.first.size(), hap_sz);
-        BOOST_REQUIRE_EQUAL(eve_lower.first.size(), gt_sz);
+        BOOST_REQUIRE_EQUAL(mom_lower.size(), gt_sz);
+        BOOST_REQUIRE_EQUAL(dad_lower.size(), hap_sz);
+        BOOST_REQUIRE_EQUAL(eve_lower.size(), gt_sz);
 
         const auto m_sl = Mk::matrix(hap_sz, mu_s+mu_l, g_params.k_alleles);
         const auto m_gsl = Mk::matrix(hap_sz, mu_g+mu_s+mu_l, g_params.k_alleles);
@@ -406,13 +408,13 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_xlinked) {
             for(int mom_g=0; mom_g<gt_sz;++mom_g,++par) {
                 double lld_eve = 0.0, lld_mom = 0.0, lld_dad = 0.0;
                 for(int eve=0;eve<gt_sz;++eve) {
-                    lld_eve += eve_lower.first(eve)*m_eve(par,eve);
+                    lld_eve += eve_lower(eve)*m_eve(par,eve);
                 }
                 for(int mom=0;mom<gt_sz;++mom) {
-                    lld_mom += mom_lower.first(mom)*m_mom(mom_g,mom);
+                    lld_mom += mom_lower(mom)*m_mom(mom_g,mom);
                 }
                 for(int dad=0;dad<hap_sz;++dad) {
-                    lld_dad += dad_lower.first(dad)*m_dad(dad_g,dad);
+                    lld_dad += dad_lower(dad)*m_dad(dad_g,dad);
                 }
                 lld += lld_eve*lld_mom*lld_dad*dip_prior(mom_g)*hap_prior(dad_g);
             }

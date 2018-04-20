@@ -146,10 +146,10 @@ BOOST_AUTO_TEST_CASE(test_DirichletMultinomial) {
                     double expected_scale = *boost::max_element(expected);
                     for(auto &&x : expected) {
                          x = exp(x-expected_scale);
-                     }
-                    auto results = dm(ad,k,1);
-                    double test_scale = results.second;
-                    auto test = make_test_range(results.first);
+                    }
+                    GenotypeArray output;
+                    double test_scale = dm(ad,k,1,&output);
+                    auto test = make_test_range(output);
                     BOOST_CHECK_CLOSE_FRACTION(test_scale, expected_scale, prec);
                     CHECK_CLOSE_RANGES(test, expected, prec);
                 }
@@ -182,11 +182,10 @@ BOOST_AUTO_TEST_CASE(test_DirichletMultinomial) {
                     double expected_scale = *boost::max_element(expected);
                     for(auto &&x : expected) {
                          x = exp(x-expected_scale);
-                     }
-                    auto results = dm(ad,k,2);
-                    double test_scale = results.second;
-                    auto test = make_test_range(results.first);
-
+                    }
+                    GenotypeArray output;
+                    double test_scale = dm(ad,k,2,&output);
+                    auto test = make_test_range(output);
                     BOOST_CHECK_CLOSE_FRACTION(test_scale, expected_scale, prec);
                     CHECK_CLOSE_RANGES(test, expected, prec);
                 }
