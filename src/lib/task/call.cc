@@ -224,7 +224,7 @@ int process_bam(task::Call::argument_type &arg) {
     auto record = vcfout.InitVariant();
 
     // Construct Calling Object
-    CallMutations do_call(arg.min_prob, relationship_graph, get_model_parameters(arg));
+    CallMutations model{arg.min_prob, relationship_graph, get_model_parameters(arg)};
 
     // Calculated stats
     CallMutations::stats_t stats;
@@ -261,7 +261,8 @@ int process_bam(task::Call::argument_type &arg) {
             return;
         }
 
-        if(!do_call(read_depths, n_sz, ref_index < 4, &stats)) {
+        model.SetupWorkspace(read_depths, n_sz, ref_index < 4);
+        if(!model.CalculateMutationStats(&stats)) {
             return;
         }
         const bool has_single_mut = ((stats.mu1p / stats.mup) >= min_prob);
@@ -272,7 +273,7 @@ int process_bam(task::Call::argument_type &arg) {
         pileup::stats_t depth_stats;
         pileup::calculate_stats(read_depths, &depth_stats);
 
-        add_stats_to_output(stats, depth_stats, has_single_mut, relationship_graph, do_call.work(), &record);
+        add_stats_to_output(stats, depth_stats, has_single_mut, relationship_graph, model.work(), &record);
         // Map character_indexes to alleles
         std::vector<int> base_index_to_allele(count_alleles.indexes.size(),-1);
         for(size_t u=0;u<count_alleles.indexes.size();++u) {
@@ -387,7 +388,7 @@ int process_bcf(task::Call::argument_type &arg) {
     const bcf_hdr_t *header = mpileup.reader().header(0); // TODO: fixthis
     const size_t num_libs = mpileup.num_libraries();
 
-    CallMutations do_call(arg.min_prob, relationship_graph, get_model_parameters(arg));
+    CallMutations model{arg.min_prob, relationship_graph, get_model_parameters(arg)};
 
     // Calculated stats
     CallMutations::stats_t stats;
@@ -420,8 +421,9 @@ int process_bcf(task::Call::argument_type &arg) {
 
         pileup::allele_depths_ref_t read_depths(ad.get(), make_array(num_libs,n_sz));
 
-        // TODO: check that REF isn't missing
-        if(!do_call(read_depths, n_alleles, true, &stats)) {
+        // TODO: check that REF isn't a missing character
+        model.SetupWorkspace(read_depths, n_alleles, true);
+        if(!model.CalculateMutationStats(&stats)) {
             return;
         }
         const bool has_single_mut = ((stats.mu1p / stats.mup) >= min_prob);
@@ -433,7 +435,7 @@ int process_bcf(task::Call::argument_type &arg) {
         pileup::stats_t depth_stats;
         pileup::calculate_stats(read_depths, &depth_stats);
 
-        add_stats_to_output(stats, depth_stats, has_single_mut, relationship_graph, do_call.work(), &record);
+        add_stats_to_output(stats, depth_stats, has_single_mut, relationship_graph, model.work(), &record);
 
         // Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
         std::vector<int32_t> ad_info(n_alleles, 0);
@@ -480,7 +482,7 @@ int process_ad(task::Call::argument_type &arg) {
 
     // Construct Calling Object
     const double min_prob = arg.min_prob;
-    CallMutations do_call(arg.min_prob, relationship_graph, get_model_parameters(arg));
+    CallMutations model{arg.min_prob, relationship_graph, get_model_parameters(arg)};
 
     // Calculated stats
     CallMutations::stats_t stats;
@@ -491,7 +493,7 @@ int process_ad(task::Call::argument_type &arg) {
 
     pileup::allele_depths_t read_depths;
     // Place the processing logic in the lambda function.
-    auto wrapped_do_call = [&,read_depths](const decltype(mpileup)::data_type &line,
+    auto wrapped_model = [&,read_depths](const decltype(mpileup)::data_type &line,
         CallMutations::stats_t *stats) mutable -> bool 
     {
         bool ref_is_N = (line.color() >= 64);
@@ -504,17 +506,19 @@ int process_ad(task::Call::argument_type &arg) {
                     read_depths[i][a] = line(i,a-1);
                 }
             }
-            return do_call(read_depths, n_sz, false, stats);
+            model.SetupWorkspace(read_depths, n_sz, false);
+            return model.CalculateMutationStats(stats);
         } else {
             size_t n_sz = line.num_nucleotides();
             dng::pileup::allele_depths_const_ref_t read_depths_ref(line.data().data(),
                 make_array(line.num_libraries(), line.num_nucleotides()));
-            return do_call(read_depths_ref, n_sz, true, stats);   
+            model.SetupWorkspace(read_depths_ref, n_sz, true);
+            return model.CalculateMutationStats(stats);
         }
     };
 
     mpileup([&](const decltype(mpileup)::data_type & data) {
-        if(!wrapped_do_call(data, &stats)) {
+        if(!wrapped_model(data, &stats)) {
             return;
         }
         const bool has_single_mut = ((stats.mu1p / stats.mup) >= min_prob);
@@ -542,7 +546,7 @@ int process_ad(task::Call::argument_type &arg) {
         pileup::stats_t depth_stats;
         pileup::calculate_stats(read_depths, &depth_stats);
 
-        add_stats_to_output(stats, depth_stats, has_single_mut, relationship_graph, do_call.work(), &record);
+        add_stats_to_output(stats, depth_stats, has_single_mut, relationship_graph, model.work(), &record);
 
         // Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
         std::vector<int32_t> ad_info(n_sz, 0);

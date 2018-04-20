@@ -42,6 +42,8 @@ struct workspace_t {
 
     bool dirty_lower = false;
     double scale = 0.0;
+    size_t matrix_index = 0;
+
     // Temporary data used by some peeling ops
     TemporaryMatrix temp_buffer;
 
@@ -125,7 +127,7 @@ struct workspace_t {
     }
 
     template<typename G, typename D, typename ...A>
-    void SetGenotypeLikelihoods(const G& gt, const D& d, A&&... args) {
+    void CalculateGenotypeLikelihoods(const G& gt, const D& d, A&&... args) {
         scale = 0.0;
         size_t u = 0;
         for(auto pos = library_nodes.first; pos < library_nodes.second; ++pos) {

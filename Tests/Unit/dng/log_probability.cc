@@ -277,10 +277,6 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
         test_value = log_probability.CalculateLLD(depths, num_obs_alleles_old, has_ref);
         BOOST_CHECK_CLOSE_FRACTION(test_value.log_scale, expected_log_scale, prec);
         BOOST_CHECK_CLOSE_FRACTION(test_value.log_data, expected_log_data, prec);
-
-        test_value = log_probability(depths, num_obs_alleles_old, has_ref);
-        BOOST_CHECK_CLOSE_FRACTION(test_value.log_scale, expected_log_scale, prec);
-        BOOST_CHECK_CLOSE_FRACTION(test_value.log_data, expected_log_data, prec);
     }};
 
     test({{0},{0},{0}}, 1, true);
@@ -424,10 +420,6 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_xlinked) {
         expected_log_data = log(lld.result()) / M_LN10;
 
         test_value = log_probability.CalculateLLD(depths, num_obs_alleles_old, has_ref);
-        BOOST_CHECK_CLOSE_FRACTION(test_value.log_scale, expected_log_scale, prec);
-        BOOST_CHECK_CLOSE_FRACTION(test_value.log_data, expected_log_data, prec);
-
-        test_value = log_probability(depths, num_obs_alleles_old, has_ref);
         BOOST_CHECK_CLOSE_FRACTION(test_value.log_scale, expected_log_scale, prec);
         BOOST_CHECK_CLOSE_FRACTION(test_value.log_data, expected_log_data, prec);
     }};

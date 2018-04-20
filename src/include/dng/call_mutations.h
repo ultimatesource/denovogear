@@ -32,8 +32,12 @@ namespace dng {
 
 class CallMutations : public LogProbability {
 public:
+    CallMutations(double min_prob, const RelationshipGraph &graph, params_t params);
 
     struct stats_t {
+        double ll_zero;
+        double ll_all;
+
         double mup;
         double lld;
         double lld1;
@@ -55,17 +59,13 @@ public:
         std::vector<double> node_mu1p;
     };
 
-    CallMutations(double min_prob, const RelationshipGraph &graph,
-            params_t params);
+    bool CalculateMutationStats(stats_t *stats);
 
-    bool CalculateMUP(const pileup::allele_depths_t &depths, int num_obs_alleles, bool has_ref, stats_t *stats);    
+    double CalculateMUP(stats_t *stats);
 
-    bool operator()(const pileup::allele_depths_t &depths, int num_obs_alleles, bool has_ref, stats_t *stats) {
-        return CalculateMUP(depths, num_obs_alleles, has_ref, stats);
-    }
+    double CalculateMU1P(stats_t *stats);
 
 protected:
-    bool CalculateMutationStats(int num_obs_alleles, bool has_ref, stats_t *stats);
 
     double min_prob_;
 
@@ -76,6 +76,25 @@ protected:
 
     DNG_UNIT_TEST_CLASS(unittest_dng_call_mutations);
 };
+
+inline
+double CallMutations::CalculateMUP(stats_t *stats) {
+    const int matrix_index = work_.matrix_index;
+    // Now peel numerator
+    double numerator = graph_.PeelForwards(work_, zero_mutation_matrices_[matrix_index]);
+    // Calculate log P(Data ; model)
+    double denominator = graph_.PeelForwards(work_, transition_matrices_[matrix_index]);
+    // Mutation Probability
+    double mup = -std::expm1(numerator - denominator);
+    if(stats != nullptr) {
+        stats->mup = mup;
+        stats->ll_all = denominator;
+        stats->ll_zero = numerator;
+    }
+    return mup;
+}
+
+
 } // namespace dng
 
 #endif /* DNG_FIND_MUTATIONS_H */

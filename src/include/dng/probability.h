@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Reed A. Cartwright
+ * Copyright (c) 2016-2018 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -56,12 +56,12 @@ public:
     LogProbability(RelationshipGraph graph, params_t params);
 
     template<typename A>
-    value_t CalculateLLD(const A &depths, int num_obs_alleles, bool has_ref);
+    LogProbability& SetupWorkspace(const A &depths, int num_obs_alleles, bool has_ref);
+
+    value_t CalculateLLD();
 
     template<typename A>
-    value_t operator()(const A &depths, int num_obs_alleles, bool has_ref) {
-        return CalculateLLD(depths, num_obs_alleles, has_ref);
-    }
+    value_t CalculateLLD(const A &depths, int num_obs_alleles, bool has_ref);
 
     const peel::workspace_t& work() const { return work_; };
 
@@ -92,6 +92,28 @@ protected:
     DNG_UNIT_TEST_CLASS(unittest_dng_log_probability);
 };
 
+
+template<typename A>
+LogProbability& LogProbability::SetupWorkspace(const A &depths, int num_obs_alleles, bool has_ref) {
+    assert(num_obs_alleles >= 1);
+    if(num_obs_alleles > transition_matrices_.size()) {
+        num_obs_alleles = transition_matrices_.size();
+    }
+    work_.matrix_index = num_obs_alleles-1;
+
+    work_.CalculateGenotypeLikelihoods(genotyper_, depths, num_obs_alleles);
+    work_.SetGermline(DiploidPrior(num_obs_alleles, has_ref), HaploidPrior(num_obs_alleles, has_ref));
+
+    return *this;
+}
+
+// returns 'log10 P(Data ; model)-log10 scale' and log10 scaling.
+inline
+LogProbability::value_t LogProbability::CalculateLLD() {
+    double logdata = graph_.PeelForwards(work_, transition_matrices_[work_.matrix_index]);
+    return {logdata/M_LN10, work_.scale/M_LN10};
+}
+
 // returns 'log10 P(Data ; model)-log10 scale' and log10 scaling.
 template<typename A>
 LogProbability::value_t LogProbability::CalculateLLD(
@@ -101,28 +123,22 @@ LogProbability::value_t LogProbability::CalculateLLD(
     if(num_obs_alleles > transition_matrices_.size()) {
         num_obs_alleles = transition_matrices_.size();
     }
+    work_.matrix_index = num_obs_alleles-1;
 
     // calculate genotype likelihoods and store in the lower library vector
-    work_.SetGenotypeLikelihoods(genotyper_, depths, num_obs_alleles);
-    double logdata;
-
-    if(num_obs_alleles == 1) {
-        // Use cached value for monomorphic sites instead of peeling.
-        logdata = prob_monomorphic_;
-        for(auto it = work_.lower.begin()+work_.library_nodes.first;
-            it != work_.lower.begin()+work_.library_nodes.second; ++it) {
-            logdata *= (*it)(0);
-        }
-        // convert to a log-likelihood
-        logdata = log(logdata);
-    } else {
-        // Set the prior probability of the founders given the reference
-        work_.SetGermline(DiploidPrior(num_obs_alleles, has_ref), HaploidPrior(num_obs_alleles, has_ref));
-
-        // Calculate log P(Data ; model)
-        logdata = graph_.PeelForwards(work_, transition_matrices_[num_obs_alleles-1]);
+    if(num_obs_alleles > 1) {
+        SetupWorkspace(depths, num_obs_alleles, has_ref);
+        return CalculateLLD();
     }
-    return {logdata/M_LN10, work_.scale/M_LN10};
+    // Use cached value for monomorphic sites instead of peeling.
+    double logdata = prob_monomorphic_;
+    work_.CalculateGenotypeLikelihoods(genotyper_, depths, num_obs_alleles);
+    for(auto it = work_.lower.begin()+work_.library_nodes.first;
+        it != work_.lower.begin()+work_.library_nodes.second; ++it) {
+        logdata *= (*it)(0);
+    }
+    // convert to a log-likelihood
+    return {log10(logdata), work_.scale/M_LN10};
 }
 
 TransitionMatrixVector create_mutation_matrices(const RelationshipGraph &pedigree,

@@ -17,7 +17,9 @@ endfunction()
 
 function(CheckProcessTest PREFIX TEST)
   message(STATUS "Test ${PREFIX}.${TEST}...")
-
+  string (REPLACE ";" " " cmd_str "${${TEST}-CMD}")
+  message(STATUS "  Working directory ${${TEST}-WD}")
+  message(STATUS "  Executing ${cmd_str}")
   execute_process( COMMAND ${${TEST}-CMD} 
   OUTPUT_VARIABLE stdout
   ERROR_VARIABLE  stderr

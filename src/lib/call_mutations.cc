@@ -52,42 +52,18 @@ CallMutations::CallMutations(double min_prob, const RelationshipGraph &graph, pa
 }
 
 // Returns true if a mutation was found and the record was modified
-bool CallMutations::CalculateMUP(
-    const pileup::allele_depths_t &depths, int num_obs_alleles, bool has_ref, stats_t *stats)
-{
-    // calculate genotype likelihoods and store in the lower library vector
-    work_.SetGenotypeLikelihoods(genotyper_, depths, num_obs_alleles);
+bool CallMutations::CalculateMutationStats(stats_t *stats) {
+    const int matrix_index = work_.matrix_index;
 
-    // Set the prior probability of the founders given the reference
-    work_.SetGermline(DiploidPrior(num_obs_alleles, has_ref), HaploidPrior(num_obs_alleles, has_ref));
+    double mup = CalculateMUP(stats);
 
-    bool found = CalculateMutationStats(num_obs_alleles, has_ref, stats);
-    if(found && stats != nullptr) {
-        stats->lld += work_.scale/M_LN10;
-    }
-
-    return found;
-}
-
-bool CallMutations::CalculateMutationStats(int num_obs_alleles, bool has_ref, stats_t *stats) {
-    const int matrix_index = num_obs_alleles-1;
-
-    // Now peel numerator
-    double numerator = graph_.PeelForwards(work_, zero_mutation_matrices_[matrix_index]);
-
-    // Calculate log P(Data ; model)
-    double denominator = graph_.PeelForwards(work_, transition_matrices_[matrix_index]);
-
-    // Mutation Probability
-    double mup = -std::expm1(numerator - denominator);
-
-    if (mup < min_prob_) {
+    if(mup < min_prob_) {
         return false;
-    } else if(stats == nullptr) {
+    }
+    if(stats == nullptr) {
         return true;
     }
-    stats->mup = mup;
-    stats->lld = denominator/M_LN10;
+    stats->lld = (stats->ll_all + work_.scale)/M_LN10;
 
     graph_.PeelBackwards(work_, transition_matrices_[matrix_index]);
 
@@ -133,10 +109,30 @@ bool CallMutations::CalculateMutationStats(int num_obs_alleles, bool has_ref, st
     }
 
     // Probability of Exactly One Mutation
-    // We will peel again, but this time with the zero matrix
-    graph_.PeelForwards(work_, zero_mutation_matrices_[matrix_index]);
-    graph_.PeelBackwards(work_, zero_mutation_matrices_[matrix_index]);
+    CalculateMU1P(stats);
+    return true;
+}
 
+// NOTE: if stats is not nullptr, this assumes that CalculateMUP has been run on it
+double CallMutations::CalculateMU1P(stats_t *stats) {
+    // Probability of Exactly One Mutation
+    // We will peel again, but this time with the zero matrix
+    const int matrix_index = work_.matrix_index;
+
+    double ll_zero = graph_.PeelForwards(work_, zero_mutation_matrices_[matrix_index]);
+    graph_.PeelBackwards(work_, zero_mutation_matrices_[matrix_index]);
+    if(stats == nullptr) {
+        double total = 0.0;
+        for (size_t i = work_.founder_nodes.second; i < work_.num_nodes; ++i) {
+            work_.temp_buffer = (work_.super[i].matrix() *
+                                    work_.lower[i].matrix().transpose()).array() *
+                                    one_mutation_matrices_[matrix_index][i].array();
+            total += work_.temp_buffer.sum();
+        }
+        double ll_all = graph_.PeelForwards(work_, transition_matrices_[matrix_index]);
+        // total = P(1 mutation & D)/P(0 mutations & D) due to backwards algorithm
+        return total*exp(ll_zero - ll_all);
+    }
     double total = 0.0, max_coeff = -1.0;
     size_t dn_row = 0, dn_col = 0, dn_location = 0;
 
@@ -145,8 +141,6 @@ bool CallMutations::CalculateMutationStats(int num_obs_alleles, bool has_ref, st
         stats->node_mu1p[i] = 0.0;
     }
     for (size_t i = work_.founder_nodes.second; i < work_.num_nodes; ++i) {
-        work_.temp_buffer.resize(1,1);
-
         work_.temp_buffer = (work_.super[i].matrix() *
                                 work_.lower[i].matrix().transpose()).array() *
                                 one_mutation_matrices_[matrix_index][i].array();
@@ -165,12 +159,13 @@ bool CallMutations::CalculateMutationStats(int num_obs_alleles, bool has_ref, st
     for (size_t i = work_.founder_nodes.second; i < work_.num_nodes; ++i) {
         stats->node_mu1p[i] /= total;
     }
-    // total = P(1 mutation | D)/P(0 mutations | D) due to backwards algorithm
-    stats->mu1p = total*exp(numerator-denominator);
+    // total = P(1 mutation & D)/P(0 mutations & D) due to backwards algorithm
+    stats->mu1p = total*exp(stats->ll_zero - stats->ll_all);
 
     stats->dnq = dng::utility::lphred<int>(1.0 - (max_coeff / total), 255);
     stats->dnl = dn_location;
     stats->dnt_row = dn_row;
     stats->dnt_col = dn_col;
-    return true;
+
+    return stats->mu1p;
 }
