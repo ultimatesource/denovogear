@@ -44,14 +44,12 @@ public:
 
     double CalculateLLD();
 
-    double CalculateVARP();
+    double CalculateMONOLN();
 
     template<typename A>
     double CalculateLLD(const A &depths, int num_obs_alleles, bool has_ref);
 
     const peel::workspace_t& work() const { return work_; }
-
-    double prob_monomorphic() const { return prob_monomorphic_; }
 
     struct params_t {
         double theta;
@@ -82,7 +80,7 @@ protected:
 
     matrices_t transition_matrices_;
 
-    double prob_monomorphic_;
+    double ln_monomorphic_;
 
     Genotyper genotyper_;
 
@@ -110,23 +108,21 @@ void Probability::SetupWorkspace(const A &depths, int num_obs_alleles, bool has_
 }
 
 inline
-double Probability::CalculateVARP() {
+double Probability::CalculateMONOLN() {
     // Use cached value for monomorphic sites instead of peeling.
-    double probref = prob_monomorphic_;
+    double ln_mono = ln_monomorphic_;
     for(auto it = work_.lower.begin()+work_.library_nodes.first;
         it != work_.lower.begin()+work_.library_nodes.second; ++it) {
-        probref *= (*it)(0);
+        ln_mono += log((*it)(0));
     }
-
-    double probdata = graph_.PeelForwards(work_, transition_matrices_[work_.matrix_index]);
-    return 1.0-probref/probdata;
+    return ln_mono;
 }
 
 // returns 'log10 P(Data ; model)'
 inline
 double Probability::CalculateLLD() {
-    double probdata = graph_.PeelForwards(work_, transition_matrices_[work_.matrix_index]);
-    return (probdata+work_.ln_scale)/M_LN10;
+    double ln_data = graph_.PeelForwards(work_, transition_matrices_[work_.matrix_index]);
+    return (ln_data+work_.ln_scale)/M_LN10;
 }
 
 // returns 'log10 P(Data ; model)'
@@ -146,14 +142,8 @@ double Probability::CalculateLLD(
         return CalculateLLD();
     }
     // Use cached value for monomorphic sites instead of peeling.
-    double probdata = prob_monomorphic_;
-    work_.CalculateGenotypeLikelihoods(genotyper_, depths, num_obs_alleles);
-    for(auto it = work_.lower.begin()+work_.library_nodes.first;
-        it != work_.lower.begin()+work_.library_nodes.second; ++it) {
-        probdata *= (*it)(0);
-    }
-    // convert to a log-likelihood
-    return log10(probdata) + work_.ln_scale/M_LN10;
+    work_.CalculateGenotypeLikelihoods(genotyper_, depths, 1);
+    return (ln_monomorphic_ + work_.ln_scale)/M_LN10;
 }
 
 TransitionMatrixVector create_mutation_matrices(const RelationshipGraph &pedigree,

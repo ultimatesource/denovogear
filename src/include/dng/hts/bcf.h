@@ -61,8 +61,14 @@ constexpr int8_t int8_vector_end = bcf_int8_vector_end;
 
 const std::string str_missing = ".";
 
+struct buffer_free_t {
+    void operator()(void* ptr) const {
+        free(ptr);
+    }
+};
+
 template<typename T>
-using buffer_t = std::unique_ptr<T[],decltype(std::free)*>;
+using buffer_t = std::unique_ptr<T[],buffer_free_t>;
 
 // bcf_get_format_* uses realloc internally, so this buffer
 // will be managed by malloc and free
@@ -72,7 +78,7 @@ buffer_t<T> make_buffer(std::size_t sz) {
     if(p == nullptr) {
         throw std::bad_alloc{};
     }
-    return { reinterpret_cast<T*>(p),std::free};
+    return buffer_t<T>{ reinterpret_cast<T*>(p) };
 }
 
 typedef bcf1_t BareVariant;

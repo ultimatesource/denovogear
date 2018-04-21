@@ -73,6 +73,9 @@ bool CallMutations::CalculateMutationStats(stats_t *stats) {
     }
     stats->lld = (stats->ln_all + work_.ln_scale)/M_LN10;
 
+    double ln_mono = CalculateMONOLN();
+    stats->quality = (-10/M_LN10)*(ln_mono-stats->ln_all);
+
     graph_.PeelBackwards(work_, transition_matrices_[matrix_index]);
 
     // Genotype Likelihoods for Libraries

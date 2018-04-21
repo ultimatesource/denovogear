@@ -62,9 +62,51 @@ using namespace dng;
 
 using utility::make_array;
 
+namespace {
+
 int process_bam(task::Call::argument_type &arg);
 int process_bcf(task::Call::argument_type &arg);
 int process_ad(task::Call::argument_type &arg);
+
+}
+
+using namespace hts::bcf;
+using dng::utility::lphred;
+using dng::utility::phred;
+using dng::utility::location_to_contig;
+using dng::utility::location_to_position;
+using dng::utility::FileCat;
+using namespace task;
+
+// The main loop for dng-call application
+// argument_type arg holds the processed command line arguments
+int task::Call::operator()(Call::argument_type &arg) {
+    // Determine the type of input files
+    auto it = arg.input.begin();
+    FileCat mode = utility::input_category(*it, FileCat::Sequence|FileCat::Pileup|FileCat::Variant, FileCat::Unknown);
+    for(++it; it != arg.input.end(); ++it) {
+        // Make sure different types of input files aren't mixed together
+        if(utility::input_category(*it, FileCat::Sequence|FileCat::Pileup|FileCat::Variant, FileCat::Sequence) != mode) {
+            throw std::invalid_argument("Mixing pileup, sequencing, and variant file types is not supported.");
+        }
+    }
+
+    if(mode == utility::FileCat::Sequence) {
+        // sam, bam, cram
+        return process_bam(arg);
+    } else if(mode == utility::FileCat::Variant) {
+        // vcf, bcf
+        return process_bcf(arg);
+    } else if(mode == utility::FileCat::Pileup) {
+        // tad, ad
+        return process_ad(arg);
+    } else {
+        throw std::invalid_argument("Unknown input data file type.");
+    }
+    return EXIT_FAILURE;
+}
+
+namespace {
 
 void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup::stats_t& depth_stats,
     bool has_single_mut,
@@ -167,42 +209,6 @@ hts::bcf::File open_vcf_output(const A& arg, const M& mpileup, const R& relation
     vcfout.WriteHeader();
 
     return vcfout;
-}
-
-using namespace hts::bcf;
-using dng::utility::lphred;
-using dng::utility::phred;
-using dng::utility::location_to_contig;
-using dng::utility::location_to_position;
-using dng::utility::FileCat;
-using namespace task;
-
-// The main loop for dng-call application
-// argument_type arg holds the processed command line arguments
-int task::Call::operator()(Call::argument_type &arg) {
-    // Determine the type of input files
-    auto it = arg.input.begin();
-    FileCat mode = utility::input_category(*it, FileCat::Sequence|FileCat::Pileup|FileCat::Variant, FileCat::Unknown);
-    for(++it; it != arg.input.end(); ++it) {
-        // Make sure different types of input files aren't mixed together
-        if(utility::input_category(*it, FileCat::Sequence|FileCat::Pileup|FileCat::Variant, FileCat::Sequence) != mode) {
-            throw std::invalid_argument("Mixing pileup, sequencing, and variant file types is not supported.");
-        }
-    }
-
-    if(mode == utility::FileCat::Sequence) {
-        // sam, bam, cram
-        return process_bam(arg);
-    } else if(mode == utility::FileCat::Variant) {
-        // vcf, bcf
-        return process_bcf(arg);
-    } else if(mode == utility::FileCat::Pileup) {
-        // tad, ad
-        return process_ad(arg);
-    } else {
-        throw std::invalid_argument("Unknown input data file type.");
-    }
-    return EXIT_FAILURE;
 }
 
 // Processes bam, sam, and cram files.
@@ -611,6 +617,8 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
     const size_t num_nodes = work.num_nodes;
     const size_t num_libraries = work.library_nodes.second-work.library_nodes.first;
 
+    record->quality(call_stats.quality);
+
     record->info("MUP", static_cast<float>(call_stats.mup));
     record->info("LLD", static_cast<float>(call_stats.lld));
     record->info("LLS", static_cast<float>(call_stats.lld-depth_stats.log_null));
@@ -737,3 +745,5 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
     }    
     record->samples("DP", int32_vector);
 }
+
+}  // anon namespacce

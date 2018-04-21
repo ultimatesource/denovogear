@@ -49,6 +49,8 @@ public:
         int dnl;
         int dnq;
 
+        double quality;
+
         GenotypeArrayVector genotype_likelihoods;
 
         GenotypeArrayVector posterior_probabilities;

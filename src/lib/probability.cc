@@ -61,7 +61,7 @@ Probability::Probability(RelationshipGraph graph, params_t params) :
     work_.matrix_index = 0;
     work_.ClearGenotypeLikelihoods(1);
     work_.SetGermline(DiploidPrior(1, true), HaploidPrior(1, true));
-    prob_monomorphic_ = exp(graph_.PeelForwards(work_, transition_matrices_[0]));
+    ln_monomorphic_ = graph_.PeelForwards(work_, transition_matrices_[0]);
 }
 
 // Construct the mutation matrices for each transition
