@@ -58,14 +58,10 @@ Probability::Probability(RelationshipGraph graph, params_t params) :
 
     // Precalculate monomorphic histories
     size_t num_libraries = work_.library_nodes.second - work_.library_nodes.first;
-    work_.SetGermline(diploid_prior_[0], haploid_prior_[0]);
-    boost::multi_array<int32_t, 2> genotype_likelihoods(utility::make_array(num_libraries, 1u));
-    for(auto &&a : genotype_likelihoods) {
-        a[0] = 1.0;
-    }
-    work_.CopyGenotypeLikelihoods(genotype_likelihoods);
-    double logdata = graph_.PeelForwards(work_, transition_matrices_[0]);
-    prob_monomorphic_ = exp(logdata);
+    work_.matrix_index = 0;
+    work_.ClearGenotypeLikelihoods(1);
+    work_.SetGermline(DiploidPrior(1, true), HaploidPrior(1, true));
+    prob_monomorphic_ = exp(graph_.PeelForwards(work_, transition_matrices_[0]));
 }
 
 // Construct the mutation matrices for each transition

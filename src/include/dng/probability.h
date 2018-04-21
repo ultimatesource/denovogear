@@ -44,10 +44,14 @@ public:
 
     double CalculateLLD();
 
+    double CalculateVARP();
+
     template<typename A>
     double CalculateLLD(const A &depths, int num_obs_alleles, bool has_ref);
 
-    const peel::workspace_t& work() const { return work_; };
+    const peel::workspace_t& work() const { return work_; }
+
+    double prob_monomorphic() const { return prob_monomorphic_; }
 
     struct params_t {
         double theta;
@@ -105,14 +109,27 @@ void Probability::SetupWorkspace(const A &depths, int num_obs_alleles, bool has_
     work_.SetGermline(DiploidPrior(num_obs_alleles, has_ref), HaploidPrior(num_obs_alleles, has_ref));
 }
 
-// returns 'log10 P(Data ; model)-log10 scale' and log10 scaling.
 inline
-double Probability::CalculateLLD() {
-    double logdata = graph_.PeelForwards(work_, transition_matrices_[work_.matrix_index]);
-    return (logdata+work_.ln_scale)/M_LN10;
+double Probability::CalculateVARP() {
+    // Use cached value for monomorphic sites instead of peeling.
+    double probref = prob_monomorphic_;
+    for(auto it = work_.lower.begin()+work_.library_nodes.first;
+        it != work_.lower.begin()+work_.library_nodes.second; ++it) {
+        probref *= (*it)(0);
+    }
+
+    double probdata = graph_.PeelForwards(work_, transition_matrices_[work_.matrix_index]);
+    return 1.0-probref/probdata;
 }
 
-// returns 'log10 P(Data ; model)-log10 scale' and log10 scaling.
+// returns 'log10 P(Data ; model)'
+inline
+double Probability::CalculateLLD() {
+    double probdata = graph_.PeelForwards(work_, transition_matrices_[work_.matrix_index]);
+    return (probdata+work_.ln_scale)/M_LN10;
+}
+
+// returns 'log10 P(Data ; model)'
 template<typename A>
 double Probability::CalculateLLD(
     const A &depths, int num_obs_alleles, bool has_ref)
