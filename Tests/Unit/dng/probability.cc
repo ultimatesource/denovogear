@@ -218,8 +218,8 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
             num_obs_alleles = 4;
         }
 
-        Probability::value_t test_value;
         double expected_log_scale, expected_log_data;
+        double test_log_scale, test_log_data;
 
         Genotyper genotyper{
             g_params.over_dispersion_hom,
@@ -254,7 +254,7 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
         const auto m_dad = mitosis_matrix(2, m_sl);
         const auto m_mom = mitosis_matrix(2, m_sl);
 
-        dng::stats::ExactSum lld;
+        double lld = 0.0;
         for(int dad_g=0,par=0;dad_g<gt_sz;++dad_g) {
             for(int mom_g=0; mom_g<gt_sz;++mom_g,++par) {
                 double lld_eve = 0.0, lld_mom = 0.0, lld_dad = 0.0;
@@ -272,11 +272,12 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
         }
 
         expected_log_scale /= M_LN10;
-        expected_log_data = log(lld.result()) / M_LN10;
+        expected_log_data = log(lld) / M_LN10 + expected_log_scale;
 
-        test_value = log_probability.CalculateLLD(depths, num_obs_alleles_old, has_ref);
-        BOOST_CHECK_CLOSE_FRACTION(test_value.log_scale, expected_log_scale, prec);
-        BOOST_CHECK_CLOSE_FRACTION(test_value.log_data, expected_log_data, prec);
+        test_log_data = log_probability.CalculateLLD(depths, num_obs_alleles_old, has_ref);
+        test_log_scale = log_probability.work().ln_scale / M_LN10;
+        BOOST_CHECK_CLOSE_FRACTION(test_log_scale, expected_log_scale, prec);
+        BOOST_CHECK_CLOSE_FRACTION(test_log_data, expected_log_data, prec);
     }};
 
     test({{0},{0},{0}}, 1, true);
@@ -363,8 +364,8 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_xlinked) {
             num_obs_alleles = 4;
         }
 
-        Probability::value_t test_value;
         double expected_log_scale, expected_log_data;
+        double test_log_scale, test_log_data;
 
         Genotyper genotyper{
             g_params.over_dispersion_hom,
@@ -399,7 +400,7 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_xlinked) {
         const auto m_dad = mitosis_matrix(1, m_sl);
         const auto m_mom = mitosis_matrix(2, m_sl);
 
-        dng::stats::ExactSum lld;
+        double lld = 0.0;
         for(int dad_g=0,par=0;dad_g<hap_sz;++dad_g) {
             for(int mom_g=0; mom_g<gt_sz;++mom_g,++par) {
                 double lld_eve = 0.0, lld_mom = 0.0, lld_dad = 0.0;
@@ -417,11 +418,12 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_xlinked) {
         }
 
         expected_log_scale /= M_LN10;
-        expected_log_data = log(lld.result()) / M_LN10;
+        expected_log_data = log(lld) / M_LN10 + expected_log_scale;
 
-        test_value = log_probability.CalculateLLD(depths, num_obs_alleles_old, has_ref);
-        BOOST_CHECK_CLOSE_FRACTION(test_value.log_scale, expected_log_scale, prec);
-        BOOST_CHECK_CLOSE_FRACTION(test_value.log_data, expected_log_data, prec);
+        test_log_data = log_probability.CalculateLLD(depths, num_obs_alleles_old, has_ref);
+        test_log_scale = log_probability.work().ln_scale / M_LN10;
+        BOOST_CHECK_CLOSE_FRACTION(test_log_scale, expected_log_scale, prec);
+        BOOST_CHECK_CLOSE_FRACTION(test_log_data, expected_log_data, prec);
     }};
 
     test({{0},{0},{0}}, 1, true);
@@ -459,5 +461,4 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_xlinked) {
             test(ad, n, false);
         }
     }
-
 }

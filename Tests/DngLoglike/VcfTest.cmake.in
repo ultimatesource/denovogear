@@ -6,8 +6,8 @@ set(BasicTest-WD "@TESTDATA_DIR@/human_trio")
 set(BasicTest-Result 0)
 set(BasicTest-STDOUT
   "^log_likelihood\t-56\\.518529010091257\r?\n"
-  "\r?\nlog_hidden\t-8\\.9534123177854408\r?\n"
-  "\r?\nlog_observed\t-47\\.565116692305814\r?\n$"
+  "\r?\nlog_hidden\t-8\\.9534123177854497\r?\n"
+  "\r?\nlog_observed\t-47\\.565116692305807\r?\n$"
 )
 
 ###############################################################################

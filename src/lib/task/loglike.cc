@@ -72,9 +72,11 @@ using namespace dng::task;
 using utility::make_array;
 
 // Sub-tasks
+namespace {
 int process_bam(LogLike::argument_type &arg);
 int process_ad(LogLike::argument_type &arg);
 int process_bcf(LogLike::argument_type &arg);
+} // anon namespace
 
 // The main loop for dng-loglike application
 // argument_type arg holds the processed command line arguments
@@ -108,12 +110,14 @@ int task::LogLike::operator()(task::LogLike::argument_type &arg) {
     return EXIT_FAILURE;
 }
 
-void output_loglike_results(std::ostream &o, double hidden, double observed) {
+namespace {
+
+void output_loglike_results(std::ostream &o, double total, double observed) {
     // output results
     o << setprecision(std::numeric_limits<double>::max_digits10)
-         << "log_likelihood\t" << (hidden+observed) << "\n";
+         << "log_likelihood\t" << total << "\n";
     o << setprecision(std::numeric_limits<double>::max_digits10)
-         << "log_hidden\t" << hidden << "\n";
+         << "log_hidden\t" << (total-observed) << "\n";
     o << setprecision(std::numeric_limits<double>::max_digits10)
          << "log_observed\t" << observed << "\n";
 }
@@ -165,12 +169,12 @@ int process_bam(LogLike::argument_type &arg) {
             return;
         }
 
-        auto loglike = model.CalculateLLD(read_depths, n_sz, ref_index < 4);
-        sum_data += loglike.log_data;
-        sum_scale += loglike.log_scale;
+        double loglike = model.CalculateLLD(read_depths, n_sz, ref_index < 4);
+        sum_data += loglike;
+        sum_scale += model.work().ln_scale;
     });
 
-    output_loglike_results(cout, sum_data.result(), sum_scale.result());
+    output_loglike_results(cout, sum_data.result(), sum_scale.result()/M_LN10);
 
     return EXIT_SUCCESS;
 }
@@ -216,13 +220,13 @@ int process_bcf(LogLike::argument_type &arg) {
 
         pileup::allele_depths_ref_t read_depths(ad.get(), make_array(num_libs,n_sz));
 
-        auto loglike = model.CalculateLLD(read_depths,n_sz,true);
-        sum_data += loglike.log_data;
-        sum_scale += loglike.log_scale;
+        double loglike = model.CalculateLLD(read_depths,n_sz,true);
+        sum_data += loglike;
+        sum_scale += model.work().ln_scale;
     });
 
     // output results
-    output_loglike_results(cout, sum_data.result(), sum_scale.result());
+    output_loglike_results(cout, sum_data.result(), sum_scale.result()/M_LN10);
 
     return EXIT_SUCCESS;
 }
@@ -253,16 +257,16 @@ int process_ad(LogLike::argument_type &arg) {
                     read_depths[i][a] = line(i,a-1);
                 }
             }
-            auto loglike = model.CalculateLLD(read_depths, sz, false);
-            *p_sum_data += loglike.log_data;
-            *p_sum_scale += loglike.log_scale;
+            double loglike = model.CalculateLLD(read_depths, sz, false);
+            *p_sum_data += loglike;
+            *p_sum_scale += model.work().ln_scale;
         } else {
             size_t sz = line.num_nucleotides();
             dng::pileup::allele_depths_const_ref_t read_depths_ref(line.data().data(),
                 make_array(line.num_libraries(), line.num_nucleotides()));
-            auto loglike = model.CalculateLLD(read_depths_ref, sz, true);
-            *p_sum_data += loglike.log_data;
-            *p_sum_scale += loglike.log_scale;    
+            double loglike = model.CalculateLLD(read_depths_ref, sz, true);
+            *p_sum_data += loglike;
+            *p_sum_scale += model.work().ln_scale;
         }
     };
 
@@ -348,7 +352,9 @@ int process_ad(LogLike::argument_type &arg) {
     }
 
     // output results
-    output_loglike_results(cout, sum_data.result(), sum_scale.result());
+    output_loglike_results(cout, sum_data.result(), sum_scale.result()/M_LN10);
 
     return EXIT_SUCCESS;
 }
+
+} // anon namespce

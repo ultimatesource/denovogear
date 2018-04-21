@@ -42,10 +42,10 @@ public:
     template<typename A>
     void SetupWorkspace(const A &depths, int num_obs_alleles, bool has_ref);
 
-    value_t CalculateLLD();
+    double CalculateLLD();
 
     template<typename A>
-    value_t CalculateLLD(const A &depths, int num_obs_alleles, bool has_ref);
+    double CalculateLLD(const A &depths, int num_obs_alleles, bool has_ref);
 
     const peel::workspace_t& work() const { return work_; };
 
@@ -64,10 +64,6 @@ public:
         double k_alleles;
     };
 
-    struct value_t {
-        double log_data;
-        double log_scale;
-    };
 protected:
     using matrices_t = std::array<TransitionMatrixVector, MAXIMUM_NUMBER_ALLELES>;
 
@@ -111,14 +107,14 @@ void Probability::SetupWorkspace(const A &depths, int num_obs_alleles, bool has_
 
 // returns 'log10 P(Data ; model)-log10 scale' and log10 scaling.
 inline
-Probability::value_t Probability::CalculateLLD() {
+double Probability::CalculateLLD() {
     double logdata = graph_.PeelForwards(work_, transition_matrices_[work_.matrix_index]);
-    return {logdata/M_LN10, work_.ln_scale/M_LN10};
+    return (logdata+work_.ln_scale)/M_LN10;
 }
 
 // returns 'log10 P(Data ; model)-log10 scale' and log10 scaling.
 template<typename A>
-Probability::value_t Probability::CalculateLLD(
+double Probability::CalculateLLD(
     const A &depths, int num_obs_alleles, bool has_ref)
 {
     assert(num_obs_alleles >= 1);
@@ -133,14 +129,14 @@ Probability::value_t Probability::CalculateLLD(
         return CalculateLLD();
     }
     // Use cached value for monomorphic sites instead of peeling.
-    double logdata = prob_monomorphic_;
+    double probdata = prob_monomorphic_;
     work_.CalculateGenotypeLikelihoods(genotyper_, depths, num_obs_alleles);
     for(auto it = work_.lower.begin()+work_.library_nodes.first;
         it != work_.lower.begin()+work_.library_nodes.second; ++it) {
-        logdata *= (*it)(0);
+        probdata *= (*it)(0);
     }
     // convert to a log-likelihood
-    return {log10(logdata), work_.ln_scale/M_LN10};
+    return log10(probdata) + work_.ln_scale/M_LN10;
 }
 
 TransitionMatrixVector create_mutation_matrices(const RelationshipGraph &pedigree,
