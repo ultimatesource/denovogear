@@ -136,7 +136,8 @@ void vcf_add_header_text(hts::bcf::File &vcfout, const task::Call::argument_type
     vcfout.AddHeaderMetadata("##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">");
     vcfout.AddHeaderMetadata("##FORMAT=<ID=GQ,Number=1,Type=Integer,Description=\"Phred-scaled genotype quality\">");
     vcfout.AddHeaderMetadata("##FORMAT=<ID=GP,Number=G,Type=Float,Description=\"Genotype posterior probabilities\">");
-    vcfout.AddHeaderMetadata("##FORMAT=<ID=GL,Number=G,Type=Float,Description=\"Log10-likelihood of genotype based on read depths\">");
+    vcfout.AddHeaderMetadata("##FORMAT=<ID=GL,Number=G,Type=Float,Description=\"Normalized, log10 genotype likelihoods\">");
+    vcfout.AddHeaderMetadata("##FORMAT=<ID=PL,Number=G,Type=Integer,Description=\"Normalized, Phred-scaled genotype likelihoods\">");
     vcfout.AddHeaderMetadata("##FORMAT=<ID=DP,Number=1,Type=Integer,Description=\"Read depth\">");
     vcfout.AddHeaderMetadata("##FORMAT=<ID=AD,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed\">");
     vcfout.AddHeaderMetadata("##FORMAT=<ID=ADF,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed (forward strand)\">");
@@ -710,24 +711,25 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
         record->samples("MU1P", float_vector);
     }
 
-    float_vector.assign(gt_count, float_missing);
+    // Write genotype likelihoods as PL 
+    int32_vector.assign(gt_count, int32_missing);
     for(size_t i=0,k=work.library_nodes.first*gt_width;i<num_libraries;++i) {
         if(work.ploidies[work.library_nodes.first+i] == 2) {
             for(size_t j=0;j<gt_width;++j) {
-                float_vector[k++] = call_stats.genotype_likelihoods[i][j];
+                int32_vector[k++] = dng::utility::lphred<int>(call_stats.genotype_likelihoods[i][j],4095);
             }
         } else {
             assert(work.ploidies[work.library_nodes.first+i] == 1);
             size_t j;
             for(j=0;j<num_alleles;++j) {
-                float_vector[k++] = call_stats.genotype_likelihoods[i][j];
+                int32_vector[k++] = dng::utility::lphred<int>(call_stats.genotype_likelihoods[i][j],4095);
             }
             for(;j<gt_width;++j) {
-                float_vector[k++] = float_vector_end;
+                int32_vector[k++] = int32_vector_end;
             }
         }        
     }    
-    record->samples("GL", float_vector);
+    record->samples("PL", int32_vector);
 
     int32_vector.assign(num_nodes, int32_missing);
     for(size_t i=0,k=work.library_nodes.first;i<num_libraries;++i) {

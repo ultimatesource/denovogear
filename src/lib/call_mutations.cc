@@ -80,7 +80,7 @@ bool CallMutations::CalculateMutationStats(stats_t *stats) {
     stats->genotype_likelihoods.resize(num_libraries);
     for (size_t u = 0; u < num_libraries; ++u) {
         size_t pos = work_.library_nodes.first + u;
-        stats->genotype_likelihoods[u] = work_.lower[pos].log() / M_LN10;
+        stats->genotype_likelihoods[u] = work_.lower[pos];
     }
 
     // Posterior probabilities and best genotypes for all nodes
@@ -95,7 +95,7 @@ bool CallMutations::CalculateMutationStats(stats_t *stats) {
         size_t pos;
         double d = stats->posterior_probabilities[i].maxCoeff(&pos);
         stats->best_genotypes[i] = pos;
-        stats->genotype_qualities[i] = dng::utility::lphred<int>(1.0 - d, 255);
+        stats->genotype_qualities[i] = dng::utility::lphred1p<int>(-d, 255);
     }
 
     // Expected Number of Mutations
@@ -173,7 +173,7 @@ double CallMutations::CalculateMU1P(stats_t *stats) {
     // NOTE: if site doesn't have a known reference, this will be biased
     stats->lld1 = log10(total) + (stats->ln_zero+work_.ln_scale)/M_LN10 - log10_one_mutation_[matrix_index];
 
-    stats->dnq = dng::utility::lphred<int>(1.0 - (max_coeff / total), 255);
+    stats->dnq = dng::utility::lphred1p<int>(-(max_coeff / total), 255);
     stats->dnl = dn_location;
     stats->dnt_row = dn_row;
     stats->dnt_col = dn_col;

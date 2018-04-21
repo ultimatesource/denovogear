@@ -27,7 +27,7 @@ set(EmptyPed-WD "@TESTDATA_DIR@/human_trio/")
 set(EmptyPed-RESULT 0)
 
 ###############################################################################
-# Test if dng-call works on a trio
+# Test if dng-call works on a trio with mpileup format
 
 set(TrioMpileup-CMD @DNG_CALL_EXE@ -p ped/trio.ped bcftools/trio.mpileup.vcf)
 set(TrioMpileup-WD "@TESTDATA_DIR@/human_trio")
@@ -35,7 +35,7 @@ set(TrioMpileup-RESULT 0)
 set(TrioMpileup-STDOUT
   "\r?\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tGL/NA12892\tGL/NA12891\tLB/NA12891\tLB/NA12878\tLB/NA12892\r?\n"
   "\r?\n5\t126385924\t\\.\tG\tT,<\\*>\t"
-  "\r?\n5\t126385924\t.*\tGT:GQ:GP:MUP:MU1P:GL:DP:AD\t"
+  "\r?\n5\t126385924\t.*\tGT:GQ:GP:MUP:MU1P:PL:DP:AD\t"
   "\r?\n5\t126385924\t.*\tMUP=0\\.999985\;"
   "\r?\n5\t126385924\t.*\;LLD=-22\\.6485\;"
   "\r?\n5\t126385924\t.*\;LLS=0\\.914317\;"
@@ -50,16 +50,39 @@ set(TrioMpileup-STDOUT
   "\r?\n5\t126385924\t.*\;AD=92,21,0\t"
   "\r?\n5\t126385924\t.*\t0/0:49:0\\.999987,1\\.33621e-05,0,3\\.34165e-17,0,0:0:0:\\.,\\.,\\.,\\.,\\.,\\.:\\.:\\.,\\.,\\.\t"
   "\r?\n5\t126385924\t.*\t0/0:57:0\\.999998,1\\.92873e-06,0,1\\.44656e-14,0,0:0:0:\\.,\\.,\\.,\\.,\\.,\\.:\\.:\\.,\\.,\\.\t"
-  "\r?\n5\t126385924\t.*\t0/0:57:0\\.999998,1\\.92873e-06,0,1\\.44656e-14,0,0:0:0:0,-10\\.1127,-75\\.3222,-10\\.1127,-75\\.3222,-75\\.3222:34:34,0,0\t"
-  "\r?\n5\t126385924\t.*\t0/1:255:6\\.39542e-31,1,8\\.63012e-38,1\\.03696e-43,1\\.80768e-43,0:1:1:-38\\.4952,0,-28\\.1609,-42\\.9869,-34\\.1392,-77\\.126:35:15,20,0\t"
-  "\r?\n5\t126385924\t.*\t0/0:49:0\\.999987,1\\.33621e-05,0,3\\.34165e-17,0,0:0:0:0,-9\\.27206,-87\\.08,-12\\.749,-87\\.381,-90\\.8579:44:43,1,0\r?\n"
+  "\r?\n5\t126385924\t.*\t0/0:57:0\\.999998,1\\.92873e-06,0,1\\.44656e-14,0,0:0:0:0,101,753,101,753,753:34:34,0,0\t"
+  "\r?\n5\t126385924\t.*\t0/1:255:6\\.39542e-31,1,8\\.63012e-38,1\\.03696e-43,1\\.80768e-43,0:1:1:385,0,282,430,341,771:35:15,20,0\t"
+  "\r?\n5\t126385924\t.*\t0/0:49:0\\.999987,1\\.33621e-05,0,3\\.34165e-17,0,0:0:0:0,93,871,127,874,909:44:43,1,0\r?\n"
   "\r?\n#CHROM[^\r\n]*\r?\n[^\r\n]*\r?\n$"
 )
 
+###############################################################################
+# Test if dng-call works on a trio with bcftools call
+
 set(TrioBcftoolsAutosomal-CMD @DNG_CALL_EXE@ -M autosomal -p ped/trio.ped bcftools/trio.call.vcf)
-set(TrioBcftoolsAutosomal-WD ${TrioBcftools-WD})
-set(TrioBcftoolsAutosomal-RESULT ${TrioBcftools-RESULT})
-set(TrioBcftoolsAutosomal-STDOUT ${TrioBcftools-STDOUT} )
+set(TrioBcftoolsAutosomal-WD "@TESTDATA_DIR@/human_trio")
+set(TrioBcftoolsAutosomal-RESULT 0)
+set(TrioBcftoolsAutosomal-STDOUT
+  "\r?\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tGL/NA12892\tGL/NA12891\tLB/NA12891\tLB/NA12878\tLB/NA12892\r?\n"
+  "\r?\n5\t126385924\t\\.\tG\tT\t"
+  "\r?\n5\t126385924\t.*\tGT:GQ:GP:MUP:MU1P:PL:DP:AD\t"
+  "\r?\n5\t126385924\t.*\tMUP=0\\.999985\;"
+  "\r?\n5\t126385924\t.*\;LLD=-22\\.6485\;"
+  "\r?\n5\t126385924\t.*\;LLS=0\\.914317\;"
+  "\r?\n5\t126385924\t.*\;MUX=0\\.999985\;"
+  "\r?\n5\t126385924\t.*\;MU1P=0\\.999985\;"
+  "\r?\n5\t126385924\t.*\;DNT=G/GxG/G->G/T\;"
+  "\r?\n5\t126385924\t.*\;DNL=LB/NA12878\;"
+  "\r?\n5\t126385924\t.*\;DNQ=131\;"
+  "\r?\n5\t126385924\t.*\;DP=113\;"
+  "\r?\n5\t126385924\t.*\;AD=92,21\t"
+  "\r?\n5\t126385924\t.*\t0/0:49:0\\.999987,1\\.33621e-05,0:0:0:\\.,\\.,\\.:\\.:\\.,\\.\t"
+  "\r?\n5\t126385924\t.*\t0/0:57:0\\.999998,1\\.92873e-06,0:0:0:\\.,\\.,\\.:\\.:\\.,\\.\t"
+  "\r?\n5\t126385924\t.*\t0/0:57:0\\.999998,1\\.92873e-06,0:0:0:0,101,753:34:34,0\t"
+  "\r?\n5\t126385924\t.*\t0/1:255:6\\.39542e-31,1,8\\.63012e-38:1:1:385,0,282:35:15,20\t"
+  "\r?\n5\t126385924\t.*\t0/0:49:0\\.999987,1\\.33621e-05,0:0:0:0,93,871:44:43,1\r?\n"
+  "\r?\n#CHROM[^\r\n]*\r?\n[^\r\n]*\r?\n$"
+)
 
 set(TrioBcftoolsXLinked-CMD @DNG_CALL_EXE@ -M xlinked -p ped/trio.ped bcftools/trio.call.vcf)
 set(TrioBcftoolsXLinked-WD "@TESTDATA_DIR@/human_trio")
@@ -67,7 +90,7 @@ set(TrioBcftoolsXLinked-RESULT 0)
 set(TrioBcftoolsXLinked-STDOUT
   "\r?\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tGL/NA12892\tGL/NA12891\tLB/NA12891\tLB/NA12878\tLB/NA12892\r?\n"
   "\r?\n5\t126385924\t\\.\tG\tT\t"
-  "\r?\n5\t126385924\t.*\tGT:GQ:GP:MUP:MU1P:GL:DP:AD\t"
+  "\r?\n5\t126385924\t.*\tGT:GQ:GP:MUP:MU1P:PL:DP:AD\t"
   "\r?\n5\t126385924\t.*\tMUP=0\\.999987\;"
   "\r?\n5\t126385924\t.*\;LLD=-22\\.6482\;"
   "\r?\n5\t126385924\t.*\;LLS=0\\.914533\;"
@@ -82,9 +105,9 @@ set(TrioBcftoolsXLinked-STDOUT
   "\r?\n5\t126385924\t.*\;AD=92,21\t"
   "\r?\n5\t126385924\t.*\t0/0:49:0\\.999987,1\\.33622e-05,0:0:0:\\.,\\.,\\.:\\.:\\.,\\.\t"
   "\r?\n5\t126385924\t.*\t0:255:1,0:0:0:\\.,\\.,\\.:\\.:\\.,\\.\t"
-  "\r?\n5\t126385924\t.*\t0:255:1,0:0:0:0,-75\\.3222:34:34,0\t"
-  "\r?\n5\t126385924\t.*\t0/1:255:6\\.39543e-31,1,8\\.63011e-38:1:1:-38\\.4952,0,-28\\.1609:35:15,20\t"
-  "\r?\n5\t126385924\t.*\t0/0:49:0\\.999987,1\\.33622e-05,0:0:0:0,-9\\.27206,-87\\.08:44:43,1\r?\n"
+  "\r?\n5\t126385924\t.*\t0:255:1,0:0:0:0,753:34:34,0\t"
+  "\r?\n5\t126385924\t.*\t0/1:255:6\\.39543e-31,1,8\\.63011e-38:1:1:385,0,282:35:15,20\t"
+  "\r?\n5\t126385924\t.*\t0/0:49:0\\.999987,1\\.33622e-05,0:0:0:0,93,871:44:43,1\r?\n"
   "\r?\n#CHROM[^\r\n]*\r?\n[^\r\n]*\r?\n$"
 )
 
@@ -94,7 +117,7 @@ set(TrioBcftoolsYLinked-RESULT 0)
 set(TrioBcftoolsYLinked-STDOUT
   "\r?\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tGL/NA12891\tLB/NA12891\r?\n"
   "\r?\n5\t126385924\t\\.\tG\tT\t"
-  "\r?\n5\t126385924\t.*\tGT:GQ:GP:GL:DP:AD\t"
+  "\r?\n5\t126385924\t.*\tGT:GQ:GP:PL:DP:AD\t"
   "\r?\n5\t126385924\t.*\tMUP=-?0\;"
   "\r?\n5\t126385924\t.*\;LLD=-0\\.00775863\;"
   "\r?\n5\t126385924\t.*\;LLS=-0\\.00775863\;"
@@ -103,7 +126,7 @@ set(TrioBcftoolsYLinked-STDOUT
   "\r?\n5\t126385924\t.*\;DP=34\;"
   "\r?\n5\t126385924\t.*\;AD=34,0\t"
   "\r?\n5\t126385924\t.*\t0:255:1,0:\\.,\\.,\\.:\\.:\\.,\\.\t"
-  "\r?\n5\t126385924\t.*\t0:255:1,0:0,-75\\.3222:34:34,0\r?\n"
+  "\r?\n5\t126385924\t.*\t0:255:1,0:0,753:34:34,0\r?\n"
   "\r?\n#CHROM[^\r\n]*\r?\n[^\r\n]*\r?\n$"
 )
 
@@ -111,9 +134,12 @@ set(TrioBcftoolsYLinked-STDOUT
 # Test if dng-call works on a trio with a 6 column ped
 
 set(TrioBcftools6ColPed-CMD @DNG_CALL_EXE@ -M autosomal -p ped/trio_6col.ped bcftools/trio.call.vcf)
-set(TrioBcftools6ColPed-WD ${TrioBcftools-WD})
-set(TrioBcftools6ColPed-RESULT ${TrioBcftools-RESULT})
-set(TrioBcftools6ColPed-STDOUT ${TrioBcftools-STDOUT})
+set(TrioBcftools6ColPed-WD ${TrioBcftoolsAutosomal-WD})
+set(TrioBcftools6ColPed-RESULT ${TrioBcftoolsAutosomal-RESULT})
+set(TrioBcftools6ColPed-STDOUT ${TrioBcftoolsAutosomal-STDOUT})
+
+string(REPLACE "GL/NA12892" "GL/1" TrioBcftools6ColPed-STDOUT "${TrioBcftools6ColPed-STDOUT}")
+string(REPLACE "GL/NA12891" "GL/2" TrioBcftools6ColPed-STDOUT "${TrioBcftools6ColPed-STDOUT}")
 
 ###############################################################################
 # Test if dng-call supports regions

@@ -233,14 +233,35 @@ std::string to_pretty(const T &value) {
     return {};
 }
 
-inline double phred(double p) {
+/*
+  Phred scaled numbers: -10.0*log10(a)
+  
+  DBL_MIN -> 3076.52655568588761525
+  DBL_SUBNORM_MIN -> 3233.06215343115809446
+  1-(1-2^-53) -> 159.54589770191000753
+*/
+
+// -10*log10(a)
+inline double phred(double a) {
     // Use an if to prevent -0.0
-    return (p == 1.0) ? 0.0 : -10.0 * std::log10(p);
+    return (a == 1.0) ? 0.0 : -10.0 * std::log10(a);
+}
+
+// -10*log10(1+p)
+inline double phred1p(double p) {
+    // Use an if to prevent -0.0
+    return (p == 0.0) ? 0.0 : (-10.0/M_LN10) * std::log1p(p);
 }
 
 template<typename T>
-inline T lphred(double p, T m = std::numeric_limits<T>::max()) {
-    double q = std::round(phred(p));
+inline T lphred(double a, T m = std::numeric_limits<T>::max()) {
+    double q = std::round( -10.0 * std::log10(a) );
+    return (q > m) ? m : static_cast<T>(q);
+}
+
+template<typename T>
+inline T lphred1p(double p, T m = std::numeric_limits<T>::max()) {
+    double q = std::round( (-10.0/M_LN10) * std::log1p(p) );
     return (q > m) ? m : static_cast<T>(q);
 }
 
