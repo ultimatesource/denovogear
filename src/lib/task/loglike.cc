@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 Reed A. Cartwright
+ * Copyright (c) 2016-2018 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -130,7 +130,7 @@ int process_bam(LogLike::argument_type &arg) {
 
     auto relationship_graph = create_relationship_graph(arg, &mpileup);
 
-    LogProbability model{relationship_graph, get_model_parameters(arg)};
+    Probability model{relationship_graph, get_model_parameters(arg)};
 
     const size_t num_nodes = relationship_graph.num_nodes();
     const size_t library_start = relationship_graph.library_nodes().first;
@@ -185,7 +185,7 @@ int process_bcf(LogLike::argument_type &arg) {
     const bcf_hdr_t *header = mpileup.reader().header(0); // TODO: fixthis
     const int num_libs = mpileup.num_libraries();
 
-    LogProbability model{relationship_graph, get_model_parameters(arg)};
+    Probability model{relationship_graph, get_model_parameters(arg)};
 
     const size_t num_nodes = relationship_graph.num_nodes();
     const size_t library_start = relationship_graph.library_nodes().first;
@@ -235,7 +235,7 @@ int process_ad(LogLike::argument_type &arg) {
 
     auto relationship_graph = create_relationship_graph(arg, &mpileup);
 
-    LogProbability model{relationship_graph, get_model_parameters(arg)};
+    Probability model{relationship_graph, get_model_parameters(arg)};
 
     stats::ExactSum sum_data, sum_scale;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Reed A. Cartwright
+ * Copyright (c) 2016-2018 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -25,7 +25,7 @@
 using namespace dng;
 
 // graph_ will be initialized before work_, so we can reference it.
-LogProbability::LogProbability(RelationshipGraph graph, params_t params) :
+Probability::Probability(RelationshipGraph graph, params_t params) :
     graph_{std::move(graph)},
     params_(std::move(params)),
     work_{graph_.CreateWorkspace()},

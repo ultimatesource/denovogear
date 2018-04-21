@@ -19,7 +19,7 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define BOOST_TEST_MODULE dng::log_probability
+#define BOOST_TEST_MODULE dng::probability
 
 #include <dng/probability.h>
 
@@ -37,21 +37,21 @@
 
 namespace dng {
     struct unittest_dng_log_probability {
-        GETTER2(LogProbability, params, theta)
-        GETTER2(LogProbability, params, ref_bias_hom)
-        GETTER2(LogProbability, params, ref_bias_het)
-        GETTER2(LogProbability, params, ref_bias_hap)
-        GETTER2(LogProbability, params, over_dispersion_hom)
-        GETTER2(LogProbability, params, over_dispersion_het)
-        GETTER2(LogProbability, params, sequencing_bias)
-        GETTER2(LogProbability, params, error_rate)
-        GETTER2(LogProbability, params, lib_k_alleles)
-        GETTER2(LogProbability, params, k_alleles)
+        GETTER2(Probability, params, theta)
+        GETTER2(Probability, params, ref_bias_hom)
+        GETTER2(Probability, params, ref_bias_het)
+        GETTER2(Probability, params, ref_bias_hap)
+        GETTER2(Probability, params, over_dispersion_hom)
+        GETTER2(Probability, params, over_dispersion_het)
+        GETTER2(Probability, params, sequencing_bias)
+        GETTER2(Probability, params, error_rate)
+        GETTER2(Probability, params, lib_k_alleles)
+        GETTER2(Probability, params, k_alleles)
 
-        GETTERF(LogProbability, HaploidPrior)
-        GETTERF(LogProbability, DiploidPrior)
+        GETTERF(Probability, HaploidPrior)
+        GETTERF(Probability, DiploidPrior)
 
-        GETTER1(LogProbability, work)
+        GETTER1(Probability, work)
     };
 }
 
@@ -80,7 +80,7 @@ const auto g_rel_graph = []() {
 }();
 
 const auto g_params = []() {
-    LogProbability::params_t params;
+    Probability::params_t params;
     params.theta = 0.001;
     params.ref_bias_hom = 0.01;
     params.ref_bias_het = 0.011;
@@ -96,7 +96,7 @@ const auto g_params = []() {
 }();
 
 BOOST_AUTO_TEST_CASE(test_constructor_1) {
-    LogProbability log_probability{g_rel_graph, g_params};
+    Probability log_probability{g_rel_graph, g_params};
 
     BOOST_CHECK_EQUAL(u::theta(log_probability), g_params.theta);
     BOOST_CHECK_EQUAL(u::ref_bias_hom(log_probability), g_params.ref_bias_hom);
@@ -112,13 +112,13 @@ BOOST_AUTO_TEST_CASE(test_constructor_1) {
 }
 
 BOOST_AUTO_TEST_CASE(test_work) {
-    LogProbability log_probability{g_rel_graph, g_params};
+    Probability log_probability{g_rel_graph, g_params};
     BOOST_CHECK_EQUAL(&u::work(log_probability), &log_probability.work());
 }
 
 BOOST_AUTO_TEST_CASE(test_haploid_prior) {
     const double prec = 2.0*DBL_EPSILON;
-    LogProbability log_probability{g_rel_graph, g_params};
+    Probability log_probability{g_rel_graph, g_params};
 
     auto test = [prec, &log_probability](int num_obs_alleles) {
         BOOST_TEST_CONTEXT("num_obs_alleles=" << num_obs_alleles << " has_ref=true") {
@@ -146,7 +146,7 @@ BOOST_AUTO_TEST_CASE(test_haploid_prior) {
 
 BOOST_AUTO_TEST_CASE(test_diploid_prior) {
     const double prec = 2.0*DBL_EPSILON;
-    LogProbability log_probability{g_rel_graph, g_params};
+    Probability log_probability{g_rel_graph, g_params};
 
     auto test = [prec, &log_probability](int num_obs_alleles) {
         BOOST_TEST_CONTEXT("num_obs_alleles=" << num_obs_alleles << " has_ref=true") {
@@ -204,7 +204,7 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
     RelationshipGraph graph;
     graph.Construct(ped, libs, InheritanceModel::Autosomal, mu_g, mu_s, mu_l, true);
 
-    LogProbability log_probability{graph, g_params};
+    Probability log_probability{graph, g_params};
     int counter = 0;
     auto test = [&](const ad_t& depths, int num_obs_alleles, bool has_ref) {
         BOOST_TEST_CONTEXT("mom=" << rangeio::wrap(depths[0]) << 
@@ -218,7 +218,7 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
             num_obs_alleles = 4;
         }
 
-        LogProbability::value_t test_value;
+        Probability::value_t test_value;
         double expected_log_scale, expected_log_data;
 
         Genotyper genotyper{
@@ -349,7 +349,7 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_xlinked) {
     RelationshipGraph graph;
     graph.Construct(ped, libs, InheritanceModel::XLinked, mu_g, mu_s, mu_l, true);
 
-    LogProbability log_probability{graph, g_params};
+    Probability log_probability{graph, g_params};
     int counter = 0;
     auto test = [&](const ad_t& depths, int num_obs_alleles, bool has_ref) {
         BOOST_TEST_CONTEXT("mom=" << rangeio::wrap(depths[0]) << 
@@ -363,7 +363,7 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_xlinked) {
             num_obs_alleles = 4;
         }
 
-        LogProbability::value_t test_value;
+        Probability::value_t test_value;
         double expected_log_scale, expected_log_data;
 
         Genotyper genotyper{

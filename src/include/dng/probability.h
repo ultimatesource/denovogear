@@ -31,13 +31,13 @@
 
 namespace dng {
 
-class LogProbability {
+class Probability {
 public:
     struct params_t;
     struct value_t;
     static constexpr int MAXIMUM_NUMBER_ALLELES = 4;
 
-    LogProbability(RelationshipGraph graph, params_t params);
+    Probability(RelationshipGraph graph, params_t params);
 
     template<typename A>
     void SetupWorkspace(const A &depths, int num_obs_alleles, bool has_ref);
@@ -98,7 +98,7 @@ protected:
 };
 
 template<typename A>
-void LogProbability::SetupWorkspace(const A &depths, int num_obs_alleles, bool has_ref) {
+void Probability::SetupWorkspace(const A &depths, int num_obs_alleles, bool has_ref) {
     assert(num_obs_alleles >= 1);
     if(num_obs_alleles > MAXIMUM_NUMBER_ALLELES) {
         num_obs_alleles = MAXIMUM_NUMBER_ALLELES;
@@ -111,14 +111,14 @@ void LogProbability::SetupWorkspace(const A &depths, int num_obs_alleles, bool h
 
 // returns 'log10 P(Data ; model)-log10 scale' and log10 scaling.
 inline
-LogProbability::value_t LogProbability::CalculateLLD() {
+Probability::value_t Probability::CalculateLLD() {
     double logdata = graph_.PeelForwards(work_, transition_matrices_[work_.matrix_index]);
     return {logdata/M_LN10, work_.ln_scale/M_LN10};
 }
 
 // returns 'log10 P(Data ; model)-log10 scale' and log10 scaling.
 template<typename A>
-LogProbability::value_t LogProbability::CalculateLLD(
+Probability::value_t Probability::CalculateLLD(
     const A &depths, int num_obs_alleles, bool has_ref)
 {
     assert(num_obs_alleles >= 1);
@@ -147,7 +147,7 @@ TransitionMatrixVector create_mutation_matrices(const RelationshipGraph &pedigre
         int num_alleles, double num_mutants, const int mutype = MUTATIONS_ALL);
 
 inline
-LogProbability::matrices_t LogProbability::CreateMutationMatrices(const int mutype) const {
+Probability::matrices_t Probability::CreateMutationMatrices(const int mutype) const {
     // Construct the complete matrices
     matrices_t ret;
     for(int i=0;i<ret.size();++i) {
@@ -157,7 +157,7 @@ LogProbability::matrices_t LogProbability::CreateMutationMatrices(const int muty
 }
 
 inline
-GenotypeArray LogProbability::DiploidPrior(int num_obs_alleles, bool has_ref) {
+GenotypeArray Probability::DiploidPrior(int num_obs_alleles, bool has_ref) {
     assert(num_obs_alleles >= 1);
     if(has_ref) {
         return (num_obs_alleles-1 < diploid_prior_.size()) ? diploid_prior_[num_obs_alleles-1]
@@ -172,7 +172,7 @@ GenotypeArray LogProbability::DiploidPrior(int num_obs_alleles, bool has_ref) {
 }
 
 inline
-GenotypeArray LogProbability::HaploidPrior(int num_obs_alleles, bool has_ref) {
+GenotypeArray Probability::HaploidPrior(int num_obs_alleles, bool has_ref) {
     assert(num_obs_alleles >= 1);
     if(has_ref) {
         return (num_obs_alleles < haploid_prior_.size()) ? haploid_prior_[num_obs_alleles-1]
@@ -186,8 +186,8 @@ GenotypeArray LogProbability::HaploidPrior(int num_obs_alleles, bool has_ref) {
 
 template<typename A>
 inline
-LogProbability::params_t get_model_parameters(const A& a) {
-    LogProbability::params_t ret;
+Probability::params_t get_model_parameters(const A& a) {
+    Probability::params_t ret;
     
     ret.theta = a.theta;
     ret.ref_bias_hom = a.ref_bias_hom;
