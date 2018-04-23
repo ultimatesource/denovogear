@@ -81,24 +81,6 @@ protected:
     DNG_UNIT_TEST_CLASS(unittest_dng_call_mutations);
 };
 
-inline
-double CallMutations::CalculateMUP(stats_t *stats) {
-    const int matrix_index = work_.matrix_index;
-    // Now peel numerator
-    double numerator = graph_.PeelForwards(work_, zero_mutation_matrices_[matrix_index]);
-    // Calculate log P(Data ; model)
-    double denominator = graph_.PeelForwards(work_, transition_matrices_[matrix_index]);
-    // Mutation Probability
-    double mup = -std::expm1(numerator - denominator);
-    if(stats != nullptr) {
-        stats->mup = mup;
-        stats->ln_all = denominator;
-        stats->ln_zero = numerator;
-    }
-    return mup;
-}
-
-
 } // namespace dng
 
 #endif /* DNG_FIND_MUTATIONS_H */

@@ -59,6 +59,22 @@ CallMutations::CallMutations(double min_prob, const RelationshipGraph &graph, pa
     }
 }
 
+double CallMutations::CalculateMUP(stats_t *stats) {
+    const int matrix_index = work_.matrix_index;
+    // Now peel numerator
+    double numerator = graph_.PeelForwards(work_, zero_mutation_matrices_[matrix_index]);
+    // Calculate log P(Data ; model)
+    double denominator = graph_.PeelForwards(work_, transition_matrices_[matrix_index]);
+    // Mutation Probability
+    double mup = (-10.0/M_LN10)*(numerator - denominator);
+    if(stats != nullptr) {
+        stats->mup = mup;
+        stats->ln_all = denominator;
+        stats->ln_zero = numerator;
+    }
+    return mup;
+}
+
 // Returns true if a mutation was found and the record was modified
 bool CallMutations::CalculateMutationStats(stats_t *stats) {
     const int matrix_index = work_.matrix_index;
@@ -98,7 +114,7 @@ bool CallMutations::CalculateMutationStats(stats_t *stats) {
         size_t pos;
         double d = stats->posterior_probabilities[i].maxCoeff(&pos);
         stats->best_genotypes[i] = pos;
-        stats->genotype_qualities[i] = dng::utility::lphred1p<int>(-d, 255);
+        stats->genotype_qualities[i] = dng::utility::lphred1m<int>(d, 255);
     }
 
     // Expected Number of Mutations
@@ -113,10 +129,12 @@ bool CallMutations::CalculateMutationStats(stats_t *stats) {
     for(size_t i = work_.founder_nodes.first; i < work_.founder_nodes.second; ++i) {
         stats->node_mup[i] = 0.0;
     }
+
+    double umup = utility::unphred1m(mup);
     for (size_t i = work_.founder_nodes.second; i < work_.num_nodes; ++i) {
-        stats->node_mup[i] = (work_.super[i] * (oneplus_mutation_matrices_[matrix_index][i] *
+        double temp = (work_.super[i] * (oneplus_mutation_matrices_[matrix_index][i] *
                                           work_.lower[i].matrix()).array()).sum();
-        stats->node_mup[i] /= mup;
+        stats->node_mup[i] = temp/umup;
     }
 
     // Probability of Exactly One Mutation
@@ -142,7 +160,7 @@ double CallMutations::CalculateMU1P(stats_t *stats) {
         }
         double ln_all = graph_.PeelForwards(work_, transition_matrices_[matrix_index]);
         // total = P(1 mutation & D)/P(0 mutations & D) due to backwards algorithm
-        return total*exp(ln_zero - ln_all);
+        return utility::phred1m(total*exp(ln_zero - ln_all));
     }
     double total = 0.0, max_coeff = -1.0;
     size_t dn_row = 0, dn_col = 0, dn_location = 0;
@@ -168,15 +186,18 @@ double CallMutations::CalculateMU1P(stats_t *stats) {
         total += temp;
     }
     for (size_t i = work_.founder_nodes.second; i < work_.num_nodes; ++i) {
-        stats->node_mu1p[i] /= total;
+        stats->node_mu1p[i] = stats->node_mu1p[i]/total;
     }
     // total = P(1 mutation & D)/P(0 mutations & D) due to backwards algorithm
-    stats->mu1p = total*exp(stats->ln_zero - stats->ln_all);
+    // thus P(1 mutation | D) = total*P(0 mutations & D)/P(D)
+
+    //stats->mu1p = total*exp(stats->ln_zero - stats->ln_all);
+    stats->mu1p = utility::phred1m(total*exp(stats->ln_zero - stats->ln_all));
 
     // NOTE: if site doesn't have a known reference, this will be biased
     stats->lld1 = log10(total) + (stats->ln_zero+work_.ln_scale)/M_LN10 - log10_one_mutation_[matrix_index];
 
-    stats->dnq = dng::utility::lphred1p<int>(-(max_coeff / total), 255);
+    stats->dnq = dng::utility::lphred1m<int>(max_coeff/total, 255);
     stats->dnl = dn_location;
     stats->dnt_row = dn_row;
     stats->dnt_col = dn_col;

@@ -155,16 +155,16 @@ void vcf_add_header_text(hts::bcf::File &vcfout, const task::Call::argument_type
     vcfout.AddHeaderMetadata(line);
 
     // Add the available tags for INFO, FILTER, and FORMAT fields
-    vcfout.AddHeaderMetadata("##INFO=<ID=MUP,Number=1,Type=Float,Description=\"Probability of at least 1 de novo mutation\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=MU1P,Number=1,Type=Float,Description=\"Probability of exactly 1 de novo mutation\">");
+    vcfout.AddHeaderMetadata("##INFO=<ID=MUP,Number=1,Type=Float,Description=\"Phred-scaled quality of one or more de novo mutations given data\">");
+    vcfout.AddHeaderMetadata("##INFO=<ID=MU1P,Number=1,Type=Float,Description=\"Phred-scaled quality of exactly one de novo mutation given data\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=MUX,Number=1,Type=Float,Description=\"Expected number of de novo mutations\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=LLD,Number=1,Type=Float,Description=\"Log10-likelihood of observed data\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=LLS,Number=1,Type=Float,Description=\"LLD scaled by log10-likelihood of an optimized multinomial model\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=LLD1,Number=1,Type=Float,Description=\"Log10-likelihood of observed data assuming 1 mutation.\">");
+    vcfout.AddHeaderMetadata("##INFO=<ID=LLD1,Number=1,Type=Float,Description=\"Log10-likelihood of observed data assuming 1 mutation\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=LLS1,Number=1,Type=Float,Description=\"LLD1 scaled by log10-likelihood of an optimized multinomial model\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=DNT,Number=1,Type=String,Description=\"De novo type\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=DNL,Number=1,Type=String,Description=\"De novo location\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=DNQ,Number=1,Type=Integer,Description=\"Phread-scaled de novo quality\">");
+    vcfout.AddHeaderMetadata("##INFO=<ID=DNQ,Number=1,Type=Integer,Description=\"Phred-scaled quality of DNT and DNL\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=DP,Number=1,Type=Integer,Description=\"Total depth\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=AD,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=ADF,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed (forward strand)\">");
@@ -184,8 +184,8 @@ void vcf_add_header_text(hts::bcf::File &vcfout, const task::Call::argument_type
     vcfout.AddHeaderMetadata("##FORMAT=<ID=AD,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed\">");
     vcfout.AddHeaderMetadata("##FORMAT=<ID=ADF,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed (forward strand)\">");
     vcfout.AddHeaderMetadata("##FORMAT=<ID=ADR,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed (reverse strand)\">");
-    vcfout.AddHeaderMetadata("##FORMAT=<ID=MUP,Number=1,Type=Float,Description=\"Conditional probability that this node contains at least 1 de novo mutation given at least one mutation at this site\">");
-    vcfout.AddHeaderMetadata("##FORMAT=<ID=MU1P,Number=1,Type=Float,Description=\"Conditional probability that this node contains a de novo mutation given only 1 de novo mutation at this site\">");
+    vcfout.AddHeaderMetadata("##FORMAT=<ID=MUP,Number=1,Type=Float,Description=\"Probability that this node contains de novo mutations given at least one mutation at this site\">");
+    vcfout.AddHeaderMetadata("##FORMAT=<ID=MU1P,Number=1,Type=Float,Description=\"Probability that this node contains a de novo mutation given only 1 de novo mutation at this site\">");
 }
 
 template<typename A, typename M, typename R>
@@ -620,10 +620,10 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
     record->quality(call_stats.quality);
 
     record->info("MUP", static_cast<float>(call_stats.mup));
+    record->info("MU1P", static_cast<float>(call_stats.mu1p));
+    record->info("MUX", static_cast<float>(call_stats.mux));
     record->info("LLD", static_cast<float>(call_stats.lld));
     record->info("LLS", static_cast<float>(call_stats.lld-depth_stats.log_null));
-    record->info("MUX", static_cast<float>(call_stats.mux));
-    record->info("MU1P", static_cast<float>(call_stats.mu1p));
 
     // Output statistics that are only informative if there is a signal of 1 mutation.
     if(has_single_mut) {

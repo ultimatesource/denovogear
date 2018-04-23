@@ -243,14 +243,20 @@ std::string to_pretty(const T &value) {
 
 // -10*log10(a)
 inline double phred(double a) {
-    // Use an if to prevent -0.0
-    return (a == 1.0) ? 0.0 : -10.0 * std::log10(a);
+    return -10.0 * std::log10(a);
+}
+
+inline double unphred(double v) {
+    return std::exp(v*(-M_LN10/10.0));
 }
 
 // -10*log10(1+p)
-inline double phred1p(double p) {
-    // Use an if to prevent -0.0
-    return (p == 0.0) ? 0.0 : (-10.0/M_LN10) * std::log1p(p);
+inline double phred1m(double p) {
+    return (-10.0/M_LN10) * std::log1p(-p);
+}
+
+inline double unphred1m(double v) {
+    return -std::expm1(v*(-M_LN10/10.0));
 }
 
 template<typename T>
@@ -260,8 +266,8 @@ inline T lphred(double a, T m = std::numeric_limits<T>::max()) {
 }
 
 template<typename T>
-inline T lphred1p(double p, T m = std::numeric_limits<T>::max()) {
-    double q = std::round( (-10.0/M_LN10) * std::log1p(p) );
+inline T lphred1m(double p, T m = std::numeric_limits<T>::max()) {
+    double q = std::round( (-10.0/M_LN10) * std::log1p(-p) );
     return (q > m) ? m : static_cast<T>(q);
 }
 
