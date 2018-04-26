@@ -231,7 +231,7 @@ int process_bam(task::Call::argument_type &arg) {
     auto record = vcfout.InitVariant();
 
     // Construct Calling Object
-    CallMutations model{arg.min_prob, relationship_graph, get_model_parameters(arg)};
+    CallMutations model{arg.min_quality, relationship_graph, get_model_parameters(arg)};
 
     // Calculated stats
     CallMutations::stats_t stats;
@@ -251,7 +251,7 @@ int process_bam(task::Call::argument_type &arg) {
 
     auto h = mpileup.header();
 
-    const double min_prob = arg.min_prob;
+    const double min_quality = arg.min_quality;
     mpileup([&](const decltype(mpileup)::data_type & data, utility::location_t loc) {
         // Calculate target position and fetch sequence name
         int contig = utility::location_to_contig(loc);
@@ -272,7 +272,7 @@ int process_bam(task::Call::argument_type &arg) {
         if(!model.CalculateMutationStats(&stats)) {
             return;
         }
-        const bool has_single_mut = ((stats.mu1p / stats.mup) >= min_prob);
+        const bool has_single_mut = ((stats.mu1p / stats.mup) >= min_quality);
 
         record.alleles(count_alleles.alleles_str());
 
@@ -395,7 +395,7 @@ int process_bcf(task::Call::argument_type &arg) {
     const bcf_hdr_t *header = mpileup.reader().header(0); // TODO: fixthis
     const size_t num_libs = mpileup.num_libraries();
 
-    CallMutations model{arg.min_prob, relationship_graph, get_model_parameters(arg)};
+    CallMutations model{arg.min_quality, relationship_graph, get_model_parameters(arg)};
 
     // Calculated stats
     CallMutations::stats_t stats;
@@ -408,7 +408,7 @@ int process_bcf(task::Call::argument_type &arg) {
     int n_ad_capacity = num_libs*5;
     auto ad = hts::bcf::make_buffer<int>(n_ad_capacity);
 
-    const double min_prob = arg.min_prob;
+    const double min_quality = arg.min_quality;
     // run calculation based on the depths at each site.
     mpileup([&](const decltype(mpileup)::data_type & rec) {
         // Read all the Allele Depths for every sample into an AD array
@@ -433,7 +433,7 @@ int process_bcf(task::Call::argument_type &arg) {
         if(!model.CalculateMutationStats(&stats)) {
             return;
         }
-        const bool has_single_mut = ((stats.mu1p / stats.mup) >= min_prob);
+        const bool has_single_mut = ((stats.mu1p / stats.mup) >= min_quality);
         
         // Set alleles
         record.alleles(const_cast<const char**>(rec->d.allele), n_alleles);
@@ -488,8 +488,8 @@ int process_ad(task::Call::argument_type &arg) {
     auto record = vcfout.InitVariant();
 
     // Construct Calling Object
-    const double min_prob = arg.min_prob;
-    CallMutations model{arg.min_prob, relationship_graph, get_model_parameters(arg)};
+    const double min_quality = arg.min_quality;
+    CallMutations model{arg.min_quality, relationship_graph, get_model_parameters(arg)};
 
     // Calculated stats
     CallMutations::stats_t stats;
@@ -528,7 +528,7 @@ int process_ad(task::Call::argument_type &arg) {
         if(!wrapped_model(data, &stats)) {
             return;
         }
-        const bool has_single_mut = ((stats.mu1p / stats.mup) >= min_prob);
+        const bool has_single_mut = ((stats.mu1p / stats.mup) >= min_quality);
 
         const auto & type_gt_info = data.type_gt_info();
         const auto & type_info = data.type_info();

@@ -160,13 +160,13 @@ value(::dng::task::bool_switch_t *v) {
     return r;
 }
 
-template<>
-inline
-typed_value<bool>* value(bool *v) {
-    typed_value<bool>* r = new typed_value<bool>(v);
-    r->implicit_value(true, "on");
-    return r;
-}
+// template<>
+// inline
+// typed_value<bool>* value(bool *v) {
+//     typed_value<bool>* r = new typed_value<bool>(v);
+//     r->implicit_value(true, "on");
+//     return r;
+// }
 
 template<>
 inline
