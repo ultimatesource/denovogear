@@ -396,13 +396,13 @@ int process_bcf(task::Call::argument_type &arg) {
 
     // allocate space for ad. bcf_get_format_int32 uses realloc internally
     int n_ad_capacity = num_libs*5;
-    auto ad = hts::bcf::make_buffer<float>(n_ad_capacity);
+    auto ad = hts::bcf::make_buffer<int>(n_ad_capacity);
 
     const double min_prob = arg.min_prob;
     // run calculation based on the depths at each site.
     mpileup([&](const decltype(mpileup)::data_type & rec) {
         // Read all the Allele Depths for every sample into an AD array
-        const int n_ad = hts::bcf::get_numeric(header, rec, "AD", &ad, &n_ad_capacity);
+        const int n_ad = hts::bcf::get_format_int32(header, rec, "AD", &ad, &n_ad_capacity);
         if(n_ad <= 0) {
             // AD tag is missing, so we do nothing at this time
             // TODO: support using calculated genotype likelihoods

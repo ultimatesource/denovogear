@@ -34,9 +34,9 @@
 namespace dng {
 namespace pileup {
 
-using allele_depths_t = boost::multi_array<float, 2>;
-using allele_depths_ref_t = boost::multi_array_ref<float, 2>;
-using allele_depths_const_ref_t = boost::const_multi_array_ref<float, 2>;
+using allele_depths_t = boost::multi_array<int32_t, 2>;
+using allele_depths_ref_t = boost::multi_array_ref<int32_t, 2>;
+using allele_depths_const_ref_t = boost::const_multi_array_ref<int32_t, 2>;
 
 struct depth_t {
     int32_t counts[4]{0,0,0,0};
@@ -105,7 +105,7 @@ public:
 
     static int8_t ColorDropN(int8_t color) { return color & 0x3F;}
 
-    using data_t = std::vector<float>;
+    using data_t = std::vector<int32_t>;
     using size_type = data_t::size_type;
 
     AlleleDepths() : location_{0}, color_{0}, num_libraries_{0} { }

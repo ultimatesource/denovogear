@@ -110,8 +110,8 @@ static int8_t nt4_table[256] = {
 
 static int get_pl_fields(const bcf_hdr_t *hdr, bcf1_t *rec, int pl_type, int n_samples, sample_vals_int &pl_fields) {
     int n_pl_array = n_samples*10;
-    auto pl_array = hts::bcf::make_buffer<float>(n_pl_array);
-    int n_pl = hts::bcf::get_numeric(hdr, rec, "PL", &pl_array, &n_pl_array);
+    auto pl_array = hts::bcf::make_buffer<int>(n_pl_array);
+    int n_pl = hts::bcf::get_format_numeric(hdr, rec, "PL", &pl_array, &n_pl_array);
     if(n_pl <= 0) {
       return -6;
     } else {
@@ -119,8 +119,8 @@ static int get_pl_fields(const bcf_hdr_t *hdr, bcf1_t *rec, int pl_type, int n_s
       int sample_len = n_pl / n_samples;
       for(int a = 0; a < n_pl; a++) {
 	int sample_index = a / sample_len;
-	// convert to integer with rounding
-	int val = int(pl_array[a] + 0.5);
+	// cast to integer
+	int val = static_cast<int>(pl_array[a]);
 	pl_fields[sample_index].push_back(val);
       }
     }
