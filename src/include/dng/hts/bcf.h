@@ -108,33 +108,31 @@ int get_format_float(const bcf_hdr_t *header, BareVariant *record, const char *t
 inline
 int get_format_numeric(const bcf_hdr_t *header, BareVariant *record, const char *tag, buffer_t<float>* buffer, int *capacity) {
     int tag_id = bcf_hdr_id2int(header, BCF_DT_ID, tag);
-    int type = bcf_hdr_id2type(header,BCF_HL_FMT,tag_id);
-    int n;
-    if(type == BCF_HT_INT) {
-	float *p = buffer->get();
-	// intermediate int buffer as needed by get_format_int32
-	auto buffer_int = make_buffer<int>(*capacity);
-	int *p_int = buffer_int.get();
-	*p_int = static_cast<int>(*p);
-	n = get_format_int32(header, record, tag, &buffer_int, capacity);
-	if(n <= 0) {
-	    return -1;
-	} else {
-	    // cast value to float and store back into the buffer
-	    for(int i=0; i<n; i++) {
-		int tmp;
-		memcpy(&tmp, p_int+i, sizeof(int));
-		p[i] = static_cast<float>(tmp);
-	    }
-	}
-    } else if(type == BCF_HT_REAL) {
-	float *p = buffer->get();
-	n = get_format_float(header, record, tag, buffer, capacity);
-	if(n <= 0) {
-	    return -1;
-	}
-    } else {
-	return -1;
+    if(tag_id < 0) {
+        return -1;
+    }
+    int type = bcf_hdr_id2type(header, BCF_HL_FMT, tag_id);
+    if(type == BCF_HT_REAL) {
+        return get_format_float(header, record, tag, buffer, capacity);
+    }
+    if(type != BCF_HT_INT) {
+        return -1;
+    }
+    static_assert(sizeof(int) == sizeof(float), "size of int and float do not match");
+    float *p = buffer->get();
+    int n = bcf_get_format_int32(header, record, tag, &p, capacity);
+    if(n == -4) {
+        throw std::bad_alloc{};
+    } else if(p != buffer->get()) {
+        // update pointer
+        buffer->release();
+        buffer->reset(p);
+    }
+    // cast value to float and store back into the buffer
+    for(int i=0; i<n; i++) {
+        int temp;
+        memcpy(&temp, &(*buffer)[i], sizeof(int));
+        (*buffer)[i] = static_cast<float>(temp);
     }
     return n;
 }
@@ -145,30 +143,30 @@ int get_format_numeric(const bcf_hdr_t *header, BareVariant *record, const char 
     int type = bcf_hdr_id2type(header,BCF_HL_FMT,tag_id);
     int n;
     if(type == BCF_HT_REAL) {
-	int *p = buffer->get();
-	// intermediate float buffer as needed by get_format_float
-	auto buffer_float = make_buffer<float>(*capacity);
-	float *p_float = buffer_float.get();
-	*p_float = static_cast<float>(*p);
-	n = get_format_float(header, record, tag, &buffer_float, capacity);
-	if(n <= 0) {
-	    return -1;
-	} else {
-	    // cast value to float and store back into the buffer
-	    for(int i=0; i<n; i++) {
-		float tmp;
-		memcpy(&tmp, p_float+i, sizeof(float));
-		p[i] = static_cast<int>(tmp);
-	    }
-	}
-    } else if(type == BCF_HT_INT) {
-	int *p = buffer->get();
-	n = get_format_int32(header, record, tag, buffer, capacity);
-	if(n <= 0) {
-	    return -1;
-	}
+    int *p = buffer->get();
+    // intermediate float buffer as needed by get_format_float
+    auto buffer_float = make_buffer<float>(*capacity);
+    float *p_float = buffer_float.get();
+    *p_float = static_cast<float>(*p);
+    n = get_format_float(header, record, tag, &buffer_float, capacity);
+    if(n <= 0) {
+        return -1;
     } else {
-	return -1;
+        // cast value to float and store back into the buffer
+        for(int i=0; i<n; i++) {
+        float tmp;
+        memcpy(&tmp, p_float+i, sizeof(float));
+        p[i] = static_cast<int>(tmp);
+        }
+    }
+    } else if(type == BCF_HT_INT) {
+    int *p = buffer->get();
+    n = get_format_int32(header, record, tag, buffer, capacity);
+    if(n <= 0) {
+        return -1;
+    }
+    } else {
+    return -1;
     }
     return n;
 }
@@ -481,7 +479,7 @@ public:
 
     /** Explicity closes the file and flushes the stream */
     void Close() {
-    	bcf_close(handle());
+        bcf_close(handle());
     }
 
 
