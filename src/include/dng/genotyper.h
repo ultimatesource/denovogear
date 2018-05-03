@@ -88,7 +88,7 @@ public:
         double error_rate, double k_alleles);
 
     template<typename Range>
-    double operator()(const Range& ad, int num_obs_alleles, int ploidy,
+    double operator()(const Range& ad, int num_obs_alleles, bool log_probability, int ploidy,
         GenotypeArray *output) const;
 
     double over_dispersion_hom() const { return over_dispersion_hom_; }
@@ -219,7 +219,7 @@ void DirichletMultinomial::LogHaploidGenotypes(const Range& ad, int num_obs_alle
 
 
 template<typename Range>
-double DirichletMultinomial::operator()(const Range &ad, int num_obs_alleles, int ploidy,
+double DirichletMultinomial::operator()(const Range &ad, int num_obs_alleles, bool log_probability, int ploidy,
     GenotypeArray *output) const
 {
     assert(output != nullptr); 
@@ -234,7 +234,11 @@ double DirichletMultinomial::operator()(const Range &ad, int num_obs_alleles, in
 
     // Scale and calculate likelihoods
     double scale = output->maxCoeff();
-    *output = (*output - scale).exp();
+    if(log_probability) {
+        *output = (*output - scale);
+    } else {
+        *output = (*output - scale).exp();        
+    }
     return scale;
 }
 

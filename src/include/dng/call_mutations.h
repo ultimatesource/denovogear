@@ -32,7 +32,7 @@ namespace dng {
 
 class CallMutations : public Probability {
 public:
-    CallMutations(double min_prob, const RelationshipGraph &graph, params_t params);
+    CallMutations(const RelationshipGraph &graph, params_t params);
 
     struct stats_t {
         double ln_zero;
@@ -67,9 +67,20 @@ public:
 
     double CalculateMU1P(stats_t *stats);
 
+    bool all_variants() const { return all_variants_; }
+    double quality_threshold() const { return min_quality_; }
+
+    void all_variants(bool all) { all_variants_ = all; }
+    void quality_threshold(double min_quality) { min_quality_ = min_quality; }
+    void quality_threshold(double min_quality, bool all ) {
+        min_quality_ = min_quality;
+        all_variants_ = all;
+    }
+
 protected:
 
-    double min_prob_;
+    double min_quality_{0};
+    bool all_variants_{false};
 
     matrices_t zero_mutation_matrices_;
     matrices_t one_mutation_matrices_;

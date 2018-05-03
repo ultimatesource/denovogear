@@ -135,6 +135,18 @@ struct workspace_t {
         }
     }
 
+    void ExpGenotypeLikelihoods() {
+        for(auto pos = library_nodes.first; pos < library_nodes.second; ++pos) {
+            lower[pos] = lower[pos].exp();
+        }
+    }
+
+    void LogGenotypeLikelihoods() {
+        for(auto pos = library_nodes.first; pos < library_nodes.second; ++pos) {
+            lower[pos] = lower[pos].log();
+        }
+    }
+
     // Set the genotype likelihoods into the lower values of the library_nodes.
     // Scales the genotype likelihoods as needed.
     // Input: log-likelihood values

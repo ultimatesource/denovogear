@@ -33,7 +33,7 @@
 
 XM((min)(quality), (m), "minimum quality for reporting a de novo mutation or variant", double,
    DL(0.01, "0.01"))
-XM((all), (a), "include founding variants along with de novo mutations", bool, false)
+XM((all), (a), "include segregating germline variants along with de novo mutations", bool, DL(false,"off"))
 
 
 /***************************************************************************

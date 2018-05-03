@@ -35,16 +35,23 @@ class Probability {
 public:
     struct params_t;
     struct value_t;
-    static constexpr int MAXIMUM_NUMBER_ALLELES = 4;
+    static constexpr int MAXIMUM_NUMBER_ALLELES{4};
+
+    static int adjust_num_obs_alleles(int num) {
+        assert(num >= 1);
+        return (num <= MAXIMUM_NUMBER_ALLELES) ? num : MAXIMUM_NUMBER_ALLELES;
+    }
 
     Probability(RelationshipGraph graph, params_t params);
 
     template<typename A>
-    void SetupWorkspace(const A &depths, int num_obs_alleles, bool has_ref);
+    void SetupWorkspace(const A &depths, int num_obs_alleles, bool log_probability, bool has_ref);
 
     double CalculateLLD();
 
     double CalculateMONOLN();
+
+    double CalcualteQUALITY(bool log_probability);
 
     template<typename A>
     double CalculateLLD(const A &depths, int num_obs_alleles, bool has_ref);
@@ -96,15 +103,28 @@ protected:
 };
 
 template<typename A>
-void Probability::SetupWorkspace(const A &depths, int num_obs_alleles, bool has_ref) {
+void Probability::SetupWorkspace(const A &depths, int num_obs_alleles, bool log_probability, bool has_ref) {
     assert(num_obs_alleles >= 1);
-    if(num_obs_alleles > MAXIMUM_NUMBER_ALLELES) {
-        num_obs_alleles = MAXIMUM_NUMBER_ALLELES;
-    }
+    num_obs_alleles = adjust_num_obs_alleles(num_obs_alleles);
     work_.matrix_index = num_obs_alleles-1;
 
-    work_.CalculateGenotypeLikelihoods(genotyper_, depths, num_obs_alleles);
+    work_.CalculateGenotypeLikelihoods(genotyper_, depths, log_probability, num_obs_alleles);
     work_.SetGermline(DiploidPrior(num_obs_alleles, has_ref), HaploidPrior(num_obs_alleles, has_ref));
+}
+
+inline
+double Probability::CalcualteQUALITY(bool log_probability) {
+    // Use cached value for monomorphic sites instead of peeling.
+    double ln_mono = ln_monomorphic_;
+    for(auto it = work_.lower.begin()+work_.library_nodes.first;
+        it != work_.lower.begin()+work_.library_nodes.second; ++it) {
+        if(log_probability) {
+            ln_mono += (*it)(0);
+        } else {
+            ln_mono += log((*it)(0));
+        }
+    }
+    stats->quality = (-10/M_LN10)*(ln_mono-stats->ln_all);
 }
 
 inline
@@ -130,10 +150,7 @@ template<typename A>
 double Probability::CalculateLLD(
     const A &depths, int num_obs_alleles, bool has_ref)
 {
-    assert(num_obs_alleles >= 1);
-    if(num_obs_alleles > MAXIMUM_NUMBER_ALLELES) {
-        num_obs_alleles = MAXIMUM_NUMBER_ALLELES;
-    }
+    num_obs_alleles = adjust_num_obs_alleles(num_obs_alleles);
     work_.matrix_index = num_obs_alleles-1;
 
     // calculate genotype likelihoods and store in the lower library vector

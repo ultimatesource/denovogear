@@ -37,8 +37,8 @@ V container_subtract(const V& a, const V& b) {
     return output;
 }
 
-CallMutations::CallMutations(double min_prob, const RelationshipGraph &graph, params_t params)
-        : Probability(graph, params), min_prob_{min_prob} {
+CallMutations::CallMutations(const RelationshipGraph &graph, params_t params)
+        : Probability(graph, params) {
 
     // Create Special Transition Matrices
     zero_mutation_matrices_ = CreateMutationMatrices(0);
@@ -78,6 +78,10 @@ double CallMutations::CalculateMUP(stats_t *stats) {
 // Returns true if a mutation was found and the record was modified
 bool CallMutations::CalculateMutationStats(stats_t *stats) {
     const int matrix_index = work_.matrix_index;
+
+    double 
+
+    if(all_variants_)
 
     double mup = CalculateMUP(stats);
 
