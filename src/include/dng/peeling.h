@@ -32,6 +32,8 @@
 #include <dng/genotyper.h>
 #include <dng/detail/unit_test.h>
 
+#include <boost/range/adaptor/sliced.hpp>
+
 namespace dng {
 namespace peel {
 
@@ -49,13 +51,38 @@ struct workspace_t {
 
     // Information about the pedigree
     std::size_t num_nodes = 0;
-    typedef std::pair<std::size_t, std::size_t> node_range_t;
+    using node_range_t = std::pair<std::size_t, std::size_t>;
     node_range_t founder_nodes,
                  germline_nodes,
                  somatic_nodes,
                  library_nodes;
 
     std::vector<int> ploidies;
+
+    template<typename Rng>
+    static auto make_slice(Rng& rng, node_range_t n) -> boost::sliced_range<Rng> {
+        return boost::adaptors::slice(rng, n.first, n.second);
+    }
+
+    template<typename Rng>
+    auto make_founder_slice(Rng& rng) -> boost::sliced_range<Rng> {
+        return make_slice(rng, founder_nodes);
+    }
+
+    template<typename Rng>
+    auto make_germline_slice(Rng& rng) -> boost::sliced_range<Rng> {
+        return make_slice(rng, germline_nodes);
+    }
+
+    template<typename Rng>
+    auto make_somatic_slice(Rng& rng) -> boost::sliced_range<Rng> {
+        return make_slice(rng, somatic_nodes);
+    }
+
+    template<typename Rng>
+    auto make_library_slice(Rng& rng) -> boost::sliced_range<Rng> {
+        return make_slice(rng, library_nodes);
+    }
 
     // Resize the workspace to fit a pedigree with sz nodes
     void Resize(std::size_t sz) {

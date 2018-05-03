@@ -34,7 +34,7 @@ namespace dng {
 class Probability {
 public:
     struct params_t;
-    struct value_t;
+    struct logdiff_t;
     static constexpr int MAXIMUM_NUMBER_ALLELES{4};
 
     static int adjust_num_obs_alleles(int num) {
@@ -49,9 +49,9 @@ public:
 
     double CalculateLLD();
 
-    double CalculateMONOLN();
+    double PeelOnlyReference(bool tips_in_log_space=false);
 
-    double CalcualteQUALITY(bool log_probability);
+    logdiff_t CalculateMONO(bool tips_in_log_space=false);
 
     template<typename A>
     double CalculateLLD(const A &depths, int num_obs_alleles, bool has_ref);
@@ -102,6 +102,20 @@ protected:
     DNG_UNIT_TEST_CLASS(unittest_dng_log_probability);
 };
 
+struct Probability::logdiff_t {
+    double left;
+    double right;
+
+    double value() const {
+        assert(left <= right);
+        return left - right;
+    }
+
+    double phred_score() const { return (-10.0/M_LN10)*value(); }
+    double prob() const { return exp(value()); }
+    double not_prob() const { return -expm1(value()); }
+};
+
 template<typename A>
 void Probability::SetupWorkspace(const A &depths, int num_obs_alleles, bool log_probability, bool has_ref) {
     assert(num_obs_alleles >= 1);
@@ -113,27 +127,35 @@ void Probability::SetupWorkspace(const A &depths, int num_obs_alleles, bool log_
 }
 
 inline
-double Probability::CalcualteQUALITY(bool log_probability) {
-    // Use cached value for monomorphic sites instead of peeling.
-    double ln_mono = ln_monomorphic_;
-    for(auto it = work_.lower.begin()+work_.library_nodes.first;
-        it != work_.lower.begin()+work_.library_nodes.second; ++it) {
-        if(log_probability) {
-            ln_mono += (*it)(0);
-        } else {
-            ln_mono += log((*it)(0));
+Probability::logdiff_t Probability::CalculateMONO(bool tips_in_log_space) {
+    assert(work_.matrix_index >= 0 && work_.matrix_index < transition_matrices_.size());
+    if(work_.matrix_index == 0) {
+        if(tips_in_log_space) {
+            work_.ExpGenotypeLikelihoods();
         }
+        return {ln_monomorphic_, ln_monomorphic_};
     }
-    stats->quality = (-10/M_LN10)*(ln_mono-stats->ln_all);
+    double ln_mono = PeelOnlyReference(tips_in_log_space);
+    if(tips_in_log_space) {
+        work_.ExpGenotypeLikelihoods();
+    }
+    double ln_data = graph_.PeelForwards(work_, transition_matrices_[work_.matrix_index]);
+    return {ln_mono, ln_data};
 }
 
 inline
-double Probability::CalculateMONOLN() {
+double Probability::PeelOnlyReference(bool tips_in_log_space) {
     // Use cached value for monomorphic sites instead of peeling.
+    if(work_.matrix_index == 0) {
+        return ln_monomorphic_;
+    }
     double ln_mono = ln_monomorphic_;
-    for(auto it = work_.lower.begin()+work_.library_nodes.first;
-        it != work_.lower.begin()+work_.library_nodes.second; ++it) {
-        ln_mono += log((*it)(0));
+    for(auto &&lower : work_.make_library_slice(work_.lower)) {
+        if(tips_in_log_space) {
+            ln_mono += lower(0);
+        } else {
+            ln_mono += log(lower(0));
+        }
     }
     return ln_mono;
 }
