@@ -32,7 +32,7 @@
 #include "input.xm"
 
 XM((min)(quality), (m), "minimum quality for reporting a de novo mutation or variant", double,
-   DL(0.01, "0.01"))
+   DL(0.5, "0.5"))
 XM((all), (a), "include segregating germline variants along with de novo mutations", bool, DL(false,"off"))
 
 

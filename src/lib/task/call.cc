@@ -155,16 +155,17 @@ void vcf_add_header_text(hts::bcf::File &vcfout, const task::Call::argument_type
     vcfout.AddHeaderMetadata(line);
 
     // Add the available tags for INFO, FILTER, and FORMAT fields
-    vcfout.AddHeaderMetadata("##INFO=<ID=MUP,Number=1,Type=Float,Description=\"Phred-scaled quality of one or more de novo mutations given data\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=MU1P,Number=1,Type=Float,Description=\"Phred-scaled quality of exactly one de novo mutation given data\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=MUX,Number=1,Type=Float,Description=\"Expected number of de novo mutations\">");
+    vcfout.AddHeaderMetadata("##INFO=<ID=MUTQ,Number=1,Type=Float,Description=\"Phred-scaled quality of one or more de novo mutations given data\">");
+    vcfout.AddHeaderMetadata("##INFO=<ID=MUTX,Number=1,Type=Float,Description=\"Expected number of de novo mutations\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=LLD,Number=1,Type=Float,Description=\"Log10-likelihood of observed data\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=LLS,Number=1,Type=Float,Description=\"LLD scaled by log10-likelihood of an optimized multinomial model\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=LLD1,Number=1,Type=Float,Description=\"Log10-likelihood of observed data assuming 1 mutation\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=LLS1,Number=1,Type=Float,Description=\"LLD1 scaled by log10-likelihood of an optimized multinomial model\">");
+    vcfout.AddHeaderMetadata("##INFO=<ID=LLH,Number=1,Type=Float,Description=\"Normalized LLH\">");
+    //vcfout.AddHeaderMetadata("##INFO=<ID=LLD1,Number=1,Type=Float,Description=\"Log10-likelihood of observed data assuming 1 mutation\">");
+    //vcfout.AddHeaderMetadata("##INFO=<ID=LLS1,Number=1,Type=Float,Description=\"LLD1 scaled by log10-likelihood of an optimized multinomial model\">");
+    vcfout.AddHeaderMetadata("##INFO=<ID=DNP,Number=1,Type=Float,Description=\"Probability of exactly one de novo mutation given data\">");
+    vcfout.AddHeaderMetadata("##INFO=<ID=DNQ,Number=1,Type=Integer,Description=\"Phred-scaled quality of DNT and DNL\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=DNT,Number=1,Type=String,Description=\"De novo type\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=DNL,Number=1,Type=String,Description=\"De novo location\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=DNQ,Number=1,Type=Integer,Description=\"Phred-scaled quality of DNT and DNL\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=DP,Number=1,Type=Integer,Description=\"Total depth\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=AD,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed\">");
     vcfout.AddHeaderMetadata("##INFO=<ID=ADF,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed (forward strand)\">");
@@ -184,8 +185,8 @@ void vcf_add_header_text(hts::bcf::File &vcfout, const task::Call::argument_type
     vcfout.AddHeaderMetadata("##FORMAT=<ID=AD,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed\">");
     vcfout.AddHeaderMetadata("##FORMAT=<ID=ADF,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed (forward strand)\">");
     vcfout.AddHeaderMetadata("##FORMAT=<ID=ADR,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed (reverse strand)\">");
-    vcfout.AddHeaderMetadata("##FORMAT=<ID=MUP,Number=1,Type=Float,Description=\"Probability that this node contains de novo mutations given at least one mutation at this site\">");
-    vcfout.AddHeaderMetadata("##FORMAT=<ID=MU1P,Number=1,Type=Float,Description=\"Probability that this node contains a de novo mutation given only 1 de novo mutation at this site\">");
+    vcfout.AddHeaderMetadata("##FORMAT=<ID=MUTP,Number=1,Type=Float,Description=\"Probability that this node contains de novo mutations given at least one mutation at this site\">");
+    vcfout.AddHeaderMetadata("##FORMAT=<ID=DNP,Number=1,Type=Float,Description=\"Probability that this node contains a de novo mutation given only 1 de novo mutation at this site\">");
 }
 
 template<typename A, typename M, typename R>
@@ -268,18 +269,19 @@ int process_bam(task::Call::argument_type &arg) {
             return;
         }
 
-        model.SetupWorkspace(read_depths, n_sz, ref_index < 4);
-        if(!model.CalculateMutationStats(&stats)) {
+        model.SetupWorkspace(read_depths, n_sz, dng::genotype::Mode::LogLikelihood);
+        if(!model.CalculateMutationStats(dng::genotype::Mode::LogLikelihood, &stats)) {
             return;
         }
 
+        record.filter("PASS");
         record.alleles(count_alleles.alleles_str());
 
         // Measure total depth and sort nucleotides in descending order
         pileup::stats_t depth_stats;
         pileup::calculate_stats(read_depths, &depth_stats);
 
-        add_stats_to_output(stats, depth_stats, has_single_mut, relationship_graph, model.work(), &record);
+        add_stats_to_output(stats, depth_stats, stats.has_single_mut, relationship_graph, model.work(), &record);
         // Map character_indexes to alleles
         std::vector<int> base_index_to_allele(count_alleles.indexes.size(),-1);
         for(size_t u=0;u<count_alleles.indexes.size();++u) {
@@ -427,20 +429,20 @@ int process_bcf(task::Call::argument_type &arg) {
 
         pileup::allele_depths_ref_t read_depths(ad.get(), make_array(num_libs,n_sz));
 
-        // TODO: check that REF isn't a missing character
-        model.SetupWorkspace(read_depths, n_alleles, false, true);
-        if(!model.CalculateMutationStats(&stats)) {
+        model.SetupWorkspace(read_depths, n_sz, dng::genotype::Mode::LogLikelihood);
+        if(!model.CalculateMutationStats(dng::genotype::Mode::LogLikelihood, &stats)) {
             return;
         }
-       
+
         // Set alleles
+        record.filter("PASS");     
         record.alleles(const_cast<const char**>(rec->d.allele), n_alleles);
 
         // Measure total depth and sort nucleotides in descending order
         pileup::stats_t depth_stats;
         pileup::calculate_stats(read_depths, &depth_stats);
 
-        add_stats_to_output(stats, depth_stats, has_single_mut, relationship_graph, model.work(), &record);
+        add_stats_to_output(stats, depth_stats, stats.has_single_mut, relationship_graph, model.work(), &record);
 
         // Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
         std::vector<int32_t> ad_info(n_alleles, 0);
@@ -511,14 +513,14 @@ int process_ad(task::Call::argument_type &arg) {
                     read_depths[i][a] = line(i,a-1);
                 }
             }
-            model.SetupWorkspace(read_depths, n_sz, false);
-            return model.CalculateMutationStats(stats);
+            model.SetupWorkspace(read_depths, n_sz, dng::genotype::Mode::LogLikelihood);
+            return model.CalculateMutationStats(dng::genotype::Mode::LogLikelihood, stats);
         } else {
             size_t n_sz = line.num_nucleotides();
             dng::pileup::allele_depths_const_ref_t read_depths_ref(line.data().data(),
                 make_array(line.num_libraries(), line.num_nucleotides()));
-            model.SetupWorkspace(read_depths_ref, n_sz, true);
-            return model.CalculateMutationStats(stats);
+            model.SetupWorkspace(read_depths_ref, n_sz, dng::genotype::Mode::LogLikelihood);
+            return model.CalculateMutationStats(dng::genotype::Mode::LogLikelihood, stats);
         }
     };
 
@@ -534,6 +536,7 @@ int process_ad(task::Call::argument_type &arg) {
         const size_t n_alleles = n_sz;
 
         // Set alleles
+        record.filter("PASS");
         record.alleles(type_info.label_htslib);
 
         // Copy depths into read_depths
@@ -550,7 +553,7 @@ int process_ad(task::Call::argument_type &arg) {
         pileup::stats_t depth_stats;
         pileup::calculate_stats(read_depths, &depth_stats);
 
-        add_stats_to_output(stats, depth_stats, has_single_mut, relationship_graph, model.work(), &record);
+        add_stats_to_output(stats, depth_stats, stats.has_single_mut, relationship_graph, model.work(), &record);
 
         // Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
         std::vector<int32_t> ad_info(n_sz, 0);
@@ -603,11 +606,9 @@ void append_genotype(const hts::bcf::Variant& rec, int gt, int ploidy, std::stri
 }
 
 void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup::stats_t& depth_stats,
-    bool has_single_mut,
-    const RelationshipGraph &graph,    
-    const peel::workspace_t &work,
-    hts::bcf::Variant *record)
-{
+    bool has_single_mut, const RelationshipGraph &graph,    
+    const peel::workspace_t &work, hts::bcf::Variant *record) {
+
     using namespace hts::bcf;
 
     assert(record != nullptr);
@@ -616,13 +617,14 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
 
     record->quality(call_stats.quality);
 
-    record->info("MUP", static_cast<float>(call_stats.mup));
-    record->info("MU1P", static_cast<float>(call_stats.mu1p));
-    record->info("MUX", static_cast<float>(call_stats.mux));
+    record->info("MUTQ", static_cast<float>(call_stats.mutq));
+    record->info("MUTX", static_cast<float>(call_stats.mutx));
     record->info("LLD", static_cast<float>(call_stats.lld));
     record->info("LLS", static_cast<float>(call_stats.lld-depth_stats.log_null));
+    record->info("LLH", static_cast<float>(call_stats.lld-work.ln_scale/M_LN10));
 
     // Output statistics that are only informative if there is a signal of 1 mutation.
+    record->info("DNP", static_cast<float>(call_stats.dnp));
     if(has_single_mut) {
         std::string dnt;
         size_t pos = call_stats.dnl;
@@ -651,13 +653,12 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
             append_genotype(*record, call_stats.dnt_col, work.ploidies[pos], &dnt);
         }
 
-        record->info("LLD1", static_cast<float>(call_stats.lld1));
-        record->info("LLS1", static_cast<float>(call_stats.lld1-depth_stats.log_null));
+        // record->info("LLD1", static_cast<float>(call_stats.lld1));
+        // record->info("LLS1", static_cast<float>(call_stats.lld1-depth_stats.log_null));
 
-        record->info("DNT", dnt);
-
-        record->info("DNL", graph.label(pos));
         record->info("DNQ", call_stats.dnq);
+        record->info("DNT", dnt);
+        record->info("DNL", graph.label(pos));
 
     }
 
@@ -706,14 +707,14 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
     }
     record->samples("GP", float_vector);
 
-    if(call_stats.mup > 0) {
-        float_vector.assign(call_stats.node_mup.begin(), call_stats.node_mup.end());
-        record->samples("MUP", float_vector);
+    if(call_stats.mutq > 0) {
+        float_vector.assign(call_stats.node_mutp.begin(), call_stats.node_mutp.end());
+        record->samples("MUTP", float_vector);
     }
 
     if(has_single_mut) {
-        float_vector.assign(call_stats.node_mu1p.begin(), call_stats.node_mu1p.end());
-        record->samples("MU1P", float_vector);
+        float_vector.assign(call_stats.node_dnp.begin(), call_stats.node_dnp.end());
+        record->samples("DNP", float_vector);
     }
 
     // Write genotype likelihoods as PL 

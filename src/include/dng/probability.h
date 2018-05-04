@@ -45,16 +45,16 @@ public:
     Probability(RelationshipGraph graph, params_t params);
 
     template<typename A>
-    void SetupWorkspace(const A &depths, int num_obs_alleles, bool log_probability, bool has_ref);
+    void SetupWorkspace(const A &depths, int num_obs_alleles, genotype::Mode mode);
 
     double CalculateLLD();
 
-    double PeelOnlyReference(bool tips_in_log_space=false);
+    double PeelOnlyReference(genotype::Mode mode);
 
-    logdiff_t CalculateMONO(bool tips_in_log_space=false);
+    logdiff_t CalculateMONO(genotype::Mode mode);
 
     template<typename A>
-    double CalculateLLD(const A &depths, int num_obs_alleles, bool has_ref);
+    double CalculateLLD(const A &depths, int num_obs_alleles);
 
     const peel::workspace_t& work() const { return work_; }
 
@@ -117,26 +117,26 @@ struct Probability::logdiff_t {
 };
 
 template<typename A>
-void Probability::SetupWorkspace(const A &depths, int num_obs_alleles, bool log_probability, bool has_ref) {
+void Probability::SetupWorkspace(const A &depths, int num_obs_alleles, genotype::Mode mode) {
     assert(num_obs_alleles >= 1);
     num_obs_alleles = adjust_num_obs_alleles(num_obs_alleles);
     work_.matrix_index = num_obs_alleles-1;
 
-    work_.CalculateGenotypeLikelihoods(genotyper_, depths, log_probability, num_obs_alleles);
-    work_.SetGermline(DiploidPrior(num_obs_alleles, has_ref), HaploidPrior(num_obs_alleles, has_ref));
+    work_.CalculateGenotypeLikelihoods(genotyper_, depths, num_obs_alleles, mode);
+    work_.SetGermline(DiploidPrior(num_obs_alleles, true), HaploidPrior(num_obs_alleles, true));
 }
 
 inline
-Probability::logdiff_t Probability::CalculateMONO(bool tips_in_log_space) {
+Probability::logdiff_t Probability::CalculateMONO(genotype::Mode mode) {
     assert(work_.matrix_index >= 0 && work_.matrix_index < transition_matrices_.size());
     if(work_.matrix_index == 0) {
-        if(tips_in_log_space) {
+        if(mode != genotype::Mode::Likelihood) {
             work_.ExpGenotypeLikelihoods();
         }
         return {ln_monomorphic_, ln_monomorphic_};
     }
-    double ln_mono = PeelOnlyReference(tips_in_log_space);
-    if(tips_in_log_space) {
+    double ln_mono = PeelOnlyReference(mode);
+    if(mode != genotype::Mode::Likelihood) {
         work_.ExpGenotypeLikelihoods();
     }
     double ln_data = graph_.PeelForwards(work_, transition_matrices_[work_.matrix_index]);
@@ -144,17 +144,17 @@ Probability::logdiff_t Probability::CalculateMONO(bool tips_in_log_space) {
 }
 
 inline
-double Probability::PeelOnlyReference(bool tips_in_log_space) {
+double Probability::PeelOnlyReference(genotype::Mode mode) {
     // Use cached value for monomorphic sites instead of peeling.
     if(work_.matrix_index == 0) {
         return ln_monomorphic_;
     }
     double ln_mono = ln_monomorphic_;
     for(auto &&lower : work_.make_library_slice(work_.lower)) {
-        if(tips_in_log_space) {
-            ln_mono += lower(0);
-        } else {
+        if(mode == genotype::Mode::Likelihood) {
             ln_mono += log(lower(0));
+        } else {
+            ln_mono += lower(0);
         }
     }
     return ln_mono;
@@ -169,19 +169,18 @@ double Probability::CalculateLLD() {
 
 // returns 'log10 P(Data ; model)'
 template<typename A>
-double Probability::CalculateLLD(
-    const A &depths, int num_obs_alleles, bool has_ref)
+double Probability::CalculateLLD(const A &depths, int num_obs_alleles)
 {
     num_obs_alleles = adjust_num_obs_alleles(num_obs_alleles);
     work_.matrix_index = num_obs_alleles-1;
 
     // calculate genotype likelihoods and store in the lower library vector
     if(num_obs_alleles > 1) {
-        SetupWorkspace(depths, num_obs_alleles, has_ref);
+        SetupWorkspace(depths, num_obs_alleles, genotype::Mode::Likelihood);
         return CalculateLLD();
     }
     // Use cached value for monomorphic sites instead of peeling.
-    work_.CalculateGenotypeLikelihoods(genotyper_, depths, 1);
+    work_.CalculateGenotypeLikelihoods(genotyper_, depths, 1, genotype::Mode::Likelihood);
     return (ln_monomorphic_ + work_.ln_scale)/M_LN10;
 }
 

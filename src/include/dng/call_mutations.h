@@ -35,15 +35,12 @@ public:
     CallMutations(const RelationshipGraph &graph, params_t params);
 
     struct stats_t {
-        double ln_zero;
-        double ln_all;
-
-        double mup;
+        double mutq;
+        double mutx;
         double lld;
-        double lld1;
-        double mux;
+        //double lld1;
 
-        double mu1p;
+        double dnp;
         int dnt_row;
         int dnt_col;
         int dnl;
@@ -57,15 +54,21 @@ public:
         std::vector<int> best_genotypes;
         std::vector<int> genotype_qualities;
 
-        std::vector<double> node_mup;
-        std::vector<double> node_mu1p;
+        std::vector<double> node_mutp;
+        std::vector<double> node_dnp;
+
+        double ln_zero;
+        double ln_all;
+        bool has_single_mut;
     };
 
-    bool CalculateMutationStats(stats_t *stats);
+    double PeelNoMutations();
 
-    double CalculateMUP(stats_t *stats);
+    bool CalculateMutationStats(genotype::Mode mode, stats_t *stats);
 
-    double CalculateMU1P(stats_t *stats);
+    Probability::logdiff_t CalculateMUQ(stats_t *stats);
+
+    double CalculateSingleMutationStats(stats_t *stats);
 
     bool all_variants() const { return all_variants_; }
     double quality_threshold() const { return min_quality_; }
@@ -87,10 +90,16 @@ protected:
     matrices_t oneplus_mutation_matrices_;
     matrices_t mean_mutation_matrices_;
 
-    std::array<double, MAXIMUM_NUMBER_ALLELES> log10_one_mutation_; 
+    std::array<double, MAXIMUM_NUMBER_ALLELES> one_mutation_prior_; 
 
     DNG_UNIT_TEST_CLASS(unittest_dng_call_mutations);
 };
+
+inline
+double CallMutations::PeelNoMutations() {
+    const int matrix_index = work_.matrix_index;
+    return graph_.PeelForwards(work_, zero_mutation_matrices_[matrix_index]);
+}
 
 } // namespace dng
 

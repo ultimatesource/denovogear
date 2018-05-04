@@ -36,6 +36,11 @@ namespace dng {
 
 namespace genotype {
 
+enum struct Mode {
+    Likelihood = 0,
+    LogLikelihood
+};
+
 namespace detail {
 class log_pochhammer {
     typedef boost::math::lanczos::lanczos13m53 Lanczos;
@@ -88,7 +93,7 @@ public:
         double error_rate, double k_alleles);
 
     template<typename Range>
-    double operator()(const Range& ad, int num_obs_alleles, bool log_probability, int ploidy,
+    double operator()(const Range& ad, int num_obs_alleles, Mode mode, int ploidy,
         GenotypeArray *output) const;
 
     double over_dispersion_hom() const { return over_dispersion_hom_; }
@@ -219,7 +224,7 @@ void DirichletMultinomial::LogHaploidGenotypes(const Range& ad, int num_obs_alle
 
 
 template<typename Range>
-double DirichletMultinomial::operator()(const Range &ad, int num_obs_alleles, bool log_probability, int ploidy,
+double DirichletMultinomial::operator()(const Range &ad, int num_obs_alleles, Mode mode, int ploidy,
     GenotypeArray *output) const
 {
     assert(output != nullptr); 
@@ -234,10 +239,10 @@ double DirichletMultinomial::operator()(const Range &ad, int num_obs_alleles, bo
 
     // Scale and calculate likelihoods
     double scale = output->maxCoeff();
-    if(log_probability) {
-        *output = (*output - scale);
-    } else {
+    if(mode == Mode::Likelihood) {
         *output = (*output - scale).exp();        
+    } else {
+        *output = (*output - scale);
     }
     return scale;
 }
