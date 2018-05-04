@@ -380,10 +380,12 @@ void dng::RelationshipGraph::PrintTable(std::ostream &os) {
 
 std::vector<std::string> dng::RelationshipGraph::BCFHeaderLines() const {
     using namespace std;
-    vector<string> ret = { "##META=<ID=FatherMR,Type=Float,Number=1,Description=\"Paternal mutation rate parameter\">",
-                           "##META=<ID=MotherMR,Type=Float,Number=1,Description=\"Maternal mutation rate parameter\">",
-                           "##META=<ID=OriginalMR,Type=Float,Number=1,Description=\"Somatic or library mutation rate parameter\">"
-                         };
+    vector<string> ret = {
+        "##META=<ID=OriginalMR,Type=Float,Number=1,Description=\"Mutation rate\">",
+        "##META=<ID=FatherMR,Type=Float,Number=1,Description=\"Paternal mutation rate\">",
+        "##META=<ID=MotherMR,Type=Float,Number=1,Description=\"Maternal mutation rate\">",
+        "##META=<ID=Ploidy,Type=Integer,Number=1,Description=\"Ploidy\">"
+    };
 
     string head{"##PEDIGREE=<ID="};
     for(size_t child = 0; child != transitions_.size(); ++child) {
@@ -395,6 +397,7 @@ std::vector<std::string> dng::RelationshipGraph::BCFHeaderLines() const {
                           + ",Mother=" + labels_[parents.parent2]
                           + ",FatherMR=" + utility::to_pretty(parents.length1)
                           + ",MotherMR=" + utility::to_pretty(parents.length2)
+                          + ",Ploidy=" + utility::to_pretty(ploidies_[child])
                           + ">"
                          );
             break;
@@ -402,6 +405,7 @@ std::vector<std::string> dng::RelationshipGraph::BCFHeaderLines() const {
             ret.push_back(head + labels_[child]
                           + ",Original=" + labels_[parents.parent1]
                           + ",OriginalMR=" + utility::to_pretty(parents.length1)
+                          + ",Ploidy=" + utility::to_pretty(ploidies_[child])
                           + ">"
                          );
             break;

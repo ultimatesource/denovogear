@@ -135,7 +135,12 @@ std::pair<std::string, std::string> vcf_get_output_mode(
 }
 
 // Helper function for writing the vcf header information
-void vcf_add_header_text(hts::bcf::File &vcfout, const task::Call::argument_type &arg) {
+void vcf_add_header_text(const task::Call::argument_type &arg,
+    bool add_read_stats, hts::bcf::File *vcfout) {
+    if(vcfout == nullptr) {
+        return;
+    }
+
     using namespace std;
     string line{"##DeNovoGearCommandLine=<ID=dng-call,Version="
                 PACKAGE_VERSION ","};
@@ -152,49 +157,57 @@ void vcf_add_header_text(hts::bcf::File &vcfout, const task::Call::argument_type
 
     line.pop_back();
     line += "\">";
-    vcfout.AddHeaderMetadata(line);
+    vcfout->AddHeaderMetadata(line);
 
     // Add the available tags for INFO, FILTER, and FORMAT fields
-    vcfout.AddHeaderMetadata("##INFO=<ID=MUTQ,Number=1,Type=Float,Description=\"Phred-scaled quality of one or more de novo mutations given data\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=MUTX,Number=1,Type=Float,Description=\"Expected number of de novo mutations\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=LLD,Number=1,Type=Float,Description=\"Log10-likelihood of observed data\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=LLS,Number=1,Type=Float,Description=\"LLD scaled by log10-likelihood of an optimized multinomial model\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=LLH,Number=1,Type=Float,Description=\"Normalized LLH\">");
-    //vcfout.AddHeaderMetadata("##INFO=<ID=LLD1,Number=1,Type=Float,Description=\"Log10-likelihood of observed data assuming 1 mutation\">");
-    //vcfout.AddHeaderMetadata("##INFO=<ID=LLS1,Number=1,Type=Float,Description=\"LLD1 scaled by log10-likelihood of an optimized multinomial model\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=DNP,Number=1,Type=Float,Description=\"Probability of exactly one de novo mutation given data\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=DNQ,Number=1,Type=Integer,Description=\"Phred-scaled quality of DNT and DNL\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=DNT,Number=1,Type=String,Description=\"De novo type\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=DNL,Number=1,Type=String,Description=\"De novo location\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=DP,Number=1,Type=Integer,Description=\"Total depth\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=AD,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=ADF,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed (forward strand)\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=ADR,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed (reverse strand)\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=MQ,Number=1,Type=Float,Description=\"RMS Mapping Quality\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=FS,Number=1,Type=Float,Description=\"Phred-scaled p-value using Fisher's exact test to detect strand bias\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=MQTa,Number=1,Type=Float,Description=\"Anderson-Darling Ta statistic for Alt vs. Ref read mapping qualities\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=RPTa,Number=1,Type=Float,Description=\"Anderson-Darling Ta statistic for Alt vs. Ref read positions\">");
-    vcfout.AddHeaderMetadata("##INFO=<ID=BQTa,Number=1,Type=Float,Description=\"Anderson-Darling Ta statistic for Alt vs. Ref base-call qualities\">");
+    vcfout->AddHeaderMetadata("##INFO=<ID=MUTQ,Number=1,Type=Float,Description=\"Phred-scaled quality of one or more de novo mutations given data\">");
+    vcfout->AddHeaderMetadata("##INFO=<ID=MUTX,Number=1,Type=Float,Description=\"Expected number of de novo mutations\">");
+    vcfout->AddHeaderMetadata("##INFO=<ID=LLD,Number=1,Type=Float,Description=\"Log10-likelihood of observed data\">");
+    vcfout->AddHeaderMetadata("##INFO=<ID=LLS,Number=1,Type=Float,Description=\"LLD scaled by log10-likelihood of an optimized multinomial model\">");
+    vcfout->AddHeaderMetadata("##INFO=<ID=LLH,Number=1,Type=Float,Description=\"Normalized LLH\">");
+    //vcfout->AddHeaderMetadata("##INFO=<ID=LLD1,Number=1,Type=Float,Description=\"Log10-likelihood of observed data assuming 1 mutation\">");
+    //vcfout->AddHeaderMetadata("##INFO=<ID=LLS1,Number=1,Type=Float,Description=\"LLD1 scaled by log10-likelihood of an optimized multinomial model\">");
+    vcfout->AddHeaderMetadata("##INFO=<ID=DNP,Number=1,Type=Float,Description=\"Probability of exactly one de novo mutation given data\">");
+    vcfout->AddHeaderMetadata("##INFO=<ID=DNQ,Number=1,Type=Integer,Description=\"Phred-scaled quality of DNT and DNL\">");
+    vcfout->AddHeaderMetadata("##INFO=<ID=DNT,Number=1,Type=String,Description=\"De novo type\">");
+    vcfout->AddHeaderMetadata("##INFO=<ID=DNL,Number=1,Type=String,Description=\"De novo location\">");
+    vcfout->AddHeaderMetadata("##INFO=<ID=DP,Number=1,Type=Integer,Description=\"Total depth\">");
+    vcfout->AddHeaderMetadata("##INFO=<ID=AD,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed\">");
 
-    vcfout.AddHeaderMetadata("##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">");
-    vcfout.AddHeaderMetadata("##FORMAT=<ID=GQ,Number=1,Type=Integer,Description=\"Phred-scaled genotype quality\">");
-    vcfout.AddHeaderMetadata("##FORMAT=<ID=GP,Number=G,Type=Float,Description=\"Genotype posterior probabilities\">");
-    vcfout.AddHeaderMetadata("##FORMAT=<ID=GL,Number=G,Type=Float,Description=\"Normalized, log10 genotype likelihoods\">");
-    vcfout.AddHeaderMetadata("##FORMAT=<ID=PL,Number=G,Type=Integer,Description=\"Normalized, Phred-scaled genotype likelihoods\">");
-    vcfout.AddHeaderMetadata("##FORMAT=<ID=DP,Number=1,Type=Integer,Description=\"Read depth\">");
-    vcfout.AddHeaderMetadata("##FORMAT=<ID=AD,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed\">");
-    vcfout.AddHeaderMetadata("##FORMAT=<ID=ADF,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed (forward strand)\">");
-    vcfout.AddHeaderMetadata("##FORMAT=<ID=ADR,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed (reverse strand)\">");
-    vcfout.AddHeaderMetadata("##FORMAT=<ID=MUTP,Number=1,Type=Float,Description=\"Probability that this node contains de novo mutations given at least one mutation at this site\">");
-    vcfout.AddHeaderMetadata("##FORMAT=<ID=DNP,Number=1,Type=Float,Description=\"Probability that this node contains a de novo mutation given only 1 de novo mutation at this site\">");
+    if(add_read_stats) {
+        vcfout->AddHeaderMetadata("##INFO=<ID=ADF,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed (forward strand)\">");
+        vcfout->AddHeaderMetadata("##INFO=<ID=ADR,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed (reverse strand)\">");
+        vcfout->AddHeaderMetadata("##INFO=<ID=MQ,Number=1,Type=Float,Description=\"RMS Mapping Quality\">");
+        vcfout->AddHeaderMetadata("##INFO=<ID=FS,Number=1,Type=Float,Description=\"Phred-scaled p-value using Fisher's exact test to detect strand bias\">");
+        vcfout->AddHeaderMetadata("##INFO=<ID=MQTa,Number=1,Type=Float,Description=\"Anderson-Darling Ta statistic for Alt vs. Ref read mapping qualities\">");
+        vcfout->AddHeaderMetadata("##INFO=<ID=RPTa,Number=1,Type=Float,Description=\"Anderson-Darling Ta statistic for Alt vs. Ref read positions\">");
+        vcfout->AddHeaderMetadata("##INFO=<ID=BQTa,Number=1,Type=Float,Description=\"Anderson-Darling Ta statistic for Alt vs. Ref base-call qualities\">");        
+    }
+
+    vcfout->AddHeaderMetadata("##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">");
+    vcfout->AddHeaderMetadata("##FORMAT=<ID=GQ,Number=1,Type=Integer,Description=\"Phred-scaled genotype quality\">");
+    vcfout->AddHeaderMetadata("##FORMAT=<ID=GP,Number=G,Type=Float,Description=\"Genotype posterior probabilities\">");
+    vcfout->AddHeaderMetadata("##FORMAT=<ID=GL,Number=G,Type=Float,Description=\"Normalized, log10 genotype likelihoods\">");
+    vcfout->AddHeaderMetadata("##FORMAT=<ID=PL,Number=G,Type=Integer,Description=\"Normalized, Phred-scaled genotype likelihoods\">");
+    vcfout->AddHeaderMetadata("##FORMAT=<ID=DP,Number=1,Type=Integer,Description=\"Read depth\">");
+    vcfout->AddHeaderMetadata("##FORMAT=<ID=AD,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed\">");
+    
+    if(add_read_stats) {
+        vcfout->AddHeaderMetadata("##FORMAT=<ID=ADF,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed (forward strand)\">");
+        vcfout->AddHeaderMetadata("##FORMAT=<ID=ADR,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed (reverse strand)\">");        
+    }
+
+    vcfout->AddHeaderMetadata("##FORMAT=<ID=MUTP,Number=1,Type=Float,Description=\"Probability that this node contains de novo mutations given at least one mutation at this site\">");
+    vcfout->AddHeaderMetadata("##FORMAT=<ID=DNP,Number=1,Type=Float,Description=\"Probability that this node contains a de novo mutation given only 1 de novo mutation at this site\">");
 }
 
 template<typename A, typename M, typename R>
-hts::bcf::File open_vcf_output(const A& arg, const M& mpileup, const R& relationship_graph) {
+hts::bcf::File open_vcf_output(const A& arg, const M& mpileup, const R& relationship_graph,
+    bool add_read_stats) {
    // Begin writing VCF header
     auto out_file = vcf_get_output_mode(arg);
     hts::bcf::File vcfout(out_file.first.c_str(), out_file.second.c_str());
-    vcf_add_header_text(vcfout, arg);
+    vcf_add_header_text(arg, add_read_stats, &vcfout);
 
     for(auto && contig : mpileup.contigs()) {
         vcfout.AddContig(contig.name.c_str(), contig.length); // Add contigs to header
@@ -226,7 +239,7 @@ int process_bam(task::Call::argument_type &arg) {
     auto relationship_graph = create_relationship_graph(arg, &mpileup);
 
     // Open Output
-    auto vcfout = open_vcf_output(arg, mpileup, relationship_graph);
+    auto vcfout = open_vcf_output(arg, mpileup, relationship_graph, true);
 
     // Record for each output
     auto record = vcfout.InitVariant();
@@ -387,7 +400,7 @@ int process_bcf(task::Call::argument_type &arg) {
     auto relationship_graph = create_relationship_graph(arg, &mpileup);
 
     // Open Output
-    auto vcfout = open_vcf_output(arg, mpileup, relationship_graph);
+    auto vcfout = open_vcf_output(arg, mpileup, relationship_graph, false);
 
     // Record for each output
     auto record = vcfout.InitVariant();
@@ -482,7 +495,7 @@ int process_ad(task::Call::argument_type &arg) {
     auto relationship_graph = create_relationship_graph(arg, &mpileup);
 
     // Open Output
-    auto vcfout = open_vcf_output(arg, mpileup, relationship_graph);
+    auto vcfout = open_vcf_output(arg, mpileup, relationship_graph, false);
 
     // Record for each output
     auto record = vcfout.InitVariant();
