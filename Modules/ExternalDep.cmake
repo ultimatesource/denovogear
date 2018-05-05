@@ -328,7 +328,7 @@ IF(BUILD_EXTERNAL_PROJECTS AND NOT HTSLIB_FOUND)
   ExternalProject_Add(ext_htslib
     PREFIX "${EXT_PREFIX}/htslib"
     URL http://github.com/samtools/htslib/releases/download/${HTSLIB_VERSION}/htslib-${HTSLIB_VERSION}.tar.bz2
-    URL_MD5 16D78F90B72F29971B042E8DA8BE6843
+    URL_MD5 16d78f90b72f29971b042e8da8be6843
     PATCH_COMMAND ""
     UPDATE_COMMAND ""
     CONFIGURE_COMMAND "./configure" "--prefix=<INSTALL_DIR>"

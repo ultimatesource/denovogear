@@ -40,6 +40,7 @@ endmacro()
 
 AddUnitTest(hts::hts)
 AddUnitTest(hts::bam)
+AddUnitTest(hts::bcf)
 
 AddUnitTest(dng::io::ad)
 AddUnitTest(dng::io::bam)
