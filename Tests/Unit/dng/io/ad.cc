@@ -526,9 +526,6 @@ BOOST_AUTO_TEST_CASE(test_tad_read) {
     adfile.Attach(buffer.rdbuf());
     adfile.ReadHeader();
 
-    typedef std::vector<int> V;
-    typedef std::vector<std::string> S;
-
     BOOST_CHECK(unittest_dng_io_ad::get_version_number(adfile) == 0x0001);
     BOOST_CHECK(unittest_dng_io_ad::get_format_string(adfile) == "TAD");
 
@@ -571,7 +568,7 @@ BOOST_AUTO_TEST_CASE(test_tad_read) {
     adfile.Read(&depths);
     BOOST_CHECK(depths.location() == make_location(1,0));
     BOOST_CHECK(depths.color() == 3);
-    BOOST_CHECK(depths.data() == V({4,0}));    
+    BOOST_CHECK(depths.data() == V({4,0}));
 
     adfile.Read(&depths);
     BOOST_CHECK(depths.location() == make_location(2,0));
@@ -650,9 +647,6 @@ BOOST_AUTO_TEST_CASE(test_tad_read_subset) {
     const char *libs[] = {"B","C"};
     adfile.SelectLibraries(libs);
 
-    typedef std::vector<int> V;
-    typedef std::vector<std::string> S;
-
     BOOST_CHECK(adfile.num_libraries() == 1);
     BOOST_CHECK(adfile.libraries().names == S{"B"});
     BOOST_CHECK(adfile.libraries().samples == S{"BBB"});
@@ -681,7 +675,7 @@ BOOST_AUTO_TEST_CASE(test_tad_read_subset) {
     adfile.Read(&depths);
     BOOST_CHECK(depths.location() == make_location(1,0));
     BOOST_CHECK(depths.color() == 3);
-    BOOST_CHECK(depths.data() == V({0}));    
+    BOOST_CHECK(depths.data() == V({0}));
 
     adfile.Read(&depths);
     BOOST_CHECK(depths.location() == make_location(2,0));

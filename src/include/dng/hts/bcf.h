@@ -1,6 +1,7 @@
 /*
- * Copyright (c) 2015 Reed A. Cartwright <reed@cartwrig.ht>
+ * Copyright (c) 2015-8 Reed A. Cartwright <reed@cartwrig.ht>
  * Copyright (c) 2015 Kael Dai <kdai1@asu.edu>
+ * Copyright (c) 2018 Juan J. Garcia Mesa <jgarc111@asu.edu>
  *
  * This file is part of DeNovoGear.
  *
@@ -101,6 +102,70 @@ int get_format_float(const bcf_hdr_t *header, BareVariant *record, const char *t
         // update pointer
         buffer->release();
         buffer->reset(p);
+    }
+    return n;
+}
+
+inline
+int get_format_numeric(const bcf_hdr_t *header, BareVariant *record, const char *tag, buffer_t<float>* buffer, int *capacity) {
+    int tag_id = bcf_hdr_id2int(header, BCF_DT_ID, tag);
+    if(tag_id < 0) {
+        return -1;  // no such FORMAT field in the header
+    }
+    int type = bcf_hdr_id2type(header, BCF_HL_FMT, tag_id);
+    if(type == BCF_HT_REAL) {
+        return get_format_float(header, record, tag, buffer, capacity);
+    }
+    if(type != BCF_HT_INT) {
+        return -2;  // expected different type
+    }
+    static_assert(sizeof(int) == sizeof(float), "size of int and float do not match");
+    float *p = buffer->get();
+    int n = bcf_get_format_int32(header, record, tag, &p, capacity);
+    if(n == -4) {
+        throw std::bad_alloc{};
+    } else if(p != buffer->get()) {
+        // update pointer
+        buffer->release();
+        buffer->reset(p);
+    }
+    // cast value to float and store back into the buffer
+    for(int i=0; i<n; i++) {
+        int temp;
+        memcpy(&temp, &(*buffer)[i], sizeof(int));
+        (*buffer)[i] = static_cast<float>(temp);
+    }
+    return n;
+}
+
+inline
+int get_format_numeric(const bcf_hdr_t *header, BareVariant *record, const char *tag, buffer_t<int>* buffer, int *capacity) {
+    int tag_id = bcf_hdr_id2int(header, BCF_DT_ID, tag);
+    if(tag_id < 0){
+	return -1;  // no such FORMAT field in the header
+    }
+    int type = bcf_hdr_id2type(header,BCF_HL_FMT,tag_id);
+    if(type == BCF_HT_INT) {
+	return get_format_int32(header, record, tag, buffer, capacity);
+    }
+    if(type != BCF_HT_REAL) {
+	return -2;  // expected different type
+    }
+    static_assert(sizeof(int) == sizeof(float), "size of int and float do not match");
+    int *p = buffer->get();
+    int n = bcf_get_format_float(header, record, tag, &p, capacity);
+    if(n == -4) {
+	throw std::bad_alloc{};
+    } else if(p != buffer->get()) {
+	//update pointer
+	buffer->release();
+	buffer->reset(p);
+    }
+    // cast value to float and store back into the buffer
+    for(int i=0; i<n; i++) {
+	float temp;
+	memcpy(&temp, &(*buffer)[i], sizeof(float));
+	(*buffer)[i] = static_cast<int>(temp);
     }
     return n;
 }
@@ -413,7 +478,7 @@ public:
 
     /** Explicity closes the file and flushes the stream */
     void Close() {
-    	bcf_close(handle());
+        bcf_close(handle());
     }
 
 
