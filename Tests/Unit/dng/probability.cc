@@ -239,9 +239,9 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
 
         GenotypeArray mom_lower, dad_lower, eve_lower;
         expected_log_scale = 0.0;
-        expected_log_scale += genotyper(depths[0], num_obs_alleles, 2, &mom_lower);
-        expected_log_scale += genotyper(depths[1], num_obs_alleles, 2, &dad_lower);
-        expected_log_scale += genotyper(depths[2], num_obs_alleles, 2, &eve_lower);
+        expected_log_scale += genotyper(depths[0], num_obs_alleles, genotype::Mode::Likelihood, 2, &mom_lower);
+        expected_log_scale += genotyper(depths[1], num_obs_alleles, genotype::Mode::Likelihood, 2, &dad_lower);
+        expected_log_scale += genotyper(depths[2], num_obs_alleles, genotype::Mode::Likelihood, 2, &eve_lower);
 
         BOOST_REQUIRE_EQUAL(mom_lower.size(), gt_sz);
         BOOST_REQUIRE_EQUAL(dad_lower.size(), gt_sz);
@@ -274,7 +274,7 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
         expected_log_scale /= M_LN10;
         expected_log_data = log(lld) / M_LN10 + expected_log_scale;
 
-        test_log_data = log_probability.CalculateLLD(depths, num_obs_alleles_old, has_ref);
+        test_log_data = log_probability.CalculateLLD(depths, num_obs_alleles_old);
         test_log_scale = log_probability.work().ln_scale / M_LN10;
         BOOST_CHECK_CLOSE_FRACTION(test_log_scale, expected_log_scale, prec);
         BOOST_CHECK_CLOSE_FRACTION(test_log_data, expected_log_data, prec);
@@ -289,7 +289,7 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
     
     test({{100,0,0},{50,50,0},{50,50,1}}, 3, true);
     
-    test({{0,100},{0,100},{0,10}}, 2, false);
+    test({{0,100},{0,100},{0,10}}, 2, true);
 
     for(int n=1; n<=6; ++n) {
         for(int i=0; i<100; ++i) {
@@ -302,20 +302,6 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
             test(ad, n, true);
         }
     }
-
-    for(int n=2; n<=6; ++n) {
-        for(int i=0; i<100; ++i) {
-            ad_t ad(3);
-            for(auto &&a : ad) {
-                a.push_back(0);
-                for(int j=1;j<=n;++j) {
-                    a.push_back(rexp(30));
-                }
-            }
-            test(ad, n, false);
-        }
-    }
-
 }
 
 BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_xlinked) {
@@ -385,9 +371,9 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_xlinked) {
 
         GenotypeArray mom_lower, dad_lower, eve_lower;
         expected_log_scale = 0.0;
-        expected_log_scale += genotyper(depths[0], num_obs_alleles, 2, &mom_lower);
-        expected_log_scale += genotyper(depths[1], num_obs_alleles, 1, &dad_lower);
-        expected_log_scale += genotyper(depths[2], num_obs_alleles, 2, &eve_lower);
+        expected_log_scale += genotyper(depths[0], num_obs_alleles, genotype::Mode::Likelihood, 2, &mom_lower);
+        expected_log_scale += genotyper(depths[1], num_obs_alleles, genotype::Mode::Likelihood, 1, &dad_lower);
+        expected_log_scale += genotyper(depths[2], num_obs_alleles, genotype::Mode::Likelihood, 2, &eve_lower);
 
         BOOST_REQUIRE_EQUAL(mom_lower.size(), gt_sz);
         BOOST_REQUIRE_EQUAL(dad_lower.size(), hap_sz);
@@ -420,7 +406,7 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_xlinked) {
         expected_log_scale /= M_LN10;
         expected_log_data = log(lld) / M_LN10 + expected_log_scale;
 
-        test_log_data = log_probability.CalculateLLD(depths, num_obs_alleles_old, has_ref);
+        test_log_data = log_probability.CalculateLLD(depths, num_obs_alleles_old);
         test_log_scale = log_probability.work().ln_scale / M_LN10;
         BOOST_CHECK_CLOSE_FRACTION(test_log_scale, expected_log_scale, prec);
         BOOST_CHECK_CLOSE_FRACTION(test_log_data, expected_log_data, prec);
@@ -435,7 +421,7 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_xlinked) {
     
     test({{100,0,0},{50,50,0},{50,50,1}}, 3, true);
     
-    test({{0,100},{0,100},{0,10}}, 2, false);
+    test({{0,100},{0,100},{0,10}}, 2, true);
 
     for(int n=1; n<=6; ++n) {
         for(int i=0; i<100; ++i) {
@@ -446,19 +432,6 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_xlinked) {
                 }
             }
             test(ad, n, true);
-        }
-    }
-
-    for(int n=2; n<=6; ++n) {
-        for(int i=0; i<100; ++i) {
-            ad_t ad(3);
-            for(auto &&a : ad) {
-                a.push_back(0);
-                for(int j=1;j<=n;++j) {
-                    a.push_back(rexp(30));
-                }
-            }
-            test(ad, n, false);
         }
     }
 }

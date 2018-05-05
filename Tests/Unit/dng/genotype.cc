@@ -148,7 +148,7 @@ BOOST_AUTO_TEST_CASE(test_DirichletMultinomial) {
                          x = exp(x-expected_scale);
                     }
                     GenotypeArray output;
-                    double test_scale = dm(ad,k,1,&output);
+                    double test_scale = dm(ad,k,Mode::Likelihood,1,&output);
                     auto test = make_test_range(output);
                     BOOST_CHECK_CLOSE_FRACTION(test_scale, expected_scale, prec);
                     CHECK_CLOSE_RANGES(test, expected, prec);
@@ -184,7 +184,7 @@ BOOST_AUTO_TEST_CASE(test_DirichletMultinomial) {
                          x = exp(x-expected_scale);
                     }
                     GenotypeArray output;
-                    double test_scale = dm(ad,k,2,&output);
+                    double test_scale = dm(ad,k,Mode::Likelihood,2,&output);
                     auto test = make_test_range(output);
                     BOOST_CHECK_CLOSE_FRACTION(test_scale, expected_scale, prec);
                     CHECK_CLOSE_RANGES(test, expected, prec);
