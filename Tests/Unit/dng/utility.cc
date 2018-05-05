@@ -32,7 +32,7 @@
 
 namespace dng { namespace utility {
     // pull in custom io operator for classes in this namespace
-    using dng::detail::io::operator<<;
+    //using dng::detail::io::operator<<;
 }}
 
 using namespace std;

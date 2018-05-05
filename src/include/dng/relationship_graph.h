@@ -41,9 +41,9 @@ enum struct InheritanceModel {
     Autosomal,    // default option
     Maternal,     // transmitted by mother to child
     Paternal,     // transmitter by father to child
-    XLinked,     // females have 2 copies, males have 1; males transmit to daughters, not to sons
-    YLinked,     // males have 1 copy, only transmits it to sons
-    WLinked,     // females have 1 copy, only transmitted to daughters
+    XLinked,      // females have 2 copies, males have 1; males transmit to daughters, not to sons
+    YLinked,      // males have 1 copy, only transmits it to sons
+    WLinked,      // females have 1 copy, only transmitted to daughters
     ZLinked,      // males have 2 copies, females have 1; females transmit to sons, not to daughters
     Unknown
 };
@@ -78,6 +78,10 @@ public:
         std::size_t parent2;
         double length1;
         double length2;
+
+        bool is_germline;
+        bool is_somatic;
+        bool is_library;
     };
 
     bool Construct(const Pedigree& pedigree, const libraries_t& libs,

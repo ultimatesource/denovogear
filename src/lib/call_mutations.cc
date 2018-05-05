@@ -55,11 +55,11 @@ CallMutations::CallMutations(const RelationshipGraph &graph, params_t params)
         work_.matrix_index = num_obs_alleles-1;
         work_.ClearGenotypeLikelihoods(num_obs_alleles);
         work_.SetGermline(DiploidPrior(num_obs_alleles, true), HaploidPrior(num_obs_alleles, true));
-        one_mutation_prior_[num_obs_alleles-1] = CalculateSingleMutationStats(nullptr);
+        one_mutation_prior_[num_obs_alleles-1] = CalculateDNP().prob();
     }
 }
 
-Probability::logdiff_t CallMutations::CalculateMUQ(stats_t *stats) {
+Probability::logdiff_t CallMutations::CalculateMUTQ() {
     const int matrix_index = work_.matrix_index;
     // Now peel numerator
     double numerator = graph_.PeelForwards(work_, zero_mutation_matrices_[matrix_index]);
@@ -69,9 +69,34 @@ Probability::logdiff_t CallMutations::CalculateMUQ(stats_t *stats) {
     return {numerator, denominator};
 }
 
+Probability::logdiff_t CallMutations::CalculateDNP() {
+    const int matrix_index = work_.matrix_index;
+
+    double ln_all = graph_.PeelForwards(work_, transition_matrices_[matrix_index]);
+
+    double ln_zero = graph_.PeelForwards(work_, zero_mutation_matrices_[matrix_index]);
+    graph_.PeelBackwards(work_, zero_mutation_matrices_[matrix_index]);
+    double total = 0.0;
+    for (size_t i = work_.founder_nodes.second; i < work_.num_nodes; ++i) {
+        work_.temp_buffer = (work_.super[i].matrix() *
+                                work_.lower[i].matrix().transpose()).array() *
+                                one_mutation_matrices_[matrix_index][i].array();
+        total += work_.temp_buffer.sum();
+    }
+    // total = P(1 mutation & D)/P(0 mutations & D) due to backwards algorithm
+    ln_zero = ln_zero + log(total);
+    return {ln_zero, ln_all};
+}
+
 // Returns true if a mutation was found and the record was modified
 bool CallMutations::CalculateMutationStats(genotype::Mode mode, stats_t *stats) {
     const int matrix_index = work_.matrix_index;
+
+    // We can't find mutations or variants if we have
+    // no variation in the data
+    if(matrix_index == 0 && quality_threshold() > 0.0) {
+        return false;
+    }
 
     auto mono = CalculateMONO(mode);
     double quality = mono.phred_score();
@@ -93,8 +118,15 @@ bool CallMutations::CalculateMutationStats(genotype::Mode mode, stats_t *stats) 
     stats->mutq = mutq;
     stats->lld = (mono.right + work_.ln_scale)/M_LN10;
     stats->quality = quality;
+    stats->ln_mono = mono.left;
     stats->ln_zero = nomut.left;
     stats->ln_all  = nomut.right;
+
+    // Since we just called PeelNoMutations(), can call this and
+    // skip peeling forward again
+    stats->has_single_mut = CalculateSingleMutationStats(false, stats);
+
+    stats->denovo = (mutq >= min_quality_);
 
     graph_.PeelForwards(work_, transition_matrices_[matrix_index]);
     graph_.PeelBackwards(work_, transition_matrices_[matrix_index]);
@@ -143,30 +175,25 @@ bool CallMutations::CalculateMutationStats(genotype::Mode mode, stats_t *stats) 
     }
 
     // Probability of Exactly One Mutation
-    CalculateSingleMutationStats(stats);
+    
     return true;
 }
 
 // NOTE: if stats is not nullptr, this assumes that CalculateMUP has been run on it
-double CallMutations::CalculateSingleMutationStats(stats_t *stats) {
+bool CallMutations::CalculateSingleMutationStats(bool peel_forward, stats_t *stats) {
     // Probability of Exactly One Mutation
+    assert(stats != nullptr);
     // We will peel again, but this time with the zero matrix
     const int matrix_index = work_.matrix_index;
 
-    double ln_zero = graph_.PeelForwards(work_, zero_mutation_matrices_[matrix_index]);
-    graph_.PeelBackwards(work_, zero_mutation_matrices_[matrix_index]);
-    if(stats == nullptr) {
-        double total = 0.0;
-        for (size_t i = work_.founder_nodes.second; i < work_.num_nodes; ++i) {
-            work_.temp_buffer = (work_.super[i].matrix() *
-                                    work_.lower[i].matrix().transpose()).array() *
-                                    one_mutation_matrices_[matrix_index][i].array();
-            total += work_.temp_buffer.sum();
-        }
-        double ln_all = graph_.PeelForwards(work_, transition_matrices_[matrix_index]);
-        // total = P(1 mutation & D)/P(0 mutations & D) due to backwards algorithm
-        return total*exp(ln_zero - ln_all);
+    double ln_zero;
+    if(peel_forward) {
+        ln_zero = graph_.PeelForwards(work_, zero_mutation_matrices_[matrix_index]);
+    } else {
+        ln_zero = stats->ln_zero;
     }
+    graph_.PeelBackwards(work_, zero_mutation_matrices_[matrix_index]);
+
     double total = 0.0, max_coeff = -1.0;
     size_t dn_row = 0, dn_col = 0, dn_location = 0;
 
@@ -206,7 +233,5 @@ double CallMutations::CalculateSingleMutationStats(stats_t *stats) {
     stats->dnt_row = dn_row;
     stats->dnt_col = dn_col;
 
-    stats->has_single_mut = (stats->dnp > one_mutation_prior_[matrix_index]);
-
-    return stats->dnp;
+    return (stats->dnp > one_mutation_prior_[matrix_index]);
 }

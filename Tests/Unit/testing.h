@@ -214,12 +214,6 @@ auto make_test_range(const T (&a)[N]) -> test_range<const T*>
 using boost::make_iterator_range;
 using boost::make_iterator_range_n;
 
-} // namespace dng::detail
-} // namespace dng
-
-namespace dng {
-namespace detail {
-namespace io {
 // allow enum's to be printed
 template<typename CharType, typename CharTrait, typename E>
 inline
@@ -229,7 +223,7 @@ operator<<(std::basic_ostream<CharType, CharTrait>& o, E m) {
     o << static_cast<typename std::underlying_type<E>::type>(m);
     return o;
 }
-}}} // namespace dng::detail::io
+}} // namespace dng::detail
 
 // allow pair of strings to be printed
 namespace std {

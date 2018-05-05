@@ -34,41 +34,15 @@ class CallMutations : public Probability {
 public:
     CallMutations(const RelationshipGraph &graph, params_t params);
 
-    struct stats_t {
-        double mutq;
-        double mutx;
-        double lld;
-        //double lld1;
-
-        double dnp;
-        int dnt_row;
-        int dnt_col;
-        int dnl;
-        int dnq;
-
-        double quality;
-
-        GenotypeArrayVector genotype_likelihoods;
-
-        GenotypeArrayVector posterior_probabilities;
-        std::vector<int> best_genotypes;
-        std::vector<int> genotype_qualities;
-
-        std::vector<double> node_mutp;
-        std::vector<double> node_dnp;
-
-        double ln_zero;
-        double ln_all;
-        bool has_single_mut;
-    };
+    struct stats_t;
 
     double PeelNoMutations();
 
     bool CalculateMutationStats(genotype::Mode mode, stats_t *stats);
+    bool CalculateSingleMutationStats(bool , stats_t *stats);
 
-    Probability::logdiff_t CalculateMUQ(stats_t *stats);
-
-    double CalculateSingleMutationStats(stats_t *stats);
+    logdiff_t CalculateMUTQ();
+    logdiff_t CalculateDNP();
 
     bool all_variants() const { return all_variants_; }
     double quality_threshold() const { return min_quality_; }
@@ -93,6 +67,39 @@ protected:
     std::array<double, MAXIMUM_NUMBER_ALLELES> one_mutation_prior_; 
 
     DNG_UNIT_TEST_CLASS(unittest_dng_call_mutations);
+};
+
+struct CallMutations::stats_t {
+    double mutq;
+    double mutx;
+    double lld;
+
+    double dnp;
+    int dnt_row;
+    int dnt_col;
+    int dnl;
+    int dnq;
+
+    double quality;
+
+    bool denovo;
+    bool germline;
+    bool somatic;
+    bool library;
+
+    GenotypeArrayVector genotype_likelihoods;
+
+    GenotypeArrayVector posterior_probabilities;
+    std::vector<int> best_genotypes;
+    std::vector<int> genotype_qualities;
+
+    std::vector<double> node_mutp;
+    std::vector<double> node_dnp;
+
+    double ln_mono;
+    double ln_zero;
+    double ln_all;
+    bool has_single_mut;
 };
 
 inline

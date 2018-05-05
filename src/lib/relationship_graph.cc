@@ -384,35 +384,43 @@ std::vector<std::string> dng::RelationshipGraph::BCFHeaderLines() const {
         "##META=<ID=OriginalMR,Type=Float,Number=1,Description=\"Mutation rate\">",
         "##META=<ID=FatherMR,Type=Float,Number=1,Description=\"Paternal mutation rate\">",
         "##META=<ID=MotherMR,Type=Float,Number=1,Description=\"Maternal mutation rate\">",
-        "##META=<ID=Ploidy,Type=Integer,Number=1,Description=\"Ploidy\">"
+        "##META=<ID=Ploidy,Type=Integer,Number=1,Description=\"Ploidy\">",
+        "##META=<ID=Germline,Type=Flag,Number=0,Description=\"Contains germline events\">",
+        "##META=<ID=Somatic,Type=Flag,Number=0,Description=\"Contains somatic events\">",
+        "##META=<ID=Library,Type=Flag,Number=0,Description=\"Contains library events\">"
     };
 
-    string head{"##PEDIGREE=<ID="};
     for(size_t child = 0; child != transitions_.size(); ++child) {
         auto & parents = transitions_[child];
+        string line;
         switch(parents.type) {
         case TransitionType::Trio:
-            ret.push_back(head + labels_[child]
-                          + ",Father=" + labels_[parents.parent1]
-                          + ",Mother=" + labels_[parents.parent2]
-                          + ",FatherMR=" + utility::to_pretty(parents.length1)
-                          + ",MotherMR=" + utility::to_pretty(parents.length2)
-                          + ",Ploidy=" + utility::to_pretty(ploidies_[child])
-                          + ">"
-                         );
+            line += "##PEDIGREE=<Child=" + labels_[child];
+            line += ",Father=" + labels_[parents.parent1];
+            line += ",Mother=" + labels_[parents.parent2];
+            line += ",FatherMR=" + utility::to_pretty(parents.length1);
+            line += ",MotherMR=" + utility::to_pretty(parents.length2);
             break;
         case TransitionType::Pair:
-            ret.push_back(head + labels_[child]
-                          + ",Original=" + labels_[parents.parent1]
-                          + ",OriginalMR=" + utility::to_pretty(parents.length1)
-                          + ",Ploidy=" + utility::to_pretty(ploidies_[child])
-                          + ">"
-                         );
+            line += "##PEDIGREE=<Derived=" + labels_[child];
+            line += ",Original=" + labels_[parents.parent1];
+            line += ",OriginalMR=" + utility::to_pretty(parents.length1);
             break;
         case TransitionType::Founder:
         default:
             break;    
         }
+        line += ",Ploidy=" + utility::to_pretty(ploidies_[child]);
+        if(parents.is_germline) {
+            line += ",Germline=1";
+        }
+        if(parents.is_somatic) {
+            line += ",Somatic=1";
+        }
+        if(parents.is_library) {
+            line += ",Library=1";
+        }        
+        ret.push_back(line + ">");
     }
     return ret;
 }
@@ -510,7 +518,6 @@ void prune_pedigree_xlinked(Graph &pedigree_graph) {
         }
     }
 }
-
 
 void prune_pedigree_wlinked(Graph &pedigree_graph) {
     auto sexes  = get(boost::vertex_sex, pedigree_graph);
@@ -849,7 +856,7 @@ void simplify_pedigree(Graph &pedigree_graph) {
         // identify children
         auto edge_range = make_iterator_range(out_edges(v, pedigree_graph));
         // NOTE: This assumes that children is a reasonable number
-        // and will kill performance if it does not.
+        // and will kill performance if it is not.
         std::vector<vertex_t> meiotic_children;
         for(edge_t && e : edge_range) {
             vertex_t u = target(e, pedigree_graph);
@@ -996,7 +1003,7 @@ void dng::RelationshipGraph::CreateFamiliesInfo(Graph &pedigree_graph,
 
     // Determine the last family in each group.  All singleton groups will have
     // a value of -1 since they have no family assignment.
-    typedef std::deque<std::size_t> root_families_t;
+    using root_families_t = std::deque<std::size_t> ;
     root_families_t root_families(num_groups, -1);
     for (std::size_t f = 0; f < family_labels.size(); ++f) {
         // last one wins
@@ -1031,6 +1038,9 @@ void dng::RelationshipGraph::CreatePeelingOps(
 
     auto edge_types = get(boost::edge_type, pedigree_graph);
     auto lengths = get(boost::edge_length, pedigree_graph);
+    auto vertex_types = get(boost::vertex_type, pedigree_graph);
+
+    using VertexType = detail::graph::VertexType;
 
     ClearFamilyInfo();
 
@@ -1040,7 +1050,7 @@ void dng::RelationshipGraph::CreatePeelingOps(
 
     // Setup founder Transitions
     for (std::size_t i = first_founder_; i < first_nonfounder_; ++i) {
-        transitions_[i] = {TransitionType::Founder, null_id, null_id, 0.0, 0.0};
+        transitions_[i] = {TransitionType::Founder, null_id, null_id, 0.0, 0.0,false,false,false};
     }
 
     // Detect Family Structure and pivot positions
@@ -1058,8 +1068,6 @@ void dng::RelationshipGraph::CreatePeelingOps(
         });
         size_t num_spousal_edges = distance(family_edges.begin(), it);
 
-
-
         // Check to see what type of graph we have
         if (num_spousal_edges == 0) {
             // If we do not have a parent-child single branch,
@@ -1070,10 +1078,23 @@ void dng::RelationshipGraph::CreatePeelingOps(
             }
             // Create a mitotic peeling operation.
             auto child_index = target(*it, pedigree_graph);
-            size_t parent = node_ids[source(*it, pedigree_graph)];
+            auto parent_index = source(*it, pedigree_graph);
+            size_t parent = node_ids[parent_index];
             size_t child = node_ids[child_index];
             
             transitions_[child] = {TransitionType::Pair, parent, null_id, lengths[*it], 0.0};
+
+            auto child_type = vertex_types(child_index);
+            auto parent_type = vertex_types(parent_index);
+
+            bool temp_types[3] = {false,false,false};
+            for(int x = static_cast<int>(parent_type); x <= static_cast<int>(child_type); ++x) {
+                temp_types[x] = true;
+            }
+            transitions_[child].is_germline = temp_types[0];
+            transitions_[child].is_somatic  = temp_types[1];
+            transitions_[child].is_library  = temp_types[2];
+
             family_members_.push_back({parent, child});
 
             if (node_ids[pivots[k]] == child) {
@@ -1090,16 +1111,33 @@ void dng::RelationshipGraph::CreatePeelingOps(
                 continue;
             }
             // We have a nuclear family with 1 or more children
-            size_t dad = node_ids[source(family_edges.front(), pedigree_graph)];
-            size_t mom = node_ids[target(family_edges.front(), pedigree_graph)];
+
+            auto dad_index = source(family_edges.front(), pedigree_graph);
+            auto mom_index = target(family_edges.front(), pedigree_graph);
+            size_t dad = node_ids[dad_index];
+            size_t mom = node_ids[mom_index];
 
             family_members_.push_back({dad, mom});
             auto &family_members = family_members_.back();
 
             for (;it != family_edges.end();++it) {
-                size_t child = node_ids[target(*it, pedigree_graph)];
+                auto child_index = target(*it, pedigree_graph);
+
+                size_t child = node_ids[child_index];
                 if(edge_types(*it) == EdgeType::Maternal) {
                     transitions_[child] = {TransitionType::Trio, dad, mom, 0, lengths[*it]};
+                    
+                    auto child_type = vertex_types(child_index);
+                    auto parent_type = vertex_types(mom_index);
+
+                    bool temp_types[3] = {false,false,false};
+                    for(int x = static_cast<int>(parent_type); x <= static_cast<int>(child_type); ++x) {
+                        temp_types[x] = true;
+                    }
+                    transitions_[child].is_germline = temp_types[0];
+                    transitions_[child].is_somatic  = temp_types[1];
+                    transitions_[child].is_library  = temp_types[2];
+
                     family_members.push_back(child);
                 } else {
                     assert(edge_types(*it) == EdgeType::Paternal);

@@ -58,15 +58,23 @@
 namespace dng {
 namespace utility {
 
-using StringSet = boost::container::flat_set<std::string>;
-using StringMap = boost::container::flat_map<std::string, size_t>;
+template<typename E>  
+struct EnableEnumFlags {
+    static constexpr bool enable = false;
+};
 
-template<typename E, typename = typename std::enable_if<std::is_enum<E>::value>::type>
+#define ENABLE_ENUMFLAGS(x)  \
+template<> \
+struct EnableEnumFlags<x>{ \
+    static const bool enable = true; \
+}; \
+/**/
+
+template<typename E>
 struct EnumFlags {
-    typedef E enum_t;
-    typedef typename std::underlying_type<E>::type int_t;
-    static_assert(std::is_enum<enum_t>::value, "EnumFlags can only wrap an enum.");
-
+    using enum_t = typename std::enable_if<EnableEnumFlags<E>::enable, E>::type;
+    using int_t = typename std::underlying_type<enum_t>::type;
+    
     int_t value;
     
     EnumFlags(int_t v) : value{v} { }
@@ -77,9 +85,9 @@ struct EnumFlags {
         return *this;
     }
 
-    operator int_t() { return value; }
+    operator int_t() const { return value; }
 
-    EnumFlags operator|(enum_t v) {
+    EnumFlags operator|(enum_t v) const {
          return {value | static_cast<int_t>(v)};
     }
 
@@ -88,15 +96,23 @@ struct EnumFlags {
          return *this;
     }
 
-    EnumFlags operator&(enum_t v) {
+    EnumFlags operator&(enum_t v) const {
         return {value & static_cast<int_t>(v)};
+    }
+
+    bool is_set(enum_t v) {
+        return (value & static_cast<int_t>(v)) != 0;   
     }
 };
 
 template<typename E>
-EnumFlags<E> operator|(E a, E b) {
+typename std::enable_if<EnableEnumFlags<E>::enable, EnumFlags<E>>::type
+operator|(E a, E b) {
     return EnumFlags<E>{a} | b;
 }
+
+using StringSet = boost::container::flat_set<std::string>;
+using StringMap = boost::container::flat_map<std::string, size_t>;
 
 typedef int64_t location_t;
 
@@ -288,7 +304,10 @@ enum class FileCat {
     Variant  = 2,
     Pileup   = 4
 };
-typedef EnumFlags<FileCat> FileCatSet;
+ENABLE_ENUMFLAGS(FileCat);
+
+using FileCatSet = EnumFlags<FileCat>;
+
 
 // converts an extension to a file category
 FileCat file_category(const std::string &ext);

@@ -215,6 +215,11 @@ public:
         assert(key != nullptr);
         return bcf_update_info_int32(header(), base(), key, value, count);
     }
+    int info(const char *key, bool value) {
+        assert(key != nullptr);
+        return bcf_update_info_flag(header(), base(), key, nullptr, (value ? 1 : 0));
+    }
+
     int info(const char *key, const std::string &value) {
         assert(key != nullptr);
         return bcf_update_info_string(header(), base(), key, value.c_str());
@@ -223,6 +228,7 @@ public:
         assert(key != nullptr);
         return bcf_update_info_string(header(), base(), key, value);
     }
+
 
     template<typename T>
     int info(const char *key, T value) {

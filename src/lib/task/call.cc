@@ -171,6 +171,10 @@ void vcf_add_header_text(const task::Call::argument_type &arg,
     vcfout->AddHeaderMetadata("##INFO=<ID=DNQ,Number=1,Type=Integer,Description=\"Phred-scaled quality of DNT and DNL\">");
     vcfout->AddHeaderMetadata("##INFO=<ID=DNT,Number=1,Type=String,Description=\"De novo type\">");
     vcfout->AddHeaderMetadata("##INFO=<ID=DNL,Number=1,Type=String,Description=\"De novo location\">");
+    vcfout->AddHeaderMetadata("##INFO=<ID=DENOVO,Number=0,Type=Flag,Description=\"Site contains a de novo mutation.\">");
+    vcfout->AddHeaderMetadata("##INFO=<ID=GERMLINE,Number=0,Type=Flag,Description=\"Site contains a germline de novo mutation.\">");
+    vcfout->AddHeaderMetadata("##INFO=<ID=SOMATIC,Number=0,Type=Flag,Description=\"Site contains a somatic de novo mutation.\">");
+    vcfout->AddHeaderMetadata("##INFO=<ID=LIBRARY,Number=0,Type=Flag,Description=\"Site contains a library de novo mutation.\">");
     vcfout->AddHeaderMetadata("##INFO=<ID=DP,Number=1,Type=Integer,Description=\"Total depth\">");
     vcfout->AddHeaderMetadata("##INFO=<ID=AD,Number=R,Type=Integer,Description=\"Allelic depths for the ref and alt alleles in the order listed\">");
 
@@ -637,6 +641,7 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
     record->info("LLH", static_cast<float>(call_stats.lld-work.ln_scale/M_LN10));
 
     // Output statistics that are only informative if there is a signal of 1 mutation.
+    record->info("DENOVO",call_stats.denovo);
     record->info("DNP", static_cast<float>(call_stats.dnp));
     if(has_single_mut) {
         std::string dnt;
@@ -673,6 +678,9 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
         record->info("DNT", dnt);
         record->info("DNL", graph.label(pos));
 
+        record->info("GERMLINE", graph.transition(pos).is_germline);
+        record->info("SOMATIC", graph.transition(pos).is_somatic);
+        record->info("LIBRARY", graph.transition(pos).is_library);        
     }
 
     record->info("DP", depth_stats.dp);
