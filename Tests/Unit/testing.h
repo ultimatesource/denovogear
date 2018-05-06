@@ -214,6 +214,11 @@ auto make_test_range(const T (&a)[N]) -> test_range<const T*>
 using boost::make_iterator_range;
 using boost::make_iterator_range_n;
 
+template<typename T, typename D>
+std::unique_ptr<T,D> make_unique_ptr(T* p, const D& d) {
+    return {p,d};
+}
+
 }} // namespace dng::detail
 
 // allow pair of strings to be printed

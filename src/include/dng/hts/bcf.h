@@ -446,13 +446,13 @@ public:
         if(!is_open()) { // nothing to do
             return;
         }
-
         if(is_write()) {
             header_ = std::shared_ptr<bcf_hdr_t>(bcf_hdr_init("w"), bcf_hdr_destroy);
         } else {
-            if(format().category != variant_data)
-                throw std::runtime_error("file '" + std::string(name())
+            if(format().category != variant_data) {
+                throw std::invalid_argument("file '" + std::string(name())
                                          + "' does not contain variant data (BCF/VCF).");
+            }
             header_ = std::shared_ptr<bcf_hdr_t>(bcf_hdr_read(handle()), bcf_hdr_destroy);
         }
         if(!header_) {
@@ -555,11 +555,11 @@ private:
 
 public:
     // Indicates type of mutation in VCF record
-    static const uint16_t REF = VCF_REF;
-    static const uint16_t SNP = VCF_SNP;
-    static const uint16_t MNP = VCF_MNP;
-    static const uint16_t INDEL = VCF_INDEL;
-    static const uint16_t OTHER = VCF_OTHER;
+    static constexpr uint16_t REF = VCF_REF;
+    static constexpr uint16_t SNP = VCF_SNP;
+    static constexpr uint16_t MNP = VCF_MNP;
+    static constexpr uint16_t INDEL = VCF_INDEL;
+    static constexpr uint16_t OTHER = VCF_OTHER;
 
     friend class Variant;
 };
@@ -732,21 +732,23 @@ bool Variant::TrimAlleles(double af_min) {
     auto gt_buffer = make_buffer<int32_t>(gt_sz);
     int gt_n = get_genotypes(&gt_buffer, &gt_sz);
     if(gt_n > 0) {    
-        for(int i=0; i<gt_sz; ++i) {
-            int a = decode_allele(allele_t{gt_buffer[i]});
-            if(a >= 0) {
-                allele_seen[a] = true;
+        for(int i=0; i<gt_n; ++i) {
+            allele_t a{gt_buffer[gt_n]};
+            if(allele_is_missing(a) || a == int32_vector_end) {
+                continue;
             }
+            int b = decode_allele(a);
+            allele_seen[b] = true;
         }
     }
 
     int num_gt = num_alleles()*(num_alleles()+1)/2;
     int gp_sz = num_samples()*num_gt;
     auto gp_buffer = make_buffer<float>(gp_sz);
-    int gp_n = get_format("GP", &gp_buffer, &gt_sz);
-    if(gp_n > 0 && gt_sz == num_gt*gp_n ) {
+    int gp_n = get_format("GP", &gp_buffer, &gp_sz);
+    if(gp_n == num_samples()*num_gt ) {
         std::vector<float> ftemp;
-        for(int i=0; i<gp_n; ++i) {
+        for(int i=0; i < num_samples(); ++i) {
             ftemp.assign(num_alleles(), 0.0);
             for(int j=0; j<num_gt; ++j) {
                 float f = gp_buffer[i*num_gt+j];
@@ -772,7 +774,6 @@ bool Variant::TrimAlleles(double af_min) {
     int ret = bcf_remove_allele_set(header(), base(), rm_set.get());
     return (ret >= 0) ? true : false;
 }
-
 
 } // namespace bcf
 } // namespace hts
