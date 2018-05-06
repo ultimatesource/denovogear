@@ -62,7 +62,6 @@ BOOST_AUTO_TEST_CASE(test_vcf_read_int_PL) {
         auto header = make_unique_ptr(bcf_hdr_read(file.get()), &bcf_hdr_destroy);
         auto record = make_unique_ptr(bcf_init(), &bcf_destroy);
         bcf_read(file.get(), header.get(), record.get());
-        bcf_unpack(record.get(), BCF_UN_STR);
 
         int n_pl = 8;
         buffer_t<int32_t> buffer = hts::bcf::make_buffer<int32_t>(n_pl);
@@ -94,7 +93,6 @@ BOOST_AUTO_TEST_CASE(test_vcf_read_float_PL) {
         auto header = make_unique_ptr(bcf_hdr_read(file.get()), &bcf_hdr_destroy);
         auto record = make_unique_ptr(bcf_init(), &bcf_destroy);
         bcf_read(file.get(), header.get(), record.get());
-        bcf_unpack(record.get(), BCF_UN_STR);
 
         int n_pl = 8;
         buffer_t<float> buffer = hts::bcf::make_buffer<float>(n_pl);
@@ -134,7 +132,6 @@ BOOST_AUTO_TEST_CASE(test_vcf_read_numeric_int_PL) {
         auto header = make_unique_ptr(bcf_hdr_read(file.get()), &bcf_hdr_destroy);
         auto record = make_unique_ptr(bcf_init(), &bcf_destroy);
         bcf_read(file.get(), header.get(), record.get());
-        bcf_unpack(record.get(), BCF_UN_STR);
 
         int n_pl = 8;
         buffer_t<int> buffer = hts::bcf::make_buffer<int>(n_pl);
@@ -161,7 +158,6 @@ BOOST_AUTO_TEST_CASE(test_vcf_read_numeric_float_PL) {
         auto header = make_unique_ptr(bcf_hdr_read(file.get()), &bcf_hdr_destroy);
         auto record = make_unique_ptr(bcf_init(), &bcf_destroy);
         bcf_read(file.get(), header.get(), record.get());
-        bcf_unpack(record.get(), BCF_UN_STR);
 
         int n_pl = 8;
         buffer_t<float> buffer = hts::bcf::make_buffer<float>(n_pl);
@@ -187,7 +183,6 @@ BOOST_AUTO_TEST_CASE(test_vcf_read_PL_tag_fail) {
         auto header = make_unique_ptr(bcf_hdr_read(file.get()), &bcf_hdr_destroy);
         auto record = make_unique_ptr(bcf_init(), &bcf_destroy);
         bcf_read(file.get(), header.get(), record.get());
-        bcf_unpack(record.get(), BCF_UN_STR);
 
         int n_pl = 8;//10*record->n_sample;
         buffer_t<float> buffer_int = hts::bcf::make_buffer<float>(n_pl);
@@ -229,7 +224,6 @@ BOOST_AUTO_TEST_CASE(test_vcf_read_PL_type_fail) {
         auto header = make_unique_ptr(bcf_hdr_read(file.get()), &bcf_hdr_destroy);
         auto record = make_unique_ptr(bcf_init(), &bcf_destroy);
         bcf_read(file.get(), header.get(), record.get());
-        bcf_unpack(record.get(), BCF_UN_STR);
 
         int n_pl = 10*record->n_sample;
         buffer_t<float> buffer_int = hts::bcf::make_buffer<float>(n_pl);
@@ -263,7 +257,6 @@ BOOST_AUTO_TEST_CASE(test_vcf_info_DP) {
         auto header = make_unique_ptr(bcf_hdr_read(file.get()), &bcf_hdr_destroy);
         auto record = make_unique_ptr(bcf_init(), &bcf_destroy);
         bcf_read(file.get(), header.get(), record.get());
-        bcf_unpack(record.get(), BCF_UN_STR);
 
         int n_pl = 8;
         buffer_t<int> buffer = hts::bcf::make_buffer<int>(n_pl);
@@ -283,22 +276,18 @@ const char vcfgt[] =
     "##fileformat=VCFv4.2\n"
     "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n"
     "##contig=<ID=1,length=100>\n"
-    "##FORMAT=<ID=DP,Number=1,Type=Integer,Description=\"# high-quality bases\">\n"
     "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tS1\tS2\tS3\tS4\n"
-    "1\t1\t.\tG\tA\t.\t.\t.\tGT\t0/1\t0|1\t1/.\t1\n"
 ;
 
 BOOST_AUTO_TEST_CASE(test_vcf_gt) {
     int counter = 0;
-    auto test = [&](const std::string &vcfstr, const std::vector<int> &expected) -> void {
+    auto test = [&](const std::string &vcfstr, int n_gt, const std::vector<int> &expected) -> void {
     BOOST_TEST_CONTEXT("counter=" << ++counter) {
         auto file = make_unique_ptr(hts_open(vcfstr.c_str(), "r"), &hts_close);
         auto header = make_unique_ptr(bcf_hdr_read(file.get()), &bcf_hdr_destroy);
         auto record = make_unique_ptr(bcf_init(), &bcf_destroy);
         bcf_read(file.get(), header.get(), record.get());
-        bcf_unpack(record.get(), BCF_UN_STR);
 
-        int n_gt = 8;
         buffer_t<int32_t> buffer = hts::bcf::make_buffer<int32_t>(n_gt);
         int n = hts::bcf::get_genotypes(header.get(), record.get(), &buffer, &n_gt);
         BOOST_REQUIRE_GE(n,0);
@@ -306,10 +295,79 @@ BOOST_AUTO_TEST_CASE(test_vcf_gt) {
         CHECK_EQUAL_RANGES(test, expected);
     }};
 
-    test(make_data_url(vcfgt), {
+    std::string h = vcfgt;
+    test(make_data_url(h+"1\t1\t.\tG\tA\t.\t.\t.\tGT\t0/1\t0|1\t1/.\t1\n"), 8, {
         encode_allele_unphased(0), encode_allele_unphased(1),
         encode_allele_unphased(0), encode_allele_phased(1),
         encode_allele_unphased(1), encode_allele_missing(),
         encode_allele_unphased(1), bcf::int32_vector_end
     });
+    auto z = encode_allele_unphased(0);
+    test(make_data_url(h+"1\t1\t.\tG\tA\t.\t.\t.\tGT\t0/0/0/0/0/0\t0/0/0/0/0/0\t0/0/0/0/0/0\t0/0/0/0/0/0\n"), 4, {
+        z,z,z,z,z,z, z,z,z,z,z,z, z,z,z,z,z,z, z,z,z,z,z,z
+    });
+}
+
+const char vcftrim[] =
+    "##fileformat=VCFv4.2\n"
+    "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n"
+    "##FORMAT=<ID=GP,Number=G,Type=Float,Description=\"Posterior Probability\">\n"
+    "##contig=<ID=1,length=100>\n"
+    "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tS1\tS2\n"
+;
+
+BOOST_AUTO_TEST_CASE(test_variant_trim) {
+    int counter = 0;
+    auto test = [&](const std::string &vcfstr, double af,
+        const std::vector<std::string> &expected_alleles,
+        const std::vector<int> &expected_gts,
+        const std::vector<float> &expected_gps) -> void {
+    BOOST_TEST_CONTEXT("counter=" << ++counter) {
+        auto file = bcf::File(vcfstr.c_str(), "r");
+        BOOST_REQUIRE(file.is_open());
+        auto record = file.InitVariant();
+        file.ReadRecord(&record);
+        record.Unpack();
+        bool ret = record.TrimAlleles(af);
+        BOOST_CHECK_EQUAL(ret, true);
+        std::vector<std::string> test_alleles;
+        for(int i=0;i<record.num_alleles();++i) {
+            test_alleles.emplace_back(record.allele(i));
+        }
+        CHECK_EQUAL_RANGES(test_alleles, expected_alleles);
+
+        // Test GT field
+        int n_gt = 4, n_gp = 4, n;
+        auto int_buffer = hts::bcf::make_buffer<int32_t>(n_gt);
+        n = record.get_genotypes(&int_buffer, &n_gt);
+        BOOST_REQUIRE_GE(n, 0);
+        auto test_gts = make_test_range(int_buffer.get(),int_buffer.get()+n);
+        CHECK_EQUAL_RANGES(test_gts, expected_gts);
+
+        // Test GP field
+        auto flt_buffer = hts::bcf::make_buffer<float>(n_gt);
+        n = record.get_format("GP",&flt_buffer, &n_gp);
+        BOOST_REQUIRE_GE(n, 0);
+        auto test_gps = make_test_range(flt_buffer.get(),flt_buffer.get()+n);
+        CHECK_EQUAL_RANGES(test_gps, expected_gps);
+    }};
+
+    auto z = encode_allele_unphased(0);
+    auto x = encode_allele_unphased(1);
+
+    std::string h = vcftrim;
+    // check if alleles are preserved due to allele frequency
+    std::string base1 = make_data_url(h+
+        "1\t1\t.\tG\tA\t.\t.\t.\tGT:GP\t0/0:0.9,0.1,0\t0/0:0.9,0.1,0"
+    );
+    test(base1, 0.0,  {"G", "A"}, {z,z,z,z}, {0.9,0.1,0.0,0.9,0.1,0.0});
+    test(base1, 0.05, {"G", "A"}, {z,z,z,z}, {0.9,0.1,0.0,0.9,0.1,0.0});
+    test(base1, 0.06,  {"G"}, {z,z,z,z}, {0.9,0.9});
+
+    // check if alleles are preserved due to gt presence
+    std::string base2 = make_data_url(h+
+        "1\t1\t.\tG\tA\t.\t.\t.\tGT:GP\t0/0:0.9,0.1,0\t0/1:0.9,0.1,0"
+    );
+    test(base2, 0.0, {"G", "A"}, {z,z,z,x}, {0.9,0.1,0.0,0.9,0.1,0.0});
+    test(base2, 0.1, {"G", "A"}, {z,z,z,x}, {0.9,0.1,0.0,0.9,0.1,0.0});
 }

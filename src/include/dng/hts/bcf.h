@@ -236,6 +236,10 @@ public:
         bcf_clear(base());
     }
 
+    int Unpack(int which=BCF_UN_ALL) {
+        return bcf_unpack(base(), which);
+    }
+
     // Turn these off until we figure out how to use bcf_copy
     BareVariant& operator=(const BareVariant&) = delete;
     Variant(const BareVariant&) = delete;
@@ -408,6 +412,10 @@ public:
         return bcf::get_format_float(header(), base(), name, buffer, sz);
     }
 
+    int get_format(const char *name, buffer_t<int32_t> *buffer, int *sz) {
+        return bcf::get_format_int32(header(), base(), name, buffer, sz);
+    }
+
 protected:
     BareVariant *base() {return static_cast<BareVariant *>(this);}
     const BareVariant *base() const {return static_cast<const BareVariant *>(this);}
@@ -540,6 +548,12 @@ public:
         bcf_write(handle(), header(), rec);
     }
 
+    void ReadRecord(Variant *rec) {
+        assert(rec != nullptr);
+        assert(rec->header() == header());
+        bcf_read(handle(), header(), rec);        
+    }
+
     /** Explicity closes the file and flushes the stream */
     void Close() {
         bcf_close(handle());
@@ -547,7 +561,10 @@ public:
 
 
 protected:
-    bcf_hdr_t *header() { return header_.get(); }
+    bcf_hdr_t *header() { 
+        assert(header_);
+        return header_.get();
+    }
 
 private:
     //std::shared_ptr<bcf_hdr_t, void(*)(bcf_hdr_t *)> hdr_;
@@ -733,7 +750,7 @@ bool Variant::TrimAlleles(double af_min) {
     int gt_n = get_genotypes(&gt_buffer, &gt_sz);
     if(gt_n > 0) {    
         for(int i=0; i<gt_n; ++i) {
-            allele_t a{gt_buffer[gt_n]};
+            allele_t a{gt_buffer[i]};
             if(allele_is_missing(a) || a == int32_vector_end) {
                 continue;
             }
