@@ -64,7 +64,8 @@ protected:
     matrices_t oneplus_mutation_matrices_;
     matrices_t mean_mutation_matrices_;
 
-    std::array<double, MAXIMUM_NUMBER_ALLELES> one_mutation_prior_; 
+    double one_mutation_prior_;
+    double alt_freq_prior_; 
 
     DNG_UNIT_TEST_CLASS(unittest_dng_call_mutations);
 };
@@ -99,7 +100,9 @@ struct CallMutations::stats_t {
     double ln_mono;
     double ln_zero;
     double ln_all;
-    bool has_single_mut;
+    
+    double dnp_min;
+    double af_min;
 };
 
 inline

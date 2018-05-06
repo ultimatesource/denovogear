@@ -50,13 +50,14 @@ CallMutations::CallMutations(const RelationshipGraph &graph, params_t params)
             zero_mutation_matrices_[j]);
     }
 
-    // Calculate P(one mutation) assuming no data
-    for(size_t num_obs_alleles=1; num_obs_alleles <= one_mutation_prior_.size(); ++num_obs_alleles) {
-        work_.matrix_index = num_obs_alleles-1;
-        work_.ClearGenotypeLikelihoods(num_obs_alleles);
-        work_.SetGermline(DiploidPrior(num_obs_alleles, true), HaploidPrior(num_obs_alleles, true));
-        one_mutation_prior_[num_obs_alleles-1] = CalculateDNP().prob();
-    }
+    // Calculate P(one mutation) assuming no data and 2 obs alleles
+    work_.matrix_index = 1;
+    work_.ClearGenotypeLikelihoods(2);
+    work_.SetGermline(DiploidPrior(2, true), HaploidPrior(2, true));
+    one_mutation_prior_ = CalculateDNP().prob();
+
+    // Calculate prior non-ref allele freq
+    alt_freq_prior_ = HaploidPrior(2, true)(1);
 }
 
 Probability::logdiff_t CallMutations::CalculateMUTQ() {
@@ -124,7 +125,7 @@ bool CallMutations::CalculateMutationStats(genotype::Mode mode, stats_t *stats) 
 
     // Since we just called PeelNoMutations(), can call this and
     // skip peeling forward again
-    stats->has_single_mut = CalculateSingleMutationStats(false, stats);
+    CalculateSingleMutationStats(false, stats);
 
     stats->denovo = (mutq >= min_quality_);
 
@@ -233,5 +234,8 @@ bool CallMutations::CalculateSingleMutationStats(bool peel_forward, stats_t *sta
     stats->dnt_row = dn_row;
     stats->dnt_col = dn_col;
 
-    return (stats->dnp > one_mutation_prior_[matrix_index]);
+    stats->dnp_min = one_mutation_prior_;
+    stats->af_min = alt_freq_prior_;
+
+    return (stats->dnp > one_mutation_prior_);
 }

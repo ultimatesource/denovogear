@@ -26,10 +26,11 @@
 #include <boost/range/algorithm/find.hpp>
 #include <boost/range/adaptor/reversed.hpp>
 
-namespace dng {
-namespace detail {
+using namespace dng;
+using namespace dng::detail;
 using namespace dng::detail::graph;
 
+namespace {
 vertex_t parse_pedigree_table(Graph &pedigree_graph, const dng::Pedigree &pedigree,
         bool normalize_somatic_trees);
 void add_libraries_to_graph(Graph &pedigree_graph, const libraries_t &libs);
@@ -40,11 +41,8 @@ void simplify_pedigree(Graph &pedigree_graph);
 void prune_pedigree(Graph &pedigree_graph, InheritanceModel model);
 
 void prefix_vertex_labels(Graph &pedigree_graph);
-}} // namespace dng::detail
+} // namespace
 
-using namespace dng;
-using namespace dng::detail;
-using namespace dng::detail::graph;
 
 constexpr vertex_t DUMMY_INDEX{0};
 constexpr vertex_t NULL_INDEX{DUMMY_INDEX-1};
@@ -222,162 +220,6 @@ void dng::RelationshipGraph::ConstructPeelingMachine() {
     }
 }
 
-
-void dng::RelationshipGraph::PrintMachine(std::ostream &os) {
-    os << "Init Op\n";
-    for(int i = first_founder_; i < first_nonfounder_; ++i) {
-        os << "\tw\tupper[" << i << "] // " << labels_[i] << "\n";
-    }
-    for(int i = first_library_; i < num_nodes_; ++i) {
-        os << "\tw\tlower[" << i << "] // "
-           << labels_[i] << "\n";
-    }
-    for(int i = 0; i < peeling_functions_ops_.size(); ++i) {
-        const auto &fam = family_members_[i];
-        os << "Peeling Op " << i + 1;
-        switch(peeling_functions_ops_[i]) {
-        case peel::Op::DOWNFAST:
-            os << " (DownFast)\n";
-            os << "\tw\tupper[" << fam[1] << "] // " << labels_[fam[1]] << "\n";
-            os << "\tr\tupper[" << fam[0] << "] // " << labels_[fam[0]] << "\n";
-            break;
-        case peel::Op::DOWN:
-            os << " (Down)\n";
-            os << "\tw\tupper[" << fam[1] << "] // " << labels_[fam[1]] << "\n";
-            os << "\tr\tupper[" << fam[0] << "] // " << labels_[fam[0]] << "\n";
-            os << "\tr\tlower[" << fam[0] << "] // " << labels_[fam[0]] << "\n";
-            break;
-        case peel::Op::UPFAST:
-            os << " (UpFast)\n";
-            os << "\tw\tlower[" << fam[0] << "] // " << labels_[fam[0]] << "\n";
-            os << "\tr\tlower[" << fam[1] << "] // " << labels_[fam[1]] << "\n";
-            break;
-        case peel::Op::UP:
-            os << " (Up)\n";
-            os << "\trw\tlower[" << fam[0] << "] // " << labels_[fam[0]] << "\n";
-            os << "\tr\tlower[" << fam[1] << "] // " << labels_[fam[1]] << "\n";
-            break;
-        case peel::Op::TOFATHERFAST:
-            os << " (ToFatherFast)\n";
-            os << "\tw\tlower[" << fam[0] << "] // " << labels_[fam[0]] << "\n";
-            os << "\tr\tupper[" << fam[1] << "] // " << labels_[fam[1]] << "\n";
-            os << "\tr\tlower[" << fam[1] << "] // " << labels_[fam[1]] << "\n";
-            for(int j = 2; j < fam.size(); ++j) {
-                os << "\tr\tlower[" << fam[j] << "] // " << labels_[fam[j]] << "\n";
-            }
-            break;
-        case peel::Op::TOFATHER:
-            os << " (ToFather)\n";
-            os << "\trw\tlower[" << fam[0] << "] // " << labels_[fam[0]] << "\n";
-            os << "\tr\tupper[" << fam[1] << "] // " << labels_[fam[1]] << "\n";
-            os << "\tr\tlower[" << fam[1] << "] // " << labels_[fam[1]] << "\n";
-            for(int j = 2; j < fam.size(); ++j) {
-                os << "\tr\tlower[" << fam[j] << "] // " << labels_[fam[j]] << "\n";
-            }
-            break;
-        case peel::Op::TOMOTHERFAST:
-            os << " (ToMotherFast)\n";
-            os << "\tw\tlower[" << fam[1] << "] // " << labels_[fam[1]] << "\n";
-            os << "\tr\tupper[" << fam[0] << "] // " << labels_[fam[0]] << "\n";
-            os << "\tr\tlower[" << fam[0] << "] // " << labels_[fam[0]] << "\n";
-            for(int j = 2; j < fam.size(); ++j) {
-                os << "\tr\tlower[" << fam[j] << "] // " << labels_[fam[j]] << "\n";
-            }
-            break;
-        case peel::Op::TOMOTHER:
-            os << " (ToMother)\n";
-            os << "\trw\tlower[" << fam[0] << "] // " << labels_[fam[1]] << "\n";
-            os << "\tr\tupper[" << fam[1] << "] // " << labels_[fam[0]] << "\n";
-            os << "\tr\tlower[" << fam[1] << "] // " << labels_[fam[0]] << "\n";
-            for(int j = 2; j < fam.size(); ++j) {
-                os << "\tr\tlower[" << fam[j] << "] // " << labels_[fam[j]] << "\n";
-            }
-            break;
-        case peel::Op::TOCHILDFAST:
-            os << " (ToChildFast)\n";
-            os << "\tw\tupper[" << fam[2] << "] // " << labels_[fam[2]] << "\n";
-            os << "\tr\tupper[" << fam[0] << "] // " << labels_[fam[0]] << "\n";
-            os << "\tr\tlower[" << fam[0] << "] // " << labels_[fam[0]] << "\n";
-            os << "\tr\tupper[" << fam[1] << "] // " << labels_[fam[1]] << "\n";
-            os << "\tr\tlower[" << fam[1] << "] // " << labels_[fam[1]] << "\n";
-            break;
-        case peel::Op::TOCHILD:
-            os << " (ToChild)\n";
-            os << "\tw\tupper[" << fam[2] << "] // " << labels_[fam[2]] << "\n";
-            os << "\tr\tupper[" << fam[0] << "] // " << labels_[fam[0]] << "\n";
-            os << "\tr\tlower[" << fam[0] << "] // " << labels_[fam[0]] << "\n";
-            os << "\tr\tupper[" << fam[1] << "] // " << labels_[fam[1]] << "\n";
-            os << "\tr\tlower[" << fam[1] << "] // " << labels_[fam[1]] << "\n";
-            for(int j = 3; j < fam.size(); ++j) {
-                os << "\tr\tlower[" << fam[j] << "] // " << labels_[fam[j]] << "\n";
-            }
-            break;
-        default:
-            os << " (Unknown " << (int)peeling_functions_ops_[i] << ")\n";
-        }
-    }
-
-    os << "Root Op\n";
-    for(int i = 0; i < roots_.size(); ++i) {
-        os << "\tr\tupper[" << roots_[i] << "] // " << labels_[roots_[i]] << "\n";
-        os << "\tr\tlower[" << roots_[i] << "] // " << labels_[roots_[i]] << "\n";
-    }
-}
-
-void dng::RelationshipGraph::PrintTable(std::ostream &os) {
-    std::vector<int> write_low(num_nodes_, -1);
-    std::vector<int> write_up(num_nodes_, -1);
-
-    for(int i = first_founder_; i < first_nonfounder_; ++i) {
-        write_up[i] = 0;
-    }
-    for(int i = first_library_; i < num_nodes_; ++i) {
-        write_low[i] = 0;
-    }
-    for(int i = 0; i < peeling_ops_.size(); ++i) {
-        const auto &fam = family_members_[i];
-        switch(peeling_ops_[i]) {
-        case peel::Op::DOWN:
-        case peel::Op::DOWNFAST:
-            write_up[fam[0]] = i + 1;
-            break;
-        case peel::Op::TOCHILD:
-        case peel::Op::TOCHILDFAST:
-            write_up[fam[2]] = i + 1;
-            break;
-        case peel::Op::UP:
-        case peel::Op::UPFAST:
-        case peel::Op::TOFATHER:
-        case peel::Op::TOFATHERFAST:
-            write_low[fam[0]] = i + 1;
-            break;
-        case peel::Op::TOMOTHER:
-        case peel::Op::TOMOTHERFAST:
-            write_low[fam[1]] = i + 1;
-        default:
-            break;
-        }
-    }
-    os << "Node\tLower\tUpper\n";
-    for(int i = 0; i < num_nodes_; ++i) {
-        os << i << "\t" << write_low[i] << "\t" << write_up[i] << "\n";
-    }
-}
-
-// void dng::Pedigree::PrintStates(std::ostream &os, double scale) {
-//     for(int i = 0; i < lower_.size(); ++i) {
-//         os << "Node " << i << " // " << labels_[i] << "\n";
-//         os << "  Upper\t" << upper_[i].transpose() << "\n";
-//         os << "  Lower\t" << lower_[i].transpose() << "\n";
-//         auto p = upper_[i] * lower_[i];
-//         auto s = p.sum();
-//         os << "  Prod\t" << p.transpose() << "\n";
-//         os << "  Cond\t" << p.transpose() / s << "\n";
-//         os << "  LogSum\t" << log(s) + scale << "\n";
-//         os << "\n";
-//     }
-// }
-
 std::vector<std::string> dng::RelationshipGraph::BCFHeaderLines() const {
     using namespace std;
     vector<string> ret = {
@@ -425,8 +267,7 @@ std::vector<std::string> dng::RelationshipGraph::BCFHeaderLines() const {
     return ret;
 }
 
-namespace dng {
-namespace detail {
+namespace {
 
 void prune_pedigree_autosomal(Graph &pedigree_graph);
 void prune_pedigree_ylinked(Graph &pedigree_graph);
@@ -924,7 +765,7 @@ void simplify_pedigree(Graph &pedigree_graph) {
     }
 }
 
-}} // namespace dng::detail
+} // namespace 
 
 std::vector<size_t> dng::RelationshipGraph::ConstructNodes(const Graph &pedigree_graph) {
     // node_ids[vertex] will convert vertex_id to node position.
@@ -1168,7 +1009,6 @@ void dng::RelationshipGraph::CreatePeelingOps(
 
         } else {
             throw std::runtime_error("Unable to construct peeler for pedigree; Not a zero-loop pedigree");
-            // TODO: write error message
         }
     }
 }
@@ -1182,39 +1022,4 @@ void dng::RelationshipGraph::ClearFamilyInfo(){
     peeling_ops_.reserve(128);
     transitions_.clear();
     transitions_.reserve(128);
-}
-
-void dng::RelationshipGraph::PrintDebugEdges(const std::string &prefix,
-                                             const Graph &pedigree_graph) {
-
-#if DEBUG_RGRAPH == 1
-
-//    typedef property_map<Graph, vertex_index_t>::type IndexMap;
-    int verbose_level = 2;
-    PropVertexIndex index = get(boost::vertex_index, pedigree_graph);
-    auto sexes = get(boost::vertex_sex, pedigree_graph);
-
-    boost::graph_traits<Graph>::edge_iterator ei2, ei_end2;
-
-    std::cerr << "==DEBUG: " << prefix << ": V: " << num_vertices(pedigree_graph) << "\tE: " << num_edges(pedigree_graph) << std::endl;
-    for (tie(ei2, ei_end2) = edges(pedigree_graph); ei2 != ei_end2; ++ei2) {
-        std::cerr << "(" << index[source(*ei2, pedigree_graph)] << ","
-                << index[target(*ei2, pedigree_graph)] << ") ";
-    }
-    std::cerr << std::endl;
-    if (verbose_level > 1) {
-        boost::graph_traits<Graph>::vertex_iterator vi, vi_end;
-        for (boost::tie(vi, vi_end) = vertices(pedigree_graph); vi != vi_end; ++vi) {
-            std::cerr << "Vertex_Sex:" << *vi << "_" << (int) sexes[*vi] << ". ";
-        }
-        std::cerr << "\t\t==" << std::endl;
-    }
-
-    std::cerr << "Founder, Non_F, Somatic, Lib: " << first_founder_ << "\t"
-            << first_nonfounder_ << "\t" << first_somatic_ << "\t"
-            << first_library_ << std::endl;
-    std::cerr << "==END==\n" << std::endl;
-
-#endif
-
 }

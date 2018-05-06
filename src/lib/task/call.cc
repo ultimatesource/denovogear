@@ -109,7 +109,6 @@ int task::Call::operator()(Call::argument_type &arg) {
 namespace {
 
 void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup::stats_t& depth_stats,
-    bool has_single_mut,
     const RelationshipGraph &graph,
     const peel::workspace_t &work,
     hts::bcf::Variant *record);
@@ -291,14 +290,14 @@ int process_bam(task::Call::argument_type &arg) {
             return;
         }
 
-        record.filter("PASS");
-        record.alleles(count_alleles.alleles_str());
+        record.update_filter("PASS");
+        record.update_alleles(count_alleles.alleles_str());
 
         // Measure total depth and sort nucleotides in descending order
         pileup::stats_t depth_stats;
         pileup::calculate_stats(read_depths, &depth_stats);
 
-        add_stats_to_output(stats, depth_stats, stats.has_single_mut, relationship_graph, model.work(), &record);
+        add_stats_to_output(stats, depth_stats, relationship_graph, model.work(), &record);
         // Map character_indexes to alleles
         std::vector<int> base_index_to_allele(count_alleles.indexes.size(),-1);
         for(size_t u=0;u<count_alleles.indexes.size();++u) {
@@ -357,14 +356,14 @@ int process_bam(task::Call::argument_type &arg) {
         }
         rms_mq = sqrt(rms_mq/(qual_ref.size()+qual_alt.size()));
 
-        record.samples("AD",  ad_counts.data(), ad_counts.num_elements());
-        record.samples("ADF", adf_counts.data(), adf_counts.num_elements());
-        record.samples("ADR", adr_counts.data(), adr_counts.num_elements());
+        record.update_format("AD",  ad_counts.data(), ad_counts.num_elements());
+        record.update_format("ADF", adf_counts.data(), adf_counts.num_elements());
+        record.update_format("ADR", adr_counts.data(), adr_counts.num_elements());
 
-        record.info("AD",  ad_info);
-        record.info("ADF", adf_info);
-        record.info("ADR", adr_info);
-        record.info("MQ", static_cast<float>(rms_mq));
+        record.update_info("AD",  ad_info);
+        record.update_info("ADF", adf_info);
+        record.update_info("ADR", adr_info);
+        record.update_info("MQ", static_cast<float>(rms_mq));
 
         int a11 = adf_info[0];
         int a21 = adr_info[0];
@@ -381,14 +380,16 @@ int process_bam(task::Call::argument_type &arg) {
             double rp_info = dng::stats::ad_two_sample_test(pos_ref, pos_alt);
             double bq_info = dng::stats::ad_two_sample_test(base_ref, base_alt);
 
-            record.info("FS", static_cast<float>(phred(fs_info)));
-            record.info("MQTa", static_cast<float>(mq_info));
-            record.info("RPTa", static_cast<float>(rp_info));
-            record.info("BQTa", static_cast<float>(bq_info));
+            record.update_info("FS", static_cast<float>(phred(fs_info)));
+            record.update_info("MQTa", static_cast<float>(mq_info));
+            record.update_info("RPTa", static_cast<float>(rp_info));
+            record.update_info("BQTa", static_cast<float>(bq_info));
         }
 
         record.target(h->target_name[contig]);
         record.position(position);
+
+        record.TrimAlleles(stats.af_min);
         vcfout.WriteRecord(record);
         record.Clear();
     });
@@ -452,14 +453,14 @@ int process_bcf(task::Call::argument_type &arg) {
         }
 
         // Set alleles
-        record.filter("PASS");     
-        record.alleles(const_cast<const char**>(rec->d.allele), n_alleles);
+        record.update_filter("PASS");     
+        record.update_alleles(const_cast<const char**>(rec->d.allele), n_alleles);
 
         // Measure total depth and sort nucleotides in descending order
         pileup::stats_t depth_stats;
         pileup::calculate_stats(read_depths, &depth_stats);
 
-        add_stats_to_output(stats, depth_stats, stats.has_single_mut, relationship_graph, model.work(), &record);
+        add_stats_to_output(stats, depth_stats, relationship_graph, model.work(), &record);
 
         // Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
         std::vector<int32_t> ad_info(n_alleles, 0);
@@ -477,8 +478,8 @@ int process_bcf(task::Call::argument_type &arg) {
                 ad_counts[library_start+u][k] = 0;
             }
         }
-        record.samples("AD", ad_counts.data(), ad_counts.num_elements());
-        record.info("AD", ad_info);
+        record.update_format("AD", ad_counts.data(), ad_counts.num_elements());
+        record.update_info("AD", ad_info);
 
         // Calculate target position and fetch sequence name
         int contig =  rec->rid;
@@ -486,6 +487,8 @@ int process_bcf(task::Call::argument_type &arg) {
 
         record.target(mpileup.contigs()[contig].name.c_str());
         record.position(position);
+
+        record.TrimAlleles(stats.af_min);
         vcfout.WriteRecord(record);
         record.Clear();
     });
@@ -546,15 +549,15 @@ int process_ad(task::Call::argument_type &arg) {
             return;
         }
 
-        const auto & type_gt_info = data.type_gt_info();
+        const auto & type_gt_infop = data.type_gt_info();
         const auto & type_info = data.type_info();
         bool ref_is_N = (data.color() >= 64);
         const size_t n_sz = type_info.width + ref_is_N;
         const size_t n_alleles = n_sz;
 
         // Set alleles
-        record.filter("PASS");
-        record.alleles(type_info.label_htslib);
+        record.update_filter("PASS");
+        record.update_alleles(type_info.label_htslib);
 
         // Copy depths into read_depths
         read_depths.resize(make_array(data.num_libraries(), n_sz));
@@ -570,7 +573,7 @@ int process_ad(task::Call::argument_type &arg) {
         pileup::stats_t depth_stats;
         pileup::calculate_stats(read_depths, &depth_stats);
 
-        add_stats_to_output(stats, depth_stats, stats.has_single_mut, relationship_graph, model.work(), &record);
+        add_stats_to_output(stats, depth_stats, relationship_graph, model.work(), &record);
 
         // Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
         std::vector<int32_t> ad_info(n_sz, 0);
@@ -589,8 +592,8 @@ int process_ad(task::Call::argument_type &arg) {
             }
         }
 
-        record.samples("AD", ad_counts.data(), ad_counts.num_elements());
-        record.info("AD", ad_info);
+        record.update_format("AD", ad_counts.data(), ad_counts.num_elements());
+        record.update_info("AD", ad_info);
 
         // Calculate target position and fetch sequence name
         int contig = utility::location_to_contig(data.location());
@@ -598,6 +601,8 @@ int process_ad(task::Call::argument_type &arg) {
 
         record.target(mpileup.contigs()[contig].name.c_str());
         record.position(position);
+
+        record.TrimAlleles(stats.af_min);
         vcfout.WriteRecord(record);
         record.Clear();
 
@@ -623,26 +628,30 @@ void append_genotype(const hts::bcf::Variant& rec, int gt, int ploidy, std::stri
 }
 
 void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup::stats_t& depth_stats,
-    bool has_single_mut, const RelationshipGraph &graph,    
-    const peel::workspace_t &work, hts::bcf::Variant *record) {
+    const RelationshipGraph &graph, const peel::workspace_t &work, hts::bcf::Variant *record) {
+    assert(record != nullptr);
 
     using namespace hts::bcf;
 
-    assert(record != nullptr);
     const size_t num_nodes = work.num_nodes;
     const size_t num_libraries = work.library_nodes.second-work.library_nodes.first;
 
+    const size_t num_alleles = record->num_alleles();
+    const size_t gt_width = num_alleles*(num_alleles+1)/2;
+    const size_t gt_count = gt_width*num_nodes;
+
     record->quality(call_stats.quality);
 
-    record->info("MUTQ", static_cast<float>(call_stats.mutq));
-    record->info("MUTX", static_cast<float>(call_stats.mutx));
-    record->info("LLD", static_cast<float>(call_stats.lld));
-    record->info("LLS", static_cast<float>(call_stats.lld-depth_stats.log_null));
-    record->info("LLH", static_cast<float>(call_stats.lld-work.ln_scale/M_LN10));
+    record->update_info("MUTQ", static_cast<float>(call_stats.mutq));
+    record->update_info("MUTX", static_cast<float>(call_stats.mutx));
+    record->update_info("LLD", static_cast<float>(call_stats.lld));
+    record->update_info("LLS", static_cast<float>(call_stats.lld-depth_stats.log_null));
+    record->update_info("LLH", static_cast<float>(call_stats.lld-work.ln_scale/M_LN10));
 
     // Output statistics that are only informative if there is a signal of 1 mutation.
-    record->info("DENOVO",call_stats.denovo);
-    record->info("DNP", static_cast<float>(call_stats.dnp));
+    record->update_info("DENOVO",call_stats.denovo);
+    record->update_info("DNP", static_cast<float>(call_stats.dnp));
+    bool has_single_mut = call_stats.dnp >= call_stats.dnp_min;
     if(has_single_mut) {
         std::string dnt;
         size_t pos = call_stats.dnl;
@@ -671,19 +680,16 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
             append_genotype(*record, call_stats.dnt_col, work.ploidies[pos], &dnt);
         }
 
-        // record->info("LLD1", static_cast<float>(call_stats.lld1));
-        // record->info("LLS1", static_cast<float>(call_stats.lld1-depth_stats.log_null));
+        record->update_info("DNQ", call_stats.dnq);
+        record->update_info("DNT", dnt);
+        record->update_info("DNL", graph.label(pos));
 
-        record->info("DNQ", call_stats.dnq);
-        record->info("DNT", dnt);
-        record->info("DNL", graph.label(pos));
-
-        record->info("GERMLINE", graph.transition(pos).is_germline);
-        record->info("SOMATIC", graph.transition(pos).is_somatic);
-        record->info("LIBRARY", graph.transition(pos).is_library);        
+        record->update_info("GERMLINE", graph.transition(pos).is_germline);
+        record->update_info("SOMATIC", graph.transition(pos).is_somatic);
+        record->update_info("LIBRARY", graph.transition(pos).is_library);        
     }
 
-    record->info("DP", depth_stats.dp);
+    record->update_info("DP", depth_stats.dp);
 
     std::vector<float> float_vector;
     std::vector<int32_t> int32_vector;
@@ -703,12 +709,9 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
             int32_vector[2*i+1] = int32_vector_end;
         }
     }
-    record->sample_genotypes(int32_vector);
-    record->samples("GQ", call_stats.genotype_qualities);
+    record->update_genotypes(int32_vector);
+    record->update_format("GQ", call_stats.genotype_qualities);
 
-    const size_t num_alleles = record->num_alleles();
-    const size_t gt_width = num_alleles*(num_alleles+1)/2;
-    const size_t gt_count = gt_width*num_nodes;
     float_vector.assign(gt_count, float_missing);
 
     for(size_t i=0,k=0;i<num_nodes;++i) {
@@ -726,16 +729,16 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
             }
         }
     }
-    record->samples("GP", float_vector);
+    record->update_format("GP", float_vector);
 
     if(call_stats.mutq > 0) {
         float_vector.assign(call_stats.node_mutp.begin(), call_stats.node_mutp.end());
-        record->samples("MUTP", float_vector);
+        record->update_format("MUTP", float_vector);
     }
 
     if(has_single_mut) {
         float_vector.assign(call_stats.node_dnp.begin(), call_stats.node_dnp.end());
-        record->samples("DNP", float_vector);
+        record->update_format("DNP", float_vector);
     }
 
     // Write genotype likelihoods as PL 
@@ -756,13 +759,13 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
             }
         }        
     }    
-    record->samples("PL", int32_vector);
+    record->update_format("PL", int32_vector);
 
     int32_vector.assign(num_nodes, int32_missing);
     for(size_t i=0,k=work.library_nodes.first;i<num_libraries;++i) {
         int32_vector[k++] = depth_stats.node_dp[i];
     }    
-    record->samples("DP", int32_vector);
+    record->update_format("DP", int32_vector);
 }
 
 }  // anon namespacce

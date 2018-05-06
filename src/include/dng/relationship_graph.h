@@ -56,17 +56,15 @@ class RelationshipGraph {
 public:
     template<typename T>
     using property_t = typename boost::property_map<detail::graph::Graph, T>::type;
+    using PropEdgeType = property_t<boost::edge_type_t>; 
+    using PropEdgeLength = property_t<boost::edge_length_t>;
+    using PropVertexLabel = property_t<boost::vertex_label_t>;
+    using PropVertexGroup = property_t<boost::vertex_group_t>;
+    using PropVertexIndex = property_t<boost::vertex_index_t>;
+    using PropVertexSex = property_t<boost::vertex_sex_t>;
+    using IndexMap = property_t<boost::vertex_index_t>;
 
-    typedef property_t<boost::edge_type_t> PropEdgeType;
-    typedef property_t<boost::edge_length_t> PropEdgeLength;
-    typedef property_t<boost::vertex_label_t> PropVertexLabel;
-
-    typedef property_t<boost::vertex_group_t> PropVertexGroup;
-    typedef property_t<boost::vertex_index_t> PropVertexIndex;
-    typedef property_t<boost::vertex_sex_t> PropVertexSex;
-    typedef property_t<boost::vertex_index_t> IndexMap;
-
-    typedef std::vector<std::vector<boost::graph_traits<detail::graph::Graph>::edge_descriptor>> family_labels_t;
+    using family_labels_t = std::vector<std::vector<boost::graph_traits<detail::graph::Graph>::edge_descriptor>>;
 
     enum struct TransitionType {
         Founder, Pair, Trio
@@ -143,10 +141,6 @@ public:
         return work;
     }
 
-    void PrintMachine(std::ostream &os);
-    void PrintTable(std::ostream &os);
-    void PrintStates(std::ostream &os, double scale = 0.0);
-
     std::vector<std::string> BCFHeaderLines() const;
 
     const std::vector<transition_t> &transitions() const { return transitions_; }
@@ -209,9 +203,6 @@ protected:
 
 private:
     void ClearFamilyInfo();
-
-    void PrintDebugEdges(const std::string &prefix,
-            const Graph &pedigree_graph);
 
     DNG_UNIT_TEST_CLASS(unittest_dng_relationship_graph);
 };
