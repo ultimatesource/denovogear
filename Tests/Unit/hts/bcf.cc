@@ -318,6 +318,10 @@ const char vcftrim[] =
 
 BOOST_AUTO_TEST_CASE(test_variant_trim) {
     int counter = 0;
+
+    auto fm = -1027.1027f;
+    auto fe = -1027.1028f;
+
     auto test = [&](const std::string &vcfstr, double af,
         const std::vector<std::string> &expected_alleles,
         const std::vector<int> &expected_gts,
@@ -340,20 +344,37 @@ BOOST_AUTO_TEST_CASE(test_variant_trim) {
         int n_gt = 4, n_gp = 4, n;
         auto int_buffer = hts::bcf::make_buffer<int32_t>(n_gt);
         n = record.get_genotypes(&int_buffer, &n_gt);
-        BOOST_REQUIRE_GE(n, 0);
-        auto test_gts = make_test_range(int_buffer.get(),int_buffer.get()+n);
-        CHECK_EQUAL_RANGES(test_gts, expected_gts);
+        if(!expected_gts.empty()) {
+            BOOST_REQUIRE_GE(n, 0);
+            auto test_gts = make_test_range(int_buffer.get(),int_buffer.get()+n);
+            CHECK_EQUAL_RANGES(test_gts, expected_gts);            
+        } else {
+            BOOST_CHECK_LT(n,0);
+        }
 
         // Test GP field
         auto flt_buffer = hts::bcf::make_buffer<float>(n_gt);
         n = record.get_format("GP",&flt_buffer, &n_gp);
-        BOOST_REQUIRE_GE(n, 0);
-        auto test_gps = make_test_range(flt_buffer.get(),flt_buffer.get()+n);
-        CHECK_EQUAL_RANGES(test_gps, expected_gps);
+        if(!expected_gps.empty()) {
+            BOOST_REQUIRE_GE(n, 0);
+            for(int i=0;i<n;++i) {
+                if(bcf_float_is_missing(flt_buffer[i])) {
+                    flt_buffer[i] = fm;
+                } else if(bcf_float_is_vector_end(flt_buffer[i])) {
+                    flt_buffer[i] = fe;
+                }
+            }
+            auto test_gps = make_test_range(flt_buffer.get(),flt_buffer.get()+n);
+            CHECK_EQUAL_RANGES(test_gps, expected_gps);
+        } else {
+            BOOST_CHECK_LT(n,0);
+        }
     }};
 
     auto z = encode_allele_unphased(0);
     auto x = encode_allele_unphased(1);
+    auto e = int32_vector_end;
+    auto m = encode_allele_missing();
 
     std::string h = vcftrim;
     // check if alleles are preserved due to allele frequency
@@ -370,4 +391,29 @@ BOOST_AUTO_TEST_CASE(test_variant_trim) {
     );
     test(base2, 0.0, {"G", "A"}, {z,z,z,x}, {0.9,0.1,0.0,0.9,0.1,0.0});
     test(base2, 0.1, {"G", "A"}, {z,z,z,x}, {0.9,0.1,0.0,0.9,0.1,0.0});
+
+    // check if missing values
+    std::string base3 = make_data_url(h+
+        "1\t1\t.\tG\tA\t.\t.\t.\tGT:GP\t0/0:0.9,0.1,0.0\t.:."
+    );
+    test(base3, 0.1, {"G"}, {z,z,m,e}, {0.9f,fm});
+
+    // check if missing GP
+    std::string base4 = make_data_url(h+
+        "1\t1\t.\tG\tA\t.\t.\t.\tGT\t0/0\t0/0"
+    );
+    test(base4, 0.1, {"G"}, {z,z,z,z}, {});
+
+    // check if missing GT
+    std::string base5 = make_data_url(h+
+        "1\t1\t.\tG\tA\t.\t.\t.\tGP\t0.9,0.1,0.0\t."
+    );
+    test(base5, 0.0, {"G","A"}, {}, {0.9,0.1,0.0,fm,fe,fe});
+    test(base5, 0.1, {"G"}, {}, {0.9,fm});
+
+    // check if missing GT and GP
+    std::string base6 = make_data_url(h+
+        "1\t1\t.\tG\tA\t.\t.\t.\t.\t\t"
+    );
+    test(base6, 0.0, {"G"}, {}, {});
 }

@@ -769,7 +769,7 @@ bool Variant::TrimAlleles(double af_min) {
             ftemp.assign(num_alleles(), 0.0);
             for(int j=0; j<num_gt; ++j) {
                 float f = gp_buffer[i*num_gt+j];
-                if(f == float_missing || f == float_vector_end) {
+                if(bcf_float_is_missing(f) || bcf_float_is_vector_end(f)) {
                     continue;
                 }
                 auto ab = alleles_from_genotype(j);
