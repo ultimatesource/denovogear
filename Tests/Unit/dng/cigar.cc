@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2017 Reed A. Cartwright
+ * Copyright (c) 2018 Reed A. Cartwright
+ * Copyright (c) 2018 Juan J. Garcia Mesa
  * Authors:  Juan J. Garcia Mesa <jgarc111@asu.edu>
  *
  * This file is part of DeNovoGear.
@@ -27,12 +28,13 @@
 
 using namespace dng;
 
-using dng::cigar::query_length;
 using hts::bam::cigar_t;
 
 BOOST_AUTO_TEST_CASE(test_query_length) {
     auto test = [](cigar_t cigar, std::size_t expected_result) -> void {
     BOOST_TEST_CONTEXT("cigar= (" << *cigar.first << "," << *cigar.second << ")") {
+	using dng::cigar::query_length;
+
 	auto result = query_length(cigar);
 	BOOST_CHECK_EQUAL(result, expected_result);
     }};
@@ -61,11 +63,11 @@ BOOST_AUTO_TEST_CASE(test_query_length) {
     test(std::make_pair(&v.front(),&v.back()),0);
 }
 
-using dng::cigar::target_length;
-
 BOOST_AUTO_TEST_CASE(test_target_length) {
     auto test = [](cigar_t cigar, std::size_t expected_result) -> void {
     BOOST_TEST_CONTEXT("cigar= (" << *cigar.first << "," << *cigar.second << ")") {
+	using dng::cigar::target_length;
+
         auto result = target_length(cigar);
         BOOST_CHECK_EQUAL(result, expected_result);
     }};
@@ -92,11 +94,11 @@ BOOST_AUTO_TEST_CASE(test_target_length) {
     test(std::make_pair(&v.front(),&v.back()),245);
 }
 
-using dng::cigar::query_pos;
-
 BOOST_AUTO_TEST_CASE(test_query_pos) {
     auto test = [](uint64_t q, uint64_t expected_result) -> void {
     BOOST_TEST_CONTEXT("query= " << q) {
+	using dng::cigar::query_pos;
+
 	auto result = query_pos(q);
 	BOOST_CHECK_EQUAL(result, expected_result);
     }};
@@ -106,11 +108,11 @@ BOOST_AUTO_TEST_CASE(test_query_pos) {
     test(126385420, 63192710);
 }
 
-using dng::cigar::query_del;
-
 BOOST_AUTO_TEST_CASE(test_query_del) {
     auto test = [](uint64_t q, uint64_t expected_result) -> void {
     BOOST_TEST_CONTEXT("query= " << q) {
+	using dng::cigar::query_del;
+
         auto result = query_del(q);
         BOOST_CHECK_EQUAL(result, expected_result);
     }};
@@ -120,11 +122,11 @@ BOOST_AUTO_TEST_CASE(test_query_del) {
     test(126385420, 0);
 }
 
-using dng::cigar::target_to_query;
-
 BOOST_AUTO_TEST_CASE(test_target_to_query) {
     auto test = [](uint64_t target, uint64_t beg, cigar_t cigar, uint64_t expected_result) -> void {
     BOOST_TEST_CONTEXT("target= " << target << ", beg=" << beg) {
+	using dng::cigar::target_to_query;
+
         auto result = target_to_query(target, beg, cigar);
         BOOST_CHECK_EQUAL(result, expected_result);
     }};
