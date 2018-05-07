@@ -66,6 +66,9 @@ constexpr int8_t int8_vector_end = bcf_int8_vector_end;
 
 const std::string str_missing = ".";
 
+
+// bcf_get_format_* uses realloc internally, so this buffer
+// will be managed by malloc and free
 struct buffer_free_t {
     void operator()(void* ptr) const {
         free(ptr);
@@ -75,8 +78,6 @@ struct buffer_free_t {
 template<typename T>
 using buffer_t = std::unique_ptr<T[],buffer_free_t>;
 
-// bcf_get_format_* uses realloc internally, so this buffer
-// will be managed by malloc and free
 template<typename T>
 buffer_t<T> make_buffer(std::size_t sz) {
     void *p = std::malloc(sizeof(T)*sz);
@@ -742,49 +743,85 @@ inline std::pair<int, int> alleles_from_genotype(int value) {
 inline
 bool Variant::TrimAlleles(double af_min) {
     // Determine if any alleles can be dropped
-    std::vector<bool> allele_seen(num_alleles(), false);
-
+    std::vector<unsigned char> allele_seen(num_alleles(), 0);
     // Identify Genotypes
-    int gt_sz = 2*num_samples();
+    const int num_vars = num_alleles();
+    const int num_cols = num_samples();
+    int gt_sz = 2*num_cols;
     auto gt_buffer = make_buffer<int32_t>(gt_sz);
     int gt_n = get_genotypes(&gt_buffer, &gt_sz);
-    if(gt_n > 0) {    
-        for(int i=0; i<gt_n; ++i) {
-            allele_t a{gt_buffer[i]};
-            if(allele_is_missing(a) || a == int32_vector_end) {
+    if(gt_n <= 0) {
+        return false; // Failure: there are no GT values
+    }
+    const int gt_width = gt_n/num_cols;
+
+    int num_diploid_gts = num_vars*(num_vars+1)/2;
+    int gp_sz = num_cols*num_diploid_gts;
+    auto gp_buffer = make_buffer<float>(gp_sz);
+    int gp_n = get_format("GP", &gp_buffer, &gp_sz);
+    const int gp_width = gp_n/num_cols;
+
+    std::vector<float> ftemp;
+    for(int i=0; i<num_cols; ++i) {
+        int j = 0;
+        for(; j<gt_width; ++j) {
+            allele_t a{gt_buffer[i*gt_width+j]};
+            if(a == int32_vector_end) {
+                break;
+            }
+            if(allele_is_missing(a)) {
                 continue;
             }
             int b = decode_allele(a);
-            allele_seen[b] = true;
+            allele_seen[b] = 1;
         }
-    }
-
-    int num_gt = num_alleles()*(num_alleles()+1)/2;
-    int gp_sz = num_samples()*num_gt;
-    auto gp_buffer = make_buffer<float>(gp_sz);
-    int gp_n = get_format("GP", &gp_buffer, &gp_sz);
-    if(gp_n == num_samples()*num_gt ) {
-        std::vector<float> ftemp;
-        for(int i=0; i < num_samples(); ++i) {
-            ftemp.assign(num_alleles(), 0.0);
-            for(int j=0; j<num_gt; ++j) {
-                float f = gp_buffer[i*num_gt+j];
-                if(bcf_float_is_missing(f) || bcf_float_is_vector_end(f)) {
+        if(gp_n <= 0) {
+            continue;
+        }
+        // Check allele frequencies
+        if(j == 2) {
+            // diploid site
+            ftemp.assign(num_vars,0.0);
+            for(int g=0; g < num_diploid_gts && g < gp_width; ++g) {
+                float f = gp_buffer[i*gp_width+g];
+                if(bcf_float_is_vector_end(f)) {
+                    break;
+                }
+                if(bcf_float_is_missing(f)) {
                     continue;
                 }
-                auto ab = alleles_from_genotype(j);
+                auto ab = alleles_from_genotype(g);
                 ftemp[ab.first] += f;
                 ftemp[ab.second] += f;
             }
-            for(int j=0; j<num_gt; ++j) {
-                allele_seen[j] = allele_seen[j] || (ftemp[j]/2.0 >= af_min);
+            for(int g=0; g < num_vars; ++g) {
+                if(ftemp[g]/2.0 >= af_min) {
+                    allele_seen[g] = 1;
+                }
             }
+        } else if(j == 1) {
+            // haploid site
+            for(int g=0; g < num_vars && g < gp_width; ++g) {
+                float f = gp_buffer[i*gp_width+g];
+                if(bcf_float_is_vector_end(f)) {
+                    break;
+                }
+                if(bcf_float_is_missing(f)) {
+                    continue;
+                }
+                if(f >= af_min) {
+                    allele_seen[g] = 1;
+                }
+            }
+        } else {
+            return false; //Failure: only works on haploid and diploid sites
         }
     }
+
     std::unique_ptr<kbitset_t,decltype(&kbs_destroy)>
-        rm_set(kbs_init(num_alleles()), kbs_destroy);
+        rm_set(kbs_init(allele_seen.size()), kbs_destroy);
     for(int a=0; a<allele_seen.size(); ++a) {
-        if(!allele_seen[a]) {
+        if(allele_seen[a] == 0) {
             kbs_insert(rm_set.get(), a);
         }
     }

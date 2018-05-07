@@ -313,27 +313,28 @@ const char vcftrim[] =
     "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n"
     "##FORMAT=<ID=GP,Number=G,Type=Float,Description=\"Posterior Probability\">\n"
     "##contig=<ID=1,length=100>\n"
-    "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tS1\tS2\n"
+    "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tS1\tS2\tS3\tS4\n"
 ;
 
 BOOST_AUTO_TEST_CASE(test_variant_trim) {
     int counter = 0;
 
     auto fm = -1027.1027f;
-    auto fe = -1027.1028f;
+    auto fe = -2027.2027f;
 
-    auto test = [&](const std::string &vcfstr, double af,
+    auto test_core = [&](const char *vcfstr, double af,
+        bool expected_result,
         const std::vector<std::string> &expected_alleles,
         const std::vector<int> &expected_gts,
-        const std::vector<float> &expected_gps) -> void {
-    BOOST_TEST_CONTEXT("counter=" << ++counter) {
-        auto file = bcf::File(vcfstr.c_str(), "r");
+        const std::vector<float> &expected_gps)
+    {
+        auto file = bcf::File(vcfstr, "r");
         BOOST_REQUIRE(file.is_open());
         auto record = file.InitVariant();
         file.ReadRecord(&record);
         record.Unpack();
-        bool ret = record.TrimAlleles(af);
-        BOOST_CHECK_EQUAL(ret, true);
+        bool test_result = record.TrimAlleles(af);
+        BOOST_CHECK_EQUAL(test_result, expected_result);
         std::vector<std::string> test_alleles;
         for(int i=0;i<record.num_alleles();++i) {
             test_alleles.emplace_back(record.allele(i));
@@ -369,51 +370,81 @@ BOOST_AUTO_TEST_CASE(test_variant_trim) {
         } else {
             BOOST_CHECK_LT(n,0);
         }
+    };
+
+    auto test = [&](const char *vcfstr, double af,
+        bool expected_result,
+        const std::vector<std::string> &expected_alleles,
+        const std::vector<int> &expected_gts,
+        const std::vector<float> &expected_gps)
+    {
+    BOOST_TEST_CONTEXT("vcfstr=\"" << vcfstr << "\"\n    af=" << af) {
+        std::string s = vcftrim;
+        s += vcfstr;
+        s = make_data_url(s);
+        test_core(s.c_str(), af, expected_result, expected_alleles, expected_gts, expected_gps);
     }};
 
-    auto z = encode_allele_unphased(0);
-    auto x = encode_allele_unphased(1);
+    auto a = encode_allele_unphased(0);
+    auto b = encode_allele_unphased(1);
+    auto c = encode_allele_unphased(2);
+    
     auto e = int32_vector_end;
     auto m = encode_allele_missing();
 
-    std::string h = vcftrim;
-    // check if alleles are preserved due to allele frequency
-    std::string base1 = make_data_url(h+
-        "1\t1\t.\tG\tA\t.\t.\t.\tGT:GP\t0/0:0.9,0.1,0\t0/0:0.9,0.1,0"
-    );
-    test(base1, 0.0,  {"G", "A"}, {z,z,z,z}, {0.9,0.1,0.0,0.9,0.1,0.0});
-    test(base1, 0.05, {"G", "A"}, {z,z,z,z}, {0.9,0.1,0.0,0.9,0.1,0.0});
-    test(base1, 0.06,  {"G"}, {z,z,z,z}, {0.9,0.9});
+    // check behavior with no GT
+    const char base_nogt[] = "1\t1\t.\tG\tA\t.\t.\t.\tGP\t1,0,0\t1,0,0\t1,0,0\t1,0,0\n";
+    test(base_nogt, 0.0, false, {"G","A"}, {}, {1,0,0,1,0,0,1,0,0,1,0,0});
 
-    // check if alleles are preserved due to gt presence
-    std::string base2 = make_data_url(h+
-        "1\t1\t.\tG\tA\t.\t.\t.\tGT:GP\t0/0:0.9,0.1,0\t0/1:0.9,0.1,0"
-    );
-    test(base2, 0.0, {"G", "A"}, {z,z,z,x}, {0.9,0.1,0.0,0.9,0.1,0.0});
-    test(base2, 0.1, {"G", "A"}, {z,z,z,x}, {0.9,0.1,0.0,0.9,0.1,0.0});
+    // check if alleles are preserved due to GT
+    const char base_gt[] = "1\t1\t.\tG\tA,AA\t.\t.\t.\tGT\t0/0\t0/2\t0|0\t0|2\n";
+    test(base_gt, 0.0, true, {"G", "AA"}, {a,a,a,b,a,a|1,a,b|1}, {});
+    const char base_gt_hap[] = "1\t1\t.\tG\tA,AA\t.\t.\t.\tGT\t0\t2\t0\t2\n";
+    test(base_gt_hap, 0.0, true, {"G", "AA"}, {a,b,a,b}, {});
 
-    // check if missing values
-    std::string base3 = make_data_url(h+
-        "1\t1\t.\tG\tA\t.\t.\t.\tGT:GP\t0/0:0.9,0.1,0.0\t.:."
-    );
-    test(base3, 0.1, {"G"}, {z,z,m,e}, {0.9f,fm});
+    // check if alleles are preserved due to GP
+    const char base_gp[] = "1\t1\t.\tG\tA,AA\t.\t.\t.\tGT:GP\t"
+        "0/0:0.85,0.01,0.02,0.03,0.04,0.05\t"
+        "0/0:0,1,0,0,0,0\t"
+        "0/0:1,.,0\t"
+        "0/0:.\n";
+    test(base_gp, 0.0, true, {"G", "A","AA"}, {a,a,a,a,a,a,a,a}, {0.85,0.01,0.02,0.03,0.04,0.05, 0,1,0,0,0,0, 1,fm,0,fe,fe,fe, fm,fe,fe,fe,fe,fe});
+    test(base_gp, 0.084, true, {"G", "A","AA"}, {a,a,a,a,a,a,a,a}, {0.85,0.01,0.02,0.03,0.04,0.05, 0,1,0,0,0,0, 1,fm,0,fe,fe,fe, fm,fe,fe,fe,fe,fe});
+    test(base_gp, 0.5, true, {"G", "A"}, {a,a,a,a,a,a,a,a}, {0.85,0.01,0.02, 0,1,0, 1,fm,fe, fm,fe,fe});
+    test(base_gp, 0.6, true, {"G"}, {a,a,a,a,a,a,a,a}, {0.85, 0, 1, fm});
+    const char base_gp_hap[] = "1\t1\t.\tG\tA,AA\t.\t.\t.\tGT:GP\t"
+        "0:1,0,0\t"
+        "0:0.5,0.5,0\t"
+        "0:1,0,0\t"
+        "0:1,0,0\n";
+    test(base_gp_hap, 0.0, true, {"G", "A","AA"}, {a,a,a,a}, {1,0,0, 0.5,0.5,0, 1,0,0, 1,0,0});
+    test(base_gp_hap, 0.5, true, {"G", "A"}, {a,a,a,a}, {1,0, 0.5,0.5, 1,0, 1,0});
+    test(base_gp_hap, 0.6, true, {"G"}, {a,a,a,a}, {1, 0.5, 1, 1});
 
-    // check if missing GP
-    std::string base4 = make_data_url(h+
-        "1\t1\t.\tG\tA\t.\t.\t.\tGT\t0/0\t0/0"
-    );
-    test(base4, 0.1, {"G"}, {z,z,z,z}, {});
+    // check mixed ploidy and missing
+    const char base_gt_mix[] = "1\t1\t.\tG\tA,AA\t.\t.\t.\tGT\t0/2\t0\t0/.\t.\n";
+    test(base_gt_mix, 0.0, true, {"G", "AA"}, {a,b,a,e,a,m,m,e}, {});
+    const char base_gp_mix[] = "1\t1\t.\tG\tA,AA\t.\t.\t.\tGT:GP\t"
+        "0/0:0.85,0.01,0.02,0.03,0.04,0.05\t"
+        "0:0.5,0.5,0\t"
+        "0:1,.\t"
+        "0/.:.\n";
+    test(base_gp_mix, 0.5, true, {"G", "A"}, {a,a,a,e,a,e,a,m},
+        {0.85,0.01,0.02, 0.5,0.5,fe, 1,fm,fe, fm,fe,fe});
+    const char base_gp_short[] = "1\t1\t.\tG\tA,AA\t.\t.\t.\tGT:GP\t"
+        "0/1:1\t"
+        "0:1\t"
+        "0/0:.\t"
+        "0/0:.\n";
+    test(base_gp_short, 0.5, false, {"G", "A"}, {a,b,a,e,a,a,a,a},
+        {1,1,fm,fm});
 
-    // check if missing GT
-    std::string base5 = make_data_url(h+
-        "1\t1\t.\tG\tA\t.\t.\t.\tGP\t0.9,0.1,0.0\t."
-    );
-    test(base5, 0.0, {"G","A"}, {}, {0.9,0.1,0.0,fm,fe,fe});
-    test(base5, 0.1, {"G"}, {}, {0.9,fm});
-
-    // check if missing GT and GP
-    std::string base6 = make_data_url(h+
-        "1\t1\t.\tG\tA\t.\t.\t.\t.\t\t"
-    );
-    test(base6, 0.0, {"G"}, {}, {});
+    // check triploidy
+    const char base_n3[] = "1\t1\t.\tG\tA\t.\t.\t.\tGT:GP\t"
+    "0/0/0:1,0,0,0\t"
+    "0/0/0:0,1,0,0\t"
+    "0/0/0:1,0,0,0\t"
+    "0/0/0:1,0,0,0\n" ;
+    test(base_n3, 0.5, false, {"G","A"}, {a,a,a, a,a,a, a,a,a, a,a,a},
+        {1,0,0,0,0,1,0,0,1,0,0,0,1,0,0,0} );
 }
