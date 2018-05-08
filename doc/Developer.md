@@ -4,6 +4,7 @@
 
 ```bash
 mkdir ./build/clangdebug
+cd ./build/clangdebug
 CXX=clang++ CC=clang cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug ../..
 ninja
 ninja test
@@ -13,6 +14,7 @@ ninja test
 
 ```bash
 mkdir ./build/coverage
+cd ./build/coverage
 CXX=g++ CC=gcc cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug -DDNG_DEVEL_ENABLE_COVERAGE_REPORT=1 ../..
 ninja
 ```
@@ -26,8 +28,7 @@ gcovr -d -r . --html --html-details -o output.html
 ### Remove Coverage Files
 
 ```bash
-find . -name '*.gcda' -delete
-find . -name '*.gcov' -delete
+find . -name '*.gcda' -delete; find . -name '*.gcov' -delete
 ```
 
 # Writing Unit Tests

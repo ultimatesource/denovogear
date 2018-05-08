@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015 Reed A. Cartwright
+ * Copyright (c) 2014-2018 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -225,44 +225,24 @@ inline TransitionMatrix meiosis_diploid_matrix(const MutationMatrix &mdad,
     return meiosis_matrix(2,mdad,2,mmom,mutype);
 }
 
-inline bool population_prior_check(double theta, double hom_bias, double het_bias, double hap_bias) {
-    return (theta >= 0)
-        && (theta*hom_bias >= -2.0 && hom_bias <= 1.0)
-        && (theta*het_bias >= -2.0 && het_bias <= 1.0)
-        && (theta*hap_bias >= -1.0 && hap_bias <= 1.0)
-        ;
-}
+// k-alleles model from Watterson and Guess (1977) https://doi.org/10.1016/0040-5809(77)90023-5
 
 inline
 dng::GenotypeArray population_prior_diploid(int num_obs_alleles, double theta, double hom_bias, double het_bias,
-    double kalleles, bool known_anc) {
+    double kalleles) {
     assert(num_obs_alleles >= 0);
 
-    double p_hom = 1.0/(1.0+theta);
-    double p_het = theta/(1.0+theta);
+    double k = kalleles;
+    double e = theta/(k-1.0);
 
-    double p_RR=0.0, p_AA=0.0, p_RA=0.0, p_AB=0.0;
-    if(known_anc) {
-        if(kalleles <= 1.0) {
-            p_RR = 1.0;
-        } else {
-            p_RR = p_hom*(2.0+theta*hom_bias)/(2.0+theta);
-            p_AA = p_hom*theta*(1.0-hom_bias)/(2.0+theta)*(1.0/(kalleles-1.0));
-            if(kalleles <= 2.0) {
-                p_RA = p_het*(1.0/(kalleles-1.0));
-            } else {
-                p_RA = p_het*(2.0+theta*het_bias)/(2.0+theta)*(1.0/(kalleles-1.0));
-                p_AB = p_het*theta*(1.0-het_bias)/(2.0+theta)*(2.0/((kalleles-1.0)*(kalleles-2.0)));
-            }
-        }
-    } else {
-        if(kalleles <= 1.0) {
-            p_AA = 1.0;
-        } else {
-            p_AA = p_hom*(1.0/kalleles);
-            p_AB = p_het*(2.0/(kalleles*(kalleles-1.0)));                
-        }
-    }
+    double p_hom = (1.0+e)/(1.0+k*e);
+    double p_hetk = e/(1.0+k*e);
+
+    double p_RR = p_hom*(2.0+e+(k-1.0)*e*hom_bias)/(2.0+k*e);
+    double p_AA = p_hom*(e-e*hom_bias)/(2.0+k*e);
+
+    double p_RA = p_hetk*(2.0+2.0*e+(k-2.0)*e*het_bias)/(2.0+k*e);
+    double p_AB = p_hetk*(2.0*e-2.0*e*het_bias)/(2.0+k*e);
 
     dng::GenotypeArray ret{num_obs_alleles*(num_obs_alleles+1)/2};
 
@@ -279,25 +259,15 @@ dng::GenotypeArray population_prior_diploid(int num_obs_alleles, double theta, d
 
 inline
 dng::GenotypeArray population_prior_haploid(int num_obs_alleles, double theta, double hap_bias,
-    double kalleles, bool known_anc) {
+    double kalleles) {
     assert(num_obs_alleles >= 1);
 
-    double p_R = 0.0, p_A = 0.0;
-    if(known_anc) {
-        if(kalleles <= 1.0) {
-            p_R = 1.0;
-        } else {
-            p_R = (1.0+theta*hap_bias)/(1.0+theta);
-            p_A = theta*(1.0-hap_bias)/(1.0+theta)*(1.0/(kalleles-1.0));
-        }
-    } else {
-        if(kalleles <= 1.0) {
-            p_A = 1.0;
-        } else {
-            p_A = 1.0/kalleles;
-        }
-    }
-    
+    double k = kalleles;
+    double e = theta/(k-1.0);
+
+    double p_R = (1.0+e+(k-1.0)*e*hap_bias)/(1.0+k*e);
+    double p_A = (e-e*hap_bias)/(1.0+k*e);
+
     dng::GenotypeArray ret{num_obs_alleles};
     ret(0) = p_R;
     for(int n=1;n<num_obs_alleles;++n) {
@@ -305,6 +275,28 @@ dng::GenotypeArray population_prior_haploid(int num_obs_alleles, double theta, d
     }
 
     return ret;
+}
+
+inline bool population_prior_check(double theta, double hom_bias, double het_bias, double hap_bias, double kalleles) {
+    double k = kalleles;
+    double e = theta/(k-1.0);
+
+    if(e < 0) {
+        return false;
+    }
+    if(k < 2.0) {
+        return false;
+    }
+    if(hom_bias > 1.0 || hom_bias < -(2.0+e)/((k-1.0)*e)) {
+        return false;
+    }
+    if(het_bias > 1.0 || het_bias < -(2.0+2.0*e)/((k-2.0)*e)) {
+        return false;
+    }
+    if(hap_bias > 1.0 || hap_bias < -(1.0+e)/((k-1.0)*e)) {
+        return false;
+    }
+    return true;
 }
 
 } // namespace dng

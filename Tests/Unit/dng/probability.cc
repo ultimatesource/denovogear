@@ -122,18 +122,9 @@ BOOST_AUTO_TEST_CASE(test_haploid_prior) {
 
     auto test = [prec, &log_probability](int num_obs_alleles) {
         BOOST_TEST_CONTEXT("num_obs_alleles=" << num_obs_alleles << " has_ref=true") {
-            auto test_ = u::HaploidPrior(log_probability, num_obs_alleles, true);
+            auto test_ = u::HaploidPrior(log_probability, num_obs_alleles);
             auto expected_ = population_prior_haploid(num_obs_alleles, g_params.theta,
-                g_params.ref_bias_hap, g_params.k_alleles, true);
-            auto test_range = make_test_range(test_);
-            auto expected_range = make_test_range(expected_);
-            CHECK_CLOSE_RANGES(test_range, expected_range, prec);
-        }
-        num_obs_alleles += 1;
-        BOOST_TEST_CONTEXT("num_obs_alleles=" << num_obs_alleles << " has_ref=false") {
-            auto test_ = u::HaploidPrior(log_probability, num_obs_alleles, false);
-            auto expected_ = population_prior_haploid(num_obs_alleles, g_params.theta,
-                g_params.ref_bias_hap, g_params.k_alleles, false);
+                g_params.ref_bias_hap, g_params.k_alleles);
             auto test_range = make_test_range(test_);
             auto expected_range = make_test_range(expected_);
             CHECK_CLOSE_RANGES(test_range, expected_range, prec);
@@ -150,18 +141,9 @@ BOOST_AUTO_TEST_CASE(test_diploid_prior) {
 
     auto test = [prec, &log_probability](int num_obs_alleles) {
         BOOST_TEST_CONTEXT("num_obs_alleles=" << num_obs_alleles << " has_ref=true") {
-            auto test_ = u::DiploidPrior(log_probability, num_obs_alleles, true);
+            auto test_ = u::DiploidPrior(log_probability, num_obs_alleles);
             auto expected_ = population_prior_diploid(num_obs_alleles, g_params.theta,
-                g_params.ref_bias_hom, g_params.ref_bias_het, g_params.k_alleles, true);
-            auto test_range = make_test_range(test_);
-            auto expected_range = make_test_range(expected_);
-            CHECK_CLOSE_RANGES(test_range, expected_range, prec);
-        }
-        num_obs_alleles += 1;
-        BOOST_TEST_CONTEXT("num_obs_alleles=" << num_obs_alleles << " has_ref=false") {
-            auto test_ = u::DiploidPrior(log_probability, num_obs_alleles, false);
-            auto expected_ = population_prior_diploid(num_obs_alleles, g_params.theta,
-                g_params.ref_bias_hom, g_params.ref_bias_het, g_params.k_alleles, false);
+                g_params.ref_bias_hom, g_params.ref_bias_het, g_params.k_alleles);
             auto test_range = make_test_range(test_);
             auto expected_range = make_test_range(expected_);
             CHECK_CLOSE_RANGES(test_range, expected_range, prec);
@@ -206,12 +188,11 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
 
     Probability log_probability{graph, g_params};
     int counter = 0;
-    auto test = [&](const ad_t& depths, int num_obs_alleles, bool has_ref) {
+    auto test = [&](const ad_t& depths, int num_obs_alleles) {
         BOOST_TEST_CONTEXT("mom=" << rangeio::wrap(depths[0]) << 
                          ", dad=" << rangeio::wrap(depths[1]) <<
                          ", eve=" << rangeio::wrap(depths[2]) <<
-                         ", num_obs_alleles=" << num_obs_alleles <<
-                         ", has_ref=" << (int)has_ref
+                         ", num_obs_alleles=" << num_obs_alleles
         ) {
         int num_obs_alleles_old = num_obs_alleles;
         if(num_obs_alleles > 4) {
@@ -233,9 +214,9 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
         const int gt_sz = hap_sz*(hap_sz+1)/2;
 
         auto hap_prior = population_prior_haploid(num_obs_alleles, g_params.theta,
-                g_params.ref_bias_hap, g_params.k_alleles, has_ref);
+                g_params.ref_bias_hap, g_params.k_alleles);
         auto dip_prior = population_prior_diploid(num_obs_alleles, g_params.theta,
-                g_params.ref_bias_hom, g_params.ref_bias_het, g_params.k_alleles, has_ref);
+                g_params.ref_bias_hom, g_params.ref_bias_het, g_params.k_alleles);
 
         GenotypeArray mom_lower, dad_lower, eve_lower;
         expected_log_scale = 0.0;
@@ -280,16 +261,16 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
         BOOST_CHECK_CLOSE_FRACTION(test_log_data, expected_log_data, prec);
     }};
 
-    test({{0},{0},{0}}, 1, true);
-    test({{10},{5},{15}}, 1, true);
+    test({{0},{0},{0}}, 1);
+    test({{10},{5},{15}}, 1);
     
-    test({{100,0},{100,0},{50,50}}, 2, true);
-    test({{100,0},{50,50},{100,0}}, 2, true);
-    test({{50,50},{100,0},{100,0}}, 2, true);
+    test({{100,0},{100,0},{50,50}}, 2);
+    test({{100,0},{50,50},{100,0}}, 2);
+    test({{50,50},{100,0},{100,0}}, 2);
     
-    test({{100,0,0},{50,50,0},{50,50,1}}, 3, true);
+    test({{100,0,0},{50,50,0},{50,50,1}}, 3);
     
-    test({{0,100},{0,100},{0,10}}, 2, true);
+    test({{0,100},{0,100},{0,10}}, 2);
 
     for(int n=1; n<=6; ++n) {
         for(int i=0; i<100; ++i) {
@@ -299,7 +280,7 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
                     a.push_back(rexp(30));
                 }
             }
-            test(ad, n, true);
+            test(ad, n);
         }
     }
 }
@@ -338,12 +319,11 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_xlinked) {
 
     Probability log_probability{graph, g_params};
     int counter = 0;
-    auto test = [&](const ad_t& depths, int num_obs_alleles, bool has_ref) {
+    auto test = [&](const ad_t& depths, int num_obs_alleles) {
         BOOST_TEST_CONTEXT("mom=" << rangeio::wrap(depths[0]) << 
                          ", dad=" << rangeio::wrap(depths[1]) <<
                          ", eve=" << rangeio::wrap(depths[2]) <<
-                         ", num_obs_alleles=" << num_obs_alleles <<
-                         ", has_ref=" << (int)has_ref
+                         ", num_obs_alleles=" << num_obs_alleles
         ) {
         int num_obs_alleles_old = num_obs_alleles;
         if(num_obs_alleles > 4) {
@@ -365,9 +345,9 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_xlinked) {
         const int gt_sz = hap_sz*(hap_sz+1)/2;
 
         auto hap_prior = population_prior_haploid(num_obs_alleles, g_params.theta,
-                g_params.ref_bias_hap, g_params.k_alleles, has_ref);
+                g_params.ref_bias_hap, g_params.k_alleles);
         auto dip_prior = population_prior_diploid(num_obs_alleles, g_params.theta,
-                g_params.ref_bias_hom, g_params.ref_bias_het, g_params.k_alleles, has_ref);
+                g_params.ref_bias_hom, g_params.ref_bias_het, g_params.k_alleles);
 
         GenotypeArray mom_lower, dad_lower, eve_lower;
         expected_log_scale = 0.0;
@@ -412,16 +392,16 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_xlinked) {
         BOOST_CHECK_CLOSE_FRACTION(test_log_data, expected_log_data, prec);
     }};
 
-    test({{0},{0},{0}}, 1, true);
-    test({{10},{5},{15}}, 1, true);
+    test({{0},{0},{0}}, 1);
+    test({{10},{5},{15}}, 1);
     
-    test({{100,0},{100,0},{50,50}}, 2, true);
-    test({{100,0},{50,50},{100,0}}, 2, true);
-    test({{50,50},{100,0},{100,0}}, 2, true);
+    test({{100,0},{100,0},{50,50}}, 2);
+    test({{100,0},{50,50},{100,0}}, 2);
+    test({{50,50},{100,0},{100,0}}, 2);
     
-    test({{100,0,0},{50,50,0},{50,50,1}}, 3, true);
+    test({{100,0,0},{50,50,0},{50,50,1}}, 3);
     
-    test({{0,100},{0,100},{0,10}}, 2, true);
+    test({{0,100},{0,100},{0,10}}, 2);
 
     for(int n=1; n<=6; ++n) {
         for(int i=0; i<100; ++i) {
@@ -431,7 +411,7 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_xlinked) {
                     a.push_back(rexp(30));
                 }
             }
-            test(ad, n, true);
+            test(ad, n);
         }
     }
 }

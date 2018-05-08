@@ -664,18 +664,19 @@ BOOST_AUTO_TEST_CASE(test_meiosis_matrix) {
 }
 
 BOOST_AUTO_TEST_CASE(test_population_prior_check) {
-    BOOST_CHECK_EQUAL(population_prior_check(0.001, 0.0, 0.0, 0.0), true);
-    BOOST_CHECK_EQUAL(population_prior_check(0.0, 1.0, 1.0, 1.0), true);
-    BOOST_CHECK_EQUAL(population_prior_check(0.1, -20.0, -20.0, -10.0), true);
-    BOOST_CHECK_EQUAL(population_prior_check(100, 0.0, 0.0, 0.0), true);
+    BOOST_CHECK_EQUAL(population_prior_check(0.001, 0.0, 0.0, 0.0, 5.0), true);
+    BOOST_CHECK_EQUAL(population_prior_check(0.0, 1.0, 1.0, 1.0, 5.0), true);
+    BOOST_CHECK_EQUAL(population_prior_check(0.1, -20.0, -20.0, -10.0, 5.0), true);
+    BOOST_CHECK_EQUAL(population_prior_check(100, 0.0, 0.0, 0.0, 5.0), true);
 
-    BOOST_CHECK_EQUAL(population_prior_check(-0.1, 0.0, 0.0, 0.0), false);
-    BOOST_CHECK_EQUAL(population_prior_check(0.1, 2.0, 0.0, 0.0), false);
-    BOOST_CHECK_EQUAL(population_prior_check(0.1, 0.0, 2.0, 0.0), false);
-    BOOST_CHECK_EQUAL(population_prior_check(0.1, 0.0, 0.0, 2.0), false);
-    BOOST_CHECK_EQUAL(population_prior_check(0.1, -100.0, 0.0, 0.0), false);
-    BOOST_CHECK_EQUAL(population_prior_check(0.1, 0.0, -100.0, 0.0), false);
-    BOOST_CHECK_EQUAL(population_prior_check(0.1, 0.0, 0.0, -100.0), false);
+    BOOST_CHECK_EQUAL(population_prior_check(-0.1, 0.0, 0.0, 0.0, 5.0), false);
+    BOOST_CHECK_EQUAL(population_prior_check(0.1, 2.0, 0.0, 0.0, 5.0), false);
+    BOOST_CHECK_EQUAL(population_prior_check(0.1, 0.0, 2.0, 0.0, 5.0), false);
+    BOOST_CHECK_EQUAL(population_prior_check(0.1, 0.0, 0.0, 2.0, 5.0), false);
+    BOOST_CHECK_EQUAL(population_prior_check(0.1, -100.0, 0.0, 0.0, 5.0), false);
+    BOOST_CHECK_EQUAL(population_prior_check(0.1, 0.0, -100.0, 0.0, 5.0), false);
+    BOOST_CHECK_EQUAL(population_prior_check(0.1, 0.0, 0.0, -100.0, 5.0), false);
+    BOOST_CHECK_EQUAL(population_prior_check(0.1, 0.0, 0.0, 0.0, 1.1), false);
 }
 
 
@@ -706,79 +707,37 @@ BOOST_AUTO_TEST_CASE(test_population_prior_diploid) {
     constexpr double prec = 2*DBL_EPSILON;
 
     auto test_diploid = [prec](int num_obs_alleles, double theta, double hom_bias, double het_bias,
-        double k_alleles, bool known_anc) {
+        double k_alleles) {
     BOOST_TEST_CONTEXT("num_obs_alleles=" << num_obs_alleles
         << ", theta=" << theta << ", hom_bias=" << hom_bias
-        << ", het_bias=" << het_bias << ", k_alleles=" << k_alleles
-        << ", known_anc=" << (int)known_anc ) 
+        << ", het_bias=" << het_bias << ", k_alleles=" << k_alleles ) 
     {
+        BOOST_REQUIRE(population_prior_check(theta, hom_bias, het_bias, 0.0, k_alleles));
+
         auto x_prior = population_prior_diploid(num_obs_alleles, theta, hom_bias,
-            het_bias, k_alleles, known_anc);
+            het_bias, k_alleles);
+        if(num_obs_alleles == k_alleles) {
+            BOOST_CHECK_CLOSE_FRACTION(x_prior.sum(), 1.0, prec);
+        }
         std::vector<double> expected_prior;
         const int sz = num_obs_alleles;
         for(int a=0;a<sz;++a) {
             for(int b=0;b<=a;++b) {
+                double k = k_alleles;
+                double e = theta/(k_alleles-1.0);
+
                 double r = 0.0;
                 if(a == 0 && b == 0) {
                     // Reference Homozygote
-                    if(known_anc) {
-                        if(k_alleles > 1.0) {
-                            r = 1.0/(1.0+theta)*(2.0+theta*hom_bias)/(2.0+theta);
-                        } else {
-                            r = 1.0;
-                        }
-                    } else {
-                        r = 0.0;
-                    }
+                    r = (1.0+e)/(1.0+k*e)*(2.0+e+(k-1.0)*e*hom_bias)/(2.0+k*e);
                 } else if(a == b) {
-                    // Alt Homozygote
-                    if(known_anc) {
-                        if(k_alleles > 1.0) {
-                            r = 1.0/(1.0+theta)*(theta-theta*hom_bias)/(2.0+theta);
-                            r /= k_alleles-1.0;
-                        } else {
-                            r = 0.0;
-                        }
-                    } else {
-                        if(k_alleles > 1.0) {
-                            r = 1.0/(1.0+theta);
-                            r /= k_alleles;
-                        } else {
-                            r = 1.0;
-                        }
-                    }
+                    r = (1.0+e)/(1.0+k*e)*(e-e*hom_bias)/(2.0+k*e);
                 } else if(b == 0 || a == 0) {
                     // Reference Heterozygote
-                    if(known_anc) {
-                        if(k_alleles > 2.0) {
-                            r = theta/(1.0+theta)*(2.0+theta*het_bias)/(2.0+theta);
-                            r /= k_alleles-1.0;
-                        } else if(k_alleles > 1.0) {
-                            r = theta/(1.0+theta);
-                            r /= k_alleles-1.0;
-                        } else {
-                            r = 0.0;
-                        }
-                    } else {
-                        r = 0.0;
-                    }
+                    r = e/(1.0+k*e)*(2.0+2.0*e+(k-2.0)*e*het_bias)/(2.0+k*e);
                 } else {
                     // Alt heterozygote
-                    if(known_anc) {
-                        if(k_alleles > 2.0) {
-                            r = theta/(1.0+theta)*(theta-theta*het_bias)/(2.0+theta);
-                            r *= 2.0/(k_alleles-1.0)/(k_alleles-2.0);                            
-                        } else {
-                            r = 0.0;
-                        }
-                    } else {
-                        if(k_alleles > 1.0) {
-                            r = theta/(1.0+theta);
-                            r *= 2.0/k_alleles/(k_alleles-1.0);
-                        } else {
-                            r = 0.0;
-                        }
-                    }
+                    r = e/(1.0+k*e)*(2.0*e-2.0*e*het_bias)/(2.0+k*e);
                 }
                 expected_prior.push_back(r);
             }
@@ -788,9 +747,8 @@ BOOST_AUTO_TEST_CASE(test_population_prior_diploid) {
     }};
 
     auto test = [&](double theta, double hom_bias, double het_bias, double k_alleles) {
-        for(int i=1;i<5;++i) {
-            test_diploid(i, theta, hom_bias, het_bias, k_alleles, true);
-            test_diploid(i, theta, hom_bias, het_bias, k_alleles, false);
+        for(int i=1;i<8;++i) {
+            test_diploid(i, theta, hom_bias, het_bias, k_alleles);
         }
     }; 
 
@@ -799,53 +757,36 @@ BOOST_AUTO_TEST_CASE(test_population_prior_diploid) {
     test(0.1, 0.0, 1.0, 4.0);
     test(0.001, 1.0, 1.0, 5.0);
     test(0.001, -1.0, -1.0, 5.5);
-
-    test(0.001, 0.1, 0.1, 1.0);
-    test(0.001, 0.1, 0.1, 2.0);
 }
 
 BOOST_AUTO_TEST_CASE(test_population_prior_haploid) {
     constexpr double prec = 2*DBL_EPSILON;
 
     auto test_haploid = [prec](int num_obs_alleles, double theta, double hap_bias,
-     double k_alleles, bool known_anc) {
+     double k_alleles) {
     BOOST_TEST_CONTEXT("num_obs_alleles=" << num_obs_alleles
         << ", theta=" << theta << ", hap_bias=" << hap_bias
-        << ", k_alleles=" << k_alleles
-        << ", known_anc=" << (int)known_anc ) 
+        << ", k_alleles=" << k_alleles ) 
     {
-        auto x_prior = population_prior_haploid(num_obs_alleles, theta, hap_bias, k_alleles, known_anc);
+        BOOST_REQUIRE(population_prior_check(theta, 0.0, 0.0, hap_bias, k_alleles));
+
+        auto x_prior = population_prior_haploid(num_obs_alleles, theta, hap_bias, k_alleles);
+        if(num_obs_alleles == k_alleles) {
+            BOOST_CHECK_CLOSE_FRACTION(x_prior.sum(), 1.0, prec);
+        }
+
         std::vector<double> expected_prior;
         const int sz = num_obs_alleles;
         for(int a=0;a<sz;++a) {
+            double k = k_alleles;
+            double e = theta/(k_alleles-1.0);
+
             double r = 0.0;
             if(a == 0) {
                 // reference haploid
-                if(known_anc) {
-                    if(k_alleles > 1.0) {
-                        r = (1.0+theta*hap_bias)/(1.0+theta);
-                    } else {
-                        r = 1.0;
-                    }
-                } else {
-                    r = 0.0;
-                }
+                r = (1.0+e+e*(k-1)*hap_bias)/(1.0+k*e);
             } else {
-                // alt haploid
-                if(known_anc) {
-                    if(k_alleles > 1.0) {
-                        r = (theta-theta*hap_bias)/(1.0+theta);
-                        r /= k_alleles-1.0; 
-                    } else {
-                        r = 0.0;
-                    }
-                } else {
-                    if(k_alleles > 1.0) {
-                        r = 1.0/k_alleles;
-                    } else {
-                        r = 1.0;
-                    }
-                }
+                r = (e-e*hap_bias)/(1.0+k*e);
             }
             expected_prior.push_back(r);
         }
@@ -854,9 +795,8 @@ BOOST_AUTO_TEST_CASE(test_population_prior_haploid) {
     }};
 
     auto test = [&](double theta, double hap_bias, double k_alleles) {
-        for(int i=1;i<5;++i) {
-            test_haploid(i, theta, hap_bias, k_alleles, true);
-            test_haploid(i, theta, hap_bias, k_alleles, false);
+        for(int i=1;i<8;++i) {
+            test_haploid(i, theta, hap_bias, k_alleles);
         }
     }; 
 
@@ -865,7 +805,4 @@ BOOST_AUTO_TEST_CASE(test_population_prior_haploid) {
     test(0.1, 0.0, 4.0);
     test(0.001, 1.0, 5.0);
     test(0.001, -1.0, 5.5);
-
-    test(0.001, 0.1, 1.0);
-    test(0.001, 0.1, 2.0);
 }

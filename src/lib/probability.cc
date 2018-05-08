@@ -34,23 +34,18 @@ Probability::Probability(RelationshipGraph graph, params_t params) :
 {
     using namespace dng;
 
+    population_prior_check(params_.theta, params_.ref_bias_hom, params_.ref_bias_het,
+        params_.ref_bias_hap, params_.k_alleles);
+
     // Create cache of population priors
     for(int i=0;i<diploid_prior_.size();++i) {
         diploid_prior_[i] = population_prior_diploid(i+1, params_.theta,
-            params_.ref_bias_hom, params_.ref_bias_het, params_.k_alleles, true);
-    }
-    for(int i=0;i<diploid_prior_noref_.size();++i) {
-        diploid_prior_noref_[i] = population_prior_diploid(i+2, params_.theta,
-            params_.ref_bias_hom, params_.ref_bias_het, params_.k_alleles, false);
+            params_.ref_bias_hom, params_.ref_bias_het, params_.k_alleles);
     }
 
     for(int i=0;i<haploid_prior_.size();++i) {
         haploid_prior_[i] = population_prior_haploid(i+1, params_.theta,
-            params_.ref_bias_hap, params_.k_alleles, true);
-    }
-    for(int i=0;i<haploid_prior_noref_.size();++i) {
-        haploid_prior_noref_[i] = population_prior_haploid(i+2, params_.theta,
-            params_.ref_bias_hap, params_.k_alleles, false);
+            params_.ref_bias_hap, params_.k_alleles);
     }
 
     // Calculate mutation matrices
@@ -60,7 +55,7 @@ Probability::Probability(RelationshipGraph graph, params_t params) :
     size_t num_libraries = work_.library_nodes.second - work_.library_nodes.first;
     work_.matrix_index = 0;
     work_.ClearGenotypeLikelihoods(1);
-    work_.SetGermline(DiploidPrior(1, true), HaploidPrior(1, true));
+    work_.SetGermline(DiploidPrior(1), HaploidPrior(1));
     ln_monomorphic_ = graph_.PeelForwards(work_, transition_matrices_[0]);
 }
 

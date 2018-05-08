@@ -78,8 +78,8 @@ protected:
 
     matrices_t CreateMutationMatrices(const int mutype = MUTATIONS_ALL) const;
 
-    GenotypeArray DiploidPrior(int num_obs_alleles, bool has_ref);
-    GenotypeArray HaploidPrior(int num_obs_alleles, bool has_ref);
+    GenotypeArray DiploidPrior(int num_obs_alleles);
+    GenotypeArray HaploidPrior(int num_obs_alleles);
 
     RelationshipGraph graph_;
     params_t params_;
@@ -95,9 +95,6 @@ protected:
 
     prior_t diploid_prior_; // Holds P(G | theta)
     prior_t haploid_prior_; // Holds P(G | theta)
-    
-    prior_t diploid_prior_noref_; // Holds P(G | theta)
-    prior_t haploid_prior_noref_; // Holds P(G | theta)
 
     DNG_UNIT_TEST_CLASS(unittest_dng_log_probability);
 };
@@ -123,7 +120,7 @@ void Probability::SetupWorkspace(const A &depths, int num_obs_alleles, genotype:
     work_.matrix_index = num_obs_alleles-1;
 
     work_.CalculateGenotypeLikelihoods(genotyper_, depths, num_obs_alleles, mode);
-    work_.SetGermline(DiploidPrior(num_obs_alleles, true), HaploidPrior(num_obs_alleles, true));
+    work_.SetGermline(DiploidPrior(num_obs_alleles), HaploidPrior(num_obs_alleles));
 }
 
 inline
@@ -198,31 +195,18 @@ Probability::matrices_t Probability::CreateMutationMatrices(const int mutype) co
 }
 
 inline
-GenotypeArray Probability::DiploidPrior(int num_obs_alleles, bool has_ref) {
+GenotypeArray Probability::DiploidPrior(int num_obs_alleles) {
     assert(num_obs_alleles >= 1);
-    if(has_ref) {
-        return (num_obs_alleles-1 < diploid_prior_.size()) ? diploid_prior_[num_obs_alleles-1]
-            : population_prior_diploid(num_obs_alleles, params_.theta, params_.ref_bias_hom,
-                params_.ref_bias_het, params_.k_alleles, true);
-    } else {
-        assert(num_obs_alleles >= 2);
-        return (num_obs_alleles-2 < diploid_prior_noref_.size()) ? diploid_prior_noref_[num_obs_alleles-2]
-            : population_prior_diploid(num_obs_alleles, params_.theta, params_.ref_bias_hom,
-                 params_.ref_bias_het, params_.k_alleles, false);
-    }
+    return (num_obs_alleles-1 < diploid_prior_.size()) ? diploid_prior_[num_obs_alleles-1]
+        : population_prior_diploid(num_obs_alleles, params_.theta, params_.ref_bias_hom,
+            params_.ref_bias_het, params_.k_alleles);
 }
 
 inline
-GenotypeArray Probability::HaploidPrior(int num_obs_alleles, bool has_ref) {
+GenotypeArray Probability::HaploidPrior(int num_obs_alleles) {
     assert(num_obs_alleles >= 1);
-    if(has_ref) {
-        return (num_obs_alleles < haploid_prior_.size()) ? haploid_prior_[num_obs_alleles-1]
-            : population_prior_haploid(num_obs_alleles, params_.theta, params_.ref_bias_hap, params_.k_alleles, true);
-    } else {
-        assert(num_obs_alleles >= 2);
-        return (num_obs_alleles-1 < haploid_prior_noref_.size()) ? haploid_prior_noref_[num_obs_alleles-2]
-            : population_prior_haploid(num_obs_alleles, params_.theta, params_.ref_bias_hap, params_.k_alleles, false);
-    }
+    return (num_obs_alleles < haploid_prior_.size()) ? haploid_prior_[num_obs_alleles-1]
+        : population_prior_haploid(num_obs_alleles, params_.theta, params_.ref_bias_hap, params_.k_alleles);
 }
 
 template<typename A>
