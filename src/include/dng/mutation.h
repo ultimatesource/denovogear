@@ -20,7 +20,6 @@
 #ifndef DNG_MUTATION_H
 #define DNG_MUTATION_H
 
-
 #include <cmath>
 #include <cassert>
 #include <array>
@@ -44,16 +43,15 @@ using MutationMatrix = TransitionMatrix;
 
 namespace Mk {
     // The Mk model of Lewis 2001 and Tuffley and Steel 1997
-    // beta = k*a*t and u = (k-1)*a*t
-    // num_mutants measures the effective number of alternative alleles (entropy-based)
-    //
+    // k measures the effective number of alternative alleles (entropy-based)
+
+    // Transition matrix
     inline
-    MutationMatrix matrix(int n, double u, double num_alleles) {
+    MutationMatrix matrix(int n, double u, double k) {
         assert(n > 0);
         assert(u >= 0.0);
-        assert(num_alleles >= 1.0);
+        assert(k >= 2.0);
         MutationMatrix ret{n,n};
-        double k = num_alleles;
         double beta = k*u/(k-1.0);
         double p_ji = -1.0/k*expm1(-beta);
         double p_jj = exp(-beta) + p_ji;
@@ -65,6 +63,50 @@ namespace Mk {
         }
         return ret;
     }
+
+    // Transition matrix based on fixed number of events
+    inline
+    MutationMatrix event_matrix(int n, double u, double k, int x) {
+        assert(n > 0);
+        assert(u >= 0.0);
+        assert(k >= 2.0);
+        assert(x >= 0);
+        MutationMatrix ret{n,n};
+        
+        double p_x = exp(-u+x*log(u)-lgamma(x+1));
+
+        double p_ji = (1.0-pow(-1.0/(k-1.0),x))/k;
+        double p_jj = (1.0+(k-1.0)*pow(-1.0/(k-1.0),x))/k;
+
+        for(int i=0;i<n;++i) {
+            for(int j=0;j<n;++j) {
+                ret(j,i) = (i == j) ? p_x*p_jj : p_x*p_ji;
+            }
+        }
+        return ret;
+    }
+
+    // P(i->j)*E(number of events|i->j)
+    inline
+    MutationMatrix mean_matrix(int n, double u, double k) {
+        assert(n > 0);
+        assert(u >= 0.0);
+        assert(k >= 2.0);
+
+        MutationMatrix ret{n,n};
+
+        double beta = k*u/(k-1.0);
+        double p_jj = -u/k*expm1(-beta);
+        double p_ji = (u-p_jj)/(k-1.0);
+
+        for(int i=0;i<n;++i) {
+            for(int j=0;j<n;++j) {
+                ret(j,i) = (i == j) ? p_jj : p_ji;
+            }
+        }
+        return ret;
+    }
+
 } // namespace kalleles
 
 constexpr int MUTATIONS_ALL = -1;
