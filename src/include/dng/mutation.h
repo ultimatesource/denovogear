@@ -28,7 +28,7 @@
 #include <dng/genotyper.h>
 
 namespace dng {
-
+namespace mutation {
 /*
   C H I L D
 P
@@ -39,98 +39,193 @@ N
 T
 */
 
-using MutationMatrix = TransitionMatrix;
+using Matrix = TransitionMatrix;
 
-namespace Mk {
-    // The Mk model of Lewis 2001 and Tuffley and Steel 1997
-    // k measures the effective number of alternative alleles (entropy-based)
+/* A k-alleles model. See Lewis 2001 and Tuffley and Steel 1997.
+   k measures the effective number of alleles, i.e. k-1 is the
+   effective number of mutant alleles that can occur at a site.
+   This can be calculated from entropy of the mutant-allele spectrum.
+   k=5.0 seems to offer a good fit to human segregating variation taking
+   into account SNP spectra and indels. 
+ */
 
-    // Transition matrix
-    inline
-    MutationMatrix matrix(int n, double u, double k) {
-        assert(n > 0);
-        assert(u >= 0.0);
-        assert(k >= 2.0);
-        MutationMatrix ret{n,n};
-        double beta = k*u/(k-1.0);
-        double p_ji = -1.0/k*expm1(-beta);
-        double p_jj = exp(-beta) + p_ji;
-
-        for(int i=0;i<n;++i) {
-            for(int j=0;j<n;++j) {
-                ret(j,i) = (i == j) ? p_jj : p_ji;
-            }
-        }
-        return ret;
+class Model {
+public:
+    Model(double u, double k) : u_{u}, k_{k} {
+        assert(u_ >= 0.0);
+        assert(k_ >= 2.0); 
     }
 
-    // Transition matrix based on fixed number of events
-    inline
-    MutationMatrix event_matrix(int n, double u, double k, int x) {
-        assert(n > 0);
-        assert(u >= 0.0);
-        assert(k >= 2.0);
-        assert(x >= 0);
-        MutationMatrix ret{n,n};
-        
-        double p_x = exp(-u+x*log(u)-lgamma(x+1));
+    Matrix TransitionMatrix(int n);
+    Matrix EventTransitionMatrix(int n, int x);
+    Matrix MeanTransitionMatrix(int n);
 
-        double p_ji = (1.0-pow(-1.0/(k-1.0),x))/k;
-        double p_jj = (1.0+(k-1.0)*pow(-1.0/(k-1.0),x))/k;
+protected:
+    double u_;
+    double k_;
+};
 
-        for(int i=0;i<n;++i) {
-            for(int j=0;j<n;++j) {
-                ret(j,i) = (i == j) ? p_x*p_jj : p_x*p_ji;
-            }
+
+// ret(j,i) = P(i|j)
+inline
+Matrix Model::TransitionMatrix(int n) {
+    assert(n > 0);
+
+    Matrix ret{n,n};
+    double beta = u_*k_/(k_-1.0);
+    double p_ji = -1.0/k_*expm1(-beta);
+    double p_jj = exp(-beta) + p_ji;
+
+    for(int i=0;i<n;++i) {
+        for(int j=0;j<n;++j) {
+            ret(j,i) = (i == j) ? p_jj : p_ji;
         }
-        return ret;
     }
+    return ret;    
+}
 
-    // P(i->j)*E(number of events|i->j)
-    inline
-    MutationMatrix mean_matrix(int n, double u, double k) {
-        assert(n > 0);
-        assert(u >= 0.0);
-        assert(k >= 2.0);
+// ret(j,i) = P(i & x mutations | j)
+inline
+Matrix Model::EventTransitionMatrix(int n, int x) {
+    assert(n > 0);
+    assert(x >= 0);
+    Matrix ret{n,n};
+    
+    double p_x = exp(-u_+x*log(u_)-lgamma(x+1));
 
-        MutationMatrix ret{n,n};
+    double p_ji = (1.0-pow(-1.0/(k_-1.0),x))/k_;
+    double p_jj = (1.0+(k_-1.0)*pow(-1.0/(k_-1.0),x))/k_;
 
-        double beta = k*u/(k-1.0);
-        double p_jj = -u/k*expm1(-beta);
-        double p_ji = (u-p_jj)/(k-1.0);
-
-        for(int i=0;i<n;++i) {
-            for(int j=0;j<n;++j) {
-                ret(j,i) = (i == j) ? p_jj : p_ji;
-            }
-        }
-        return ret;
-    }
-
-} // namespace kalleles
-
-constexpr int MUTATIONS_ALL = -1;
-constexpr int MUTATIONS_MEAN = -2;
-
-inline TransitionMatrix mitosis_haploid_matrix(const MutationMatrix &m, const int mutype = MUTATIONS_ALL) {
-    assert(m.cols() == m.rows() && m.cols() > 0);
-
-    const int num_alleles = m.cols();
-
-    TransitionMatrix ret{num_alleles, num_alleles};
-
-    for(int i = 0; i < num_alleles; ++i) { // loop over children
-        for(int j = 0; j < num_alleles; ++j) { // loop over parents
-            int u = (i != j);
-            if(mutype != MUTATIONS_MEAN) {
-                // Update as needed
-                u = (mutype == MUTATIONS_ALL || u == mutype) ? 1 : 0;
-            }
-            ret(j,i) = m(j,i)*u;
+    for(int i=0;i<n;++i) {
+        for(int j=0;j<n;++j) {
+            ret(j,i) = (i == j) ? p_x*p_jj : p_x*p_ji;
         }
     }
     return ret;
 }
+
+// ret(j,i) = E[num of mutations | i,j]*P(i|j)
+inline
+Matrix Model::MeanTransitionMatrix(int n) {
+    assert(n > 0);
+
+    Matrix ret{n,n};
+
+    double beta = k_*u_/(k_-1.0);
+    double p_jj = -u_/k_*expm1(-beta);
+    double p_ji = (u_-p_jj)/(k_-1.0);
+
+    for(int i=0;i<n;++i) {
+        for(int j=0;j<n;++j) {
+            ret(j,i) = (i == j) ? p_jj : p_ji;
+        }
+    }
+    return ret;
+}
+
+struct transition_t {};
+struct mean_t {};
+
+inline
+Matrix mitosis_haploid_matrix(int size, Model m, transition_t) {
+    return m.TransitionMatrix(size);
+}
+
+inline
+Matrix mitosis_haploid_matrix(int size, Model m, mean_t) {
+    return m.MeanTransitionMatrix(size);
+}
+
+inline
+Matrix mitosis_haploid_matrix(int size, Model m, int count) {
+    return m.EventTransitionMatrix(size, count);
+}
+
+inline
+Matrix mitosis_diploid_matrix(int size, Model m, transition_t) {
+    assert(size > 0);
+    const int num_alleles = size;
+    const int num_genotypes = num_alleles*(num_alleles+1)/2;
+    
+    Matrix ret{num_genotypes, num_genotypes};
+    auto mat = mitosis_haploid_matrix(num_genotypes, m, transition_t{});
+
+    for(int a=0,i=0; a<num_alleles; ++a) { // loop over all child genotypes 
+        for(int b=0; b<=a; ++b, ++i) { 
+            for(int x=0,j=0; x<num_alleles; ++x) { // loop over all parent genotypes
+                for(int y=0; y<=x; ++y,++j) {
+                    // x/y => a/b
+                    // combine the results from the two phases unless a == b
+                    ret(j,i) = mat(x,a)*mat(y,b) + mat(x,b)*mat(y,a)*((a!=b) ? 1 : 0);
+                }
+            }
+        }
+    }
+    return ret;
+}
+
+inline
+Matrix mitosis_diploid_matrix(int size, Model m, mean_t) {
+    assert(size > 0);
+    const int num_alleles = size;
+    const int num_genotypes = num_alleles*(num_alleles+1)/2;
+    
+    Matrix ret{num_genotypes, num_genotypes};
+    auto mat = mitosis_haploid_matrix(num_genotypes, m, transition_t{});
+    auto avg = mitosis_haploid_matrix(num_genotypes, m, mean_t{});
+
+    for(int a=0,i=0; a<num_alleles; ++a) { // loop over all child genotypes 
+        for(int b=0; b<=a; ++b, ++i) { 
+            for(int x=0,j=0; x<num_alleles; ++x) { // loop over all parent genotypes
+                for(int y=0; y<=x; ++y,++j) {
+                    // x/y => a/b
+                    // combine the results from the two phases unless a == b
+                    ret(j,i) = avg(x,a)*mat(y,b) + mat(x,a)*avg(y,b);
+                    if(a != b) {
+                        ret(j,i) += avg(x,b)*mat(y,a) + mat(x,b)*mat(y,a);
+                    }
+                }
+            }
+        }
+    }
+    return ret;
+}
+
+inline
+Matrix mitosis_diploid_matrix(int size, Model m, int count) {
+    assert(size > 0);
+    assert(size > 0);
+    const int num_alleles = size;
+    const int num_genotypes = num_alleles*(num_alleles+1)/2;
+    
+    Matrix ret{num_genotypes, num_genotypes};
+    ret.setZero();
+
+    auto mat = mitosis_haploid_matrix(num_genotypes, m, transition_t{});
+    for(int n=0; n<=count; ++n) {
+        auto evt1 = mitosis_haploid_matrix(size, m, n);
+        auto evt2 = mitosis_haploid_matrix(size, m, count-n);
+        
+        for(int a=0,i=0; a<num_alleles; ++a) { // loop over all child genotypes 
+            for(int b=0; b<=a; ++b, ++i) { 
+                for(int x=0,j=0; x<num_alleles; ++x) { // loop over all parent genotypes
+                    for(int y=0; y<=x; ++y,++j) {
+                        // x/y => a/b
+                        // combine the results from the two phases unless a == b
+                        ret(j,i) += evt1(x,a)*mat(y,b) + mat(x,a)*evt2(y,b);
+                        if(a != b) {
+                            ret(j,i) += evt1(x,b)*mat(y,a) + mat(x,b)*evt2(y,a);
+                        }
+                    }
+                }
+            }
+        }        
+    }
+    return ret;
+}
+
+
+} // mutation
 
 inline TransitionMatrix mitosis_diploid_matrix(const MutationMatrix &m, const int mutype = MUTATIONS_ALL) {
     assert(m.cols() == m.rows() && m.cols() > 0);
