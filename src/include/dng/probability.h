@@ -76,7 +76,8 @@ public:
 protected:
     using matrices_t = std::array<TransitionMatrixVector, MAXIMUM_NUMBER_ALLELES>;
 
-    matrices_t CreateMutationMatrices(const int mutype = MUTATIONS_ALL) const;
+    template<typename T>
+    matrices_t CreateMutationMatrices(T mutype) const;
 
     GenotypeArray DiploidPrior(int num_obs_alleles);
     GenotypeArray HaploidPrior(int num_obs_alleles);
@@ -181,11 +182,39 @@ double Probability::CalculateLLD(const A &depths, int num_obs_alleles)
     return (ln_monomorphic_ + work_.ln_scale)/M_LN10;
 }
 
-TransitionMatrixVector create_mutation_matrices(const RelationshipGraph &pedigree,
-        int num_alleles, double num_mutants, const int mutype = MUTATIONS_ALL);
-
+// Construct the mutation matrices for each transition
+template<typename T>
 inline
-Probability::matrices_t Probability::CreateMutationMatrices(const int mutype) const {
+TransitionMatrixVector create_mutation_matrices(const RelationshipGraph &graph,
+    int num_obs_alleles, double k_alleles, T mutype) {
+    TransitionMatrixVector matrices(graph.num_nodes());
+ 
+    for(size_t child = 0; child < graph.num_nodes(); ++child) {
+        auto trans = graph.transition(child);
+        if(trans.type == RelationshipGraph::TransitionType::Trio) {
+            assert(graph.ploidy(child) == 2);
+            auto dad = mutation::Model{trans.length1, k_alleles};
+            auto mom = mutation::Model{trans.length2, k_alleles};
+            matrices[child] = meiosis_matrix(num_obs_alleles, dad, mom, mutype,
+                graph.ploidy(trans.parent1), graph.ploidy(trans.parent2));
+        } else if(trans.type == RelationshipGraph::TransitionType::Pair) {
+            auto orig = mutation::Model(trans.length1, k_alleles);
+            if(graph.ploidy(child) == 1) {
+                matrices[child] = gamete_matrix(num_obs_alleles, orig, mutype, graph.ploidy(trans.parent1));
+            } else {
+                assert(graph.ploidy(child) == 2);
+                matrices[child] = mitosis_matrix(num_obs_alleles, orig, mutype, graph.ploidy(trans.parent1));
+            }
+        } else {
+            matrices[child] = {};
+        }
+    }
+    return matrices;
+}
+
+template<typename T>
+inline
+Probability::matrices_t Probability::CreateMutationMatrices(T mutype) const {
     // Construct the complete matrices
     matrices_t ret;
     for(int i=0;i<ret.size();++i) {
@@ -198,7 +227,7 @@ inline
 GenotypeArray Probability::DiploidPrior(int num_obs_alleles) {
     assert(num_obs_alleles >= 1);
     return (num_obs_alleles-1 < diploid_prior_.size()) ? diploid_prior_[num_obs_alleles-1]
-        : population_prior_diploid(num_obs_alleles, params_.theta, params_.ref_bias_hom,
+        : mutation::population_prior_diploid(num_obs_alleles, params_.theta, params_.ref_bias_hom,
             params_.ref_bias_het, params_.k_alleles);
 }
 
@@ -206,7 +235,7 @@ inline
 GenotypeArray Probability::HaploidPrior(int num_obs_alleles) {
     assert(num_obs_alleles >= 1);
     return (num_obs_alleles < haploid_prior_.size()) ? haploid_prior_[num_obs_alleles-1]
-        : population_prior_haploid(num_obs_alleles, params_.theta, params_.ref_bias_hap, params_.k_alleles);
+        : mutation::population_prior_haploid(num_obs_alleles, params_.theta, params_.ref_bias_hap, params_.k_alleles);
 }
 
 template<typename A>

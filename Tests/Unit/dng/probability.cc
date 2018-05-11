@@ -58,6 +58,7 @@ namespace dng {
 using u = dng::unittest_dng_log_probability;
 
 using namespace dng;
+using namespace dng::mutation;
 using namespace dng::detail;
 using Sex = dng::Pedigree::Sex;
 
@@ -228,12 +229,12 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
         BOOST_REQUIRE_EQUAL(dad_lower.size(), gt_sz);
         BOOST_REQUIRE_EQUAL(eve_lower.size(), gt_sz);
 
-        const auto m_sl = Mk::matrix(hap_sz, mu_s+mu_l, g_params.k_alleles);
-        const auto m_gsl = Mk::matrix(hap_sz, mu_g+mu_s+mu_l, g_params.k_alleles);
+        const auto m_sl = Model{mu_s+mu_l, g_params.k_alleles};
+        const auto m_gsl = Model{mu_g+mu_s+mu_l, g_params.k_alleles};
 
-        const auto m_eve = meiosis_matrix(2, m_gsl, 2, m_gsl);
-        const auto m_dad = mitosis_matrix(2, m_sl);
-        const auto m_mom = mitosis_matrix(2, m_sl);
+        const auto m_eve = meiosis_matrix(hap_sz, m_gsl, m_gsl, transition_t{}, 2, 2);
+        const auto m_dad = mitosis_matrix(hap_sz, m_sl, transition_t{}, 2);
+        const auto m_mom = mitosis_matrix(hap_sz, m_sl, transition_t{}, 2);
 
         double lld = 0.0;
         for(int dad_g=0,par=0;dad_g<gt_sz;++dad_g) {
@@ -359,12 +360,12 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_xlinked) {
         BOOST_REQUIRE_EQUAL(dad_lower.size(), hap_sz);
         BOOST_REQUIRE_EQUAL(eve_lower.size(), gt_sz);
 
-        const auto m_sl = Mk::matrix(hap_sz, mu_s+mu_l, g_params.k_alleles);
-        const auto m_gsl = Mk::matrix(hap_sz, mu_g+mu_s+mu_l, g_params.k_alleles);
+        const auto m_sl = Model{mu_s+mu_l, g_params.k_alleles};
+        const auto m_gsl = Model{mu_g+mu_s+mu_l, g_params.k_alleles};
 
-        const auto m_eve = meiosis_matrix(1, m_gsl, 2, m_gsl);
-        const auto m_dad = mitosis_matrix(1, m_sl);
-        const auto m_mom = mitosis_matrix(2, m_sl);
+        const auto m_eve = meiosis_matrix(hap_sz, m_gsl, m_gsl, transition_t{}, 1, 2);
+        const auto m_dad = mitosis_matrix(hap_sz, m_sl, transition_t{}, 1);
+        const auto m_mom = mitosis_matrix(hap_sz, m_sl, transition_t{}, 2);
 
         double lld = 0.0;
         for(int dad_g=0,par=0;dad_g<hap_sz;++dad_g) {

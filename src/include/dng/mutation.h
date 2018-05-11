@@ -91,7 +91,12 @@ Matrix Model::EventTransitionMatrix(int n, int x) {
     assert(x >= 0);
     Matrix ret{n,n};
     
-    double p_x = exp(-u_+x*log(u_)-lgamma(x+1));
+    double p_x;
+    if(u_ == 0.0) {
+        p_x = (x==0) ? 1.0 : 0.0;
+    } else {
+        p_x = exp(-u_+x*log(u_)-lgamma(x+1));
+    }
 
     double p_ji = (1.0-pow(-1.0/(k_-1.0),x))/k_;
     double p_jj = (1.0+(k_-1.0)*pow(-1.0/(k_-1.0),x))/k_;
@@ -141,26 +146,61 @@ Matrix mitosis_haploid_matrix(int size, Model m, int count) {
     return m.EventTransitionMatrix(size, count);
 }
 
+namespace detail {
 inline
-Matrix mitosis_diploid_matrix(int size, Model m, transition_t) {
-    assert(size > 0);
-    const int num_alleles = size;
-    const int num_genotypes = num_alleles*(num_alleles+1)/2;
-    
-    Matrix ret{num_genotypes, num_genotypes};
-    auto mat = mitosis_haploid_matrix(num_genotypes, m, transition_t{});
+void mitosis_diploid_matrix_op(const Matrix& matA, const Matrix& matB, Matrix *p) {
+    assert(matA.cols() == matA.rows() && matA.cols() > 0);
+    assert(matB.cols() == matB.rows() && matB.cols() > 0);
+    assert(matA.cols() == matB.cols());
 
-    for(int a=0,i=0; a<num_alleles; ++a) { // loop over all child genotypes 
+    const int num_alleles = matB.cols();
+    const int num_genotypes = num_alleles*(num_alleles+1)/2;
+    assert(p != nullptr && p->cols() == p->rows() && p->cols() == num_genotypes);
+
+    for(int a=0,i=0; a< num_alleles; ++a) { // loop over all child genotypes 
         for(int b=0; b<=a; ++b, ++i) { 
             for(int x=0,j=0; x<num_alleles; ++x) { // loop over all parent genotypes
                 for(int y=0; y<=x; ++y,++j) {
                     // x/y => a/b
                     // combine the results from the two phases unless a == b
-                    ret(j,i) = mat(x,a)*mat(y,b) + mat(x,b)*mat(y,a)*((a!=b) ? 1 : 0);
+                    (*p)(j,i) += matA(x,a) * matB(y,b);
+                    if(a != b) {
+                        (*p)(j,i) += matA(x,b) * matB(y,a);
+                    }
                 }
             }
         }
     }
+}
+
+} // namespace detail
+
+inline
+Matrix mitosis_diploid_matrix(int size, Model m, transition_t) {
+    assert(size > 0);
+    const int num_genotypes = size*(size+1)/2;
+    
+    Matrix ret = Matrix::Zero(num_genotypes, num_genotypes);
+
+    auto mat = mitosis_haploid_matrix(size, m, transition_t{});
+    detail::mitosis_diploid_matrix_op(mat,mat,&ret);
+
+    return ret;
+}
+
+inline
+Matrix mitosis_diploid_matrix(int size, Model m, int count) {
+    assert(size > 0);
+    const int num_genotypes = size*(size+1)/2;
+
+    Matrix ret = Matrix::Zero(num_genotypes, num_genotypes);
+    
+    for(int n=0; n<=count; ++n) {
+        auto mat1 = mitosis_haploid_matrix(size, m, n);
+        auto mat2 = mitosis_haploid_matrix(size, m, count-n);
+        detail::mitosis_diploid_matrix_op(mat1,mat2,&ret);
+    }
+
     return ret;
 }
 
@@ -170,196 +210,168 @@ Matrix mitosis_diploid_matrix(int size, Model m, mean_t) {
     const int num_alleles = size;
     const int num_genotypes = num_alleles*(num_alleles+1)/2;
     
-    Matrix ret{num_genotypes, num_genotypes};
-    auto mat = mitosis_haploid_matrix(num_genotypes, m, transition_t{});
-    auto avg = mitosis_haploid_matrix(num_genotypes, m, mean_t{});
+    Matrix ret = Matrix::Zero(num_genotypes, num_genotypes);
 
-    for(int a=0,i=0; a<num_alleles; ++a) { // loop over all child genotypes 
-        for(int b=0; b<=a; ++b, ++i) { 
-            for(int x=0,j=0; x<num_alleles; ++x) { // loop over all parent genotypes
-                for(int y=0; y<=x; ++y,++j) {
-                    // x/y => a/b
-                    // combine the results from the two phases unless a == b
-                    ret(j,i) = avg(x,a)*mat(y,b) + mat(x,a)*avg(y,b);
-                    if(a != b) {
-                        ret(j,i) += avg(x,b)*mat(y,a) + mat(x,b)*mat(y,a);
-                    }
-                }
-            }
-        }
-    }
+    auto mat = mitosis_haploid_matrix(size, m, transition_t{});
+    auto avg = mitosis_haploid_matrix(size, m, mean_t{});
+
+    detail::mitosis_diploid_matrix_op(mat, avg, &ret);
+    detail::mitosis_diploid_matrix_op(avg, mat, &ret);
+
     return ret;
 }
 
+namespace detail {
 inline
-Matrix mitosis_diploid_matrix(int size, Model m, int count) {
-    assert(size > 0);
-    assert(size > 0);
-    const int num_alleles = size;
+void meiosis_haploid_matrix_op(const Matrix& matA, Matrix *p) {
+    assert(matA.cols() == matA.rows() && matA.cols() > 0);
+
+    const int num_alleles = matA.cols();
     const int num_genotypes = num_alleles*(num_alleles+1)/2;
-    
-    Matrix ret{num_genotypes, num_genotypes};
-    ret.setZero();
-
-    auto mat = mitosis_haploid_matrix(num_genotypes, m, transition_t{});
-    for(int n=0; n<=count; ++n) {
-        auto evt1 = mitosis_haploid_matrix(size, m, n);
-        auto evt2 = mitosis_haploid_matrix(size, m, count-n);
-        
-        for(int a=0,i=0; a<num_alleles; ++a) { // loop over all child genotypes 
-            for(int b=0; b<=a; ++b, ++i) { 
-                for(int x=0,j=0; x<num_alleles; ++x) { // loop over all parent genotypes
-                    for(int y=0; y<=x; ++y,++j) {
-                        // x/y => a/b
-                        // combine the results from the two phases unless a == b
-                        ret(j,i) += evt1(x,a)*mat(y,b) + mat(x,a)*evt2(y,b);
-                        if(a != b) {
-                            ret(j,i) += evt1(x,b)*mat(y,a) + mat(x,b)*evt2(y,a);
-                        }
-                    }
-                }
-            }
-        }        
-    }
-    return ret;
-}
-
-
-} // mutation
-
-inline TransitionMatrix mitosis_diploid_matrix(const MutationMatrix &m, const int mutype = MUTATIONS_ALL) {
-    assert(m.cols() == m.rows() && m.cols() > 0);
-    
-    const int num_alleles = m.cols();
-    const int num_genotypes = num_alleles*(num_alleles+1)/2;
-
-    TransitionMatrix ret{num_genotypes,num_genotypes};
-
-    for(int a=0,i=0; a<num_alleles; ++a) { // loop over all child genotypes 
-        for(int b=0; b<=a; ++b, ++i) { 
-            for(int x=0,j=0; x<num_alleles; ++x) { // loop over all parent genotypes
-                for(int y=0; y<=x; ++y,++j) {
-                    // x/y => a/b
-                    int u = (x != a) + (y != b); // number of mutations for phase 1
-                    int v = (x != b) + (y != a); // number of mutations for phase 2
-                    if(mutype != MUTATIONS_MEAN) {
-                        // Update u and v as needed
-                        u = (mutype == MUTATIONS_ALL || u == mutype) ? 1 : 0;
-                        v = (mutype == MUTATIONS_ALL || v == mutype) ? 1 : 0;
-                    }
-                    // combine the results from the two phases unless a == b
-                    ret(j,i) = m(x,a)*m(y,b)*u + m(x,b)*m(y,a)*((a!=b) ? v : 0);
-                }
-            }
-        }
-    }
-    return ret;
-}
-
-inline TransitionMatrix meiosis_haploid_matrix(const MutationMatrix &m, int mutype = MUTATIONS_ALL) {
-    assert(m.cols() == m.rows() && m.cols() > 0);
-    
-    const int num_alleles = m.cols();
-    const int num_genotypes = num_alleles*(num_alleles+1)/2;
-
-    TransitionMatrix ret{num_genotypes, num_alleles};
+    assert(p != nullptr && p->cols() == num_alleles && p->rows() == num_genotypes);
 
     for(int i=0; i<num_alleles; ++i) { // loop over all child haplotypes
         for(int x=0,j=0; x<num_alleles; ++x) { // loop over all parent genotypes
             for(int y=0; y<=x; ++y,++j) {
-                // x/y => i
-                int u = (i != x); // number of mutations from chrom 1
-                int v = (i != y); // number of mutations from chrom 2
-                if(mutype != MUTATIONS_MEAN) {
-                    // Update u and v as needed
-                    u = (mutype == MUTATIONS_ALL || u == mutype) ? 1 : 0;
-                    v = (mutype == MUTATIONS_ALL || v == mutype) ? 1 : 0;
-                }
-                ret(j,i) = 0.5*(m(x,i)*u + m(y,i)*v);
+                (*p)(j,i) += 0.5*(matA(x,i)+matA(y,i));
             }
         }
     }
+}
+} // namespace detail
+
+template<typename T>
+inline
+Matrix meiosis_haploid_matrix(int size, Model m, T arg) {
+    assert(size > 0);
+    const int num_genotypes = size*(size+1)/2;
+    
+    Matrix ret = Matrix::Zero(num_genotypes, size);
+
+    auto mat = mitosis_haploid_matrix(size, m, arg);
+    detail::meiosis_haploid_matrix_op(mat, &ret);
+
     return ret;
 }
 
-inline TransitionMatrix mitosis_matrix(const int parent_ploidy, const MutationMatrix &m, const int mutype = MUTATIONS_ALL) {
+template<typename T>
+inline
+Matrix mitosis_matrix(int size, Model m, T arg, int parent_ploidy) {
     assert(parent_ploidy == 1 || parent_ploidy == 2);
-    return (parent_ploidy == 1) ? mitosis_haploid_matrix(m, mutype) : mitosis_diploid_matrix(m,mutype);    
+    if(parent_ploidy == 1) {
+        return mitosis_haploid_matrix(size, m, arg);
+    }
+    return mitosis_diploid_matrix(size, m, arg);    
 }
 
-inline TransitionMatrix gamete_matrix(const int parent_ploidy, const MutationMatrix &m, const int mutype = MUTATIONS_ALL) {
+template<typename T>
+inline
+Matrix gamete_matrix(int size, Model m, T arg, int parent_ploidy) {
     assert(parent_ploidy == 1 || parent_ploidy == 2);
-    return (parent_ploidy == 1) ? mitosis_haploid_matrix(m, mutype) : meiosis_haploid_matrix(m,mutype);
+    if(parent_ploidy == 1) {
+        return mitosis_haploid_matrix(size, m, arg);
+    }
+    return meiosis_haploid_matrix(size, m, arg);
 }
 
-inline int number_of_parent_genotypes(const int num_alleles, const int ploidy) {
+inline
+int number_of_parent_genotypes(const int num_alleles, const int ploidy) {
     assert(ploidy == 1 || ploidy == 2);
     return ((ploidy == 1) ? num_alleles : num_alleles*(num_alleles+1)/2);
 }
 
-inline int number_of_parent_genotype_pairs(const int num_alleles, const int dad_ploidy, const int mom_ploidy) {
+inline
+int number_of_parent_genotype_pairs(const int num_alleles, const int dad_ploidy, const int mom_ploidy) {
     return number_of_parent_genotypes(num_alleles, dad_ploidy)
         * number_of_parent_genotypes(num_alleles, mom_ploidy);
 }
 
-inline TransitionMatrix meiosis_matrix(const int dad_ploidy, const MutationMatrix &dad_m,
-    const int mom_ploidy, const MutationMatrix &mom_m, const int mutype = MUTATIONS_ALL) {
-    assert(dad_ploidy == 1 || dad_ploidy == 2);
-    assert(mom_ploidy == 1 || mom_ploidy == 2);
-    assert(dad_m.cols() == dad_m.rows() && dad_m.cols() > 0);
-    assert(mom_m.cols() == mom_m.rows() && mom_m.cols() > 0);
-    assert(mom_m.cols() == dad_m.cols());
-    assert(mutype >= 0 || mutype == MUTATIONS_ALL || mutype == MUTATIONS_MEAN);
+namespace detail {
+inline
+void meiosis_matrix_op(const Matrix& matA, const Matrix& matB, Matrix *p) {
+    assert(matA.cols() == matB.cols());
 
-    const int num_alleles = dad_m.cols();
+    const int num_alleles = matA.cols();
     const int num_genotypes = num_alleles*(num_alleles+1)/2;
+    assert(p != nullptr);
+    assert(p->cols() == num_genotypes);
+    assert(p->rows() == matA.rows()*matB.rows() );
 
-    // Construct Mutation Process
-    TransitionMatrix temp{number_of_parent_genotype_pairs(num_alleles,
-            dad_ploidy, mom_ploidy), num_alleles*num_alleles};
-    if(mutype == MUTATIONS_ALL) {
-        TransitionMatrix dad = gamete_matrix(dad_ploidy, dad_m, MUTATIONS_ALL);
-        TransitionMatrix mom = gamete_matrix(mom_ploidy, mom_m, MUTATIONS_ALL);
-        temp = kroneckerProduct(dad, mom);
-    } else if(mutype == MUTATIONS_MEAN) {
-        TransitionMatrix dad = gamete_matrix(dad_ploidy, dad_m, MUTATIONS_ALL);
-        TransitionMatrix dad_mean = gamete_matrix(dad_ploidy, dad_m, MUTATIONS_MEAN);
-        TransitionMatrix mom = gamete_matrix(mom_ploidy, mom_m, MUTATIONS_ALL);
-        TransitionMatrix mom_mean = gamete_matrix(mom_ploidy, mom_m, MUTATIONS_MEAN);
-        temp = kroneckerProduct(dad,mom_mean)+kroneckerProduct(dad_mean,mom);
-    } else {
-        temp.setZero();
-        for(int i = 0; i <= mutype; ++i) {
-            TransitionMatrix dad = gamete_matrix(dad_ploidy, dad_m, i);
-            TransitionMatrix mom = gamete_matrix(mom_ploidy, mom_m, mutype - i);
-            temp += kroneckerProduct(dad, mom);
-        }
-    }
-
-    // Fold the rows
-    TransitionMatrix ret{temp.rows(), num_genotypes};
-    for(int a=0,i=0; a<num_alleles; ++a) { // loop over all child genotypes 
-        for(int b=0; b<=a; ++b, ++i) {
-            for(int j=0; j<temp.rows(); ++j) {
-                // fold the temp matrix
-                ret(j,i) = temp(j, a*num_alleles+b);
-                if(b != a) {
-                    ret(j,i) += temp(j, b*num_alleles+a);
+    for(int a=0,i=0; a < matA.cols(); ++a) { // loop over all child genotypes 
+        for(int b=0; b <= a; ++b, ++i) {
+            for(int x=0,j=0; x < matA.rows(); ++x) { // loop over all parent genotypes
+                for(int y=0; y < matB.rows(); ++y,++j) {
+                    // fold the matrix
+                    (*p)(j,i) += matA(x,a) * matB(y,b);
+                    if(b != a) {
+                        (*p)(j,i) += matA(x,b) * matB(y,a);
+                    }
                 }
             }
         }
     }
+}
+} // detail
+
+inline
+Matrix meiosis_matrix(int size, Model dad_m, Model mom_m, transition_t, int dad_ploidy, int mom_ploidy) {
+    assert(dad_ploidy == 1 || dad_ploidy == 2);
+    assert(mom_ploidy == 1 || mom_ploidy == 2);
+
+    const int num_alleles = size;
+    const int num_genotypes = num_alleles*(num_alleles+1)/2;
+
+    // Construct Mutation Process
+    Matrix ret = Matrix::Zero(number_of_parent_genotype_pairs(num_alleles,
+            dad_ploidy, mom_ploidy), num_genotypes);
+    auto dad = gamete_matrix(size, dad_m, transition_t{}, dad_ploidy);
+    auto mom = gamete_matrix(size, mom_m, transition_t{}, mom_ploidy);
+
+    detail::meiosis_matrix_op(dad,mom,&ret);
     return ret;
 }
 
-inline TransitionMatrix meiosis_diploid_mean_matrix(const MutationMatrix &mdad,
-        const MutationMatrix &mmom) {
-    return meiosis_matrix(2,mdad,2,mmom, MUTATIONS_MEAN);
+inline
+Matrix meiosis_matrix(int size, Model dad_m, Model mom_m, mean_t, int dad_ploidy, int mom_ploidy) {
+    assert(dad_ploidy == 1 || dad_ploidy == 2);
+    assert(mom_ploidy == 1 || mom_ploidy == 2);
+
+    const int num_alleles = size;
+    const int num_genotypes = num_alleles*(num_alleles+1)/2;
+
+    // Construct Mutation Process
+    Matrix ret = Matrix::Zero(number_of_parent_genotype_pairs(num_alleles,
+            dad_ploidy, mom_ploidy), num_genotypes);
+
+    auto dad = gamete_matrix(size, dad_m, transition_t{}, dad_ploidy);
+    auto dad_mean = gamete_matrix(size, dad_m, mean_t{}, dad_ploidy);
+    auto mom = gamete_matrix(size, mom_m, transition_t{}, mom_ploidy);
+    auto mom_mean = gamete_matrix(size, mom_m, mean_t{}, mom_ploidy);
+
+    detail::meiosis_matrix_op(dad,mom_mean,&ret);
+    detail::meiosis_matrix_op(dad_mean,mom,&ret);    
+    return ret;
 }
 
-inline TransitionMatrix meiosis_diploid_matrix(const MutationMatrix &mdad,
-        const MutationMatrix &mmom, int mutype = MUTATIONS_ALL) {    
-    return meiosis_matrix(2,mdad,2,mmom,mutype);
+inline
+Matrix meiosis_matrix(int size, Model dad_m, Model mom_m, int count, int dad_ploidy, int mom_ploidy) {
+    assert(dad_ploidy == 1 || dad_ploidy == 2);
+    assert(mom_ploidy == 1 || mom_ploidy == 2);
+
+    const int num_alleles = size;
+    const int num_genotypes = num_alleles*(num_alleles+1)/2;
+
+    // Construct Mutation Process
+    Matrix ret = Matrix::Zero(number_of_parent_genotype_pairs(num_alleles,
+            dad_ploidy, mom_ploidy), num_genotypes);
+
+   for(int n=0; n<=count; ++n) {
+        auto dad = gamete_matrix(size, dad_m, n, dad_ploidy);
+        auto mom = gamete_matrix(size, mom_m, count-n, mom_ploidy);
+     
+        detail::meiosis_matrix_op(dad,mom,&ret);
+    }
+    return ret;
 }
 
 // k-alleles model from Watterson and Guess (1977) https://doi.org/10.1016/0040-5809(77)90023-5
@@ -435,6 +447,8 @@ inline bool population_prior_check(double theta, double hom_bias, double het_bia
     }
     return true;
 }
+
+} // namespace mutation
 
 } // namespace dng
 

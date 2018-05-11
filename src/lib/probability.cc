@@ -34,22 +34,22 @@ Probability::Probability(RelationshipGraph graph, params_t params) :
 {
     using namespace dng;
 
-    population_prior_check(params_.theta, params_.ref_bias_hom, params_.ref_bias_het,
+    mutation::population_prior_check(params_.theta, params_.ref_bias_hom, params_.ref_bias_het,
         params_.ref_bias_hap, params_.k_alleles);
 
     // Create cache of population priors
     for(int i=0;i<diploid_prior_.size();++i) {
-        diploid_prior_[i] = population_prior_diploid(i+1, params_.theta,
+        diploid_prior_[i] = mutation::population_prior_diploid(i+1, params_.theta,
             params_.ref_bias_hom, params_.ref_bias_het, params_.k_alleles);
     }
 
     for(int i=0;i<haploid_prior_.size();++i) {
-        haploid_prior_[i] = population_prior_haploid(i+1, params_.theta,
+        haploid_prior_[i] = mutation::population_prior_haploid(i+1, params_.theta,
             params_.ref_bias_hap, params_.k_alleles);
     }
 
     // Calculate mutation matrices
-    transition_matrices_ = CreateMutationMatrices(MUTATIONS_ALL);
+    transition_matrices_ = CreateMutationMatrices(mutation::transition_t{});
 
     // Precalculate monomorphic histories
     size_t num_libraries = work_.library_nodes.second - work_.library_nodes.first;
@@ -59,30 +59,3 @@ Probability::Probability(RelationshipGraph graph, params_t params) :
     ln_monomorphic_ = graph_.PeelForwards(work_, transition_matrices_[0]);
 }
 
-// Construct the mutation matrices for each transition
-TransitionMatrixVector dng::create_mutation_matrices(const RelationshipGraph &graph,
-    int num_obs_alleles, double k_alleles, const int mutype) {
-    TransitionMatrixVector matrices(graph.num_nodes());
- 
-    for(size_t child = 0; child < graph.num_nodes(); ++child) {
-        auto trans = graph.transition(child);
-        if(trans.type == RelationshipGraph::TransitionType::Trio) {
-            assert(graph.ploidy(child) == 2);
-            auto dad = Mk::matrix(num_obs_alleles, trans.length1, k_alleles);
-            auto mom = Mk::matrix(num_obs_alleles, trans.length2, k_alleles);
-            matrices[child] = meiosis_matrix(graph.ploidy(trans.parent1),
-                dad, graph.ploidy(trans.parent2), mom, mutype);
-        } else if(trans.type == RelationshipGraph::TransitionType::Pair) {
-            auto orig = Mk::matrix(num_obs_alleles, trans.length1, k_alleles);
-            if(graph.ploidy(child) == 1) {
-                matrices[child] = gamete_matrix(graph.ploidy(trans.parent1), orig, mutype);
-            } else {
-                assert(graph.ploidy(child) == 2);
-                matrices[child] = mitosis_matrix(graph.ploidy(trans.parent1), orig, mutype);
-            }
-        } else {
-            matrices[child] = {};
-        }
-    }
-    return matrices;
-}

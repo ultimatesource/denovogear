@@ -43,7 +43,7 @@ CallMutations::CallMutations(const RelationshipGraph &graph, params_t params)
     // Create Special Transition Matrices
     zero_mutation_matrices_ = CreateMutationMatrices(0);
     one_mutation_matrices_ = CreateMutationMatrices(1);
-    mean_mutation_matrices_ = CreateMutationMatrices(MUTATIONS_MEAN);
+    mean_mutation_matrices_ = CreateMutationMatrices(mutation::mean_t{});
 
     for(size_t j=0; j < oneplus_mutation_matrices_.size(); ++j) {
         oneplus_mutation_matrices_[j] = container_subtract(transition_matrices_[j],
