@@ -5,8 +5,8 @@ set(BasicTest-CMD @DNG_LOGLIKE_EXE@ -p ped/trio.ped bcftools/trio.mpileup.vcf)
 set(BasicTest-WD "@TESTDATA_DIR@/human_trio")
 set(BasicTest-Result 0)
 set(BasicTest-STDOUT
-  "^log_likelihood\t-56\\.518529010091257\r?\n"
-  "\r?\nlog_hidden\t-8\\.9534123177854497\r?\n"
+  "^log_likelihood\t-56\\.518392752796991\r?\n"
+  "\r?\nlog_hidden\t-8\\.9532760604911843\r?\n"
   "\r?\nlog_observed\t-47\\.565116692305807\r?\n$"
 )
 

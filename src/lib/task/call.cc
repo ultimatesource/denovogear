@@ -447,7 +447,7 @@ int process_bcf(task::Call::argument_type &arg) {
 
         pileup::allele_depths_ref_t read_depths(ad.get(), make_array(num_libs,n_sz));
 
-        model.SetupWorkspace(read_depths, n_sz, dng::genotype::Mode::LogLikelihood);
+        model.SetupWorkspace(read_depths, n_alleles, dng::genotype::Mode::LogLikelihood);
         if(!model.CalculateMutationStats(dng::genotype::Mode::LogLikelihood, &stats)) {
             return;
         }
@@ -651,7 +651,8 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
     // Output statistics that are only informative if there is a signal of 1 mutation.
     record->update_info("DENOVO",call_stats.denovo);
     record->update_info("DNP", static_cast<float>(call_stats.dnp));
-    bool has_single_mut = call_stats.dnp >= call_stats.dnp_min;
+
+    bool has_single_mut = (call_stats.dnp >= call_stats.dnp_min && call_stats.dnp_min > 0.0);
     if(has_single_mut) {
         std::string dnt;
         size_t pos = call_stats.dnl;

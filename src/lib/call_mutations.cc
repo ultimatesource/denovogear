@@ -127,7 +127,7 @@ bool CallMutations::CalculateMutationStats(genotype::Mode mode, stats_t *stats) 
     // skip peeling forward again
     CalculateSingleMutationStats(false, stats);
 
-    stats->denovo = (mutq >= min_quality_);
+    stats->denovo = (mutq >= min_quality_ && min_quality_ > 0);
 
     graph_.PeelForwards(work_, transition_matrices_[matrix_index]);
     graph_.PeelBackwards(work_, transition_matrices_[matrix_index]);

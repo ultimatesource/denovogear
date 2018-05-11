@@ -2,26 +2,27 @@ set(Trio-CMD @DNG_CALL_EXE@ -p ped/trio.ped tad/trio.tad)
 set(Trio-WD "@TESTDATA_DIR@/human_trio")
 set(Trio-RESULT 0)
 set(Trio-STDOUT
-  "\r?\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tGL/NA12892\tGL/NA12891\tLB/NA12891/Solexa-135851\tLB/NA12878/Solexa-135852\tLB/NA12892/Solexa-135853\r?\n"
-  "\r?\n5\t126385924\t\\.\tG\tT\t"
-  "\r?\n5\t126385924\t.*\tGT:GQ:GP:MUP:MU1P:PL:DP:AD\t"
-  "\r?\n5\t126385924\t.*\tMUP=1\;"
-  "\r?\n5\t126385924\t.*\;LLD=-24\\.7648\;"
-  "\r?\n5\t126385924\t.*\;LLS=4\\.42715\;"
-  "\r?\n5\t126385924\t.*\;MUX=1\;"
-  "\r?\n5\t126385924\t.*\;MU1P=1\;"
-  "\r?\n5\t126385924\t.*\;LLD1=-16\\.4637\;"
-  "\r?\n5\t126385924\t.*\;LLS1=12\\.7282\;"
-  "\r?\n5\t126385924\t.*\;DNT=G/GxG/G->G/T\;"
-  "\r?\n5\t126385924\t.*\;DNL=LB/NA12878/Solexa-135852\;"
-  "\r?\n5\t126385924\t.*\;DNQ=255\;"
-  "\r?\n5\t126385924\t.*\;DP=148\;"
-  "\r?\n5\t126385924\t.*\;AD=123,25\t"
-  "\r?\n5\t126385924\t.*\t0/0:84:1,4\\.3291e-09,0:0:0:\\.,\\.,\\.:\\.:\\.,\\.\t"
-  "\r?\n5\t126385924\t.*\t0/0:104:1,4\\.07225e-11,0:0:0:\\.,\\.,\\.:\\.:\\.,\\.\t"
-  "\r?\n5\t126385924\t.*\t0/0:104:1,4\\.07225e-11,0:0:0:0,148,1024:50:50,0\t"
-  "\r?\n5\t126385924\t.*\t0/1:255:1\\.04014e-36,1,5\\.48748e-42:1:1:443,0,324:42:18,24\t"
-  "\r?\n5\t126385924\t.*\t0/0:84:1,4\\.3291e-09,0:0:0:0,128,1066:56:55,1\r?\n"
+ "\r?\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tGL/NA12892\tGL/NA12891\tLB/NA12891/Solexa-135851\tLB/NA12878/Solexa-135852\tLB/NA12892/Solexa-135853\r?\n"
+  "\r?\n5\t126385924\t\\.\tG\tT\t359.829\tPASS\t"
+  "\r?\n5\t126385924\t[^\r\n]*\tGT:GQ:GP:MUTP:DNP:PL:DP:AD\t"
+  "\r?\n5\t126385924\t[^\r\n]*\tMUTQ=83\\.5959\;"
+  "\r?\n5\t126385924\t[^\r\n]*\;MUTX=1\;"
+  "\r?\n5\t126385924\t[^\r\n]*\;LLD=-24\\.7648\;"
+  "\r?\n5\t126385924\t[^\r\n]*\;LLS=4\\.42715\;"
+  "\r?\n5\t126385924\t[^\r\n]*\;LLH=-8\\.30233\;"
+  "\r?\n5\t126385924\t[^\r\n]*\;DENOVO\;"
+  "\r?\n5\t126385924\t[^\r\n]*\;DNP=1\;"
+  "\r?\n5\t126385924\t[^\r\n]*\;DNQ=255\;"
+  "\r?\n5\t126385924\t[^\r\n]*\;DNT=G/GxG/G->G/T\;"
+  "\r?\n5\t126385924\t[^\r\n]*\;DNL=LB/NA12878/Solexa-135852\;"
+  "\r?\n5\t126385924\t[^\r\n]*\;GERMLINE\;SOMATIC\;LIBRARY\;"
+  "\r?\n5\t126385924\t[^\r\n]*\;DP=148\;"
+  "\r?\n5\t126385924\t[^\r\n]*\;AD=123,25\t"
+  "\r?\n5\t126385924\t[^\r\n]*\t0/0:84:1,4\\.32856e-09,0:0:0:\\.,\\.,\\.:\\.:\\.,\\.\t"
+  "\r?\n5\t126385924\t[^\r\n]*\t0/0:104:1,4\\.07174e-11,0:0:0:\\.,\\.,\\.:\\.:\\.,\\.\t"
+  "\r?\n5\t126385924\t[^\r\n]*\t0/0:104:1,4\\.07174e-11,0:0:0:0,148,1024:50:50,0\t"
+  "\r?\n5\t126385924\t[^\r\n]*\t0/1:255:1\\.04014e-36,1,5\\.48748e-42:1:1:443,0,324:42:18,24\t"
+  "\r?\n5\t126385924\t[^\r\n]*\t0/0:84:1,4\\.32856e-09,0:0:0:0,128,1066:56:55,1\r?\n"
   "\r?\n#CHROM[^\r\n]*\r?\n[^\r\n]*\r?\n$"
 )
 
@@ -37,7 +38,7 @@ set(PartialPed-CMD @DNG_CALL_EXE@ --ped ped/duo.ped tad/trio.tad)
 set(PartialPed-WD "@TESTDATA_DIR@/human_trio/")
 set(PartialPed-RESULT 0)
 set(PartialPed-STDOUT
-  "##PEDIGREE=<ID=LB/NA12878/Solexa-135852,Original=GL/1,OriginalMR=0.0>"
+  ""##PEDIGREE=<Derived=LB/NA12878/Solexa-135852,Original=GL/1,OriginalMR=0\\.0,Ploidy=2,Germline=1,Somatic=1,Library=1>""
 )
 
 ###############################################################################
