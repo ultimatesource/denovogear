@@ -825,6 +825,10 @@ bool Variant::TrimAlleles(double af_min) {
             kbs_insert(rm_set.get(), a);
         }
     }
+    if(hts::version() < 100400) {
+        bcf_remove_allele_set(header(), base(), rm_set.get());
+        return true;
+    }
     int ret = bcf_remove_allele_set(header(), base(), rm_set.get());
     return (ret >= 0) ? true : false;
 }
