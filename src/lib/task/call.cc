@@ -670,7 +670,7 @@ void add_stats_to_output(const CallMutations::stats_t& call_stats, const pileup:
             size_t mom_gt = call_stats.dnt_row % width;
 
             append_genotype(*record, dad_gt, dad_ploidy, &dnt);
-            dnt += "x";
+            dnt += "*";
             append_genotype(*record, mom_gt, mom_ploidy, &dnt);
             dnt += "->";
             append_genotype(*record, call_stats.dnt_col, work.ploidies[pos], &dnt);

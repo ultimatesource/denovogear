@@ -13,7 +13,7 @@ set(Trio-STDOUT
   "\r?\n5\t126385924\t[^\r\n]*\;DENOVO\;"
   "\r?\n5\t126385924\t[^\r\n]*\;DNP=1\;"
   "\r?\n5\t126385924\t[^\r\n]*\;DNQ=255\;"
-  "\r?\n5\t126385924\t[^\r\n]*\;DNT=G/GxG/G->G/T\;"
+  "\r?\n5\t126385924\t[^\r\n]*\;DNT=G/G\\*G/G->G/T\;"
   "\r?\n5\t126385924\t[^\r\n]*\;DNL=LB/NA12878/Solexa-135852\;"
   "\r?\n5\t126385924\t[^\r\n]*\;GERMLINE\;SOMATIC\;LIBRARY\;"
   "\r?\n5\t126385924\t[^\r\n]*\;DP=148\;"
