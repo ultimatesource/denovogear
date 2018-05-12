@@ -18,4 +18,3 @@
  */
 
 #include <dng/mutation.h>
-

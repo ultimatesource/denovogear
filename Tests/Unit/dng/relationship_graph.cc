@@ -1191,8 +1191,10 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Peel) {
         BOOST_REQUIRE_NO_THROW(graph.Construct(twofam_ped, twofam_libs,
             InheritanceModel::Autosomal, g, s, l, true));
 
-        auto da = Mk::matrix(4, 1e-6, log(4));
-        auto ma = Mk::matrix(4, 0.7e-6, log(4));
+        auto dmod = mutation::Model{1e-6, 4};
+        auto mmod = mutation::Model{0.7e-6, 4};
+        auto da = dmod.TransitionMatrix(4);
+        auto ma = mmod.TransitionMatrix(4);
 
         auto work = graph.CreateWorkspace();
 
@@ -1220,12 +1222,12 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Peel) {
         }
         // Create transition matrices
         TransitionMatrixVector mats(8);
-        mats[3] = mitosis_matrix(2, da);
-        mats[4] = mitosis_matrix(2, ma);
-        mats[5] = meiosis_matrix(2,da,2,ma);
-        mats[6] = meiosis_matrix(2,da,2,ma);       
-        mats[3] = mitosis_matrix(2, da);
-        mats[7] = mitosis_matrix(2, da);
+        mats[3] = mutation::mitosis_matrix(4, dmod, mutation::transition_t{}, 2);
+        mats[4] = mutation::mitosis_matrix(4, mmod, mutation::transition_t{}, 2);
+        mats[5] = mutation::meiosis_matrix(4, dmod, mmod, mutation::transition_t{}, 2, 2);
+        mats[6] = mutation::meiosis_matrix(4, dmod, mmod, mutation::transition_t{}, 2, 2);
+        mats[3] = mutation::mitosis_matrix(4, dmod, mutation::transition_t{}, 2);
+        mats[7] = mutation::mitosis_matrix(4, dmod, mutation::transition_t{}, 2);
 
         double test_value = graph.PeelForwards(work, mats);
         // Family 1

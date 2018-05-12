@@ -5,8 +5,8 @@ set(BasicTest-CMD @DNG_LOGLIKE_EXE@ -p ped/trio.ped tad/trio.tad)
 set(BasicTest-WD "@TESTDATA_DIR@/human_trio")
 set(BasicTest-Result 0)
 set(BasicTest-STDOUT
-  "^log_likelihood\t-101\\.84920557795397\r?\n"
-  "\r?\nlog_hidden\t-8\\.9495780464168035\r?\n"
+  "^log_likelihood\t-101\\.84907055845781\r?\n"
+  "\r?\nlog_hidden\t-8\\.9494430269206475\r?\n"
   "\r?\nlog_observed\t-92\\.899627531537163\r?\n$"
 )
 
@@ -24,11 +24,7 @@ set(EmptyTad-STDERR
 set(Threads-CMD @DNG_LOGLIKE_EXE@  --threads=2 -p ped/trio.ped tad/trio.tad)
 set(Threads-WD "@TESTDATA_DIR@/human_trio")
 set(Threads-Result 0)
-set(Threads-STDOUT
-  "^log_likelihood\t-101\\.84920557795397\r?\n"
-  "\r?\nlog_hidden\t-8\\.9495780464168035\r?\n"
-  "\r?\nlog_observed\t-92\\.899627531537163\r?\n$"
-)
+set(Threads-STDOUT "${BasicTest-STDOUT}")
 
 ###############################################################################
 # Test if dng-loglike crashes on more than one input file

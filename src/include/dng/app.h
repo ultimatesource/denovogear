@@ -58,7 +58,6 @@ public:
     } arg;
 
     CommandLineApp(int argc, char *argv[]) : ext_desc_("Allowed Options")  {
-        using namespace std;
         using detail::add_app_args;
 
         boost::filesystem::path bin_path(argv[0]);
@@ -68,16 +67,16 @@ public:
         add_app_args(ext_desc_, static_cast<typename task_type::argument_type &>(arg));
 
         ext_desc_.add_options()
-        ("version", po::value<bool>(&arg.version)->default_value(false, "off"),
+        ("version", po::bool_switch(&arg.version),
          "display version information")
-        ("help", po::value<bool>(&arg.help)->default_value(false, "off"),
+        ("help", po::bool_switch(&arg.help),
          "display usage informaiton")
         ("arg-file", po::value<std::string>(&arg.arg_file)->default_value(""),
          "read command-line arguments from a file")
         ;
 
         int_desc_.add_options()
-        ("input", po::value< vector<string> >(&arg.input), "input files")
+        ("input", po::value<std::vector<std::string>>(&arg.input), "input files")
         ;
         int_desc_.add(ext_desc_);
         pos_desc_.add("input", -1);
@@ -88,7 +87,7 @@ public:
 
         if(!arg.arg_file.empty()) {
             if(arg.arg_file == "-") {
-                po::store(po::parse_config_file(cin, ext_desc_), vm_);
+                po::store(po::parse_config_file(std::cin, ext_desc_), vm_);
             } else {
                 std::ifstream ifs(arg.arg_file.c_str());
                 if(!ifs.is_open()) {
@@ -134,7 +133,7 @@ protected:
         }
 
         cerr << usage_name << " v" PACKAGE_VERSION << "\n";
-        cerr << "Copyright (c) 2014-2017\n";
+        cerr << "Copyright (c) 2014-2018\n";
         return EXIT_SUCCESS;
     }
 

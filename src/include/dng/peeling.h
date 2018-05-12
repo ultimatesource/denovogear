@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Reed A. Cartwright
+ * Copyright (c) 2015-2018 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -32,6 +32,8 @@
 #include <dng/genotyper.h>
 #include <dng/detail/unit_test.h>
 
+#include <boost/range/adaptor/sliced.hpp>
+
 namespace dng {
 namespace peel {
 
@@ -41,19 +43,46 @@ struct workspace_t {
     ParentArrayVector super; // Holds P(~Descendent_Data & G=g) for parent nodes
 
     bool dirty_lower = false;
-    double forward_result;
+    double ln_scale = 0.0;
+    size_t matrix_index = 0;
+
     // Temporary data used by some peeling ops
     TemporaryMatrix temp_buffer;
 
     // Information about the pedigree
     std::size_t num_nodes = 0;
-    typedef std::pair<std::size_t, std::size_t> node_range_t;
+    using node_range_t = std::pair<std::size_t, std::size_t>;
     node_range_t founder_nodes,
                  germline_nodes,
                  somatic_nodes,
                  library_nodes;
 
     std::vector<int> ploidies;
+
+    template<typename Rng>
+    static auto make_slice(Rng& rng, node_range_t n) -> boost::sliced_range<Rng> {
+        return boost::adaptors::slice(rng, n.first, n.second);
+    }
+
+    template<typename Rng>
+    auto make_founder_slice(Rng& rng) -> boost::sliced_range<Rng> {
+        return make_slice(rng, founder_nodes);
+    }
+
+    template<typename Rng>
+    auto make_germline_slice(Rng& rng) -> boost::sliced_range<Rng> {
+        return make_slice(rng, germline_nodes);
+    }
+
+    template<typename Rng>
+    auto make_somatic_slice(Rng& rng) -> boost::sliced_range<Rng> {
+        return make_slice(rng, somatic_nodes);
+    }
+
+    template<typename Rng>
+    auto make_library_slice(Rng& rng) -> boost::sliced_range<Rng> {
+        return make_slice(rng, library_nodes);
+    }
 
     // Resize the workspace to fit a pedigree with sz nodes
     void Resize(std::size_t sz) {
@@ -90,13 +119,12 @@ struct workspace_t {
         assert(founder_nodes.first <= founder_nodes.second);
         assert(founder_nodes.second <= germline_nodes.second);
 
-        // Set the Upper and Lowers of the Founder Nodes
+        // Set the Upper of the Founder Nodes
         for(auto i = founder_nodes.first; i < founder_nodes.second; ++i) {
             upper[i] = prior;
-            lower[i].setOnes(prior.size());
         }
-        // Also set the lowers of any germline node
-        for(auto i = founder_nodes.second; i < germline_nodes.second; ++i) {
+        // Set the lowers of any germline node
+        for(auto i = founder_nodes.first; i < germline_nodes.second; ++i) {
             lower[i].setOnes(prior.size());
         }
     }
@@ -105,19 +133,17 @@ struct workspace_t {
         assert(founder_nodes.first <= founder_nodes.second);
         assert(founder_nodes.second <= germline_nodes.second);
         
-        // Set the Upper and Lowers of the Founder Nodes
+        // Set the Upper of the Founder Nodes
         for(auto i = founder_nodes.first; i < founder_nodes.second; ++i) {
             assert(ploidies[i] == 2 || ploidies[i] == 1);
             if(ploidies[i] == 2) {
                 upper[i] = diploid_prior;
-                lower[i].setOnes(diploid_prior.size());
             } else {
                 upper[i] = haploid_prior;
-                lower[i].setOnes(haploid_prior.size());  
             }
         }
-        // Also set the lowers of any germline node
-        for(auto i = founder_nodes.second; i < germline_nodes.second; ++i) {
+        // Set the lowers of any germline node
+        for(auto i = founder_nodes.first; i < germline_nodes.second; ++i) {
             assert(ploidies[i] == 2 || ploidies[i] == 1);
              if(ploidies[i] == 2) {
                 lower[i].setOnes(diploid_prior.size());
@@ -128,44 +154,63 @@ struct workspace_t {
     }
 
     template<typename G, typename D, typename ...A>
-    double SetGenotypeLikelihoods(const G& gt, const D& d, A&&... args) {
-        double scale = 0.0, stemp;
+    void CalculateGenotypeLikelihoods(const G& gt, const D& d, A&&... args) {
+        ln_scale = 0.0;
         size_t u = 0;
         for(auto pos = library_nodes.first; pos < library_nodes.second; ++pos) {
-            std::tie(lower[pos], stemp) =
-                gt(d[u++], std::forward<A>(args)..., ploidies[pos]);
-            scale += stemp;
+            ln_scale += gt(d[u++], std::forward<A>(args)..., ploidies[pos], &lower[pos]);
         }
-        return scale;
+    }
+
+    void ExpGenotypeLikelihoods() {
+        for(auto pos = library_nodes.first; pos < library_nodes.second; ++pos) {
+            lower[pos] = lower[pos].exp();
+        }
+    }
+
+    void LogGenotypeLikelihoods() {
+        for(auto pos = library_nodes.first; pos < library_nodes.second; ++pos) {
+            lower[pos] = lower[pos].log();
+        }
     }
 
     // Set the genotype likelihoods into the lower values of the library_nodes.
     // Scales the genotype likelihoods as needed.
     // Input: log-likelihood values
     template<typename D>
-    double SetGenotypeLikelihoods(const D& d) {
-        double scale = 0.0;
+    void SetGenotypeLikelihoods(const D& d) {
+        ln_scale = 0.0;
         size_t u = 0;
         for(auto pos = library_nodes.first; pos < library_nodes.second; ++pos,++u) {
             lower[pos].resize(d[u].size());
             boost::copy(d[u], lower[pos].data());
             double temp = lower[pos].maxCoeff();
             lower[pos] = (lower[pos]-temp).exp();
-            scale += temp;
+            ln_scale += temp;
         }
-        return scale;
     }    
 
     // Copy genotype likelihoods into the lower values of the library_nodes
     template<typename D>
-    double CopyGenotypeLikelihoods(const D& d) {
+    void CopyGenotypeLikelihoods(const D& d) {
+        ln_scale = 0.0;
         size_t u = 0;
         for(auto pos = library_nodes.first; pos < library_nodes.second; ++pos,++u) {
             lower[pos].resize(d[u].size());
             boost::copy(d[u], lower[pos].data());
         }
-        return 0.0;
-    }    
+    }
+
+    // Set all genotype likelihoods to 1
+    void ClearGenotypeLikelihoods(size_t num_of_obs_alleles) {
+        ln_scale = 0.0;
+        size_t hap_sz = num_of_obs_alleles;
+        size_t gt_sz = hap_sz*(hap_sz+1)/2;
+        for(auto pos = library_nodes.first; pos < library_nodes.second; ++pos) {
+            assert(ploidies[pos] == 1 || ploidies[pos] == 2);
+            lower[pos].setOnes( (ploidies[pos] == 2) ? gt_sz : hap_sz );
+        }
+    }   
 };
 
 typedef std::vector<std::size_t> family_members_t;

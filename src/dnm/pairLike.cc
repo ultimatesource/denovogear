@@ -135,77 +135,77 @@ void pair_like(pair_t &tumor, pair_t &normal, vector<vector<string> > &tgtPair,
             unsigned int nsamples = vcfout->samples().second;
             rec.target(ref_name);
             rec.position(coor);
-            rec.alleles(std::string(1, tumor.ref_base) + "," + alt);
+            rec.update_alleles(std::string(1, tumor.ref_base) + "," + alt);
             rec.quality(0);
-            rec.filter("PASS");
+            rec.update_filter("PASS");
 #ifndef NEWVCFOUT
             // Old vcf output format
-            rec.info("RD_NORMAL", normal.depth);
-            rec.info("MQ_NORMAL", normal.rms_mapQ);
+            rec.update_info("RD_NORMAL", normal.depth);
+            rec.update_info("MQ_NORMAL", normal.rms_mapQ);
 
             std::vector<std::string> null_configs(nsamples, hts::bcf::str_missing);
             null_configs[pair.tpos] = tgtPair[i][j];
-            rec.samples("NULL_CONFIG(normal/tumor)", null_configs);
+            rec.update_format("NULL_CONFIG(normal/tumor)", null_configs);
 
             std::vector<float> pair_null_codes(nsamples, hts::bcf::float_missing);
             pair_null_codes[pair.tpos] = lookupPair.snpcode(i, j);
-            rec.samples("pair_null_code", pair_null_codes);
+            rec.update_format("pair_null_code", pair_null_codes);
 
             std::vector<float> pair_denovo_codes(nsamples, hts::bcf::float_missing);
             pair_denovo_codes[pair.tpos] = lookupPair.snpcode(k, l);
-            rec.samples("pair_denovo_code", std::vector<float> {static_cast<float>(lookupPair.snpcode(k, l))});
+            rec.update_format("pair_denovo_code", std::vector<float> {static_cast<float>(lookupPair.snpcode(k, l))});
 
             std::vector<float> pp_nulls(nsamples, hts::bcf::float_missing);
             pp_nulls[pair.tpos] = pp_null;
-            rec.samples("PP_NULL", pp_nulls);
+            rec.update_format("PP_NULL", pp_nulls);
 
             std::vector<std::string> dnm_configs(nsamples, hts::bcf::str_missing);
             dnm_configs[pair.tpos] = tgtPair[k][l];
-            rec.samples("DNM_CONFIG(tumor/normal)", dnm_configs);
+            rec.update_format("DNM_CONFIG(tumor/normal)", dnm_configs);
 
             std::vector<float> pp_denovos(nsamples, hts::bcf::float_missing);
             pp_denovos[pair.tpos] = pp_denovo;
-            rec.samples("PP_DNM", pp_denovos);
+            rec.update_format("PP_DNM", pp_denovos);
 
             std::vector<int32_t> rds(nsamples, hts::bcf::int32_missing);
             rds[pair.tpos] = tumor.depth;
-            rec.samples("RD_T", rds);
+            rec.update_format("RD_T", rds);
 
             std::vector<int32_t> mqs(nsamples, hts::bcf::int32_missing);
             mqs[pair.tpos] = tumor.rms_mapQ;
-            rec.samples("MQ_T", mqs);
+            rec.update_format("MQ_T", mqs);
 
 
 #else
 
             // Newer, more accurate VCF output format
-            rec.info("pair_null_code", static_cast<float>(lookupPair.snpcode(i, j)));
-            rec.info("pair_denovo_code", static_cast<float>(lookupPair.snpcode(k, l)));
-            rec.info("PP_NULL", static_cast<float>(pp_null));
-            rec.info("PP_DNM", static_cast<float>(pp_denovo));
+            rec.update_info("pair_null_code", static_cast<float>(lookupPair.snpcode(i, j)));
+            rec.update_info("pair_denovo_code", static_cast<float>(lookupPair.snpcode(k, l)));
+            rec.update_info("PP_NULL", static_cast<float>(pp_null));
+            rec.update_info("PP_DNM", static_cast<float>(pp_denovo));
 
             std::vector<int32_t> rds(nsamples, hts::bcf::int32_missing);
             rds[pair.npos] = normal.depth;
             rds[pair.tpos] = tumor.depth;
-            rec.samples("RD", rds);
+            rec.update_format("RD", rds);
 
             std::vector<int32_t> mqs(nsamples, hts::bcf::int32_missing);
             mqs[pair.npos] = normal.rms_mapQ;
             mqs[pair.tpos] = tumor.rms_mapQ;
-            rec.samples("MQ", mqs);
+            rec.update_format("MQ", mqs);
 
             std::vector<std::string> configs;
             boost::split(configs, tgtPair[i][j], boost::is_any_of("/"));
             std::vector<std::string> null_configs(nsamples, hts::bcf::str_missing);
             null_configs[pair.npos] = configs[0];
             null_configs[pair.tpos] = configs[1];
-            rec.samples("NULL_CONFIG", null_configs);
+            rec.update_format("NULL_CONFIG", null_configs);
 
             boost::split(configs, tgtPair[k][l], boost::is_any_of("/"));
             std::vector<std::string> dnm_configs(nsamples, hts::bcf::str_missing);
             dnm_configs[pair.npos] = configs[0];
             dnm_configs[pair.tpos] = configs[1];
-            rec.samples("DNM_CONFIG", dnm_configs);
+            rec.update_format("DNM_CONFIG", dnm_configs);
 
 #endif
             vcfout->WriteRecord(rec);

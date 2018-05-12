@@ -30,14 +30,8 @@
 #include <boost/range/algorithm/copy.hpp>
 #include <iterator>
 
-namespace dng { namespace utility {
-    // pull in custom io operator for classes in this namespace
-    using dng::detail::io::operator<<;
-}}
-
 using namespace std;
 using namespace dng::utility;
-using namespace dng::detail::io;
 using dng::detail::make_test_range;
 
 BOOST_AUTO_TEST_CASE(test_locations) {

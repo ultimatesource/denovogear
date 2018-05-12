@@ -40,6 +40,7 @@
 
 using namespace dng;
 using namespace dng::peel;
+using namespace dng::mutation;
 using dng::detail::make_test_range;
 
 const int NUM_TEST = 25;
@@ -130,7 +131,8 @@ BOOST_AUTO_TEST_CASE(test_peel_up_fast) {
         BOOST_TEST_CONTEXT("ploidy0=" << ploidy0
                         << ", ploidy1=" << ploidy1
                         << ", test_num=" << test_num) {
-            auto m = Mk::matrix(4, 1e-6, log(4));
+            auto mod = Model{1e-6, 4};
+            auto m = mod.TransitionMatrix(4);
 
             // setup data
             std::vector<double> lower0(sz0), lower1(sz1),
@@ -139,9 +141,9 @@ BOOST_AUTO_TEST_CASE(test_peel_up_fast) {
             generate(lower1, [&](){ return xrand.get_double52(); });
             TransitionMatrixVector mats(2);
             if(ploidy0 == ploidy1) {
-                mats[1] = mitosis_matrix(ploidy0, m);
+                mats[1] = mitosis_matrix(4, mod, transition_t{}, ploidy0);
             } else {
-                mats[1] = gamete_matrix(ploidy0, m);
+                mats[1] = gamete_matrix(4, mod, transition_t{}, ploidy0);
             }
 
             // Calculated expected value
@@ -191,7 +193,8 @@ BOOST_AUTO_TEST_CASE(test_peel_up) {
         BOOST_TEST_CONTEXT("ploidy0=" << ploidy0
                         << ", ploidy1=" << ploidy1
                         << ", test_num=" << test_num) {
-            auto m = Mk::matrix(4, 1e-6, log(4));
+            auto mod = Model{1e-6, 4};
+            auto m = mod.TransitionMatrix(4);
 
             // setup data
             std::vector<double> lower0(sz0), lower1(sz1),
@@ -200,9 +203,9 @@ BOOST_AUTO_TEST_CASE(test_peel_up) {
             generate(lower1, [&](){ return xrand.get_double52(); });
             TransitionMatrixVector mats(2);
             if(ploidy0 == ploidy1) {
-                mats[1] = mitosis_matrix(ploidy0, m);
+                mats[1] = mitosis_matrix(4, mod, transition_t{}, ploidy0);
             } else {
-                mats[1] = gamete_matrix(ploidy0, m);
+                mats[1] = gamete_matrix(4, mod, transition_t{}, ploidy0);
             }
 
             // Calculated expected value
@@ -253,7 +256,8 @@ BOOST_AUTO_TEST_CASE(test_peel_down_fast) {
         BOOST_TEST_CONTEXT("ploidy0=" << ploidy0
                         << ", ploidy1=" << ploidy1
                         << ", test_num=" << test_num) {
-            auto m = Mk::matrix(4, 1e-6, log(4));
+            auto mod = Model{1e-6,4};
+             mod.TransitionMatrix(4);
 
             // setup data
             std::vector<double> upper0(sz0), upper1(sz1), expected_upper1(sz1);
@@ -261,9 +265,9 @@ BOOST_AUTO_TEST_CASE(test_peel_down_fast) {
             generate(upper1, [&](){ return xrand.get_double52(); });
             TransitionMatrixVector mats(2);
             if(ploidy0 == ploidy1) {
-                mats[1] = mitosis_matrix(ploidy0, m);
+                mats[1] = mitosis_matrix(4, mod, transition_t{}, ploidy0);
             } else {
-                mats[1] = gamete_matrix(ploidy0, m);
+                mats[1] = gamete_matrix(4, mod, transition_t{}, ploidy0);
             }
 
             // Calculated expected value
@@ -313,7 +317,8 @@ BOOST_AUTO_TEST_CASE(test_peel_down) {
         BOOST_TEST_CONTEXT("ploidy0=" << ploidy0
                         << ", ploidy1=" << ploidy1
                         << ", test_num=" << test_num) {
-            auto m = Mk::matrix(4, 1e-6, log(4));
+            auto mod = Model{1e-6,4};
+            auto m = mod.TransitionMatrix(4);
 
             // setup data
             std::vector<double> lower0(sz0), upper0(sz0), upper1(sz1), expected_upper1(sz1);
@@ -322,9 +327,9 @@ BOOST_AUTO_TEST_CASE(test_peel_down) {
             generate(upper1, [&](){ return xrand.get_double52(); });
             TransitionMatrixVector mats(2);
             if(ploidy0 == ploidy1) {
-                mats[1] = mitosis_matrix(ploidy0, m);
+                mats[1] = mitosis_matrix(4, mod, transition_t{}, ploidy0);
             } else {
-                mats[1] = gamete_matrix(ploidy0, m);
+                mats[1] = gamete_matrix(4, mod, transition_t{}, ploidy0);
             }
 
             // Calculated expected value
@@ -383,8 +388,10 @@ BOOST_AUTO_TEST_CASE(test_peel_tofather_fast) {
         BOOST_TEST_CONTEXT("ploidy0=" << ploidy0
                         << ", ploidy1=" << ploidy1
                         << ", test_num=" << test_num) {
-            auto da = Mk::matrix(4, 1e-6, log(4));
-            auto ma = Mk::matrix(4, 0.7e-6, log(4));
+            auto dmod = Model{1e-6, 4};
+            auto mmod = Model{0.7e-6, 4};
+            auto da = dmod.TransitionMatrix(4);
+            auto ma = mmod.TransitionMatrix(4);
 
             // setup data
             std::vector<double> lower0(sz0), lower1(sz1), lower2(sz2), lower3(sz3), 
@@ -395,8 +402,8 @@ BOOST_AUTO_TEST_CASE(test_peel_tofather_fast) {
             generate(lower3, [&](){ return xrand.get_double52(); });
             generate(upper1, [&](){ return xrand.get_double52(); });
             TransitionMatrixVector mats(4);
-            mats[2] = meiosis_matrix(ploidy0,da,ploidy1,ma);
-            mats[3] = meiosis_matrix(ploidy0,da,ploidy1,ma);
+            mats[2] = meiosis_matrix(4,dmod,mmod,transition_t{},ploidy0,ploidy1);
+            mats[3] = meiosis_matrix(4,dmod,mmod,transition_t{},ploidy0,ploidy1);
 
             // Calculated expected value
             for(int i=0;i<sz0;++i) {
@@ -476,9 +483,10 @@ BOOST_AUTO_TEST_CASE(test_peel_tofather) {
         BOOST_TEST_CONTEXT("ploidy0=" << ploidy0
                         << ", ploidy1=" << ploidy1
                         << ", test_num=" << test_num) {
-            auto da = Mk::matrix(4, 1e-6, log(4));
-            auto ma = Mk::matrix(4, 0.7e-6, log(4));
-
+            auto dmod = Model{1e-6, 4};
+            auto mmod = Model{0.7e-6, 4};
+            auto da = dmod.TransitionMatrix(4);
+            auto ma = mmod.TransitionMatrix(4);
             // setup data
             std::vector<double> lower0(sz0), lower1(sz1), lower2(sz2), lower3(sz3), 
                     upper1(sz1), expected_lower0(sz0);
@@ -488,8 +496,8 @@ BOOST_AUTO_TEST_CASE(test_peel_tofather) {
             generate(lower3, [&](){ return xrand.get_double52(); });
             generate(upper1, [&](){ return xrand.get_double52(); });
             TransitionMatrixVector mats(4);
-            mats[2] = meiosis_matrix(ploidy0,da,ploidy1,ma);
-            mats[3] = meiosis_matrix(ploidy0,da,ploidy1,ma);
+            mats[2] = meiosis_matrix(4,dmod,mmod,transition_t{},ploidy0,ploidy1);
+            mats[3] = meiosis_matrix(4,dmod,mmod,transition_t{},ploidy0,ploidy1);
 
             // Calculated expected value
             for(int i=0;i<sz0;++i) {
@@ -571,8 +579,10 @@ BOOST_AUTO_TEST_CASE(test_peel_tomother_fast) {
         BOOST_TEST_CONTEXT("ploidy0=" << ploidy0
                         << ", ploidy1=" << ploidy1
                         << ", test_num=" << test_num) {
-            auto da = Mk::matrix(4, 1e-6, log(4));
-            auto ma = Mk::matrix(4, 0.7e-6, log(4));
+            auto dmod = Model{1e-6, 4};
+            auto mmod = Model{0.7e-6, 4};
+            auto da = dmod.TransitionMatrix(4);
+            auto ma = mmod.TransitionMatrix(4);
 
             // setup data
             std::vector<double> lower0(sz0), lower1(sz1), lower2(sz2), lower3(sz3), 
@@ -583,8 +593,8 @@ BOOST_AUTO_TEST_CASE(test_peel_tomother_fast) {
             generate(lower3, [&](){ return xrand.get_double52(); });
             generate(upper0, [&](){ return xrand.get_double52(); });
             TransitionMatrixVector mats(4);
-            mats[2] = meiosis_matrix(ploidy0,da,ploidy1,ma);
-            mats[3] = meiosis_matrix(ploidy0,da,ploidy1,ma);
+            mats[2] = meiosis_matrix(4,dmod,mmod,transition_t{},ploidy0,ploidy1);
+            mats[3] = meiosis_matrix(4,dmod,mmod,transition_t{},ploidy0,ploidy1);
 
             // Calculated expected value
             for(int i=0;i<sz1;++i) {
@@ -664,8 +674,10 @@ BOOST_AUTO_TEST_CASE(test_peel_tomother) {
         BOOST_TEST_CONTEXT("ploidy0=" << ploidy0
                         << ", ploidy1=" << ploidy1
                         << ", test_num=" << test_num) {
-            auto da = Mk::matrix(4, 1e-6, log(4));
-            auto ma = Mk::matrix(4, 0.7e-6, log(4));
+            auto dmod = Model{1e-6, 4};
+            auto mmod = Model{0.7e-6, 4};
+            auto da = dmod.TransitionMatrix(4);
+            auto ma = mmod.TransitionMatrix(4);
 
             // setup data
             std::vector<double> lower0(sz0), lower1(sz1), lower2(sz2), lower3(sz3),
@@ -676,8 +688,8 @@ BOOST_AUTO_TEST_CASE(test_peel_tomother) {
             generate(lower3, [&](){ return xrand.get_double52(); });
             generate(upper0, [&](){ return xrand.get_double52(); });
             TransitionMatrixVector mats(4);
-            mats[2] = meiosis_matrix(ploidy0,da,ploidy1,ma);
-            mats[3] = meiosis_matrix(ploidy0,da,ploidy1,ma);
+            mats[2] = meiosis_matrix(4,dmod,mmod,transition_t{},ploidy0,ploidy1);
+            mats[3] = meiosis_matrix(4,dmod,mmod,transition_t{},ploidy0,ploidy1);
 
             // Calculated expected value
             for(int i=0;i<sz1;++i) {
@@ -757,8 +769,10 @@ BOOST_AUTO_TEST_CASE(test_peel_tochild_fast) {
         BOOST_TEST_CONTEXT("ploidy0=" << ploidy0
                         << ", ploidy1=" << ploidy1
                         << ", test_num=" << test_num) {
-            auto da = Mk::matrix(4, 1e-6, log(4));
-            auto ma = Mk::matrix(4, 0.7e-6, log(4));
+            auto dmod = Model{1e-6, 4};
+            auto mmod = Model{0.7e-6, 4};
+            auto da = dmod.TransitionMatrix(4);
+            auto ma = mmod.TransitionMatrix(4);
 
             // setup data
             std::vector<double> lower0(sz0), lower1(sz1), lower2(sz2), 
@@ -771,7 +785,7 @@ BOOST_AUTO_TEST_CASE(test_peel_tochild_fast) {
             generate(upper1, [&](){ return xrand.get_double52(); });
             generate(upper2, [&](){ return xrand.get_double52(); });
             TransitionMatrixVector mats(3);
-            mats[2] = meiosis_matrix(ploidy0,da,ploidy1,ma);
+            mats[2] = meiosis_matrix(4,dmod,mmod,transition_t{},ploidy0,ploidy1);
 
             // Calculated expected value
             for(int k=0;k<sz2;++k) {
@@ -849,9 +863,10 @@ BOOST_AUTO_TEST_CASE(test_peel_tochild) {
         BOOST_TEST_CONTEXT("ploidy0=" << ploidy0
                         << ", ploidy1=" << ploidy1
                         << ", test_num=" << test_num) {
-            auto da = Mk::matrix(4, 1e-6, log(4));
-            auto ma = Mk::matrix(4, 0.7e-6, log(4));
-
+            auto dmod = Model{1e-6, 4};
+            auto mmod = Model{0.7e-6, 4};
+            auto da = dmod.TransitionMatrix(4);
+            auto ma = mmod.TransitionMatrix(4);
             // setup data
             std::vector<double> lower0(sz0), lower1(sz1), lower2(sz2), lower3(sz3), 
                                 upper0(sz0), upper1(sz1), upper2(sz2), upper3(sz3),
@@ -865,8 +880,8 @@ BOOST_AUTO_TEST_CASE(test_peel_tochild) {
             generate(upper2, [&](){ return xrand.get_double52(); });
             generate(upper3, [&](){ return xrand.get_double52(); });
             TransitionMatrixVector mats(4);
-            mats[2] = meiosis_matrix(ploidy0,da,ploidy1,ma);
-            mats[3] = meiosis_matrix(ploidy0,ma,ploidy1,da);
+            mats[2] = meiosis_matrix(4,dmod,mmod,transition_t{},ploidy0,ploidy1);
+            mats[3] = meiosis_matrix(4,dmod,mmod,transition_t{},ploidy0,ploidy1);
 
             // Calculated expected value
             for(int k=0;k<sz2;++k) {
@@ -953,7 +968,9 @@ BOOST_AUTO_TEST_CASE(test_peel_up_reverse) {
         BOOST_TEST_CONTEXT("ploidy0=" << ploidy0
                         << ", ploidy1=" << ploidy1
                         << ", test_num=" << test_num) {
-            auto m =  Mk::matrix(4, 1e-6, log(4));
+            auto mod = Model{1e-6,4};
+            auto m = mod.TransitionMatrix(4);
+
 
             // setup data
             std::vector<double> lower0(sz0), lower1(sz1), upper0(sz0),
@@ -964,9 +981,9 @@ BOOST_AUTO_TEST_CASE(test_peel_up_reverse) {
             generate(upper0, [&](){ return xrand.get_double52(); });
             TransitionMatrixVector mats(2);
             if(ploidy0 == ploidy1) {
-                mats[1] = mitosis_matrix(ploidy0, m);
+                mats[1] = mitosis_matrix(4, mod, transition_t{}, ploidy0);
             } else {
-                mats[1] = gamete_matrix(ploidy0, m);
+                mats[1] = gamete_matrix(4, mod, transition_t{}, ploidy0);
             }
 
             // Calculated expected value
@@ -1037,7 +1054,8 @@ BOOST_AUTO_TEST_CASE(test_peel_down_reverse) {
         BOOST_TEST_CONTEXT("ploidy0=" << ploidy0
                         << ", ploidy1=" << ploidy1
                         << ", test_num=" << test_num) {
-            auto m =  Mk::matrix(4, 1e-6, log(4));
+            auto mod = Model{1e-6,4};
+            auto m = mod.TransitionMatrix(4);
 
             // setup data
             std::vector<double> lower0(sz0), lower1(sz1), upper0(sz0),
@@ -1047,9 +1065,9 @@ BOOST_AUTO_TEST_CASE(test_peel_down_reverse) {
             generate(upper0, [&](){ return xrand.get_double52(); });
             TransitionMatrixVector mats(2);
             if(ploidy0 == ploidy1) {
-                mats[1] = mitosis_matrix(ploidy0, m);
+                mats[1] = mitosis_matrix(4, mod, transition_t{}, ploidy0);
             } else {
-                mats[1] = gamete_matrix(ploidy0, m);
+                mats[1] = gamete_matrix(4, mod, transition_t{}, ploidy0);
             }
 
             // Calculated expected value
@@ -1121,9 +1139,10 @@ BOOST_AUTO_TEST_CASE(test_peel_tofather_reverse) {
                         << ", ploidy2=" << ploidy2
                         << ", ploidy3=" << ploidy3
                         << ", test_num=" << test_num) {
-            auto da = Mk::matrix(4, 1e-6, log(4));
-            auto ma = Mk::matrix(4, 0.7e-6, log(4));
-
+            auto dmod = Model{1e-6, 4};
+            auto mmod = Model{0.7e-6, 4};
+            auto da = dmod.TransitionMatrix(4);
+            auto ma = mmod.TransitionMatrix(4);
             // setup data
             std::vector<double> lower0(sz0), lower1(sz1), lower2(sz2), lower3(sz3), 
                                 upper0(sz0), upper1(sz1),
@@ -1137,8 +1156,8 @@ BOOST_AUTO_TEST_CASE(test_peel_tofather_reverse) {
             generate(upper0, [&](){ return xrand.get_double52(); });
             generate(upper1, [&](){ return xrand.get_double52(); });
             TransitionMatrixVector mats(4);
-            mats[2] = meiosis_matrix(ploidy0,da,ploidy1,ma);
-            mats[3] = meiosis_matrix(ploidy0,ma,ploidy1,da);
+            mats[2] = meiosis_matrix(4,dmod,mmod,transition_t{},ploidy0,ploidy1);
+            mats[3] = meiosis_matrix(4,dmod,mmod,transition_t{},ploidy0,ploidy1);
 
             std::vector<double> p(sz0*sz1);
 
@@ -1292,8 +1311,10 @@ BOOST_AUTO_TEST_CASE(test_peel_tomother_reverse) {
                         << ", ploidy2=" << ploidy2
                         << ", ploidy3=" << ploidy3
                         << ", test_num=" << test_num) {
-            auto da = Mk::matrix(4, 1e-6, log(4));
-            auto ma = Mk::matrix(4, 0.7e-6, log(4));
+            auto dmod = Model{1e-6, 4};
+            auto mmod = Model{0.7e-6, 4};
+            auto da = dmod.TransitionMatrix(4);
+            auto ma = mmod.TransitionMatrix(4);
 
             // setup data
             std::vector<double> lower0(sz0), lower1(sz1), lower2(sz2), lower3(sz3), 
@@ -1308,8 +1329,8 @@ BOOST_AUTO_TEST_CASE(test_peel_tomother_reverse) {
             generate(upper0, [&](){ return xrand.get_double52(); });
             generate(upper1, [&](){ return xrand.get_double52(); });
             TransitionMatrixVector mats(4);
-            mats[2] = meiosis_matrix(ploidy0,da,ploidy1,ma);
-            mats[3] = meiosis_matrix(ploidy0,ma,ploidy1,da);
+            mats[2] = meiosis_matrix(4,dmod,mmod,transition_t{},ploidy0,ploidy1);
+            mats[3] = meiosis_matrix(4,dmod,mmod,transition_t{},ploidy0,ploidy1);
 
             std::vector<double> p(sz0*sz1);
 
@@ -1463,8 +1484,10 @@ BOOST_AUTO_TEST_CASE(test_peel_tochild_reverse) {
                         << ", ploidy2=" << ploidy2
                         << ", ploidy3=" << ploidy3
                         << ", test_num=" << test_num) {
-            auto da = Mk::matrix(4, 1e-6, log(4));
-            auto ma = Mk::matrix(4, 0.7e-6, log(4));
+            auto dmod = Model{1e-6, 4};
+            auto mmod = Model{0.7e-6, 4};
+            auto da = dmod.TransitionMatrix(4);
+            auto ma = mmod.TransitionMatrix(4);
 
             // setup data
             std::vector<double> lower0(sz0), lower1(sz1), lower2(sz2), lower3(sz3), 
@@ -1479,8 +1502,8 @@ BOOST_AUTO_TEST_CASE(test_peel_tochild_reverse) {
             generate(upper0, [&](){ return xrand.get_double52(); });
             generate(upper1, [&](){ return xrand.get_double52(); });
             TransitionMatrixVector mats(4);
-            mats[2] = meiosis_matrix(ploidy0,da,ploidy1,ma);
-            mats[3] = meiosis_matrix(ploidy0,ma,ploidy1,da);
+            mats[2] = meiosis_matrix(4,dmod,mmod,transition_t{},ploidy0,ploidy1);
+            mats[3] = meiosis_matrix(4,dmod,mmod,transition_t{},ploidy0,ploidy1);
 
             std::vector<double> p(sz0*sz1);
 

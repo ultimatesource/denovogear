@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016 Steven H. Wu
- * Copyright (c) 2016,2017 Reed A. Cartwright
+ * Copyright (c) 2016-2018 Reed A. Cartwright
  * Authors:  Steven H. Wu <stevenwu@asu.edu>
  *           Reed A. Cartwright <reed@cartwrig.ht>
  *
@@ -37,58 +37,99 @@ V container_subtract(const V& a, const V& b) {
     return output;
 }
 
-CallMutations::CallMutations(double min_prob, const RelationshipGraph &graph, params_t params)
-        : LogProbability(graph, params), min_prob_{min_prob} {
+CallMutations::CallMutations(const RelationshipGraph &graph, params_t params)
+        : Probability(graph, params) {
 
     // Create Special Transition Matrices
     zero_mutation_matrices_ = CreateMutationMatrices(0);
     one_mutation_matrices_ = CreateMutationMatrices(1);
-    mean_mutation_matrices_ = CreateMutationMatrices(MUTATIONS_MEAN);
+    mean_mutation_matrices_ = CreateMutationMatrices(mutation::mean_t{});
 
     for(size_t j=0; j < oneplus_mutation_matrices_.size(); ++j) {
         oneplus_mutation_matrices_[j] = container_subtract(transition_matrices_[j],
             zero_mutation_matrices_[j]);
     }
+
+    // Calculate P(one mutation) assuming no data and 2 obs alleles
+    work_.matrix_index = 1;
+    work_.ClearGenotypeLikelihoods(2);
+    work_.SetGermline(DiploidPrior(2), HaploidPrior(2));
+    one_mutation_prior_ = CalculateDNP().prob();
+
+    // Calculate prior non-ref allele freq
+    alt_freq_prior_ = HaploidPrior(2)(1);
+}
+
+Probability::logdiff_t CallMutations::CalculateMUTQ() {
+    const int matrix_index = work_.matrix_index;
+    // Now peel numerator
+    double numerator = graph_.PeelForwards(work_, zero_mutation_matrices_[matrix_index]);
+    // Calculate log P(Data ; model)
+    double denominator = graph_.PeelForwards(work_, transition_matrices_[matrix_index]);
+    
+    return {numerator, denominator};
+}
+
+Probability::logdiff_t CallMutations::CalculateDNP() {
+    const int matrix_index = work_.matrix_index;
+
+    double ln_all = graph_.PeelForwards(work_, transition_matrices_[matrix_index]);
+
+    double ln_zero = graph_.PeelForwards(work_, zero_mutation_matrices_[matrix_index]);
+    graph_.PeelBackwards(work_, zero_mutation_matrices_[matrix_index]);
+    double total = 0.0;
+    for (size_t i = work_.founder_nodes.second; i < work_.num_nodes; ++i) {
+        work_.temp_buffer = (work_.super[i].matrix() *
+                                work_.lower[i].matrix().transpose()).array() *
+                                one_mutation_matrices_[matrix_index][i].array();
+        total += work_.temp_buffer.sum();
+    }
+    // total = P(1 mutation & D)/P(0 mutations & D) due to backwards algorithm
+    ln_zero = ln_zero + log(total);
+    return {ln_zero, ln_all};
 }
 
 // Returns true if a mutation was found and the record was modified
-bool CallMutations::CalculateMUP(
-    const pileup::allele_depths_t &depths, int num_obs_alleles, bool has_ref, stats_t *stats)
-{
-    // calculate genotype likelihoods and store in the lower library vector
-    double scale = work_.SetGenotypeLikelihoods(genotyper_, depths, num_obs_alleles);
+bool CallMutations::CalculateMutationStats(genotype::Mode mode, stats_t *stats) {
+    const int matrix_index = work_.matrix_index;
 
-    // Set the prior probability of the founders given the reference
-    work_.SetGermline(DiploidPrior(num_obs_alleles, has_ref), HaploidPrior(num_obs_alleles, has_ref));
-
-    bool found = Calculate(stats, num_obs_alleles, has_ref);
-    if(found && stats != nullptr) {
-        stats->lld += scale/M_LN10;
+    // We can't find mutations or variants if we have
+    // no variation in the data
+    if(matrix_index == 0 && quality_threshold() > 0.0) {
+        return false;
     }
 
-    return found;
-}
-
-bool CallMutations::Calculate(stats_t *stats, int num_obs_alleles, bool has_ref) {
-    const int matrix_index = num_obs_alleles-1;
-
-    // Now peel numerator
-    double numerator = graph_.PeelForwards(work_, zero_mutation_matrices_[matrix_index]);
-
-    // Calculate log P(Data ; model)
-    double denominator = graph_.PeelForwards(work_, transition_matrices_[matrix_index]);
-
-    // Mutation Probability
-    double mup = -std::expm1(numerator - denominator);
-
-    if (mup < min_prob_) {
+    auto mono = CalculateMONO(mode);
+    double quality = mono.phred_score();
+    if(quality < min_quality_) {
         return false;
-    } else if(stats == nullptr) {
+    }
+    double ln_nomut = PeelNoMutations();
+
+    decltype(mono) nomut{ln_nomut, mono.right};
+    double mutq = nomut.phred_score();
+
+    if(!all_variants_ && mutq < min_quality_) {
+        return false;
+    }
+    if(stats == nullptr) {
         return true;
     }
-    stats->mup = mup;
-    stats->lld = denominator/M_LN10;
 
+    stats->mutq = mutq;
+    stats->lld = (mono.right + work_.ln_scale)/M_LN10;
+    stats->quality = quality;
+    stats->ln_mono = mono.left;
+    stats->ln_zero = nomut.left;
+    stats->ln_all  = nomut.right;
+
+    // Since we just called PeelNoMutations(), can call this and
+    // skip peeling forward again
+    CalculateSingleMutationStats(false, stats);
+
+    stats->denovo = (mutq >= min_quality_ && min_quality_ > 0);
+
+    graph_.PeelForwards(work_, transition_matrices_[matrix_index]);
     graph_.PeelBackwards(work_, transition_matrices_[matrix_index]);
 
     // Genotype Likelihoods for Libraries
@@ -96,7 +137,7 @@ bool CallMutations::Calculate(stats_t *stats, int num_obs_alleles, bool has_ref)
     stats->genotype_likelihoods.resize(num_libraries);
     for (size_t u = 0; u < num_libraries; ++u) {
         size_t pos = work_.library_nodes.first + u;
-        stats->genotype_likelihoods[u] = work_.lower[pos].log() / M_LN10;
+        stats->genotype_likelihoods[u] = work_.lower[pos];
     }
 
     // Posterior probabilities and best genotypes for all nodes
@@ -111,42 +152,57 @@ bool CallMutations::Calculate(stats_t *stats, int num_obs_alleles, bool has_ref)
         size_t pos;
         double d = stats->posterior_probabilities[i].maxCoeff(&pos);
         stats->best_genotypes[i] = pos;
-        stats->genotype_qualities[i] = dng::utility::lphred<int>(1.0 - d, 255);
+        stats->genotype_qualities[i] = dng::utility::lphred1m<int>(d, 255);
     }
 
     // Expected Number of Mutations
-    stats->mux = 0.0;
+    stats->mutx = 0.0;
     for(size_t i = work_.founder_nodes.second; i < work_.num_nodes; ++i) {
-        stats->mux += (work_.super[i] * (mean_mutation_matrices_[matrix_index][i] *
+        stats->mutx += (work_.super[i] * (mean_mutation_matrices_[matrix_index][i] *
                                       work_.lower[i].matrix()).array()).sum();
     }
 
     // Probability of at least 1 mutation at a node, given that there is at least 1 mutation in the graph
-    stats->node_mup.resize(work_.num_nodes);
+    stats->node_mutp.resize(work_.num_nodes);
     for(size_t i = work_.founder_nodes.first; i < work_.founder_nodes.second; ++i) {
-        stats->node_mup[i] = 0.0;
+        stats->node_mutp[i] = 0.0;
     }
+
+    double mutp = utility::unphred1m(mutq);
     for (size_t i = work_.founder_nodes.second; i < work_.num_nodes; ++i) {
-        stats->node_mup[i] = (work_.super[i] * (oneplus_mutation_matrices_[matrix_index][i] *
+        double temp = (work_.super[i] * (oneplus_mutation_matrices_[matrix_index][i] *
                                           work_.lower[i].matrix()).array()).sum();
-        stats->node_mup[i] /= mup;
+        stats->node_mutp[i] = temp/mutp;
     }
 
     // Probability of Exactly One Mutation
+    
+    return true;
+}
+
+// NOTE: if stats is not nullptr, this assumes that CalculateMUP has been run on it
+bool CallMutations::CalculateSingleMutationStats(bool peel_forward, stats_t *stats) {
+    // Probability of Exactly One Mutation
+    assert(stats != nullptr);
     // We will peel again, but this time with the zero matrix
-    graph_.PeelForwards(work_, zero_mutation_matrices_[matrix_index]);
+    const int matrix_index = work_.matrix_index;
+
+    double ln_zero;
+    if(peel_forward) {
+        ln_zero = graph_.PeelForwards(work_, zero_mutation_matrices_[matrix_index]);
+    } else {
+        ln_zero = stats->ln_zero;
+    }
     graph_.PeelBackwards(work_, zero_mutation_matrices_[matrix_index]);
 
     double total = 0.0, max_coeff = -1.0;
     size_t dn_row = 0, dn_col = 0, dn_location = 0;
 
-    stats->node_mu1p.resize(work_.num_nodes);
+    stats->node_dnp.resize(work_.num_nodes);
     for(size_t i = work_.founder_nodes.first; i < work_.founder_nodes.second; ++i) {
-        stats->node_mu1p[i] = 0.0;
+        stats->node_dnp[i] = 0.0;
     }
     for (size_t i = work_.founder_nodes.second; i < work_.num_nodes; ++i) {
-        work_.temp_buffer.resize(1,1);
-
         work_.temp_buffer = (work_.super[i].matrix() *
                                 work_.lower[i].matrix().transpose()).array() *
                                 one_mutation_matrices_[matrix_index][i].array();
@@ -159,18 +215,27 @@ bool CallMutations::Calculate(stats_t *stats, int num_obs_alleles, bool has_ref)
             dn_location = i;
         }
         temp = work_.temp_buffer.sum();
-        stats->node_mu1p[i] = temp;
+        stats->node_dnp[i] = temp;
         total += temp;
     }
     for (size_t i = work_.founder_nodes.second; i < work_.num_nodes; ++i) {
-        stats->node_mu1p[i] /= total;
+        stats->node_dnp[i] = stats->node_dnp[i]/total;
     }
-    // total = P(1 mutation | D)/P(0 mutations | D) due to backwards algorithm
-    stats->mu1p = total*exp(numerator-denominator);
+    // total = P(1 mutation & D)/P(0 mutations & D) due to backwards algorithm
+    // thus P(1 mutation | D) = total*P(0 mutations & D)/P(D)
 
-    stats->dnq = dng::utility::lphred<int>(1.0 - (max_coeff / total), 255);
+    stats->dnp = total*exp(stats->ln_zero - stats->ln_all);
+
+    // NOTE: if site doesn't have a known reference, this will be biased
+    // stats->lld1 = log10(total) + (stats->ln_zero+work_.ln_scale)/M_LN10 - log10_one_mutation_[matrix_index];
+
+    stats->dnq = dng::utility::lphred1m<int>(max_coeff/total, 255);
     stats->dnl = dn_location;
     stats->dnt_row = dn_row;
     stats->dnt_col = dn_col;
-    return true;
+
+    stats->dnp_min = one_mutation_prior_;
+    stats->af_min = alt_freq_prior_;
+
+    return (stats->dnp > one_mutation_prior_);
 }

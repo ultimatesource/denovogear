@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016 Steven H. Wu
- * Copyright (c) 2016-2017 Reed A. Cartwright
+ * Copyright (c) 2016-2018 Reed A. Cartwright
  * Authors:  Steven H. Wu <stevenwu@asu.edu>
  *           Reed A. Cartwright <reed@cartwrig.ht>
  *
@@ -30,53 +30,87 @@
 
 namespace dng {
 
-class CallMutations : public LogProbability {
+class CallMutations : public Probability {
 public:
+    CallMutations(const RelationshipGraph &graph, params_t params);
 
-    struct stats_t {
-        double mup;
-        double lld;
-        double mux;
+    struct stats_t;
 
-        double mu1p;
-        int dnt_row;
-        int dnt_col;
-        int dnl;
-        int dnq;
+    double PeelNoMutations();
 
-        //int color;
+    bool CalculateMutationStats(genotype::Mode mode, stats_t *stats);
+    bool CalculateSingleMutationStats(bool , stats_t *stats);
 
-        GenotypeArrayVector genotype_likelihoods;
+    logdiff_t CalculateMUTQ();
+    logdiff_t CalculateDNP();
 
-        GenotypeArrayVector posterior_probabilities;
-        std::vector<int> best_genotypes;
-        std::vector<int> genotype_qualities;
+    bool all_variants() const { return all_variants_; }
+    double quality_threshold() const { return min_quality_; }
 
-        std::vector<double> node_mup;
-        std::vector<double> node_mu1p;
-    };
-
-    CallMutations(double min_prob, const RelationshipGraph &graph,
-            params_t params);
-
-    bool CalculateMUP(const pileup::allele_depths_t &depths, int num_obs_alleles, bool has_ref, stats_t *stats);    
-
-    bool operator()(const pileup::allele_depths_t &depths, int num_obs_alleles, bool has_ref, stats_t *stats) {
-        return CalculateMUP(depths, num_obs_alleles, has_ref, stats);
+    void all_variants(bool all) { all_variants_ = all; }
+    void quality_threshold(double min_quality) { min_quality_ = min_quality; }
+    void quality_threshold(double min_quality, bool all ) {
+        min_quality_ = min_quality;
+        all_variants_ = all;
     }
 
 protected:
-    bool Calculate(stats_t *stats, int num_obs_alleles, bool has_ref);
 
-    double min_prob_;
+    double min_quality_{0};
+    bool all_variants_{false};
 
     matrices_t zero_mutation_matrices_;
     matrices_t one_mutation_matrices_;
     matrices_t oneplus_mutation_matrices_;
     matrices_t mean_mutation_matrices_;
 
+    double one_mutation_prior_;
+    double alt_freq_prior_; 
+
     DNG_UNIT_TEST_CLASS(unittest_dng_call_mutations);
 };
+
+struct CallMutations::stats_t {
+    double mutq;
+    double mutx;
+    double lld;
+
+    double dnp;
+    int dnt_row;
+    int dnt_col;
+    int dnl;
+    int dnq;
+
+    double quality;
+
+    bool denovo;
+    bool germline;
+    bool somatic;
+    bool library;
+
+    GenotypeArrayVector genotype_likelihoods;
+
+    GenotypeArrayVector posterior_probabilities;
+    std::vector<int> best_genotypes;
+    std::vector<int> genotype_qualities;
+
+    std::vector<double> node_mutp;
+    std::vector<double> node_dnp;
+
+    double ln_mono;
+    double ln_zero;
+    double ln_all;
+    
+    double dnp_min;
+    double af_min;
+};
+
+inline
+double CallMutations::PeelNoMutations() {
+    const int matrix_index = work_.matrix_index;
+    return graph_.PeelForwards(work_, zero_mutation_matrices_[matrix_index]);
+}
+
 } // namespace dng
 
 #endif /* DNG_FIND_MUTATIONS_H */

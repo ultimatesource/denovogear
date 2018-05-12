@@ -41,9 +41,9 @@ enum struct InheritanceModel {
     Autosomal,    // default option
     Maternal,     // transmitted by mother to child
     Paternal,     // transmitter by father to child
-    XLinked,     // females have 2 copies, males have 1; males transmit to daughters, not to sons
-    YLinked,     // males have 1 copy, only transmits it to sons
-    WLinked,     // females have 1 copy, only transmitted to daughters
+    XLinked,      // females have 2 copies, males have 1; males transmit to daughters, not to sons
+    YLinked,      // males have 1 copy, only transmits it to sons
+    WLinked,      // females have 1 copy, only transmitted to daughters
     ZLinked,      // males have 2 copies, females have 1; females transmit to sons, not to daughters
     Unknown
 };
@@ -56,17 +56,15 @@ class RelationshipGraph {
 public:
     template<typename T>
     using property_t = typename boost::property_map<detail::graph::Graph, T>::type;
+    using PropEdgeType = property_t<boost::edge_type_t>; 
+    using PropEdgeLength = property_t<boost::edge_length_t>;
+    using PropVertexLabel = property_t<boost::vertex_label_t>;
+    using PropVertexGroup = property_t<boost::vertex_group_t>;
+    using PropVertexIndex = property_t<boost::vertex_index_t>;
+    using PropVertexSex = property_t<boost::vertex_sex_t>;
+    using IndexMap = property_t<boost::vertex_index_t>;
 
-    typedef property_t<boost::edge_type_t> PropEdgeType;
-    typedef property_t<boost::edge_length_t> PropEdgeLength;
-    typedef property_t<boost::vertex_label_t> PropVertexLabel;
-
-    typedef property_t<boost::vertex_group_t> PropVertexGroup;
-    typedef property_t<boost::vertex_index_t> PropVertexIndex;
-    typedef property_t<boost::vertex_sex_t> PropVertexSex;
-    typedef property_t<boost::vertex_index_t> IndexMap;
-
-    typedef std::vector<std::vector<boost::graph_traits<detail::graph::Graph>::edge_descriptor>> family_labels_t;
+    using family_labels_t = std::vector<std::vector<boost::graph_traits<detail::graph::Graph>::edge_descriptor>>;
 
     enum struct TransitionType {
         Founder, Pair, Trio
@@ -78,6 +76,10 @@ public:
         std::size_t parent2;
         double length1;
         double length2;
+
+        bool is_germline;
+        bool is_somatic;
+        bool is_library;
     };
 
     bool Construct(const Pedigree& pedigree, const libraries_t& libs,
@@ -105,8 +107,7 @@ public:
         for(auto r : roots_) {
             ret += log((work.lower[r] * work.upper[r]).sum());
         }
-
-        work.forward_result = ret;
+        
         return ret;
     }
 
@@ -139,10 +140,6 @@ public:
 
         return work;
     }
-
-    void PrintMachine(std::ostream &os);
-    void PrintTable(std::ostream &os);
-    void PrintStates(std::ostream &os, double scale = 0.0);
 
     std::vector<std::string> BCFHeaderLines() const;
 
@@ -206,9 +203,6 @@ protected:
 
 private:
     void ClearFamilyInfo();
-
-    void PrintDebugEdges(const std::string &prefix,
-            const Graph &pedigree_graph);
 
     DNG_UNIT_TEST_CLASS(unittest_dng_relationship_graph);
 };

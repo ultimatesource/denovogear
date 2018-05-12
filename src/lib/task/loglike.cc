@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 Reed A. Cartwright
+ * Copyright (c) 2016-2018 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -72,9 +72,11 @@ using namespace dng::task;
 using utility::make_array;
 
 // Sub-tasks
+namespace {
 int process_bam(LogLike::argument_type &arg);
 int process_ad(LogLike::argument_type &arg);
 int process_bcf(LogLike::argument_type &arg);
+} // anon namespace
 
 // The main loop for dng-loglike application
 // argument_type arg holds the processed command line arguments
@@ -108,12 +110,14 @@ int task::LogLike::operator()(task::LogLike::argument_type &arg) {
     return EXIT_FAILURE;
 }
 
-void output_loglike_results(std::ostream &o, double hidden, double observed) {
+namespace {
+
+void output_loglike_results(std::ostream &o, double total, double observed) {
     // output results
     o << setprecision(std::numeric_limits<double>::max_digits10)
-         << "log_likelihood\t" << (hidden+observed) << "\n";
+         << "log_likelihood\t" << total << "\n";
     o << setprecision(std::numeric_limits<double>::max_digits10)
-         << "log_hidden\t" << hidden << "\n";
+         << "log_hidden\t" << (total-observed) << "\n";
     o << setprecision(std::numeric_limits<double>::max_digits10)
          << "log_observed\t" << observed << "\n";
 }
@@ -130,7 +134,7 @@ int process_bam(LogLike::argument_type &arg) {
 
     auto relationship_graph = create_relationship_graph(arg, &mpileup);
 
-    LogProbability do_loglike(relationship_graph, get_model_parameters(arg));
+    Probability model{relationship_graph, get_model_parameters(arg)};
 
     const size_t num_nodes = relationship_graph.num_nodes();
     const size_t library_start = relationship_graph.library_nodes().first;
@@ -165,12 +169,12 @@ int process_bam(LogLike::argument_type &arg) {
             return;
         }
 
-        auto loglike = do_loglike(read_depths, n_sz, ref_index < 4);
-        sum_data += loglike.log_data;
-        sum_scale += loglike.log_scale;
+        double loglike = model.CalculateLLD(read_depths, n_sz);
+        sum_data += loglike;
+        sum_scale += model.work().ln_scale;
     });
 
-    output_loglike_results(cout, sum_data.result(), sum_scale.result());
+    output_loglike_results(cout, sum_data.result(), sum_scale.result()/M_LN10);
 
     return EXIT_SUCCESS;
 }
@@ -185,7 +189,7 @@ int process_bcf(LogLike::argument_type &arg) {
     const bcf_hdr_t *header = mpileup.reader().header(0); // TODO: fixthis
     const int num_libs = mpileup.num_libraries();
 
-    LogProbability do_loglike (relationship_graph, get_model_parameters(arg));
+    Probability model{relationship_graph, get_model_parameters(arg)};
 
     const size_t num_nodes = relationship_graph.num_nodes();
     const size_t library_start = relationship_graph.library_nodes().first;
@@ -216,13 +220,13 @@ int process_bcf(LogLike::argument_type &arg) {
 
         pileup::allele_depths_ref_t read_depths(ad.get(), make_array(num_libs,n_sz));
 
-        auto loglike = do_loglike(read_depths,n_sz,true);
-        sum_data += loglike.log_data;
-        sum_scale += loglike.log_scale;
+        double loglike = model.CalculateLLD(read_depths,n_sz);
+        sum_data += loglike;
+        sum_scale += model.work().ln_scale;
     });
 
     // output results
-    output_loglike_results(cout, sum_data.result(), sum_scale.result());
+    output_loglike_results(cout, sum_data.result(), sum_scale.result()/M_LN10);
 
     return EXIT_SUCCESS;
 }
@@ -235,13 +239,13 @@ int process_ad(LogLike::argument_type &arg) {
 
     auto relationship_graph = create_relationship_graph(arg, &mpileup);
 
-    LogProbability do_loglike(relationship_graph, get_model_parameters(arg));
+    Probability model{relationship_graph, get_model_parameters(arg)};
 
     stats::ExactSum sum_data, sum_scale;
 
     pileup::allele_depths_t read_depths;
     // Place the processing logic in the lambda function.
-    auto do_calculate = [&,read_depths,do_loglike](const decltype(mpileup)::data_type &line,
+    auto wrapped_model = [&,read_depths,model](const decltype(mpileup)::data_type &line,
         stats::ExactSum* p_sum_data, stats::ExactSum* p_sum_scale) mutable {
         bool ref_is_N = (line.color() >= 64);
         if(ref_is_N) {
@@ -253,16 +257,16 @@ int process_ad(LogLike::argument_type &arg) {
                     read_depths[i][a] = line(i,a-1);
                 }
             }
-            auto loglike = do_loglike(read_depths, sz, false);
-            *p_sum_data += loglike.log_data;
-            *p_sum_scale += loglike.log_scale;
+            double loglike = model.CalculateLLD(read_depths, sz);
+            *p_sum_data += loglike;
+            *p_sum_scale += model.work().ln_scale;
         } else {
             size_t sz = line.num_nucleotides();
             dng::pileup::allele_depths_const_ref_t read_depths_ref(line.data().data(),
                 make_array(line.num_libraries(), line.num_nucleotides()));
-            auto loglike = do_loglike(read_depths_ref, sz, true);
-            *p_sum_data += loglike.log_data;
-            *p_sum_scale += loglike.log_scale;    
+            double loglike = model.CalculateLLD(read_depths_ref, sz);
+            *p_sum_data += loglike;
+            *p_sum_scale += model.work().ln_scale;
         }
     };
 
@@ -270,7 +274,7 @@ int process_ad(LogLike::argument_type &arg) {
     if(arg.threads == 0) {
         dng::pileup::allele_depths_t read_depths(make_array(mpileup.num_libraries(),5u));
         mpileup([&](const decltype(mpileup)::data_type &line) {
-            do_calculate(line, &sum_data, &sum_scale);
+            wrapped_model(line, &sum_data, &sum_scale);
         });
     } else {
         // Use a single thread to read data from the input
@@ -300,10 +304,10 @@ int process_ad(LogLike::argument_type &arg) {
         // construct a lambda function which will be used for the worker threads
         // each thread needs to have its own, mutable copy of calculate
         // because calculate stores working data in a member object
-        auto batch_calculate = [&,do_calculate](batch_t& reads) mutable {
+        auto batch_model = [&,wrapped_model](batch_t& reads) mutable {
                 stats::ExactSum sum_d, sum_s;
             for(auto && line : reads) {
-                do_calculate(line, &sum_d, &sum_s);
+                wrapped_model(line, &sum_d, &sum_s);
             }
             {
                 // use batch_mutex to save results and return our data object
@@ -317,7 +321,7 @@ int process_ad(LogLike::argument_type &arg) {
         };
 
         // construct worker thread pool to run batch_calculate
-        multithread::BasicPool<batch_t&> worker_pool(batch_calculate,arg.threads);
+        multithread::BasicPool<batch_t&> worker_pool(batch_model,arg.threads);
 
         // loop until we hit the end-of-file
         bool eof = false;
@@ -348,7 +352,9 @@ int process_ad(LogLike::argument_type &arg) {
     }
 
     // output results
-    output_loglike_results(cout, sum_data.result(), sum_scale.result());
+    output_loglike_results(cout, sum_data.result(), sum_scale.result()/M_LN10);
 
     return EXIT_SUCCESS;
 }
+
+} // anon namespce

@@ -58,15 +58,23 @@
 namespace dng {
 namespace utility {
 
-using StringSet = boost::container::flat_set<std::string>;
-using StringMap = boost::container::flat_map<std::string, size_t>;
+template<typename E>  
+struct EnableEnumFlags {
+    static constexpr bool enable = false;
+};
 
-template<typename E, typename = typename std::enable_if<std::is_enum<E>::value>::type>
+#define ENABLE_ENUMFLAGS(x)  \
+template<> \
+struct EnableEnumFlags<x>{ \
+    static const bool enable = true; \
+}; \
+/**/
+
+template<typename E>
 struct EnumFlags {
-    typedef E enum_t;
-    typedef typename std::underlying_type<E>::type int_t;
-    static_assert(std::is_enum<enum_t>::value, "EnumFlags can only wrap an enum.");
-
+    using enum_t = typename std::enable_if<EnableEnumFlags<E>::enable, E>::type;
+    using int_t = typename std::underlying_type<enum_t>::type;
+    
     int_t value;
     
     EnumFlags(int_t v) : value{v} { }
@@ -77,9 +85,9 @@ struct EnumFlags {
         return *this;
     }
 
-    operator int_t() { return value; }
+    operator int_t() const { return value; }
 
-    EnumFlags operator|(enum_t v) {
+    EnumFlags operator|(enum_t v) const {
          return {value | static_cast<int_t>(v)};
     }
 
@@ -88,15 +96,23 @@ struct EnumFlags {
          return *this;
     }
 
-    EnumFlags operator&(enum_t v) {
+    EnumFlags operator&(enum_t v) const {
         return {value & static_cast<int_t>(v)};
+    }
+
+    bool is_set(enum_t v) {
+        return (value & static_cast<int_t>(v)) != 0;   
     }
 };
 
 template<typename E>
-EnumFlags<E> operator|(E a, E b) {
+typename std::enable_if<EnableEnumFlags<E>::enable, EnumFlags<E>>::type
+operator|(E a, E b) {
     return EnumFlags<E>{a} | b;
 }
+
+using StringSet = boost::container::flat_set<std::string>;
+using StringMap = boost::container::flat_map<std::string, size_t>;
 
 typedef int64_t location_t;
 
@@ -233,14 +249,41 @@ std::string to_pretty(const T &value) {
     return {};
 }
 
-inline double phred(double p) {
-    // Use an if to prevent -0.0
-    return (p == 1.0) ? 0.0 : -10.0 * std::log10(p);
+/*
+  Phred scaled numbers: -10.0*log10(a)
+  
+  DBL_MIN -> 3076.52655568588761525
+  DBL_SUBNORM_MIN -> 3233.06215343115809446
+  1-(1-2^-53) -> 159.54589770191000753
+*/
+
+// -10*log10(a)
+inline double phred(double a) {
+    return -10.0 * std::log10(a);
+}
+
+inline double unphred(double v) {
+    return std::exp(v*(-M_LN10/10.0));
+}
+
+// -10*log10(1+p)
+inline double phred1m(double p) {
+    return (-10.0/M_LN10) * std::log1p(-p);
+}
+
+inline double unphred1m(double v) {
+    return -std::expm1(v*(-M_LN10/10.0));
 }
 
 template<typename T>
-inline T lphred(double p, T m = std::numeric_limits<T>::max()) {
-    double q = std::round(phred(p));
+inline T lphred(double a, T m = std::numeric_limits<T>::max()) {
+    double q = std::round( -10.0 * std::log10(a) );
+    return (q > m) ? m : static_cast<T>(q);
+}
+
+template<typename T>
+inline T lphred1m(double p, T m = std::numeric_limits<T>::max()) {
+    double q = std::round( (-10.0/M_LN10) * std::log1p(-p) );
     return (q > m) ? m : static_cast<T>(q);
 }
 
@@ -261,7 +304,10 @@ enum class FileCat {
     Variant  = 2,
     Pileup   = 4
 };
-typedef EnumFlags<FileCat> FileCatSet;
+ENABLE_ENUMFLAGS(FileCat);
+
+using FileCatSet = EnumFlags<FileCat>;
+
 
 // converts an extension to a file category
 FileCat file_category(const std::string &ext);

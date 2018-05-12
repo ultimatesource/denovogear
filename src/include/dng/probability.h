@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Reed A. Cartwright
+ * Copyright (c) 2016-2018 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -31,8 +31,33 @@
 
 namespace dng {
 
-class LogProbability {
+class Probability {
 public:
+    struct params_t;
+    struct logdiff_t;
+    static constexpr int MAXIMUM_NUMBER_ALLELES{4};
+
+    static int adjust_num_obs_alleles(int num) {
+        assert(num >= 1);
+        return (num <= MAXIMUM_NUMBER_ALLELES) ? num : MAXIMUM_NUMBER_ALLELES;
+    }
+
+    Probability(RelationshipGraph graph, params_t params);
+
+    template<typename A>
+    void SetupWorkspace(const A &depths, int num_obs_alleles, genotype::Mode mode);
+
+    double CalculateLLD();
+
+    double PeelOnlyReference(genotype::Mode mode);
+
+    logdiff_t CalculateMONO(genotype::Mode mode);
+
+    template<typename A>
+    double CalculateLLD(const A &depths, int num_obs_alleles);
+
+    const peel::workspace_t& work() const { return work_; }
+
     struct params_t {
         double theta;
         double ref_bias_hom;
@@ -48,30 +73,14 @@ public:
         double k_alleles;
     };
 
-    struct value_t {
-        double log_data;
-        double log_scale;        
-    };
-
-    LogProbability(RelationshipGraph graph, params_t params);
-
-    template<typename A>
-    value_t CalculateLLD(const A &depths, int num_obs_alleles, bool has_ref);
-
-    template<typename A>
-    value_t operator()(const A &depths, int num_obs_alleles, bool has_ref) {
-        return CalculateLLD(depths, num_obs_alleles, has_ref);
-    }
-
-    const peel::workspace_t& work() const { return work_; };
-
 protected:
-    using matrices_t = std::array<TransitionMatrixVector, 4>;
+    using matrices_t = std::array<TransitionMatrixVector, MAXIMUM_NUMBER_ALLELES>;
 
-    matrices_t CreateMutationMatrices(const int mutype = MUTATIONS_ALL) const;
+    template<typename T>
+    matrices_t CreateMutationMatrices(T mutype) const;
 
-    GenotypeArray DiploidPrior(int num_obs_alleles, bool has_ref);
-    GenotypeArray HaploidPrior(int num_obs_alleles, bool has_ref);
+    GenotypeArray DiploidPrior(int num_obs_alleles);
+    GenotypeArray HaploidPrior(int num_obs_alleles);
 
     RelationshipGraph graph_;
     params_t params_;
@@ -79,57 +88,133 @@ protected:
 
     matrices_t transition_matrices_;
 
-    double prob_monomorphic_;
+    double ln_monomorphic_;
 
     Genotyper genotyper_;
 
-    std::array<GenotypeArray,4> diploid_prior_; // Holds P(G | theta)
-    std::array<GenotypeArray,4> haploid_prior_; // Holds P(G | theta)
-    
-    std::array<GenotypeArray,4> diploid_prior_noref_; // Holds P(G | theta)
-    std::array<GenotypeArray,4> haploid_prior_noref_; // Holds P(G | theta)
+    using prior_t = std::array<GenotypeArray, MAXIMUM_NUMBER_ALLELES>;
+
+    prior_t diploid_prior_; // Holds P(G | theta)
+    prior_t haploid_prior_; // Holds P(G | theta)
 
     DNG_UNIT_TEST_CLASS(unittest_dng_log_probability);
 };
 
-// returns 'log10 P(Data ; model)-log10 scale' and log10 scaling.
+struct Probability::logdiff_t {
+    double left;
+    double right;
+
+    double value() const {
+        assert(left <= right);
+        return left - right;
+    }
+
+    double phred_score() const { return (-10.0/M_LN10)*value(); }
+    double prob() const { return exp(value()); }
+    double not_prob() const { return -expm1(value()); }
+};
+
 template<typename A>
-LogProbability::value_t LogProbability::CalculateLLD(
-    const A &depths, int num_obs_alleles, bool has_ref)
-{
+void Probability::SetupWorkspace(const A &depths, int num_obs_alleles, genotype::Mode mode) {
     assert(num_obs_alleles >= 1);
-    if(num_obs_alleles > transition_matrices_.size()) {
-        num_obs_alleles = transition_matrices_.size();
-    }
+    num_obs_alleles = adjust_num_obs_alleles(num_obs_alleles);
+    work_.matrix_index = num_obs_alleles-1;
 
-    // calculate genotype likelihoods and store in the lower library vector
-    double scale = work_.SetGenotypeLikelihoods(genotyper_, depths, num_obs_alleles);
-    double logdata;
-
-    if(num_obs_alleles == 1) {
-        // Use cached value for monomorphic sites instead of peeling.
-        logdata = prob_monomorphic_;
-        for(auto it = work_.lower.begin()+work_.library_nodes.first;
-            it != work_.lower.begin()+work_.library_nodes.second; ++it) {
-            logdata *= (*it)(0);
-        }
-        // convert to a log-likelihood
-        logdata = log(logdata);
-    } else {
-        // Set the prior probability of the founders given the reference
-        work_.SetGermline(DiploidPrior(num_obs_alleles, has_ref), HaploidPrior(num_obs_alleles, has_ref));
-
-        // Calculate log P(Data ; model)
-        logdata = graph_.PeelForwards(work_, transition_matrices_[num_obs_alleles-1]);
-    }
-    return {logdata/M_LN10, scale/M_LN10};
+    work_.CalculateGenotypeLikelihoods(genotyper_, depths, num_obs_alleles, mode);
+    work_.SetGermline(DiploidPrior(num_obs_alleles), HaploidPrior(num_obs_alleles));
 }
 
-TransitionMatrixVector create_mutation_matrices(const RelationshipGraph &pedigree,
-        int num_alleles, double num_mutants, const int mutype = MUTATIONS_ALL);
+inline
+Probability::logdiff_t Probability::CalculateMONO(genotype::Mode mode) {
+    assert(work_.matrix_index >= 0 && work_.matrix_index < transition_matrices_.size());
+    if(work_.matrix_index == 0) {
+        if(mode != genotype::Mode::Likelihood) {
+            work_.ExpGenotypeLikelihoods();
+        }
+        return {ln_monomorphic_, ln_monomorphic_};
+    }
+    double ln_mono = PeelOnlyReference(mode);
+    if(mode != genotype::Mode::Likelihood) {
+        work_.ExpGenotypeLikelihoods();
+    }
+    double ln_data = graph_.PeelForwards(work_, transition_matrices_[work_.matrix_index]);
+    return {ln_mono, ln_data};
+}
 
 inline
-LogProbability::matrices_t LogProbability::CreateMutationMatrices(const int mutype) const {
+double Probability::PeelOnlyReference(genotype::Mode mode) {
+    // Use cached value for monomorphic sites instead of peeling.
+    if(work_.matrix_index == 0) {
+        return ln_monomorphic_;
+    }
+    double ln_mono = ln_monomorphic_;
+    for(auto &&lower : work_.make_library_slice(work_.lower)) {
+        if(mode == genotype::Mode::Likelihood) {
+            ln_mono += log(lower(0));
+        } else {
+            ln_mono += lower(0);
+        }
+    }
+    return ln_mono;
+}
+
+// returns 'log10 P(Data ; model)'
+inline
+double Probability::CalculateLLD() {
+    double ln_data = graph_.PeelForwards(work_, transition_matrices_[work_.matrix_index]);
+    return (ln_data+work_.ln_scale)/M_LN10;
+}
+
+// returns 'log10 P(Data ; model)'
+template<typename A>
+double Probability::CalculateLLD(const A &depths, int num_obs_alleles)
+{
+    num_obs_alleles = adjust_num_obs_alleles(num_obs_alleles);
+    work_.matrix_index = num_obs_alleles-1;
+
+    // calculate genotype likelihoods and store in the lower library vector
+    if(num_obs_alleles > 1) {
+        SetupWorkspace(depths, num_obs_alleles, genotype::Mode::Likelihood);
+        return CalculateLLD();
+    }
+    // Use cached value for monomorphic sites instead of peeling.
+    work_.CalculateGenotypeLikelihoods(genotyper_, depths, 1, genotype::Mode::Likelihood);
+    return (ln_monomorphic_ + work_.ln_scale)/M_LN10;
+}
+
+// Construct the mutation matrices for each transition
+template<typename T>
+inline
+TransitionMatrixVector create_mutation_matrices(const RelationshipGraph &graph,
+    int num_obs_alleles, double k_alleles, T mutype) {
+    TransitionMatrixVector matrices(graph.num_nodes());
+ 
+    for(size_t child = 0; child < graph.num_nodes(); ++child) {
+        auto trans = graph.transition(child);
+        if(trans.type == RelationshipGraph::TransitionType::Trio) {
+            assert(graph.ploidy(child) == 2);
+            auto dad = mutation::Model{trans.length1, k_alleles};
+            auto mom = mutation::Model{trans.length2, k_alleles};
+            matrices[child] = meiosis_matrix(num_obs_alleles, dad, mom, mutype,
+                graph.ploidy(trans.parent1), graph.ploidy(trans.parent2));
+        } else if(trans.type == RelationshipGraph::TransitionType::Pair) {
+            auto orig = mutation::Model(trans.length1, k_alleles);
+            if(graph.ploidy(child) == 1) {
+                matrices[child] = gamete_matrix(num_obs_alleles, orig, mutype, graph.ploidy(trans.parent1));
+            } else {
+                assert(graph.ploidy(child) == 2);
+                matrices[child] = mitosis_matrix(num_obs_alleles, orig, mutype, graph.ploidy(trans.parent1));
+            }
+        } else {
+            matrices[child] = {};
+        }
+    }
+    return matrices;
+}
+
+template<typename T>
+inline
+Probability::matrices_t Probability::CreateMutationMatrices(T mutype) const {
     // Construct the complete matrices
     matrices_t ret;
     for(int i=0;i<ret.size();++i) {
@@ -139,37 +224,24 @@ LogProbability::matrices_t LogProbability::CreateMutationMatrices(const int muty
 }
 
 inline
-GenotypeArray LogProbability::DiploidPrior(int num_obs_alleles, bool has_ref) {
+GenotypeArray Probability::DiploidPrior(int num_obs_alleles) {
     assert(num_obs_alleles >= 1);
-    if(has_ref) {
-        return (num_obs_alleles-1 < diploid_prior_.size()) ? diploid_prior_[num_obs_alleles-1]
-            : population_prior_diploid(num_obs_alleles, params_.theta, params_.ref_bias_hom,
-                params_.ref_bias_het, params_.k_alleles, true);
-    } else {
-        assert(num_obs_alleles >= 2);
-        return (num_obs_alleles-2 < diploid_prior_noref_.size()) ? diploid_prior_noref_[num_obs_alleles-2]
-            : population_prior_diploid(num_obs_alleles, params_.theta, params_.ref_bias_hom,
-                 params_.ref_bias_het, params_.k_alleles, false);
-    }
+    return (num_obs_alleles-1 < diploid_prior_.size()) ? diploid_prior_[num_obs_alleles-1]
+        : mutation::population_prior_diploid(num_obs_alleles, params_.theta, params_.ref_bias_hom,
+            params_.ref_bias_het, params_.k_alleles);
 }
 
 inline
-GenotypeArray LogProbability::HaploidPrior(int num_obs_alleles, bool has_ref) {
+GenotypeArray Probability::HaploidPrior(int num_obs_alleles) {
     assert(num_obs_alleles >= 1);
-    if(has_ref) {
-        return (num_obs_alleles < haploid_prior_.size()) ? haploid_prior_[num_obs_alleles-1]
-            : population_prior_haploid(num_obs_alleles, params_.theta, params_.ref_bias_hap, params_.k_alleles, true);
-    } else {
-        assert(num_obs_alleles >= 2);
-        return (num_obs_alleles-1 < haploid_prior_noref_.size()) ? haploid_prior_noref_[num_obs_alleles-2]
-            : population_prior_haploid(num_obs_alleles, params_.theta, params_.ref_bias_hap, params_.k_alleles, false);
-    }
+    return (num_obs_alleles < haploid_prior_.size()) ? haploid_prior_[num_obs_alleles-1]
+        : mutation::population_prior_haploid(num_obs_alleles, params_.theta, params_.ref_bias_hap, params_.k_alleles);
 }
 
 template<typename A>
 inline
-LogProbability::params_t get_model_parameters(const A& a) {
-    LogProbability::params_t ret;
+Probability::params_t get_model_parameters(const A& a) {
+    Probability::params_t ret;
     
     ret.theta = a.theta;
     ret.ref_bias_hom = a.ref_bias_hom;
