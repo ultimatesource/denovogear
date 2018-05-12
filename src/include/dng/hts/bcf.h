@@ -28,6 +28,7 @@
 #include <set>
 #include <cstdlib>
 #include <iostream>
+#include <type_traits>
 
 #include <htslib/vcf.h>
 #include <htslib/vcfutils.h>
@@ -740,6 +741,22 @@ inline std::pair<int, int> alleles_from_genotype(int value) {
     return {a, b};
 }
 
+namespace detail {
+template<typename T,typename S=T>
+inline
+T bcf_remove_allele_set(const bcf_hdr_t *header, bcf1_t *line, const struct kbitset_t *rm_set) {
+    return ::bcf_remove_allele_set(header,line,rm_set);
+}
+
+template<>
+inline
+int bcf_remove_allele_set<int,void>(const bcf_hdr_t *header, bcf1_t *line, const struct kbitset_t *rm_set) {
+    ::bcf_remove_allele_set(header,line,rm_set);
+    return 1;
+}
+
+};
+
 inline
 bool Variant::TrimAlleles(double af_min) {
     // Determine if any alleles can be dropped
@@ -825,11 +842,12 @@ bool Variant::TrimAlleles(double af_min) {
             kbs_insert(rm_set.get(), a);
         }
     }
-    if(hts::version() < 100400) {
-        bcf_remove_allele_set(header(), base(), rm_set.get());
-        return true;
-    }
-    int ret = bcf_remove_allele_set(header(), base(), rm_set.get());
+
+    // In htslib 1.3, bcf_remove_allele_set returns a void
+    // wrap it if needed
+    int ret = detail::bcf_remove_allele_set<
+        decltype(bcf_remove_allele_set(nullptr,nullptr,nullptr))>
+        (header(), base(), rm_set.get());
     return (ret >= 0) ? true : false;
 }
 
