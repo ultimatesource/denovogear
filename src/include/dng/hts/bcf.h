@@ -845,7 +845,7 @@ bool Variant::TrimAlleles(double af_min) {
 
     // In htslib 1.3, bcf_remove_allele_set returns a void
     // wrap it if needed
-    int ret = detail::bcf_remove_allele_set<
+    int ret = detail::bcf_remove_allele_set<int,
         decltype(bcf_remove_allele_set(nullptr,nullptr,nullptr))>
         (header(), base(), rm_set.get());
     return (ret >= 0) ? true : false;
