@@ -328,6 +328,10 @@ BOOST_AUTO_TEST_CASE(test_variant_trim) {
         const std::vector<int> &expected_gts,
         const std::vector<float> &expected_gps)
     {
+        if(hts::version() <= 140000 && expected_result == false) {
+            // hts 1.3 doesn't exits on error instead of returning an error code
+            return;
+        }
         auto file = bcf::File(vcfstr, "r");
         BOOST_REQUIRE(file.is_open());
         auto record = file.InitVariant();
