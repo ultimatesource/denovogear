@@ -23,12 +23,14 @@
 
 #include <boost/graph/biconnected_components.hpp>
 #include <boost/graph/connected_components.hpp>
+#include <boost/graph/graphml.hpp>
 #include <boost/range/algorithm/find.hpp>
 #include <boost/range/adaptor/reversed.hpp>
 
 using namespace dng;
 using namespace dng::detail;
 using namespace dng::detail::graph;
+
 
 namespace {
 vertex_t parse_pedigree_table(Graph &pedigree_graph, const dng::Pedigree &pedigree,
@@ -37,6 +39,7 @@ void add_libraries_to_graph(Graph &pedigree_graph, const libraries_t &libs);
 void update_edge_lengths(Graph &pedigree_graph,
         double mu_meiotic, double mu_somatic, double mu_library);
 void simplify_pedigree(Graph &pedigree_graph);
+void write_graph_to_file(Graph &pedigree_graph, const std::string& filename);
 
 void prune_pedigree(Graph &pedigree_graph, InheritanceModel model);
 
@@ -124,7 +127,7 @@ bool dng::RelationshipGraph::Construct(const Pedigree& pedigree,
     inheritance_model_ = model;
 
     // Construct a boost::graph of the pedigree and somatic information
-    Graph pedigree_graph;
+    //Graph pedigree_graph;
 
     first_founder_ = 0;
     first_somatic_ = parse_pedigree_table(pedigree_graph, pedigree,
@@ -150,6 +153,8 @@ bool dng::RelationshipGraph::Construct(const Pedigree& pedigree,
     // Multiply edge lengths by mutation rates
     update_edge_lengths(pedigree_graph, mu, mu_somatic, mu_library);
 
+    write_graph_to_file(pedigree_graph, "ped_graph.graphml");
+    
     // Remove edges that are non-informative
     simplify_pedigree(pedigree_graph);
 
@@ -765,6 +770,26 @@ void simplify_pedigree(Graph &pedigree_graph) {
     }
 }
 
+void write_graph_to_file(Graph &pedigree_graph, const std::string& filename) {
+
+    boost::dynamic_properties dp;
+    dp.property("group", boost::get(boost::vertex_group_t(),
+                                    pedigree_graph));
+    dp.property("label", boost::get(boost::vertex_label_t(),
+                                    pedigree_graph));
+    dp.property("family", boost::get(boost::edge_family_t(),
+                                     pedigree_graph));
+    dp.property("length", boost::get(boost::edge_length_t(),
+                                     pedigree_graph));
+    dp.property("type", boost::get(boost::edge_type_t(),
+                                   pedigree_graph));
+
+    std::ofstream graphml_stream;
+    graphml_stream.open(filename);
+    boost::write_graphml(graphml_stream, pedigree_graph, dp);
+    graphml_stream.close();
+}
+
 } // namespace 
 
 std::vector<size_t> dng::RelationshipGraph::ConstructNodes(const Graph &pedigree_graph) {
@@ -1022,4 +1047,34 @@ void dng::RelationshipGraph::ClearFamilyInfo(){
     peeling_ops_.reserve(128);
     transitions_.clear();
     transitions_.reserve(128);
+}
+
+std::ostream& dng::detail::graph::operator<<(std::ostream& stream, const EdgeType edge_type) {
+
+    switch (edge_type) {
+        case EdgeType::Spousal:
+            stream << "Spousal";
+            break;
+        case EdgeType::Maternal:
+            stream << "Maternal";
+            break;
+        case EdgeType::Paternal:
+            stream << "Paternal";
+            break;
+        case EdgeType::Mitotic:
+            stream << "Mitotic";
+            break;
+        case EdgeType::Library:
+            stream << "Library";
+            break;
+        default:
+            stream << "INVALID_EDGE_TYPE";
+            break;
+    }
+
+    return stream;
+}
+
+std::istream& dng::detail::graph::operator>>(std::istream& stream, const EdgeType& edge_type) {
+    return stream;
 }

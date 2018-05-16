@@ -156,6 +156,8 @@ public:
 
     const std::vector<std::string> &library_names() const { return library_names_; }
 
+    dng::detail::graph::Graph pedigree_graph;
+
 protected:
     using Graph = dng::detail::graph::Graph;
     using vertex_t = dng::detail::graph::vertex_t;
