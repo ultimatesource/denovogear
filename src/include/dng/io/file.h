@@ -44,7 +44,11 @@ public:
     }
 
     bool Open(const std::string &filename, std::ios_base::openmode mode = std::ios_base::in) {
-        std::tie(type_label_, path_) = utility::extract_file_type(filename);
+        auto file_type = utility::extract_file_type(filename);
+        path_ = file_type.path;
+        type_label_ = file_type.type_ext;
+        compression_ = file_type.compress_ext;
+
         if(path_.empty()) {
             // don't do anything, just setup type
         } else if(path_ != "-") {
@@ -80,6 +84,7 @@ protected:
     std::iostream stream_{nullptr};
     boost::filesystem::path path_;
     std::string type_label_;
+    std::string compression_;
 
 private:
     std::unique_ptr<std::streambuf> buffer_;    

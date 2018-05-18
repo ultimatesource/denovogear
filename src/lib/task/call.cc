@@ -119,18 +119,21 @@ std::pair<std::string, std::string> vcf_get_output_mode(
     const task::Call::argument_type &arg) {
     using boost::algorithm::iequals;
 
-    if(arg.output.empty() || arg.output == "-")
+    if(arg.output.empty() || arg.output == "-") {
         return {"-", "w"};
-    auto ret = utility::extract_file_type(arg.output);
-    if(iequals(ret.first, "bcf")) {
-        return {ret.second, "wb"};
-    } else if(iequals(ret.first, "vcf")) {
-        return {ret.second, "w"};
-    } else {
-        throw std::runtime_error("Unknown file format '" + ret.second + "' for output '"
-                                 + arg.output + "'.");
     }
-    return {};
+    auto ret = utility::extract_file_type(arg.output);
+    if(iequals(ret.type_ext, "bcf")) {
+        return {ret.path, "wb"};
+    }
+    if(iequals(ret.type_ext, "vcf")) {
+        if(ret.compress_ext.empty()){
+            return {ret.path, "w"};
+        }
+        return {ret.path, "wz"};
+    }
+    throw std::runtime_error("Unknown file format '" +
+        ret.type_ext + "' for output '" + arg.output + "'.");
 }
 
 // Helper function for writing the vcf header information

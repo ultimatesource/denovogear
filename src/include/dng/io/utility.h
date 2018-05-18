@@ -96,9 +96,9 @@ inline std::string at_slurp(std::string &ss, std::ios_base::openmode mode = std:
         return {'.'};
     }
     auto filename = utility::extract_file_type(ss.c_str()+1);
-    std::ifstream in{filename.second, mode};
+    std::ifstream in{filename.path, mode};
     ss = slurp(in);
-    return filename.first;
+    return filename.type_ext;
 }
 
 }

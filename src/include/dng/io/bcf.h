@@ -89,7 +89,7 @@ template<typename A>
 inline
 BcfPileup BcfPileup::open_and_setup(const A& arg) {
     if(arg.input.size() > 1) {
-        throw std::runtime_error("processing more than one variant file at a time is not supported.");
+        throw std::invalid_argument("processing more than one variant file at a time is not supported.");
     }
 
     BcfPileup mpileup;
@@ -136,7 +136,7 @@ int BcfPileup::AddFile(const char* filename) {
 
     auto file = utility::extract_file_type(filename);
 
-    if(reader_.AddReader(file.second.c_str()) == 0) {
+    if(reader_.AddReader(file.path.c_str()) == 0) {
         return 0;
     }
     ParseSampleLabels(index);

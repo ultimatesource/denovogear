@@ -288,14 +288,15 @@ inline T lphred1m(double p, T m = std::numeric_limits<T>::max()) {
 }
 
 // extracts extension and filename from both file.foo and ext:file.foo
+struct file_type_t {
+    std::string path;
+    std::string type_ext;
+    std::string compress_ext;
+};
+
 // returns {ext, file.foo}
 // trims whitespace as well
-std::pair<std::string, std::string> extract_file_type(const char *path);
-
-inline
-std::pair<std::string, std::string> extract_file_type(const std::string &path) {
-    return extract_file_type(path.c_str());
-}
+file_type_t extract_file_type(std::string path);
 
 // a strongly-typed enum for file category
 enum class FileCat {
@@ -307,7 +308,6 @@ enum class FileCat {
 ENABLE_ENUMFLAGS(FileCat);
 
 using FileCatSet = EnumFlags<FileCat>;
-
 
 // converts an extension to a file category
 FileCat file_category(const std::string &ext);

@@ -196,6 +196,24 @@ set(PipedTrio-RESULT ${TrioMpileup-RESULT})
 set(PipedTrio-STDOUT ${TrioMpileup-STDOUT})
 
 ###############################################################################
+# Test if dng-call can output specific file types
+
+set(OutputVcf-CMD sh -c "@DNG_CALL_EXE@ -p ped/trio.ped -o vcf:- bcftools/trio.call.vcf | htsfile -")
+set(OutputVcf-WD ${TrioMpileup-WD})
+set(OutputVcf-RESULT 0)
+set(OutputVcf-STDOUT "^-:\tVCF version [0-9.]+ variant calling text\r?\n$")
+
+set(OutputVcfGz-CMD sh -c "@DNG_CALL_EXE@ -p ped/trio.ped -o vcf.gz:- bcftools/trio.call.vcf | htsfile -")
+set(OutputVcfGz-WD ${TrioMpileup-WD})
+set(OutputVcfGz-RESULT 0)
+set(OutputVcfGz-STDOUT "^-:\tVCF version [0-9.]+ BGZF-compressed variant calling data\r?\n$")
+
+set(OutputBcf-CMD sh -c "@DNG_CALL_EXE@ -p ped/trio.ped -o bcf:- bcftools/trio.call.vcf | htsfile -")
+set(OutputBcf-WD ${TrioMpileup-WD})
+set(OutputBcf-RESULT 0)
+set(OutputBcf-STDOUT "^-:\tBCF version [0-9.]+ compressed variant calling data\r?\n$")
+
+###############################################################################
 # Add Tests
 
 include("@CMAKE_CURRENT_SOURCE_DIR@/CheckProcessTest.cmake")
@@ -213,4 +231,7 @@ CheckProcessTests(DngCall.Vcf
   TrioExtraSample
   MissingData
   PipedTrio
+  OutputVcf
+  OutputVcfGz
+  OutputBcf
 )

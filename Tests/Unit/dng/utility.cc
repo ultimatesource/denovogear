@@ -173,28 +173,42 @@ BOOST_AUTO_TEST_CASE(test_to_pretty) {
 }
 
 BOOST_AUTO_TEST_CASE(test_extract_file_type) {
-    using pair = std::pair<std::string,std::string>;
+    auto test = [](std::string filename, file_type_t expected) {
+        BOOST_TEST_CONTEXT("filename=" << filename) {
+        auto test = extract_file_type(filename);
+        BOOST_CHECK_EQUAL(test.path, expected.path);
+        BOOST_CHECK_EQUAL(test.type_ext, expected.type_ext);
+        BOOST_CHECK_EQUAL(test.compress_ext, expected.compress_ext);
+    }};
 
-    BOOST_CHECK_EQUAL(extract_file_type("foo.bar"), pair("bar", "foo.bar"));
-    BOOST_CHECK_EQUAL(extract_file_type("my:foo.bar"), pair("my", "foo.bar"));
-    BOOST_CHECK_EQUAL(extract_file_type(".bar"), pair("", ".bar"));
-    BOOST_CHECK_EQUAL(extract_file_type("my:.foo.bar"), pair("my",".foo.bar"));
-    BOOST_CHECK_EQUAL(extract_file_type(".foo.bar"), pair("bar",".foo.bar"));
-    BOOST_CHECK_EQUAL(extract_file_type(""), pair("", ""));
-    BOOST_CHECK_EQUAL(extract_file_type(std::string{}), pair({},{}));
-    //BOOST_CHECK(extract_file_type("C:\\foo.bar"), pair("bar"},string{"C:\\foo.bar"}));
-    //BOOST_CHECK(extract_file_type("CC:C:\\foo.bar"), pair("CC"},string{"C:\\foo.bar"}));
+    test("foo.bar", {"foo.bar", "bar"});
+    test("my:foo.bar", {"foo.bar", "my"});
+    test(".bar", {".bar", ""});
+    test("my:.foo.bar", {".foo.bar", "my"});
+    test(".foo.bar", {".foo.bar", "bar"});
+    test("", {"", ""});
+    test(std::string{}, {{},{}});
 
-    BOOST_CHECK_EQUAL(extract_file_type("bcf:test"), pair("bcf", "test"));
-    BOOST_CHECK_EQUAL(extract_file_type("vcf:-"), pair("vcf", "-"));
-    BOOST_CHECK_EQUAL(extract_file_type("vcf:"), pair("vcf", ""));
-    BOOST_CHECK_EQUAL(extract_file_type("test.bcf"), pair("bcf", "test.bcf"));
-    BOOST_CHECK_EQUAL(extract_file_type("test.vcf"), pair("vcf", "test.vcf"));
+    test("bcf:test", {"test", "bcf"});
+    test("vcf:-", {"-", "vcf"});
+    test("vcf:", {"", "vcf"});
+    test("test.bcf", {"test.bcf","bcf"});
+    test("test.vcf", {"test.vcf", "vcf"});
 
-    BOOST_CHECK_EQUAL(extract_file_type(" \f\n\r\t\vfoo.bar \f\n\r\t\v"), pair("bar", "foo.bar"));
-    BOOST_CHECK_EQUAL(extract_file_type(" \f\n\r\t\vmy:foo.bar \f\n\r\t\v"), pair("my", "foo.bar"));
-    BOOST_CHECK_EQUAL(extract_file_type(" \f\n\r\t\v.bar \f\n\r\t\v"), pair("", ".bar"));
-    BOOST_CHECK_EQUAL(extract_file_type(" \f\n\r\t\v"), pair({},{}));
+    test(" \f\n\r\t\vfoo.bar \f\n\r\t\v", {"foo.bar", "bar"});
+    test(" \f\n\r\t\vmy:foo.bar \f\n\r\t\v", {"foo.bar", "my"});
+    test(" \f\n\r\t\v.bar \f\n\r\t\v", {".bar", ""});
+    test(" \f\n\r\t\v", {{},{}});
+
+    test("test.vcf.gz", {"test.vcf.gz", "vcf", "gz"});
+    test("test.vcf.gzip", {"test.vcf.gzip", "vcf", "gzip"});
+    test("test.vcf.bgz", {"test.vcf.bgz", "vcf", "bgz"});
+    test(".test.vcf.gz", {".test.vcf.gz", "vcf", "gz"});
+    test("test.gz", {"test.gz", "", "gz"});
+    test("vcf.gz:test", {"test", "vcf", "gz"});
+    test("vcf.gz:test.txt", {"test.txt", "vcf", "gz"});
+    test("gz:test.txt", {"test.txt", "", "gz"});
+    test(".test.gz", {".test.gz", "", "gz"});
 }
 
 BOOST_AUTO_TEST_CASE(test_file_category) {
