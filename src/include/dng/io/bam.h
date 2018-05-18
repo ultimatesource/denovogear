@@ -225,7 +225,7 @@ BamPileup BamPileup::open_and_setup(const A& arg) {
     for(auto && str : arg.input) {
         auto file = utility::extract_file_type(str);
 
-        hts::bam::File input{file.second.c_str(), "r", arg.fasta.c_str(), arg.min_mapqual, arg.header.c_str()};
+        hts::bam::File input{file.path.c_str(), "r", arg.fasta.c_str(), arg.min_mapqual, arg.header.c_str()};
         if(!input.is_open()) {
             throw std::runtime_error("Unable to open bam/sam/cram input file '" + str + "' for reading.");
         }

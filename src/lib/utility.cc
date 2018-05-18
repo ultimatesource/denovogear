@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 Reed A. Cartwright
+ * Copyright (c) 2014-2018 Reed A. Cartwright
  * Authors:  Reed A. Cartwright <reed@cartwrig.ht>
  *
  * This file is part of DeNovoGear.
@@ -20,50 +20,49 @@
 #include <dng/utility.h>
 
 #include <boost/filesystem/convenience.hpp>
+#include <boost/algorithm/string/trim.hpp>
 
 namespace dng { namespace utility {
 
 // extracts extension and filename from both file.ext and ext:file.foo
-// returns {ext, filename.ext}
 // trims whitespace as well
-std::pair<std::string, std::string> extract_file_type(const char* path) {
-    assert(path != nullptr);
-    std::locale loc;
+file_type_t extract_file_type(std::string path) {
+    using boost::algorithm::trim;
+    using boost::algorithm::ends_with;
+    const auto &npos = std::string::npos;
 
-    // trim initial whitespace
-    const char *sp = path;
-    while(*sp != 0 && std::isspace(*sp,loc)) {
-        ++sp;
-    }
-    if(*sp == 0) {
-        return {};
-    }
-    // Identify first colon, last dot, and last not whitespace
-    const char *colon = nullptr;
-    const char *dot = nullptr;
-    const char *ep = sp;
-    for(const char *p = sp; *p != 0; ++p) {
-        if(*p == ':' && colon == nullptr) {
-            colon = p;
-            ep = p;
-        } else if(*p == '.' && p != sp) {
-            dot = p;
-            ep = p;
-        } else if(!std::isspace(*p,loc)) {
-            ep = p;
+    auto is_compressed = [](const std::string &path) -> std::string {
+        for(auto && s : {".gz", ".gzip", ".bgz"}) {
+            if(ends_with(path, s)) {
+                return {s+1};
+            }
         }
+        return {};
+    };
+
+    // Remove whitespace
+    trim(path);
+
+    // Format ext:path ???
+    auto colon = path.find_first_of(':');
+    if(colon != npos) {
+        auto ext = path.substr(0, colon);
+        path.erase(0,colon+1);
+        // Format ext.gz:path ???
+        auto gz = is_compressed(ext);
+        if(!gz.empty()) {
+            ext.erase(ext.size()-(gz.size()+1));
+        }
+        return {path, ext, gz};
     }
-    if(colon != nullptr) {
-        assert(sp <= colon);
-        assert(colon <= ep);
-        return {std::string{sp, colon}, std::string{colon+1,ep+1}};
-    } else if(dot != nullptr) {
-        assert(dot <= ep);
-        assert(sp <= ep);
-        return {std::string{dot+1,ep+1}, std::string{sp,ep+1}};
+    // Format path.gz ???
+    auto gz = is_compressed(path);
+    auto ext_pos = path.find_last_of('.', path.size()-(gz.size()+1));
+    if(ext_pos == npos) {
+        return {path, {}, gz};
     }
-    assert(sp <= ep);
-    return {{}, std::string{sp,ep+1}};
+    auto ext = path.substr(ext_pos+1, path.size()-(gz.size()+1)-(ext_pos+1));
+    return {path, ext, gz};
 }
 
 static const std::string file_category_keys[] = {
@@ -90,13 +89,8 @@ FileCat file_category(const std::string &ext) {
     return FileCat::Unknown;
 }
 
-
 FileCat input_category(const std::string &in, FileCatSet mask, FileCat def) {
-    std::string ext = extract_file_type(in).first;
-    if(ext == "gz" || ext == "gzip" || ext == "bgz") {
-    	std::string extr = boost::filesystem::change_extension(in, "").string();
-    	ext = extract_file_type(extr).first;
-    }
+    std::string ext = extract_file_type(in).type_ext;
 
     FileCat cat = file_category(ext);
     if(cat == FileCat::Unknown)
