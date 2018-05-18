@@ -49,19 +49,26 @@ file_type_t extract_file_type(std::string path) {
         auto ext = path.substr(0, colon);
         path.erase(0,colon+1);
         // Format ext.gz:path ???
-        auto gz = is_compressed(ext);
+        auto gz = is_compressed('.'+ext);
         if(!gz.empty()) {
-            ext.erase(ext.size()-(gz.size()+1));
+            // Format gz:path
+            if(gz.size() == ext.size()) {
+                ext.erase();
+            } else {
+                auto gz_pos = ext.size() - (gz.size()+1);
+                ext.erase(gz_pos);
+            }
         }
         return {path, ext, gz};
     }
     // Format path.gz ???
     auto gz = is_compressed(path);
-    auto ext_pos = path.find_last_of('.', path.size()-(gz.size()+1));
-    if(ext_pos == npos) {
+    auto gz_pos = path.size() - (gz.empty() ? 0 : gz.size()+1);
+    auto ext_pos = path.find_last_of('.', gz_pos-1);
+    if(ext_pos == npos || ext_pos == 0) {
         return {path, {}, gz};
     }
-    auto ext = path.substr(ext_pos+1, path.size()-(gz.size()+1)-(ext_pos+1));
+    auto ext = path.substr(ext_pos+1, gz_pos-(ext_pos+1));
     return {path, ext, gz};
 }
 
