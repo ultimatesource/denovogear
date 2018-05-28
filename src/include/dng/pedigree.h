@@ -17,6 +17,21 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+
+/*
+
+##PEDNG v0.1
+##
+#Indiv        Dad         Mom         Sex   Samples
+A1@founder    .           .           1     .
+A2            .           .           2     A2a A2b
+A3            A1          A2          1     =
+A4@gamete     A1:0.1      .           1     =
+A5@clone      A3          .           1     =
+A6@ploidy=1@founder .     .           1     =
+
+*/
+
 #pragma once
 #ifndef DNG_IO_PEDIGREE_H
 #define DNG_IO_PEDIGREE_H
@@ -26,6 +41,7 @@
 #include <array>
 #include <unordered_map>
 #include <unordered_set>
+#include <boost/optional.hpp>
 
 #include <dng/utility.h>
 
@@ -34,58 +50,49 @@ namespace dng {
 class Pedigree {
 public:
     enum class Sex : char {
-        Unknown = 0, Male = 1, Female = 2
+        Autosomal = 0, Male = 1, Female = 2,
+        Unknown
     };
 
-    static Sex parse_sex(std::string &str) {
-        static std::pair<std::string, Sex> keys[] = {
-            {"0", Sex::Unknown},
-            {"1", Sex::Male},
-            {"2", Sex::Female},
-            {"male", Sex::Male},
-            {"female", Sex::Female},
-            {"unknown", Sex::Unknown}
-        };
-        return dng::utility::key_switch_tuple(str, keys, keys[0]).second;
-    }
+    static Sex parse_sex(const std::string &str);
 
     template<typename Range>
     static Pedigree parse_text(const Range &text);
 
+    static Pedigree parse_table(const std::vector<std::vector<std::string>> &table);
+
     struct Member {
-        std::string child;
-        std::string dad;
-        std::string mom;
+        std::string name;
         Sex sex;
-        std::string attribute;
+        boost::optional<std::string> dad;
+        boost::optional<double> dad_length;
+        boost::optional<std::string> mom;
+        boost::optional<double> mom_length;
+        std::vector<std::string> samples;
+        std::vector<std::string> tags;
     };
 
-    typedef std::vector<Member> MemberTable;
+    using MemberTable = std::vector<Member>;
 
     Pedigree() = default;
 
     explicit Pedigree(MemberTable table) : table_{table} {
         for(MemberTable::size_type i=0; i < table_.size(); ++i) {
-            auto ret = names_.emplace(table_[i].child, i);
+            auto ret = names_.emplace(table_[i].name, i);
             if(!ret.second) {
-                throw std::invalid_argument("The name of a member of the pedigree is not unique: '" + table_[i].child + "'.");
+                throw std::invalid_argument("The name of a member of the pedigree is not unique: '" + table_[i].name + "'.");
             }
         }
     }
 
     std::size_t AddMember(Member member) {
         auto pos = table_.size();
-        auto ret = names_.emplace(member.child, pos);
+        auto ret = names_.emplace(member.name, pos);
         if(!ret.second) {
-            throw std::invalid_argument("The name of a member of the pedigree is not unique: '" + member.child + "'.");
+            throw std::invalid_argument("The name of a member of the pedigree is not unique: '" + member.name + "'.");
         }
         table_.push_back(std::move(member));
         return pos;
-    }
-
-    std::size_t AddMember(std::string child, std::string dad, std::string mom,
-        Sex sex, std::string attribute) {
-        return AddMember({std::move(child), std::move(dad), std::move(mom), sex, std::move(attribute)});
     }
 
     std::size_t LookupMemberPosition(const std::string & child) const {
@@ -118,60 +125,59 @@ private:
     std::unordered_map<std::string,MemberTable::size_type> names_;
 };
 
+inline
+Pedigree::Sex Pedigree::parse_sex(const std::string &str) {
+    static std::pair<std::string, Sex> keys[] = {
+        {".", Sex::Unknown},
+        {"0", Sex::Autosomal},
+        {"1", Sex::Male},
+        {"2", Sex::Female},
+        {"male", Sex::Male},
+        {"female", Sex::Female},
+        {"autosomal", Sex::Autosomal}
+    };
+    return dng::utility::key_switch_tuple(str, keys, keys[0]).second;
+}
+
 template<typename Range>
 Pedigree Pedigree::parse_text(const Range &text) {
     using namespace boost;
     using namespace std;
     // Construct the tokenizer
-    auto tokens = utility::make_tokenizer(text);
+    // token are separated by one or more <space>s or <tab>s
+    // <newline>s end the row
+    auto tokens = utility::make_tokenizer_dropempty(text, "\t ", "\n");
 
     // Work through tokens and build each row
-    std::size_t k = 0;
-    vector<std::array<string, 6>> string_table;
+    size_t k = 0;
+    bool in_comment = false;
+    vector<vector<string>> string_table;
     string_table.reserve(64);
-    for(auto tok_iter = tokens.begin(); tok_iter != tokens.end(); ++tok_iter) {
-        if(*tok_iter == "\n") {
+    for(auto && token : tokens) {
+        if(token == "\n") {
             k = 0;
+            in_comment = false;
             continue;
-        } else if(k >= 6) {
-            // ignore columns above 6
+        }
+        if(in_comment) {
+            // skip rows that are comments
             continue;
-        } else if(k == 0) {
+        }
+        if(k == 0) {
+            if(token[0] == '#') {
+                in_comment = true;
+                continue;
+            }
             string_table.emplace_back();
+            string_table.back().reserve(8);
         }
         // Add token to the current row
-        string_table.back()[k] = *tok_iter;
+        string_table.back().push_back(token);
         k += 1;
     }
 
-    // check for unique child names
-    unordered_set<string> names;
-    bool use_family = false;
-    for(auto &&a : string_table) {
-        if(!a[1].empty() && !names.insert(a[1]).second) {
-            use_family = true;
-            break;
-        }
-    }
-    // Build Pedigree Object
-    Pedigree ret;
-    for(auto &&a : string_table) {
-        if(a[1].empty()) {
-            continue;
-        }
-        if(use_family) {
-            string child = a[0] + '_' + a[1];
-            string dad = a[0] + '_' + a[2];
-            string mom = a[0] + '_' + a[3];
-            ret.AddMember(std::move(child), std::move(dad), std::move(mom),
-                Pedigree::parse_sex(a[4]), std::move(a[5]));
-        } else {
-            ret.AddMember(std::move(a[1]), std::move(a[2]), std::move(a[3]),
-                Pedigree::parse_sex(a[4]), std::move(a[5]));
-        }
-    }
-    return ret;
-}
+    return parse_table(string_table);
+ }
 
 
 } // namespace dng

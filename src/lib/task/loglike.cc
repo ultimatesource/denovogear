@@ -54,7 +54,6 @@
 #include <dng/io/utility.h>
 #include <dng/io/fasta.h>
 #include <dng/io/ad.h>
-#include <dng/io/ped.h>
 #include <dng/io/bam.h>
 #include <dng/io/bcf.h>
 #include <dng/depths.h>

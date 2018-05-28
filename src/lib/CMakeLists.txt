@@ -4,7 +4,7 @@ add_library(libdng STATIC
   call_mutations.cc
   genotyper.cc
   probability.cc
-#  mutation_stats.cc
+  pedigree.cc
   mutation.cc
   newick.cc
   peeling.cc
