@@ -32,7 +32,7 @@ using namespace dng::detail;
 using namespace dng::detail::graph;
 
 namespace {
-vertex_t parse_pedigree_table(Graph &pedigree_graph, const dng::Pedigree &pedigree,
+std::pair<vertex_t,vertex_t> parse_pedigree_table(Graph &pedigree_graph, const dng::Pedigree &pedigree,
         bool normalize_somatic_trees);
 void add_libraries_to_graph(Graph &pedigree_graph, const libraries_t &libs);
 void update_edge_lengths(Graph &pedigree_graph,
@@ -130,18 +130,9 @@ bool dng::RelationshipGraph::Construct(const Pedigree& pedigree,
     Graph pedigree_graph;
 
     first_founder_ = 0;
-    first_somatic_ = parse_pedigree_table(pedigree_graph, pedigree,
+    std::tie(first_nonfounder_,first_somatic_) = parse_pedigree_table(pedigree_graph, pedigree,
         normalize_somatic_trees);
  
-    // Find first germline node that is not a child of DUMMY_INDEX
-    for(first_nonfounder_ = 1; first_nonfounder_ < first_somatic_; ++first_nonfounder_) {
-        auto id = edge(DUMMY_INDEX, first_nonfounder_, pedigree_graph);
-        if(!id.second)
-            break;
-    }
-    // Disconnect founders from DUMMY_INDEX
-    clear_vertex(DUMMY_INDEX, pedigree_graph);
-
     // Connect somatic to libraries and save the names of the libraries that
     // were successfully connected.
     first_library_ = num_vertices(pedigree_graph);
@@ -162,12 +153,22 @@ bool dng::RelationshipGraph::Construct(const Pedigree& pedigree,
     // Apply prefixes to vertex labels to identify germline, somatic, and library nodes
     prefix_vertex_labels(pedigree_graph);
 
+    // {
+    //     auto range = boost::make_iterator_range(edges(pedigree_graph));
+    //     for (edge_t e : range) {
+    //         std::cout << get(boost::vertex_label, pedigree_graph)[source(e,pedigree_graph)]
+    //                   << " -> "
+    //                   << get(boost::vertex_label, pedigree_graph)[target(e,pedigree_graph)]
+    //                   << "\n";
+    //     }
+    // }
+
     // Convert vertices in the graph into nodes for peeling operations
     std::vector<size_t> node_ids = ConstructNodes(pedigree_graph);
 
     family_labels_t family_labels; // (num_families);
-    std::vector<vertex_t> pivots;  // (num_families, dummy_index);
-    CreateFamiliesInfo(pedigree_graph, family_labels, pivots);
+    pivots_t pivots;  // (num_families, dummy_index);
+    CreateFamiliesInfo(pedigree_graph, &family_labels, &pivots);
 
     CreatePeelingOps(pedigree_graph, node_ids, family_labels, pivots);
     ConstructPeelingMachine();
@@ -445,19 +446,17 @@ void prune_pedigree_paternal(Graph &pedigree_graph) {
     }
 }
 
-vertex_t parse_pedigree_table(Graph &pedigree_graph,
+std::pair<vertex_t,vertex_t> parse_pedigree_table(Graph &pedigree_graph,
         const dng::Pedigree &pedigree, bool normalize_somatic_trees) {
-    // static_assert(DUMMY_INDEX == 0,
-    //     "DUMMY_INDEX is something other than zero. Many code assumptions have changed.");
-    // static_assert(NULL_INDEX == -1,
-    //     "NULL_INDEX is something other than -1. Many code assumptions have changed.");
 
     using namespace std;
     using Sex = dng::Pedigree::Sex;
     using member_t = unsigned int;
     struct child_t {
         member_t id;
-        bool maternal;
+        enum struct Type {
+            Paternal, Maternal, Clone, Sperm, Egg
+        } type;
     };
 
     // make a copy of names and sexes from pedigree
@@ -521,19 +520,17 @@ vertex_t parse_pedigree_table(Graph &pedigree_graph,
                     + member.name + "' has two parents instead of one.");
             }
             member_t orig_id;
-            bool is_mom;
+            child_t child{j, child_t::Type::Clone};
             if(member.dad) {
                 orig_id = pedigree.LookupMemberPosition(member.dad.get());
-                is_mom = false;
             } else {
                 orig_id = pedigree.LookupMemberPosition(member.mom.get());
-                is_mom = true;
             }
             if(orig_id == pedigree.NumberOfMembers()) {
                 throw std::invalid_argument("Unable to construct graph for pedigree; the clone parent of '" +
                     member.name + "' is unknown.");
             }
-            pedigree_children[orig_id].push_back({j,is_mom});
+            pedigree_children[orig_id].push_back(child);
             continue;
         }
         if( has_tag(member, "gamete") ) {
@@ -542,19 +539,27 @@ vertex_t parse_pedigree_table(Graph &pedigree_graph,
                     + member.name + "' has two parents instead of one.");
             }
             member_t orig_id;
-            bool is_mom;
+            child_t child{j};
             if(member.dad) {
                 orig_id = pedigree.LookupMemberPosition(member.dad.get());
-                is_mom = false;
+                child.type = child_t::Type::Sperm;
+                if (pedigree_sexes[orig_id] == Sex::Female) {
+                    throw std::invalid_argument("Unable to construct graph for pedigree; the father of '" +
+                        member.name + "' is female.");
+                }
             } else {
                 orig_id = pedigree.LookupMemberPosition(member.mom.get());
-                is_mom = true;
+                child.type = child_t::Type::Egg;
+                if (pedigree_sexes[orig_id] == Sex::Male) {
+                    throw std::invalid_argument("Unable to construct graph for pedigree; the mother of '" +
+                        member.name + "' is male.");
+                }
             }
             if(orig_id == pedigree.NumberOfMembers()) {
                 throw std::invalid_argument("Unable to construct graph for pedigree; the gamete parent of '" +
                     member.name + "' is unknown.");
             }
-            pedigree_children[orig_id].push_back({j,is_mom});
+            pedigree_children[orig_id].push_back(child);
             continue;
         }
 
@@ -591,8 +596,8 @@ vertex_t parse_pedigree_table(Graph &pedigree_graph,
             throw std::invalid_argument("Unable to construct graph for pedigree; selfing is not supported; "
                 "father and mother of '" + member.name + "' are the same.");
         }
-        pedigree_children[dad_id].push_back({j,0});
-        pedigree_children[mom_id].push_back({j,1});
+        pedigree_children[dad_id].push_back({j,child_t::Type::Paternal});
+        pedigree_children[mom_id].push_back({j,child_t::Type::Maternal});
     }
     // Build Graph
     pedigree_graph.clear();
@@ -604,11 +609,29 @@ vertex_t parse_pedigree_table(Graph &pedigree_graph,
     auto sexes  = get(boost::vertex_sex, pedigree_graph);
     auto ploidies  = get(boost::vertex_ploidy, pedigree_graph);
 
-    // structure to hold 
+    // structure to hold parents on first visit
     vector<boost::optional<vertex_t>> touched(pedigree_children.size());
     
     // map id -> vertex_t
     vector<vertex_t> vertices(pedigree_children.size());
+
+    auto process_samples = [&](member_t child_id, vertex_t child_vertex) {
+        // Process newick string
+        const auto & samples = pedigree.GetMember(child_id).samples;
+        std::size_t current_index = num_vertices(pedigree_graph);
+        if(!samples.empty()) {
+            if(!parse_newick(samples.front(), child_vertex,
+                pedigree_graph, normalize_somatic_trees) ) {
+                    throw std::invalid_argument("Unable to parse somatic data for individual '" +
+                        pedigree_names[child_id] + "'.");
+            }
+            // Mark the sex and ploidy of the somatic nodes
+            for (vertex_t i = current_index; i < num_vertices(pedigree_graph); ++i) {
+                sexes[i] = sexes[child_vertex];
+                ploidies[i] = ploidies[child_vertex];
+            }
+        }
+    };
     
     // Push founders onto a queue
     size_t counter = 0;
@@ -617,61 +640,69 @@ vertex_t parse_pedigree_table(Graph &pedigree_graph,
         labels[counter] = pedigree_names[a];
         sexes[counter] = pedigree_sexes[a];
         ploidies[counter] = pedigree_ploidies[a];
+        process_samples(a, counter);
+
         vertices[a] = counter++;
         visited.push(a);
     }
 
     // Continue with the rest of the pedigree
-
-    need to figure out how to put gametes and clones on here
-
     while(!visited.empty()) {
-        auto id = visited.front();
-        auto vert = vertices[id];
+        auto parent_id = visited.front();
+        auto parent_vertex = vertices[parent_id];
         visited.pop();
-        for(auto pedchild : pedigree_children[id]) {
-            // create vertex for child after we have visited both its parents
-            if(!touched[pedchild.id]) {
-                touched[pedchild.id] = vert;
+        for(auto child : pedigree_children[parent_id]) {
+            vertex_t child_vertex;
+            if(child.type == child_t::Type::Clone) {
+                child_vertex = counter++;
+                vertices[child.id] = child_vertex;
+                labels[child_vertex] = pedigree_names[child.id];
+                sexes[child_vertex] = sexes[parent_vertex];
+                ploidies[child_vertex] = ploidies[parent_vertex];
+                add_edge(parent_vertex, child_vertex, {EdgeType::Mitotic, 1.0f}, pedigree_graph);
+            } else if(child.type == child_t::Type::Sperm) {
+                child_vertex = counter++;
+                vertices[child.id] = child_vertex;
+                labels[child_vertex] = pedigree_names[child.id];
+                sexes[child_vertex] = pedigree_sexes[child.id];
+                ploidies[child_vertex] = 1;
+                add_edge(parent_vertex, child_vertex, {EdgeType::Paternal, 1.0f}, pedigree_graph);
+            } else if(child.type == child_t::Type::Egg) {
+                child_vertex = counter++;
+                vertices[child.id] = child_vertex;
+                labels[child_vertex] = pedigree_names[child.id];
+                sexes[child_vertex] = pedigree_sexes[child.id];
+                ploidies[child_vertex] = 1;
+                add_edge(parent_vertex, child_vertex, {EdgeType::Maternal, 1.0f}, pedigree_graph);
+            } else if(!touched[child.id]) {
+                // create vertex for child after we have visited both its parents
+                touched[child.id] = parent_vertex;
+                continue;
             } else {
                 // add vertex
-                auto child = counter++;
-                vertices[pedchild.id] = child;
-                labels[child] = pedigree_names[pedchild.id];
-                sexes[child] = pedigree_sexes[pedchild.id];
+                child_vertex = counter++;
+                vertices[child.id] = child_vertex;
+                labels[child_vertex] = pedigree_names[child.id];
+                sexes[child_vertex] = pedigree_sexes[child.id];
                 // add the meiotic edges
-                auto mom =  pedchild.maternal ? vert : touched[pedchild.id].get();
-                auto dad = !pedchild.maternal ? vert : touched[pedchild.id].get();
-                add_edge(mom, child, {EdgeType::Maternal, 1.0f}, pedigree_graph);
-                add_edge(dad, child, {EdgeType::Paternal, 1.0f}, pedigree_graph);
+                auto mom_vertex = (child.type == child_t::Type::Maternal) ? parent_vertex : touched[child.id].get();
+                auto dad_vertex = (child.type != child_t::Type::Maternal) ? parent_vertex : touched[child.id].get();
+                add_edge(mom_vertex, child_vertex, {EdgeType::Maternal, 1.0f}, pedigree_graph);
+                add_edge(dad_vertex, child_vertex, {EdgeType::Paternal, 1.0f}, pedigree_graph);
 
                 // Check to see if mom and dad have been seen before
-                auto id = edge(dad, mom, pedigree_graph);
+                auto id = edge(dad_vertex, mom_vertex, pedigree_graph);
                 if (!id.second) { //Connect dad-mom to make a trio
-                    add_edge(dad, mom, EdgeType::Spousal, pedigree_graph);
+                    add_edge(dad_vertex, mom_vertex, EdgeType::Spousal, pedigree_graph);
                 }
-
-                // Process newick file
-                std::size_t current_index = num_vertices(pedigree_graph);
-                const auto & samples = pedigree.GetMember(pedchild.id).samples;
-                if(!samples.empty()) {
-                    if(!parse_newick(samples.front(), child,
-                        pedigree_graph, normalize_somatic_trees) ) {
-                            throw std::invalid_argument("Unable to parse somatic data for individual '" +
-                                pedigree_names[pedchild.id] + "'.");
-                    }
-                    // Mark the sex of the somatic nodes
-                    for (vertex_t i = current_index; i < num_vertices(pedigree_graph); ++i) {
-                        sexes[i] = sexes[child];
-                    }                    
-                }
-                visited.push(pedchild.id);
             }
+            process_samples(child.id, child_vertex);
+            visited.push(child.id);
         }
     }
     // Sanity Check
     assert(counter == pedigree_names.size());
-    return counter;
+    return {founders.size(),counter};
 }
 
 void add_libraries_to_graph(Graph &pedigree_graph, const libraries_t &libs) {
@@ -894,7 +925,10 @@ std::vector<size_t> dng::RelationshipGraph::ConstructNodes(const Graph &pedigree
 }
 
 void dng::RelationshipGraph::CreateFamiliesInfo(Graph &pedigree_graph,
-        family_labels_t &family_labels, std::vector<vertex_t> &pivots) {
+        family_labels_t *family_labels, pivots_t *pivots)
+{
+    assert(family_labels != nullptr);
+    assert(pivots != nullptr);
 
     auto groups = get(boost::vertex_group, pedigree_graph);
     auto families = get(boost::edge_family, pedigree_graph);
@@ -907,29 +941,27 @@ void dng::RelationshipGraph::CreateFamiliesInfo(Graph &pedigree_graph,
     // This defines "nuclear" families and pivot individuals.
     // Nodes which have no edges will not be part of any family.
     std::vector<vertex_t> articulation_vertices;
-    std::size_t num_families =
-            biconnected_components(pedigree_graph, families,
+    std::size_t num_families = biconnected_components(pedigree_graph, families,
                                    back_inserter(articulation_vertices)).first;
 
-    family_labels = family_labels_t(num_families);
-    pivots = std::vector<vertex_t>(num_families, DUMMY_INDEX);
+    family_labels->assign(num_families, {});
+    pivots->assign(num_families, {});
 
     // Determine which edges belong to which nuclear families.
     boost::graph_traits<Graph>::edge_iterator ei, ei_end;
     for (tie(ei, ei_end) = edges(pedigree_graph); ei != ei_end; ++ei) {
-        family_labels[families[*ei]].push_back(*ei);
+        (*family_labels)[families[*ei]].push_back(*ei);
     }
 
     // Determine the last family in each group.  All singleton groups will have
     // a value of -1 since they have no family assignment.
-    using root_families_t = std::deque<std::size_t> ;
-    root_families_t root_families(num_groups, -1);
-    for (std::size_t f = 0; f < family_labels.size(); ++f) {
+    using root_families_t = std::vector<boost::optional<std::size_t>>;
+    root_families_t root_families(num_groups);
+    for (std::size_t f = 0; f < family_labels->size(); ++f) {
         // last one wins
-        auto first_edge = family_labels[f][0];
+        auto first_edge = (*family_labels)[f][0];
         auto src_vertex = source(first_edge, pedigree_graph);
         root_families[groups[src_vertex]] = f;
-
     }
 
     // Identify the pivot for each family.
@@ -939,21 +971,21 @@ void dng::RelationshipGraph::CreateFamiliesInfo(Graph &pedigree_graph,
         boost::graph_traits<Graph>::out_edge_iterator ei, ei_end;
         for (tie(ei, ei_end) = out_edges(a, pedigree_graph); ei != ei_end; ++ei) {
             // Just overwrite existing value so that the last one wins.
-            pivots[families[*ei]] = a;
+            (*pivots)[families[*ei]] = a;
         }
     }
 
-    // Root Pivots are special
+    // Clear pivots of roots
     for (auto f : root_families) {
-        if (f != -1) { //Assign to non-singleton groups
-            pivots[f] = DUMMY_INDEX;
+        if(f) {
+            (*pivots)[f.get()] = boost::none;
         }
     }
 }
 
 void dng::RelationshipGraph::CreatePeelingOps(
         const Graph &pedigree_graph, const std::vector<size_t> &node_ids,
-        family_labels_t &family_labels, std::vector<vertex_t> &pivots) {
+        family_labels_t &family_labels, const pivots_t &pivots) {
 
     auto edge_types = get(boost::edge_type, pedigree_graph);
     auto lengths = get(boost::edge_length, pedigree_graph);
@@ -993,7 +1025,7 @@ void dng::RelationshipGraph::CreatePeelingOps(
             // we can't construct the pedigree.
             if (family_edges.size() != 1) {
                 throw std::invalid_argument("Unable to construct peeler for pedigree;  "
-                        "do not have a parent-child single branch");
+                        "it does not have a parent-child single branch");
             }
             // Create a mitotic peeling operation.
             auto child_index = target(*it, pedigree_graph);
@@ -1016,15 +1048,17 @@ void dng::RelationshipGraph::CreatePeelingOps(
 
             family_members_.push_back({parent, child});
 
-            if (node_ids[pivots[k]] == child) {
-                peeling_ops_.push_back(peel::Op::DOWN);
+            if(pivots[k]) {
+                if(node_ids[pivots[k].get()] == child) {
+                    peeling_ops_.push_back(peel::Op::DOWN);
+                } else {
+                    peeling_ops_.push_back(peel::Op::UP);
+                }                
             } else {
                 peeling_ops_.push_back(peel::Op::UP);
-                if (node_ids[pivots[k]] == node_ids[DUMMY_INDEX]) {
-                    roots_.push_back(parent);
-                }
+                roots_.push_back(parent);
             }
-        } else if (num_spousal_edges == 1) {
+        } else if(num_spousal_edges == 1) {
             // If this family contains no children, skip it
             if (it == family_edges.end()) {
                 continue;
@@ -1064,13 +1098,13 @@ void dng::RelationshipGraph::CreatePeelingOps(
                     transitions_[child].length1 = lengths[*it];
                 }
             }
-            if (node_ids[pivots[k]] == node_ids[DUMMY_INDEX]) {
+            if (!pivots[k]) {
                 // A family without a pivot is a root family
                 peeling_ops_.push_back(peel::Op::TOFATHER);
                 roots_.push_back(family_members[0]);
 
             } else {
-                auto pivot_pos = boost::range::find(family_members, node_ids[pivots[k]]);
+                auto pivot_pos = boost::range::find(family_members, node_ids[pivots[k].get()]);
                 size_t p = distance(family_members.begin(), pivot_pos);
 
                 if (p == 0) {
