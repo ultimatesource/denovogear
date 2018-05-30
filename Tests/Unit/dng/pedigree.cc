@@ -81,33 +81,34 @@ BOOST_AUTO_TEST_CASE(test_parse_text) {
         "B@founder\t.:0.1\t.\t2\tB1\n"
         "C    A    B    1    C1    C2\n"
         "D A:0.01 B:0.5 2\t=\n"
+        "E@founder@haploid . . 2 =\n"
     ;
 
     std::vector<std::string> expected_names = {
-        "A", "B", "C", "D"
+        "A", "B", "C", "D", "E"
     };
     std::vector<boost::optional<std::string>> expected_dads = {
-        boost::none, boost::none, std::string{"A"}, std::string{"A"}
+        boost::none, boost::none, std::string{"A"}, std::string{"A"}, boost::none
     };
     std::vector<boost::optional<std::string>> expected_moms = {
-        boost::none, boost::none, std::string{"B"}, std::string{"B"}
+        boost::none, boost::none, std::string{"B"}, std::string{"B"}, boost::none
     };    
     std::vector<boost::optional<double>> expected_dad_lens = {
-        boost::none, boost::none, boost::none, 0.01
+        boost::none, boost::none, boost::none, 0.01, boost::none
     };
     std::vector<boost::optional<double>> expected_mom_lens = {
-        boost::none, boost::none, boost::none, 0.5
+        boost::none, boost::none, boost::none, 0.5, boost::none
     };
     std::vector<std::vector<std::string>> expected_samples = {
-        {"A"},{"B1"},{"C1","C2"},{"D"}
+        {"A"},{"B1"},{"C1","C2"},{"D"},{"E"}
     };
     std::vector<std::vector<std::string>> expected_tags = {
-        {},{"founder"},{},{}
+        {},{"founder"},{},{},{"founder","haploid"}
     };
     auto Male = Pedigree::Sex::Male;
     auto Female = Pedigree::Sex::Female;
     std::vector<Pedigree::Sex> expected_sexes = {
-        Male,Female,Male,Female
+        Male,Female,Male,Female,Female
     };
 
     Pedigree pedigree;
@@ -154,9 +155,24 @@ BOOST_AUTO_TEST_CASE(test_parse_text) {
     CHECK_EQUAL_RANGES(test_sexes, expected_sexes);
 
     // Check Pedigree Functions
-    BOOST_CHECK_EQUAL(pedigree.LookupMemberPosition("B"), 1);
-    BOOST_CHECK_EQUAL(pedigree.LookupMember("B")->name, "B");
-    BOOST_CHECK_EQUAL(pedigree.GetMember(1).name, "B");
+    Pedigree pedigree_copy;
+    BOOST_REQUIRE_NO_THROW(pedigree_copy = Pedigree{pedigree.table()});
+    BOOST_CHECK_EQUAL(pedigree_copy.NumberOfMembers(), pedigree.NumberOfMembers());
+    BOOST_CHECK_EQUAL(pedigree_copy.table().size(), pedigree.table().size());
+
+    BOOST_CHECK_EQUAL(pedigree_copy.LookupMemberPosition("B"), 1);
+    BOOST_CHECK_EQUAL(pedigree_copy.LookupMember("B")->name, "B");
+    BOOST_CHECK_EQUAL(pedigree_copy.GetMember(1).name, "B");
+
+    BOOST_CHECK_EQUAL(pedigree_copy.LookupMemberPosition("~"), pedigree_copy.NumberOfMembers());
+    BOOST_CHECK_EQUAL(pedigree_copy.LookupMember("~"), nullptr);
+
+    pedigree_copy.Clear();
+    BOOST_CHECK_EQUAL(pedigree_copy.NumberOfMembers(), 0);
+    BOOST_CHECK_EQUAL(pedigree_copy.table().empty(), true);
+
+    Pedigree::MemberTable dup_table = {pedigree.GetMember(0),pedigree.GetMember(0)};
+    BOOST_REQUIRE_THROW(pedigree_copy = Pedigree{dup_table}, std::invalid_argument);
 }
 
 BOOST_AUTO_TEST_CASE(test_parse_text_exceptions) {

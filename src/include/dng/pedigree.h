@@ -107,12 +107,12 @@ public:
         return it->second;
     }
 
-    MemberTable::const_iterator LookupMember(const std::string & child) const {
+    const Member* LookupMember(const std::string & child) const {
         auto it = names_.find(child);
         if(it == names_.end()) {
-            return table_.end();
+            return nullptr;
         }
-        return table_.begin()+it->second;
+        return &table_[it->second];
     }
 
     const Member& GetMember(std::size_t pos) const { return table_.at(pos); }
