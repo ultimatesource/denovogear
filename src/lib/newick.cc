@@ -159,7 +159,7 @@ bool dng::detail::graph::parse_newick(const std::string &text, vertex_t root, Gr
         boost::trim_fill(a.label, "_");
         vertex_t v = add_vertex({a.label,VertexType::Somatic}, graph);
         add_edge((a.parent == -1) ? root : offset - a.parent,
-                 v, {EdgeType::Mitotic, a.length}, graph);
+                 v, {EdgeType::Mitotic, static_cast<float>(a.length)}, graph);
     }
 
     return true;

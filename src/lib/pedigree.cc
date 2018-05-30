@@ -39,6 +39,11 @@ Pedigree Pedigree::parse_table(const std::vector<std::vector<std::string>> &tabl
         }
         // separate tags from member name
         {
+            if(row[0][0] == '@') {
+                throw std::invalid_argument("Pedigree parsing failed. Row "
+                    + std::to_string(row_num) + " has empty child name."
+                );                
+            }
             auto tokens = utility::make_tokenizer_dropempty(row[0], "@", "");
             if(tokens.begin() == tokens.end()) {
                 throw std::invalid_argument("Pedigree parsing failed. Row "
@@ -63,7 +68,7 @@ Pedigree Pedigree::parse_table(const std::vector<std::vector<std::string>> &tabl
             } else if(pos != std::string::npos) {
                 char *str_end;
                 member.dad_length = std::strtod(row[1].c_str()+pos+1, &str_end);
-                if(str_end != row[1].c_str()+row[1].size()) {
+                if(pos+1 == row[1].size() || str_end != row[1].c_str()+row[1].size()) {
                     throw std::invalid_argument("Pedigree parsing failed. Row "
                         + std::to_string(row_num) + " has invalid dad length."
                     );
@@ -84,7 +89,7 @@ Pedigree Pedigree::parse_table(const std::vector<std::vector<std::string>> &tabl
             } else if(pos != std::string::npos) {
                 char *str_end;
                 member.mom_length = std::strtod(row[2].c_str()+pos+1, &str_end);
-                if(str_end != row[2].c_str()+row[2].size()) {
+                if(pos+1 == row[2].size() || str_end != row[2].c_str()+row[2].size()) {
                     throw std::invalid_argument("Pedigree parsing failed. Row "
                         + std::to_string(row_num) + " has invalid mom length."
                     );
