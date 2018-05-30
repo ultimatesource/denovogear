@@ -304,10 +304,10 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
     };
 
     Pedigree quad_ped;
-    quad_ped.AddMember({"Dad",Sex::Male,{},{},{},{},{"DadSm"},{}});
-    quad_ped.AddMember({"Mom",Sex::Female,{},{},{},{},{"MomSm"},{}});
-    quad_ped.AddMember({"Eve",Sex::Female,std::string{"Dad"},{},std::string{"Mom"},{},{"EveSm"},{}});
-    quad_ped.AddMember({"Bob",Sex::Male,std::string{"Dad"},{},std::string{"Mom"},{},{"BobSm"},{}});
+    quad_ped.AddMember({"Dad",{},{},{},{},{},Sex::Male,{"DadSm"}});
+    quad_ped.AddMember({"Mom",{},{},{},{},{},Sex::Female,{"MomSm"}});
+    quad_ped.AddMember({"Eve",{},std::string{"Dad"},{},std::string{"Mom"},{},Sex::Female,{"EveSm"}});
+    quad_ped.AddMember({"Bob",{},std::string{"Dad"},{},std::string{"Mom"},{},Sex::Male,{"BobSm"}});
 
     BOOST_TEST_CONTEXT("graph=quad_graph_autosomal") {
         //Construct Graph
@@ -460,7 +460,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
         };
 
         Pedigree somatic_ped;
-        somatic_ped.AddMember({"M",Sex::Female,{},{},{},{},{"((M1,M2)M12,M3);"},{}});
+        somatic_ped.AddMember({"M",{},{},{},{},{},Sex::Female,{"((M1,M2)M12,M3);"}});
 
         constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
 
@@ -494,7 +494,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
         };
 
         Pedigree somatic_ped;
-        somatic_ped.AddMember({"M",Sex::Female,{},{},{},{},{"((M1,M2)M12,M3);"},{}});
+        somatic_ped.AddMember({"M",{},{},{},{},{},Sex::Female,{"((M1,M2)M12,M3);"}});
 
         constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
 
@@ -526,9 +526,9 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
         };
 
         Pedigree ped;
-        ped.AddMember({"Dad",Sex::Male,{},{},{},{},{"Dad"},{}});
-        ped.AddMember({"Mom",Sex::Female,{},{},{},{},{"Mom"},{}});
-        ped.AddMember({"Eve",Sex::Female,std::string{"Dad"},{},std::string{"Mom"},{},{"Eve"},{}});
+        ped.AddMember({"Dad",{},{},{},{},{},Sex::Male,{"Dad"}});
+        ped.AddMember({"Mom",{},{},{},{},{},Sex::Female,{"Mom"}});
+        ped.AddMember({"Eve",{},std::string{"Dad"},{},std::string{"Mom"},{},Sex::Female,{"Eve"}});
 
         constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
 
@@ -554,9 +554,9 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
         };
 
         Pedigree ped;
-        ped.AddMember({"Dad",Sex::Male,{},{},{},{},{"Dad"},{}});
-        ped.AddMember({"Mom",Sex::Female,{},{},{},{},{"MomSm"},{}});
-        ped.AddMember({"Eve",Sex::Female,std::string{"Dad"},{},std::string{"Mom"},{},{"Eve"},{}});
+        ped.AddMember({"Dad",{},{},{},{},{},Sex::Male,{"Dad"}});
+        ped.AddMember({"Mom",{},{},{},{},{},Sex::Female,{"MomSm"}});
+        ped.AddMember({"Eve",{},std::string{"Dad"},{},std::string{"Mom"},{},Sex::Female,{"Eve"}});
 
         constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
 
@@ -581,9 +581,9 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
         };
 
         Pedigree ped;
-        ped.AddMember({"Dad",Sex::Male,{},{},{},{},{"DadSm"},{}});
-        ped.AddMember({"Mom",Sex::Female,{},{},{},{},{"Mom"},{}});
-        ped.AddMember({"Eve",Sex::Female,std::string{"Dad"},{},std::string{"Mom"},{},{"Eve"},{}});
+        ped.AddMember({"Dad",{},{},{},{},{},Sex::Male,{"DadSm"}});
+        ped.AddMember({"Mom",{},{},{},{},{},Sex::Female,{"Mom"}});
+        ped.AddMember({"Eve",{},std::string{"Dad"},{},std::string{"Mom"},{},Sex::Female,{"Eve"}});
 
         constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
 
@@ -598,7 +598,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
             {"LB/Mom", DIPLOID, LIBRARY,  !ROOT, PAIR, 1, s+l, -1, 0.0f, "Mom"},
           };
 
-        test(graph, expected);        
+        test(graph, expected);
     }
 
 
@@ -609,8 +609,8 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
         };
 
         Pedigree ped;
-        ped.AddMember({"Dad",Sex::Male,{},{},{},{},{"Dad"},{}});
-        ped.AddMember({"Mom",Sex::Female,{},{},{},{},{"Mom"},{}});
+        ped.AddMember({"Dad",{},{},{},{},{},Sex::Male,{"Dad"}});
+        ped.AddMember({"Mom",{},{},{},{},{},Sex::Female,{"Mom"}});
 
         constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
 
@@ -635,9 +635,9 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
         };
 
         Pedigree ped;
-        ped.AddMember({"Dad",Sex::Male,{},{},{},{},{"Dad"},{}});
-        ped.AddMember({"Mom",Sex::Female,{},{},{},{},{"Mom"},{}});
-        ped.AddMember({"Eve",Sex::Female,std::string{"Dad"},{},std::string{"Mom"},{},{"EveSm"},{}});
+        ped.AddMember({"Dad",{},{},{},{},{},Sex::Male,{"Dad"}});
+        ped.AddMember({"Mom",{},{},{},{},{},Sex::Female,{"Mom"}});
+        ped.AddMember({"Eve",{},std::string{"Dad"},{},std::string{"Mom"},{},Sex::Female,{"EveSm"}});
 
         constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
 
@@ -662,11 +662,11 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
         };
 
         Pedigree ped;
-        ped.AddMember({"Dad",Sex::Male,{},{},{},{},{"Dad"},{}});
-        ped.AddMember({"Mom1",Sex::Female,{},{},{},{},{"Mom1"},{}});
-        ped.AddMember({"Mom2",Sex::Female,{},{},{},{},{"Mom2"},{}});
-        ped.AddMember({"Eve1",Sex::Female,std::string{"Dad"},{},std::string{"Mom1"},{},{"Eve1"},{}});
-        ped.AddMember({"Bob2",Sex::Male,std::string{"Dad"},{},std::string{"Mom2"},{},{"Bob2"},{}});
+        ped.AddMember({"Dad",{},{},{},{},{},Sex::Male,{"Dad"}});
+        ped.AddMember({"Mom1",{},{},{},{},{},Sex::Female,{"Mom1"}});
+        ped.AddMember({"Mom2",{},{},{},{},{},Sex::Female,{"Mom2"}});
+        ped.AddMember({"Eve1",{},std::string{"Dad"},{},std::string{"Mom1"},{},Sex::Female,{"Eve1"}});
+        ped.AddMember({"Bob2",{},std::string{"Dad"},{},std::string{"Mom2"},{},Sex::Male,{"Bob2"}});
 
         constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
 
@@ -704,18 +704,18 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
         };
 
         Pedigree ped;
-        ped.AddMember({"1",Sex::Male,{},{},{},{},{"1"},{}});
-        ped.AddMember({"2",Sex::Female,{},{},{},{},{"2"},{}});
-        ped.AddMember({"3",Sex::Male,{},{},{},{},{"3"},{}});
-        ped.AddMember({"4",Sex::Female,{},{},{},{},{"4"},{}});
-        ped.AddMember({"5",Sex::Male,{},{},{},{},{"5"},{}});
-        ped.AddMember({"6",Sex::Female,{},{},{},{},{"6"},{}});
-        ped.AddMember({"7",Sex::Male,std::string{"1"},{},std::string{"2"},{},{"7"},{}});
-        ped.AddMember({"8",Sex::Female,std::string{"3"},{},std::string{"4"},{},{"8"},{}});
-        ped.AddMember({"9",Sex::Female,std::string{"7"},{},std::string{"8"},{},{"9"},{}});
-        ped.AddMember({"10",Sex::Female,std::string{"7"},{},std::string{"8"},{},{"10"},{}});
-        ped.AddMember({"11",Sex::Male,std::string{"5"},{},std::string{"6"},{},{"11"},{}});
-        ped.AddMember({"12",Sex::Male,std::string{"11"},{},std::string{"10"},{},{"12"},{}});
+        ped.AddMember({"1",{},{},{},{},{},Sex::Male,{"1"}});
+        ped.AddMember({"2",{},{},{},{},{},Sex::Female,{"2"}});
+        ped.AddMember({"3",{},{},{},{},{},Sex::Male,{"3"}});
+        ped.AddMember({"4",{},{},{},{},{},Sex::Female,{"4"}});
+        ped.AddMember({"5",{},{},{},{},{},Sex::Male,{"5"}});
+        ped.AddMember({"6",{},{},{},{},{},Sex::Female,{"6"}});
+        ped.AddMember({"7",{},std::string{"1"},{},std::string{"2"},{},Sex::Male,{"7"}});
+        ped.AddMember({"8",{},std::string{"3"},{},std::string{"4"},{},Sex::Female,{"8"}});
+        ped.AddMember({"9",{},std::string{"7"},{},std::string{"8"},{},Sex::Female,{"9"}});
+        ped.AddMember({"10",{},std::string{"7"},{},std::string{"8"},{},Sex::Female,{"10"}});
+        ped.AddMember({"11",{},std::string{"5"},{},std::string{"6"},{},Sex::Male,{"11"}});
+        ped.AddMember({"12",{},std::string{"11"},{},std::string{"10"},{},Sex::Male,{"12"}});
 
         constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
 
@@ -891,10 +891,10 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_peeler) {
     };
 
     Pedigree quad_ped;
-    quad_ped.AddMember({"Dad",Sex::Male,{},{},{},{},{"DadSm"},{}});
-    quad_ped.AddMember({"Mom",Sex::Female,{},{},{},{},{"MomSm"},{}});
-    quad_ped.AddMember({"Eve",Sex::Female,std::string{"Dad"},{},std::string{"Mom"},{},{"EveSm"},{}});
-    quad_ped.AddMember({"Bob",Sex::Male,std::string{"Dad"},{},std::string{"Mom"},{},{"BobSm"},{}});
+    quad_ped.AddMember({"Dad",{},{},{},{},{},Sex::Male,{"DadSm"}});
+    quad_ped.AddMember({"Mom",{},{},{},{},{},Sex::Female,{"MomSm"}});
+    quad_ped.AddMember({"Eve",{},std::string{"Dad"},{},std::string{"Mom"},{},Sex::Female,{"EveSm"}});
+    quad_ped.AddMember({"Bob",{},std::string{"Dad"},{},std::string{"Mom"},{},Sex::Male,{"BobSm"}});
 
     BOOST_TEST_CONTEXT("graph=quad_graph_autosomal") {
         const expected_peeling_nodes_t expected = {
@@ -996,7 +996,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_peeler) {
         };
 
         Pedigree somatic_ped;
-        somatic_ped.AddMember({"M",Sex::Female,{},{},{},{},{"((M1,M2)M12,M3);"},{}});
+        somatic_ped.AddMember({"M",{},{},{},{},{},Sex::Female,{"((M1,M2)M12,M3);"}});
 
         constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
 
@@ -1027,11 +1027,11 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_peeler) {
         };
 
         Pedigree twofam_ped;
-        twofam_ped.AddMember({"Dad",Sex::Male,{},{},{},{},{"DadSm"},{}});
-        twofam_ped.AddMember({"Mom",Sex::Female,{},{},{},{},{"MomSm"},{}});
-        twofam_ped.AddMember({"Eve",Sex::Female,std::string{"Dad"},{},std::string{"Mom"},{},{"EveSm"},{}});
-        twofam_ped.AddMember({"Bob",Sex::Male,std::string{"Dad"},{},std::string{"Mom"},{},{"BobSm"},{}});
-        twofam_ped.AddMember({"Sam",Sex::Male,{},{},{},{},{"SamSm"},{}});
+        twofam_ped.AddMember({"Dad",{},{},{},{},{},Sex::Male,{"DadSm"}});
+        twofam_ped.AddMember({"Mom",{},{},{},{},{},Sex::Female,{"MomSm"}});
+        twofam_ped.AddMember({"Eve",{},std::string{"Dad"},{},std::string{"Mom"},{},Sex::Female,{"EveSm"}});
+        twofam_ped.AddMember({"Bob",{},std::string{"Dad"},{},std::string{"Mom"},{},Sex::Male,{"BobSm"}});
+        twofam_ped.AddMember({"Sam",{},{},{},{},{},Sex::Male,{"SamSm"}});
 
         constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
 
@@ -1066,18 +1066,18 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_peeler) {
         };
 
         Pedigree ped;
-        ped.AddMember({"1",Sex::Male,{},{},{},{},{"1"},{}});
-        ped.AddMember({"2",Sex::Female,{},{},{},{},{"2"},{}});
-        ped.AddMember({"3",Sex::Male,{},{},{},{},{"3"},{}});
-        ped.AddMember({"4",Sex::Female,{},{},{},{},{"4"},{}});
-        ped.AddMember({"5",Sex::Male,{},{},{},{},{"5"},{}});
-        ped.AddMember({"6",Sex::Female,{},{},{},{},{"6"},{}});
-        ped.AddMember({"7",Sex::Male,std::string{"1"},{},std::string{"2"},{},{"7"},{}});
-        ped.AddMember({"8",Sex::Female,std::string{"3"},{},std::string{"4"},{},{"8"},{}});
-        ped.AddMember({"9",Sex::Female,std::string{"7"},{},std::string{"8"},{},{"9"},{}});
-        ped.AddMember({"10",Sex::Female,std::string{"7"},{},std::string{"8"},{},{"10"},{}});
-        ped.AddMember({"11",Sex::Male,std::string{"5"},{},std::string{"6"},{},{"11"},{}});
-        ped.AddMember({"12",Sex::Male,std::string{"11"},{},std::string{"10"},{},{"12"},{}});
+        ped.AddMember({"1",{},{},{},{},{},Sex::Male,{"1"}});
+        ped.AddMember({"2",{},{},{},{},{},Sex::Female,{"2"}});
+        ped.AddMember({"3",{},{},{},{},{},Sex::Male,{"3"}});
+        ped.AddMember({"4",{},{},{},{},{},Sex::Female,{"4"}});
+        ped.AddMember({"5",{},{},{},{},{},Sex::Male,{"5"}});
+        ped.AddMember({"6",{},{},{},{},{},Sex::Female,{"6"}});
+        ped.AddMember({"7",{},std::string{"1"},{},std::string{"2"},{},Sex::Male,{"7"}});
+        ped.AddMember({"8",{},std::string{"3"},{},std::string{"4"},{},Sex::Female,{"8"}});
+        ped.AddMember({"9",{},std::string{"7"},{},std::string{"8"},{},Sex::Female,{"9"}});
+        ped.AddMember({"10",{},std::string{"7"},{},std::string{"8"},{},Sex::Female,{"10"}});
+        ped.AddMember({"11",{},std::string{"5"},{},std::string{"6"},{},Sex::Male,{"11"}});
+        ped.AddMember({"12",{},std::string{"11"},{},std::string{"10"},{},Sex::Male,{"12"}});
 
         constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
 
@@ -1127,11 +1127,11 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Peel) {
     };
 
     Pedigree twofam_ped;
-    twofam_ped.AddMember({"Dad",Sex::Male,{},{},{},{},{"DadSm"},{}});
-    twofam_ped.AddMember({"Mom",Sex::Female,{},{},{},{},{"MomSm"},{}});
-    twofam_ped.AddMember({"Eve",Sex::Female,std::string{"Dad"},{},std::string{"Mom"},{},{"EveSm"},{}});
-    twofam_ped.AddMember({"Bob",Sex::Male,std::string{"Dad"},{},std::string{"Mom"},{},{"BobSm"},{}});
-    twofam_ped.AddMember({"Sam",Sex::Male,{},{},{},{},{"SamSm"},{}});
+    twofam_ped.AddMember({"Dad",{},{},{},{},{},Sex::Male,{"DadSm"}});
+    twofam_ped.AddMember({"Mom",{},{},{},{},{},Sex::Female,{"MomSm"}});
+    twofam_ped.AddMember({"Eve",{},std::string{"Dad"},{},std::string{"Mom"},{},Sex::Female,{"EveSm"}});
+    twofam_ped.AddMember({"Bob",{},std::string{"Dad"},{},std::string{"Mom"},{},Sex::Male,{"BobSm"}});
+    twofam_ped.AddMember({"Sam",{},{},{},{},{},Sex::Male,{"SamSm"}});
 
 
     BOOST_TEST_CONTEXT("graph=twofam_graph_autosomal") {

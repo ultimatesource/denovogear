@@ -63,13 +63,17 @@ public:
 
     struct Member {
         std::string name;
-        Sex sex;
+        std::vector<std::string> tags;
+
         boost::optional<std::string> dad;
         boost::optional<double> dad_length;
+
         boost::optional<std::string> mom;
         boost::optional<double> mom_length;
+
+        Sex sex;
+ 
         std::vector<std::string> samples;
-        std::vector<std::string> tags;
     };
 
     using MemberTable = std::vector<Member>;
@@ -120,6 +124,8 @@ public:
         names_.clear();
     }
 
+    const MemberTable& table() { return table_; }
+
 private:
     MemberTable table_;
     std::unordered_map<std::string,MemberTable::size_type> names_;
@@ -164,11 +170,11 @@ Pedigree Pedigree::parse_text(const Range &text) {
             continue;
         }
         if(k == 0) {
+            string_table.emplace_back();
             if(token[0] == '#') {
                 in_comment = true;
                 continue;
             }
-            string_table.emplace_back();
             string_table.back().reserve(8);
         }
         // Add token to the current row

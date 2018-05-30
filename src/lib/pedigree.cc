@@ -28,9 +28,13 @@ Pedigree Pedigree::parse_table(const std::vector<std::vector<std::string>> &tabl
     for(auto &&row : table) {
         Member member;
         row_num += 1;
+        if(row.empty()) {
+            continue;
+        }
         if(row.size() < 5) {
             throw std::invalid_argument("Pedigree parsing failed. Row "
-                + std::to_string(row_num) + " has fewer than 5 columns."
+                + std::to_string(row_num) + " has "
+                + std::to_string(row.size()) + " column(s) instead of 5 or more columns."
             );
         }
         // separate tags from member name
@@ -104,6 +108,7 @@ Pedigree Pedigree::parse_table(const std::vector<std::vector<std::string>> &tabl
                 member.samples.push_back(*it);
             }
         }
+        ret.AddMember(member);
     }
     return ret;
 }
