@@ -1,8 +1,0 @@
-set(Help-CMD @DNG_PILEUP_EXE@ --help)
-set(Help-WD ".")
-set(Help-RESULT 0)
-set(Help-STDERR "Usage:\n  dng pileup")
-
-include("@CMAKE_CURRENT_SOURCE_DIR@/CheckProcessTest.cmake")
-
-CheckProcessTests(DngPileup.Run Help)

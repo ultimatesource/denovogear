@@ -302,8 +302,7 @@ file_type_t extract_file_type(std::string path);
 enum class FileCat {
     Unknown  = 0,
     Sequence = 1,
-    Variant  = 2,
-    Pileup   = 4
+    Variant  = 2
 };
 ENABLE_ENUMFLAGS(FileCat);
 

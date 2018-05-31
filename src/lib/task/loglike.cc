@@ -53,7 +53,6 @@
 #include <dng/stats.h>
 #include <dng/io/utility.h>
 #include <dng/io/fasta.h>
-#include <dng/io/ad.h>
 #include <dng/io/ped.h>
 #include <dng/io/bam.h>
 #include <dng/io/bcf.h>
@@ -74,7 +73,6 @@ using utility::make_array;
 // Sub-tasks
 namespace {
 int process_bam(LogLike::argument_type &arg);
-int process_ad(LogLike::argument_type &arg);
 int process_bcf(LogLike::argument_type &arg);
 } // anon namespace
 
@@ -90,16 +88,14 @@ int task::LogLike::operator()(task::LogLike::argument_type &arg) {
 
     // Check that all input formats are of same category
     auto it = arg.input.begin();
-    FileCat mode = utility::input_category(*it, FileCat::Sequence|FileCat::Pileup|FileCat::Variant, FileCat::Sequence);
+    FileCat mode = utility::input_category(*it, FileCat::Sequence|FileCat::Variant, FileCat::Sequence);
     for(++it; it != arg.input.end(); ++it) {
-        if(utility::input_category(*it, FileCat::Sequence|FileCat::Pileup|FileCat::Variant, FileCat::Sequence) != mode) {
-            throw std::invalid_argument("Mixing sam/bam/cram, vcf/bcf, and tad/ad input files is not supported.");
+        if(utility::input_category(*it, FileCat::Sequence|FileCat::Variant, FileCat::Sequence) != mode) {
+            throw std::invalid_argument("Mixing sam/bam/cram and vcf/bcf input files is not supported.");
         }
     }
     // Execute sub tasks based on input type
-    if(mode == FileCat::Pileup) {
-        return process_ad(arg);
-    } else if(mode == FileCat::Variant) {
+    if(mode == FileCat::Variant) {
         // vcf, bcf
         return process_bcf(arg);
     } else if(mode == FileCat::Sequence) {
@@ -224,132 +220,6 @@ int process_bcf(LogLike::argument_type &arg) {
         sum_data += loglike;
         sum_scale += model.work().ln_scale;
     });
-
-    // output results
-    output_loglike_results(cout, sum_data.result(), sum_scale.result()/M_LN10);
-
-    return EXIT_SUCCESS;
-}
-
-int process_ad(LogLike::argument_type &arg) {
-    using namespace std;
-   
-    // Read input data
-    auto mpileup = io::AdPileup::open_and_setup(arg);
-
-    auto relationship_graph = create_relationship_graph(arg, &mpileup);
-
-    Probability model{relationship_graph, get_model_parameters(arg)};
-
-    stats::ExactSum sum_data, sum_scale;
-
-    pileup::allele_depths_t read_depths;
-    // Place the processing logic in the lambda function.
-    auto wrapped_model = [&,read_depths,model](const decltype(mpileup)::data_type &line,
-        stats::ExactSum* p_sum_data, stats::ExactSum* p_sum_scale) mutable {
-        bool ref_is_N = (line.color() >= 64);
-        if(ref_is_N) {
-            size_t sz = line.num_nucleotides() + 1;
-            read_depths.resize(make_array(line.num_libraries(),sz));
-            for(int i=0;i<line.num_libraries();++i) {
-                read_depths[i][0] = 0;
-                for(int a=1;a<sz;++a) {
-                    read_depths[i][a] = line(i,a-1);
-                }
-            }
-            double loglike = model.CalculateLLD(read_depths, sz);
-            *p_sum_data += loglike;
-            *p_sum_scale += model.work().ln_scale;
-        } else {
-            size_t sz = line.num_nucleotides();
-            dng::pileup::allele_depths_const_ref_t read_depths_ref(line.data().data(),
-                make_array(line.num_libraries(), line.num_nucleotides()));
-            double loglike = model.CalculateLLD(read_depths_ref, sz);
-            *p_sum_data += loglike;
-            *p_sum_scale += model.work().ln_scale;
-        }
-    };
-
-    // using a single thread to read data and process it
-    if(arg.threads == 0) {
-        dng::pileup::allele_depths_t read_depths(make_array(mpileup.num_libraries(),5u));
-        mpileup([&](const decltype(mpileup)::data_type &line) {
-            wrapped_model(line, &sum_data, &sum_scale);
-        });
-    } else {
-        // Use a single thread to read data from the input
-        // and multiple threads to process it.
-        // Data will be processed in batches and a finite
-        // number of batches will be shared between the main
-        // and worker threads. std::move will be used to
-        // efficiently copy the batches between threads.
-
-        // force batch_size to be positive
-        if(arg.batch_size <= 0) {
-            arg.batch_size = 10000;
-        }
-        // construct vectors to hold our batches
-        size_t num_batches = arg.threads+3;
-        size_t batch_size = arg.batch_size;
-        typedef vector<pileup::AlleleDepths> batch_t;
-        stack<batch_t> batches;
-        for(size_t u=0; u<num_batches; ++u) {
-            batches.emplace(batch_size,pileup::AlleleDepths{});
-        }
-
-        // synchronization objects for the batch stack
-        mutex batch_mutex;
-        condition_variable batch_cond;
-
-        // construct a lambda function which will be used for the worker threads
-        // each thread needs to have its own, mutable copy of calculate
-        // because calculate stores working data in a member object
-        auto batch_model = [&,wrapped_model](batch_t& reads) mutable {
-                stats::ExactSum sum_d, sum_s;
-            for(auto && line : reads) {
-                wrapped_model(line, &sum_d, &sum_s);
-            }
-            {
-                // use batch_mutex to save results and return our data object
-                lock_guard<mutex> lock(batch_mutex);
-                sum_data += sum_d;
-                sum_scale += sum_s;
-                batches.emplace(std::move(reads));
-            }
-            // notify the reader thread that we have returned our object
-            batch_cond.notify_one();
-        };
-
-        // construct worker thread pool to run batch_calculate
-        multithread::BasicPool<batch_t&> worker_pool(batch_model,arg.threads);
-
-        // loop until we hit the end-of-file
-        bool eof = false;
-        while(!eof) {
-            // setup a batch
-            batch_t b;
-            {
-                // try to pull a batch object off of the stack
-                std::unique_lock<std::mutex> lock(batch_mutex);
-                batch_cond.wait(lock, [&](){return !batches.empty();});
-                b = std::move(batches.top());
-                batches.pop();
-            }
-            // resize the batch
-            b.resize(batch_size);
-            // read up to batch_size number of reads into the batch
-            // resize if needed
-            for(size_t u=0; u < batch_size; ++u) {
-                if(!mpileup.Read(&b[u])) {
-                    b.resize(u);
-                    eof = true;
-                    break;
-                }
-            }
-            // schedule this batch to run
-            worker_pool.Enqueue(std::move(b));
-        }
-    }
 
     // output results
     output_loglike_results(cout, sum_data.result(), sum_scale.result()/M_LN10);

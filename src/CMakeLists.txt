@@ -27,7 +27,7 @@ if(USE_STATIC_FLAG)
 endif()
 
 # This is a list of binaries that will be compiled to run with dng
-set(MODERN_DNG call loglike phaser dnm pileup) 
+set(MODERN_DNG call loglike phaser dnm) 
 
 foreach(task IN LISTS MODERN_DNG)
   add_executable(dng-${task} dng-${task}.cc)

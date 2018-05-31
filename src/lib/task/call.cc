@@ -51,7 +51,6 @@
 
 #include <dng/io/bam.h>
 #include <dng/io/bcf.h>
-#include <dng/io/ad.h>
 
 #include <htslib/faidx.h>
 #include <htslib/khash.h>
@@ -66,7 +65,6 @@ namespace {
 
 int process_bam(task::Call::argument_type &arg);
 int process_bcf(task::Call::argument_type &arg);
-int process_ad(task::Call::argument_type &arg);
 
 }
 
@@ -83,11 +81,11 @@ using namespace task;
 int task::Call::operator()(Call::argument_type &arg) {
     // Determine the type of input files
     auto it = arg.input.begin();
-    FileCat mode = utility::input_category(*it, FileCat::Sequence|FileCat::Pileup|FileCat::Variant, FileCat::Unknown);
+    FileCat mode = utility::input_category(*it, FileCat::Sequence|FileCat::Variant, FileCat::Unknown);
     for(++it; it != arg.input.end(); ++it) {
         // Make sure different types of input files aren't mixed together
-        if(utility::input_category(*it, FileCat::Sequence|FileCat::Pileup|FileCat::Variant, FileCat::Sequence) != mode) {
-            throw std::invalid_argument("Mixing pileup, sequencing, and variant file types is not supported.");
+        if(utility::input_category(*it, FileCat::Sequence|FileCat::Variant, FileCat::Sequence) != mode) {
+            throw std::invalid_argument("Mixing sequencing, and variant file types is not supported.");
         }
     }
 
@@ -97,9 +95,6 @@ int task::Call::operator()(Call::argument_type &arg) {
     } else if(mode == utility::FileCat::Variant) {
         // vcf, bcf
         return process_bcf(arg);
-    } else if(mode == utility::FileCat::Pileup) {
-        // tad, ad
-        return process_ad(arg);
     } else {
         throw std::invalid_argument("Unknown input data file type.");
     }
@@ -494,121 +489,6 @@ int process_bcf(task::Call::argument_type &arg) {
         record.TrimAlleles(stats.af_min);
         vcfout.WriteRecord(record);
         record.Clear();
-    });
-    return EXIT_SUCCESS;
-}
-
-int process_ad(task::Call::argument_type &arg) {
-    // Read input data
-    auto mpileup = io::AdPileup::open_and_setup(arg);
-
-    auto relationship_graph = create_relationship_graph(arg, &mpileup);
-
-    // Open Output
-    auto vcfout = open_vcf_output(arg, mpileup, relationship_graph, false);
-
-    // Record for each output
-    auto record = vcfout.InitVariant();
-
-    // Construct Calling Object
-    CallMutations model{relationship_graph, get_model_parameters(arg)};
-    model.quality_threshold(arg.min_quality, arg.all);
-
-    // Calculated stats
-    CallMutations::stats_t stats;
-  
-    // Parameters used by site calculation function
-    const size_t num_nodes = relationship_graph.num_nodes();
-    const size_t library_start = relationship_graph.library_nodes().first;
-
-    pileup::allele_depths_t read_depths;
-    // Place the processing logic in the lambda function.
-    auto wrapped_model = [&,read_depths](const decltype(mpileup)::data_type &line,
-        CallMutations::stats_t *stats) mutable -> bool 
-    {
-        bool ref_is_N = (line.color() >= 64);
-        if(ref_is_N) {
-            size_t n_sz = line.num_nucleotides() + 1;
-            read_depths.resize(make_array(line.num_libraries(), n_sz));
-            for(size_t i=0;i<line.num_libraries();++i) {
-                read_depths[i][0] = 0;
-                for(size_t a=1;a<n_sz;++a) {
-                    read_depths[i][a] = line(i,a-1);
-                }
-            }
-            model.SetupWorkspace(read_depths, n_sz, dng::genotype::Mode::LogLikelihood);
-            return model.CalculateMutationStats(dng::genotype::Mode::LogLikelihood, stats);
-        } else {
-            size_t n_sz = line.num_nucleotides();
-            dng::pileup::allele_depths_const_ref_t read_depths_ref(line.data().data(),
-                make_array(line.num_libraries(), line.num_nucleotides()));
-            model.SetupWorkspace(read_depths_ref, n_sz, dng::genotype::Mode::LogLikelihood);
-            return model.CalculateMutationStats(dng::genotype::Mode::LogLikelihood, stats);
-        }
-    };
-
-    mpileup([&](const decltype(mpileup)::data_type & data) {
-        if(!wrapped_model(data, &stats)) {
-            return;
-        }
-
-        const auto & type_gt_infop = data.type_gt_info();
-        const auto & type_info = data.type_info();
-        bool ref_is_N = (data.color() >= 64);
-        const size_t n_sz = type_info.width + ref_is_N;
-        const size_t n_alleles = n_sz;
-
-        // Set alleles
-        record.update_filter("PASS");
-        record.update_alleles(type_info.label_htslib);
-
-        // Copy depths into read_depths
-        read_depths.resize(make_array(data.num_libraries(), n_sz));
-        for(size_t i=0;i<data.num_libraries();++i) {
-            if(ref_is_N) {
-                read_depths[i][0] = 0;
-            }
-            for(size_t a=ref_is_N;a<n_sz;++a) {
-                read_depths[i][a] = data(i,a-ref_is_N);
-            }
-        }
-        // Measure total depth and sort nucleotides in descending order
-        pileup::stats_t depth_stats;
-        pileup::calculate_stats(read_depths, &depth_stats);
-
-        add_stats_to_output(stats, depth_stats, relationship_graph, model.work(), &record);
-
-        // Turn allele frequencies into AD format; order will need to match REF+ALT ordering of nucleotides
-        std::vector<int32_t> ad_info(n_sz, 0);
-        boost::multi_array<int32_t,2> ad_counts(utility::make_array(num_nodes, n_sz));
-        std::fill_n(ad_counts.data(), ad_counts.num_elements(), hts::bcf::int32_missing);
-
-        for(size_t u = 0; u < read_depths.size(); ++u) {
-            size_t k = 0;
-            for(; k < read_depths[u].size(); ++k) {
-                int count = read_depths[u][k];
-                ad_counts[library_start+u][k] = count;
-                ad_info[k] += count;
-            }
-            for(; k < n_alleles; ++k) {
-                ad_counts[library_start+u][k] = 0;
-            }
-        }
-
-        record.update_format("AD", ad_counts.data(), ad_counts.num_elements());
-        record.update_info("AD", ad_info);
-
-        // Calculate target position and fetch sequence name
-        int contig = utility::location_to_contig(data.location());
-        int position = utility::location_to_position(data.location());
-
-        record.target(mpileup.contigs()[contig].name.c_str());
-        record.position(position);
-
-        record.TrimAlleles(stats.af_min);
-        vcfout.WriteRecord(record);
-        record.Clear();
-
     });
     return EXIT_SUCCESS;
 }
