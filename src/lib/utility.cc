@@ -74,8 +74,7 @@ file_type_t extract_file_type(std::string path) {
 
 static const std::string file_category_keys[] = {
     "bam","sam","cram",
-    "bcf","vcf",
-    "ad","tad"
+    "bcf","vcf"
 };
 
 FileCat file_category(const std::string &ext) {
@@ -87,9 +86,6 @@ FileCat file_category(const std::string &ext) {
     case 3:
     case 4:
         return FileCat::Variant;
-    case 5:
-    case 6:
-    	return FileCat::Pileup;
     default:
     	break;
     };

@@ -1,5 +1,4 @@
 add_library(libdng STATIC
-  ad.cc
   bam.cc
   call_mutations.cc
   genotyper.cc
@@ -14,7 +13,6 @@ add_library(libdng STATIC
   utility.cc
   task/call.cc
   task/loglike.cc
-  task/pileup.cc
 )
 
 target_include_directories(libdng PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../include")

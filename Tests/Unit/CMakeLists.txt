@@ -42,7 +42,6 @@ AddUnitTest(hts::hts)
 AddUnitTest(hts::bam)
 AddUnitTest(hts::bcf)
 
-AddUnitTest(dng::io::ad)
 AddUnitTest(dng::io::bam)
 AddUnitTest(dng::io::ped)
 AddUnitTest(dng::cigar)

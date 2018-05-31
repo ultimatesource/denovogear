@@ -61,7 +61,7 @@ set(DNG_PILEUP_EXE ${CMAKE_BINARY_DIR}/src/dng-pileup)
 
 ###############################################################################
 # Add tests for various build targets so we can depend on them
-set(build_test_targets testdata dng-call dng-loglike dng-dnm dng-phaser dng-pileup)
+set(build_test_targets testdata dng-call dng-loglike dng-dnm dng-phaser)
 foreach(target ${build_test_targets})
   add_test(Build.${target} "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target ${target})
 endforeach()
@@ -101,19 +101,14 @@ AddCMakeTest(DngCall.Run "" "Build.dng-call")
 AddCMakeTest(DngCall.Bam "" "Build.dng-call;Build.testdata")
 AddCMakeTest(DngCall.Vcf "" "Build.dng-call;Build.testdata")
 AddCmakeTest(DngCall.Cram "" "Build.dng-call;Build.testdata")
-AddCmakeTest(DngCall.Tad "" "Build.dng-call;Build.testdata")
 
 AddCMakeTest(DngLoglike.Run "" "Build.dng-loglike")
 AddCMakeTest(DngLoglike.Bam "" "Build.dng-loglike;Build.testdata")
 AddCMakeTest(DngLoglike.Vcf "" "Build.dng-loglike;Build.testdata")
 AddCMakeTest(DngLoglike.Cram "" "Build.dng-loglike;Build.testdata")
-AddCMakeTest(DngLoglike.Tad "" "Build.dng-loglike;Build.testdata")
 
 AddCMakeTest(DngDnm.Run "" "Build.dng-dnm")
 AddCMakeTest(DngDnm.Auto "" "Build.dng-dnm;Build.testdata")
 
 AddCMakeTest(DngPhaser.Run "" "Build.dng-phaser")
 AddCMakeTest(DngPhaser.Data "" "Build.dng-phaser;Build.testdata")
-
-AddCMakeTest(DngPileup.Run "" "Build.dng-pileup")
-AddCMakeTest(DngPileup.Bam "" "Build.dng-pileup;Build.testdata")

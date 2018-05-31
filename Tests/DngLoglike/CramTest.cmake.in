@@ -25,7 +25,7 @@ set(MultiInput-CMD @DNG_LOGLIKE_EXE@ -p ped/trio.ped -f trio.fasta.gz trio.cram 
 set(MultiInput-WD "@TESTDATA_DIR@/human_trio")
 set(MultiInput-Result 1)
 set(MultiInput-STDERR
-    "Mixing sam/bam/cram, vcf/bcf, and tad/ad input files is not supported\\."
+    "Mixing sam/bam/cram and vcf/bcf input files is not supported\\."
 )
 
 ###############################################################################

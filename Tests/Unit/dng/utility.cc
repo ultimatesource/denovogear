@@ -222,16 +222,12 @@ BOOST_AUTO_TEST_CASE(test_file_category) {
     BOOST_CHECK_EQUAL(file_category("sam"),  FileCat::Sequence);
     BOOST_CHECK_EQUAL(file_category("vcf"),  FileCat::Variant);
     BOOST_CHECK_EQUAL(file_category("bcf"),  FileCat::Variant);
-    BOOST_CHECK_EQUAL(file_category("ad"),   FileCat::Pileup);
-    BOOST_CHECK_EQUAL(file_category("tad"),  FileCat::Pileup);
 
     BOOST_CHECK_EQUAL(file_category("BAM"),  FileCat::Sequence);
     BOOST_CHECK_EQUAL(file_category("CRAM"), FileCat::Sequence);
     BOOST_CHECK_EQUAL(file_category("SAM"),  FileCat::Sequence);
     BOOST_CHECK_EQUAL(file_category("VCF"),  FileCat::Variant);
     BOOST_CHECK_EQUAL(file_category("BCF"),  FileCat::Variant);
-    BOOST_CHECK_EQUAL(file_category("AD"),   FileCat::Pileup);
-    BOOST_CHECK_EQUAL(file_category("TAD"),  FileCat::Pileup);
 }
 
 BOOST_AUTO_TEST_CASE(test_tokenizer) {
