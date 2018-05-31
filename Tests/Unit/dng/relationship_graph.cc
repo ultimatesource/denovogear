@@ -460,7 +460,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
         };
 
         Pedigree somatic_ped;
-        somatic_ped.AddMember({"M",{},{},{},{},{},Sex::Female,{"((M1,M2)M12,M3);"}});
+        somatic_ped.AddMember({"M",{},{},{},{},{},Sex::Autosomal,{"((M1,M2)M12,M3);"}});
 
         constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
 
@@ -494,7 +494,7 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
         };
 
         Pedigree somatic_ped;
-        somatic_ped.AddMember({"M",{},{},{},{},{},Sex::Female,{"((M1,M2)M12,M3);"}});
+        somatic_ped.AddMember({"M",{},{},{},{},{},Sex::Autosomal,{"((M1,M2)M12,M3);"}});
 
         constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
 
@@ -518,6 +518,37 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
 
         test(graph, expected);
     }
+
+    BOOST_TEST_CONTEXT("graph=somatic_graph_star") {
+        libraries_t somatic_libs = {
+            {"M1A", "M1B", "M2", "M3A", "M3B"},
+            {"M1", "M1", "M2", "M3", "M3"}
+        };
+
+        Pedigree somatic_ped;
+        somatic_ped.AddMember({"M",{},{},{},{},{},Sex::Autosomal,{"M1","M2","M3:0.0"}});
+
+        constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
+
+        //Construct Graph
+        RelationshipGraph graph;
+        BOOST_REQUIRE_NO_THROW(graph.Construct(somatic_ped, somatic_libs,
+            InheritanceModel::Autosomal, g, s, l, true));
+
+        const expected_graph_nodes_t expected = {
+            {"GL/M",      DIPLOID, GERMLINE, ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
+            {"SM/M1",     DIPLOID, SOMATIC, !ROOT, PAIR, 0, s, -1, 0.0f, ""},
+            {"SM/M3",     DIPLOID, SOMATIC, !ROOT, PAIR, 0, 0.0, -1, 0.0f, ""},
+            {"LB/M1/M1A", DIPLOID, LIBRARY, !ROOT, PAIR, 1, l, -1, 0.0f, "M1A"},
+            {"LB/M1/M1B", DIPLOID, LIBRARY, !ROOT, PAIR, 1, l, -1, 0.0f, "M1B"},            
+            {"LB/M2",     DIPLOID, LIBRARY, !ROOT, PAIR, 0, l+s, -1, 0.0f, "M2"},
+            {"LB/M3/M3A", DIPLOID, LIBRARY, !ROOT, PAIR, 2, l, -1, 0.0f, "M3A"},
+            {"LB/M3/M3B", DIPLOID, LIBRARY, !ROOT, PAIR, 2, l, -1, 0.0f, "M3B"},
+          };
+
+        test(graph, expected);
+    }
+
 
     BOOST_TEST_CONTEXT("graph=trio_graph") {
         libraries_t libs = {
@@ -752,6 +783,133 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
 
         test(graph, expected);
     }
+
+    BOOST_TEST_CONTEXT("graph=trio_graph_branch_lengths") {
+        libraries_t libs = {
+            {"Eve", "Mom", "Dad"},
+            {"Eve", "Mom", "Dad"}
+        };
+
+        Pedigree ped;
+        ped.AddMember({"Dad",{},{},{},{},{},Sex::Male,{"Dad:0.1"}});
+        ped.AddMember({"Mom",{},{},{},{},{},Sex::Female,{"Mom"}});
+        ped.AddMember({"Eve",{},std::string{"Dad"},2,std::string{"Mom"},3,Sex::Female,{"Eve"}});
+
+        constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
+
+        //Construct Graph
+        RelationshipGraph graph;
+        BOOST_REQUIRE_NO_THROW(graph.Construct(ped, libs, InheritanceModel::Autosomal, g, s, l, false));
+
+        const expected_graph_nodes_t expected = {
+            {"GL/Dad", DIPLOID, GERMLINE, ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
+            {"GL/Mom", DIPLOID, GERMLINE, !ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
+            {"LB/Eve", DIPLOID, LIBRARY,  !ROOT, TRIO, 0, s+2*g+l, 1, s+3*g+l, "Eve"},
+            {"LB/Mom", DIPLOID, LIBRARY,  !ROOT, PAIR, 1, s+l, -1, 0.0f, "Mom"},
+            {"LB/Dad", DIPLOID, LIBRARY,  !ROOT, PAIR, 0, s*0.1+l, -1, 0.0f, "Dad"},
+          };
+
+        test(graph, expected);        
+    }
+
+    BOOST_TEST_CONTEXT("graph=gamete_graph_autosomal") {
+        libraries_t libs = {
+            {"Dad", "Mom", "SpermEve", "EggEve", "SpermBob", "EggBob"},
+            {"Dad", "Mom", "SpermEve", "EggEve", "SpermBob", "EggBob"}
+        };
+
+        Pedigree ped;
+        ped.AddMember({"Dad",{},{},{},{},{},Sex::Male,{"Dad"}});
+        ped.AddMember({"Mom",{},{},{},{},{},Sex::Female,{"Mom"}});
+        ped.AddMember({"SpermEve",{"gamete"},std::string{"Dad"},{},{},{},Sex::Female,{"SpermEve"}});
+        ped.AddMember({"EggEve",  {"gamete"},{},{},std::string{"Mom"},{},Sex::Female,{"EggEve"}});
+        ped.AddMember({"SpermBob",{"haploid"},std::string{"Dad"},{},{},{},Sex::Male,{"SpermBob"}});
+        ped.AddMember({"EggBob",  {"haploid"},{},{},std::string{"Mom"},{},Sex::Male,{"EggBob"}});
+
+        constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
+
+        //Construct Graph
+        RelationshipGraph graph;
+        BOOST_REQUIRE_NO_THROW(graph.Construct(ped, libs, InheritanceModel::Autosomal, g, s, l, false));
+
+        const expected_graph_nodes_t expected = {
+            {"GL/Dad",      DIPLOID, GERMLINE,  ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
+            {"GL/Mom",      DIPLOID, GERMLINE,  ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
+            {"LB/Dad",      DIPLOID, LIBRARY,  !ROOT, PAIR, 0, s+l, -1, 0.0f, "Dad"},
+            {"LB/Mom",      DIPLOID, LIBRARY,  !ROOT, PAIR, 1, s+l, -1, 0.0f, "Mom"},
+            {"LB/SpermEve", HAPLOID, LIBRARY,  !ROOT, PAIR, 0, s+g+l, -1, 0.0f, "SpermEve"},
+            {"LB/EggEve",   HAPLOID, LIBRARY,  !ROOT, PAIR, 1, s+g+l, -1, 0.0f, "EggEve"},
+            {"LB/SpermBob", HAPLOID, LIBRARY,  !ROOT, PAIR, 0, s+g+l, -1, 0.0f, "SpermBob"},
+            {"LB/EggBob",   HAPLOID, LIBRARY,  !ROOT, PAIR, 1, s+g+l, -1, 0.0f, "EggBob"},
+          };
+
+        test(graph, expected);        
+    }
+
+    BOOST_TEST_CONTEXT("graph=gamete_graph_ylinked") {
+        libraries_t libs = {
+            {"Dad", "Mom", "SpermEve", "EggEve", "SpermBob", "EggBob"},
+            {"Dad", "Mom", "SpermEve", "EggEve", "SpermBob", "EggBob"}
+        };
+
+        Pedigree ped;
+        ped.AddMember({"Dad",{},{},{},{},{},Sex::Male,{"Dad"}});
+        ped.AddMember({"Mom",{},{},{},{},{},Sex::Female,{"Mom"}});
+        ped.AddMember({"SpermEve",{"gamete"},std::string{"Dad"},{},{},{},Sex::Female,{"SpermEve"}});
+        ped.AddMember({"EggEve",  {"gamete"},{},{},std::string{"Mom"},{},Sex::Female,{"EggEve"}});
+        ped.AddMember({"SpermBob",{"haploid"},std::string{"Dad"},{},{},{},Sex::Male,{"SpermBob"}});
+        // Under xy-linkage, the following is invalid and will be removed because 'male'-gametes must come from dads.
+        ped.AddMember({"EggBob",  {"haploid"},{},{},std::string{"Mom"},{},Sex::Male,{"EggBob"}});
+
+        constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
+
+        //Construct Graph
+        RelationshipGraph graph;
+        BOOST_REQUIRE_NO_THROW(graph.Construct(ped, libs, InheritanceModel::YLinked, g, s, l, false));
+
+        const expected_graph_nodes_t expected = {
+            {"GL/Dad",      HAPLOID, GERMLINE,  ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
+            {"LB/Dad",      HAPLOID, LIBRARY,  !ROOT, PAIR, 0, s+l, -1, 0.0f, "Dad"},
+            {"LB/SpermBob", HAPLOID, LIBRARY,  !ROOT, PAIR, 0, s+g+l, -1, 0.0f, "SpermBob"},
+          };
+
+        test(graph, expected);        
+    }
+
+
+    BOOST_TEST_CONTEXT("graph=gamete_graph_xlinked") {
+        libraries_t libs = {
+            {"Dad", "Mom", "SpermEve", "EggEve", "SpermBob", "EggBob"},
+            {"Dad", "Mom", "SpermEve", "EggEve", "SpermBob", "EggBob"}
+        };
+
+        Pedigree ped;
+        ped.AddMember({"Dad",{},{},{},{},{},Sex::Male,{"Dad"}});
+        ped.AddMember({"Mom",{},{},{},{},{},Sex::Female,{"Mom"}});
+        ped.AddMember({"SpermEve",{"gamete"},std::string{"Dad"},{},{},{},Sex::Female,{"SpermEve"}});
+        ped.AddMember({"EggEve",  {"gamete"},{},{},std::string{"Mom"},{},Sex::Female,{"EggEve"}});
+        ped.AddMember({"SpermBob",{"haploid"},std::string{"Dad"},{},{},{},Sex::Male,{"SpermBob"}});
+        // Under xy-linkage, the following is invalid and will be removed because 'male'-gametes must come from dads.
+        ped.AddMember({"EggBob",  {"haploid"},{},{},std::string{"Mom"},{},Sex::Male,{"EggBob"}});
+
+        constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
+
+        //Construct Graph
+        RelationshipGraph graph;
+        BOOST_REQUIRE_NO_THROW(graph.Construct(ped, libs, InheritanceModel::XLinked, g, s, l, false));
+
+        const expected_graph_nodes_t expected = {
+            {"GL/Dad",      HAPLOID, GERMLINE,  ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
+            {"GL/Mom",      DIPLOID, GERMLINE,  ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
+            {"LB/Dad",      HAPLOID, LIBRARY,  !ROOT, PAIR, 0, s+l, -1, 0.0f, "Dad"},
+            {"LB/Mom",      DIPLOID, LIBRARY,  !ROOT, PAIR, 1, s+l, -1, 0.0f, "Mom"},
+            {"LB/SpermEve", HAPLOID, LIBRARY,  !ROOT, PAIR, 0, s+g+l, -1, 0.0f, "SpermEve"},
+            {"LB/EggEve",   HAPLOID, LIBRARY,  !ROOT, PAIR, 1, s+g+l, -1, 0.0f, "EggEve"},
+          };
+
+        test(graph, expected);        
+    }
+
 
 }
 

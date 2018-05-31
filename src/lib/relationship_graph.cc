@@ -156,11 +156,19 @@ bool dng::RelationshipGraph::Construct(const Pedigree& pedigree,
     // {
     //     auto range = boost::make_iterator_range(edges(pedigree_graph));
     //     for (edge_t e : range) {
-    //         std::cout << get(boost::vertex_label, pedigree_graph)[source(e,pedigree_graph)]
+    //         std::cout 
+    //                   << source(e,pedigree_graph) << ":"
+    //                   << get(boost::vertex_label, pedigree_graph)[source(e,pedigree_graph)]
+    //                   << "@p="
+    //                   << get(boost::vertex_ploidy, pedigree_graph)[source(e,pedigree_graph)]
     //                   << " -> "
+    //                   << target(e,pedigree_graph) << ":"
     //                   << get(boost::vertex_label, pedigree_graph)[target(e,pedigree_graph)]
+    //                   << "@p="
+    //                   << get(boost::vertex_ploidy, pedigree_graph)[target(e,pedigree_graph)]
     //                   << "\n";
     //     }
+    //     std::cout << "\n";
     // }
 
     // Convert vertices in the graph into nodes for peeling operations
@@ -303,16 +311,22 @@ void prune_pedigree(Graph &pedigree_graph, InheritanceModel model) {
 }
 
 void prune_pedigree_autosomal(Graph &pedigree_graph) {
-    auto ploidies  = get(boost::vertex_ploidy, pedigree_graph);
-    auto vertex_range = boost::make_iterator_range(vertices(pedigree_graph));
-    for (vertex_t v : vertex_range) {
-        ploidies[v] = 2;
-    }
+    /*do nothing*/;
 }
 
 void prune_pedigree_ylinked(Graph &pedigree_graph) {
     auto sexes  = get(boost::vertex_sex, pedigree_graph);
     auto ploidies  = get(boost::vertex_ploidy, pedigree_graph);
+
+    auto is_x = [&](edge_t e) -> bool {
+        if(get(boost::edge_type, pedigree_graph, e) == EdgeType::Maternal) {
+            return true;
+        }
+        vertex_t a = source(e, pedigree_graph);
+        vertex_t b = target(e, pedigree_graph);
+        return (get(boost::vertex_sex, pedigree_graph, std::max(a,b)) != Sex::Male);
+    };
+    remove_edge_if(is_x, pedigree_graph);    
 
     auto vertex_range = boost::make_iterator_range(vertices(pedigree_graph));
     for (vertex_t v : vertex_range) {
@@ -335,12 +349,15 @@ void prune_pedigree_ylinked(Graph &pedigree_graph) {
 
 void prune_pedigree_xlinked(Graph &pedigree_graph) {
     auto is_y = [&](edge_t e) -> bool {
-        if(get(boost::edge_type, pedigree_graph, e) != EdgeType::Paternal) {
-            return false;
-        }
+        auto type = get(boost::edge_type, pedigree_graph, e);
         vertex_t a = source(e, pedigree_graph);
         vertex_t b = target(e, pedigree_graph);
-        return (get(boost::vertex_sex, pedigree_graph, std::max(a,b)) == Sex::Male);
+        auto sex = get(boost::vertex_sex, pedigree_graph, std::max(a,b));
+        auto ploidy = get(boost::vertex_ploidy, pedigree_graph, std::max(a,b));
+        if(ploidy == 1) {
+            return (sex == Sex::Male);
+        }
+        return (type == EdgeType::Paternal && sex == Sex::Male);
     };
     remove_edge_if(is_y, pedigree_graph);
 
@@ -350,7 +367,7 @@ void prune_pedigree_xlinked(Graph &pedigree_graph) {
     for (vertex_t v : vertex_range) {
         switch(sexes[v]) {
         case Sex::Female:
-            ploidies[v] = 2;
+            ploidies[v] = (ploidies[v] == 2) ? 2 : 1;
             break;
         case Sex::Male:
             ploidies[v] = 1;
@@ -358,7 +375,7 @@ void prune_pedigree_xlinked(Graph &pedigree_graph) {
         case Sex::Unknown:
         default:
             if(out_degree(v, pedigree_graph) != 0) {
-                throw std::runtime_error("X-linked inheritance requires every individual to have a known sex.");
+                throw std::invalid_argument("X-linked inheritance requires every individual to have a known sex.");
             }
         }
     }
@@ -381,7 +398,7 @@ void prune_pedigree_wlinked(Graph &pedigree_graph) {
         case Sex::Unknown:
         default:
             if(out_degree(v, pedigree_graph) != 0) {
-                throw std::runtime_error("W-linked inheritance requires every individual to have a known sex.");
+                throw std::invalid_argument("W-linked inheritance requires every individual to have a known sex.");
             }
         }
     }
@@ -412,7 +429,7 @@ void prune_pedigree_zlinked(Graph &pedigree_graph) {
         case Sex::Unknown:
         default:
             if(out_degree(v, pedigree_graph) != 0) {
-                throw std::runtime_error("Z-linked inheritance requires every individual to have a known sex.");
+                throw std::invalid_argument("Z-linked inheritance requires every individual to have a known sex.");
             }
         }
     }
@@ -460,13 +477,15 @@ std::pair<vertex_t,vertex_t> parse_pedigree_table(Graph &pedigree_graph,
     };
 
     // make a copy of names and sexes from pedigree
-    vector<std::string> pedigree_names;
+    vector<string> pedigree_names;
     vector<Sex> pedigree_sexes;
     vector<int> pedigree_ploidies;
+    vector<pair<float,float>> pedigree_lengths;
 
     pedigree_names.reserve(pedigree.NumberOfMembers());
     pedigree_sexes.reserve(pedigree.NumberOfMembers());
     pedigree_ploidies.reserve(pedigree.NumberOfMembers());
+    pedigree_lengths.reserve(pedigree.NumberOfMembers());
 
     auto has_tag = [](const Pedigree::Member &member, const std::string &tag) {
         for(auto &&a : member.tags) {
@@ -503,6 +522,8 @@ std::pair<vertex_t,vertex_t> parse_pedigree_table(Graph &pedigree_graph,
         pedigree_names.push_back(member.name);
         pedigree_sexes.push_back(member.sex);
         pedigree_ploidies.push_back(get_ploidy(member));
+        pedigree_lengths.push_back(make_pair(member.dad_length.value_or(1.0),
+            member.mom_length.value_or(1.0)));
     }
 
     // identify parents and founders
@@ -514,7 +535,7 @@ std::pair<vertex_t,vertex_t> parse_pedigree_table(Graph &pedigree_graph,
             founders.push_back(j);
             continue;
         }
-        if( has_tag(member, "clone") ) {
+        if( pedigree_ploidies[j] == 0 /* clone */ ) {
             if(member.dad && member.mom) {
                 throw std::invalid_argument("Unable to construct graph for pedigree; clone '"
                     + member.name + "' has two parents instead of one.");
@@ -525,6 +546,8 @@ std::pair<vertex_t,vertex_t> parse_pedigree_table(Graph &pedigree_graph,
                 orig_id = pedigree.LookupMemberPosition(member.dad.get());
             } else {
                 orig_id = pedigree.LookupMemberPosition(member.mom.get());
+                // move mom's length to the first slot
+                pedigree_lengths[j].first = pedigree_lengths[j].second;
             }
             if(orig_id == pedigree.NumberOfMembers()) {
                 throw std::invalid_argument("Unable to construct graph for pedigree; the clone parent of '" +
@@ -533,7 +556,7 @@ std::pair<vertex_t,vertex_t> parse_pedigree_table(Graph &pedigree_graph,
             pedigree_children[orig_id].push_back(child);
             continue;
         }
-        if( has_tag(member, "gamete") ) {
+        if( pedigree_ploidies[j] == 1 /* haploid/gamete */  ) {
             if(member.dad && member.mom) {
                 throw std::invalid_argument("Unable to construct graph for pedigree; gamete '"
                     + member.name + "' has two parents instead of one.");
@@ -619,18 +642,18 @@ std::pair<vertex_t,vertex_t> parse_pedigree_table(Graph &pedigree_graph,
         // Process newick string
         const auto & samples = pedigree.GetMember(child_id).samples;
         std::size_t current_index = num_vertices(pedigree_graph);
-        if(!samples.empty()) {
-            if(!parse_newick(samples.front(), child_vertex,
+        for(auto && sample : samples) {
+            if(!parse_newick(sample, child_vertex,
                 pedigree_graph, normalize_somatic_trees) ) {
                     throw std::invalid_argument("Unable to parse somatic data for individual '" +
                         pedigree_names[child_id] + "'.");
             }
-            // Mark the sex and ploidy of the somatic nodes
-            for (vertex_t i = current_index; i < num_vertices(pedigree_graph); ++i) {
-                sexes[i] = sexes[child_vertex];
-                ploidies[i] = ploidies[child_vertex];
-            }
         }
+        // Mark the sex and ploidy of the somatic nodes
+        for (vertex_t i = current_index; i < num_vertices(pedigree_graph); ++i) {
+            sexes[i] = sexes[child_vertex];
+            ploidies[i] = ploidies[child_vertex];
+        }        
     };
     
     // Push founders onto a queue
@@ -659,21 +682,21 @@ std::pair<vertex_t,vertex_t> parse_pedigree_table(Graph &pedigree_graph,
                 labels[child_vertex] = pedigree_names[child.id];
                 sexes[child_vertex] = sexes[parent_vertex];
                 ploidies[child_vertex] = ploidies[parent_vertex];
-                add_edge(parent_vertex, child_vertex, {EdgeType::Mitotic, 1.0f}, pedigree_graph);
+                add_edge(parent_vertex, child_vertex, {EdgeType::Mitotic, pedigree_lengths[child.id].first}, pedigree_graph);
             } else if(child.type == child_t::Type::Sperm) {
                 child_vertex = counter++;
                 vertices[child.id] = child_vertex;
                 labels[child_vertex] = pedigree_names[child.id];
                 sexes[child_vertex] = pedigree_sexes[child.id];
                 ploidies[child_vertex] = 1;
-                add_edge(parent_vertex, child_vertex, {EdgeType::Paternal, 1.0f}, pedigree_graph);
+                add_edge(parent_vertex, child_vertex, {EdgeType::Paternal, pedigree_lengths[child.id].first}, pedigree_graph);
             } else if(child.type == child_t::Type::Egg) {
                 child_vertex = counter++;
                 vertices[child.id] = child_vertex;
                 labels[child_vertex] = pedigree_names[child.id];
                 sexes[child_vertex] = pedigree_sexes[child.id];
                 ploidies[child_vertex] = 1;
-                add_edge(parent_vertex, child_vertex, {EdgeType::Maternal, 1.0f}, pedigree_graph);
+                add_edge(parent_vertex, child_vertex, {EdgeType::Maternal, pedigree_lengths[child.id].second}, pedigree_graph);
             } else if(!touched[child.id]) {
                 // create vertex for child after we have visited both its parents
                 touched[child.id] = parent_vertex;
@@ -684,11 +707,12 @@ std::pair<vertex_t,vertex_t> parse_pedigree_table(Graph &pedigree_graph,
                 vertices[child.id] = child_vertex;
                 labels[child_vertex] = pedigree_names[child.id];
                 sexes[child_vertex] = pedigree_sexes[child.id];
+                ploidies[child_vertex] = 2;
                 // add the meiotic edges
-                auto mom_vertex = (child.type == child_t::Type::Maternal) ? parent_vertex : touched[child.id].get();
                 auto dad_vertex = (child.type != child_t::Type::Maternal) ? parent_vertex : touched[child.id].get();
-                add_edge(mom_vertex, child_vertex, {EdgeType::Maternal, 1.0f}, pedigree_graph);
-                add_edge(dad_vertex, child_vertex, {EdgeType::Paternal, 1.0f}, pedigree_graph);
+                auto mom_vertex = (child.type == child_t::Type::Maternal) ? parent_vertex : touched[child.id].get();
+                add_edge(mom_vertex, child_vertex, {EdgeType::Maternal, pedigree_lengths[child.id].second}, pedigree_graph);
+                add_edge(dad_vertex, child_vertex, {EdgeType::Paternal, pedigree_lengths[child.id].first}, pedigree_graph);
 
                 // Check to see if mom and dad have been seen before
                 auto id = edge(dad_vertex, mom_vertex, pedigree_graph);
@@ -707,6 +731,7 @@ std::pair<vertex_t,vertex_t> parse_pedigree_table(Graph &pedigree_graph,
 
 void add_libraries_to_graph(Graph &pedigree_graph, const libraries_t &libs) {
     auto sexes  = get(boost::vertex_sex, pedigree_graph);
+    auto ploidies  = get(boost::vertex_ploidy, pedigree_graph);
     auto labels = get(boost::vertex_label, pedigree_graph);
     auto types  = get(boost::vertex_type, pedigree_graph);
     auto library_labels = get(boost::vertex_library_label, pedigree_graph);
@@ -734,6 +759,7 @@ void add_libraries_to_graph(Graph &pedigree_graph, const libraries_t &libs) {
         vertex_t v = add_vertex({name, VertexType::Library}, pedigree_graph);
         add_edge(u, v, {EdgeType::Library, 1.0f}, pedigree_graph);
         sexes[v] = sexes[u];
+        ploidies[v] = ploidies[u];
         library_labels[v] = libs.names[i];
     }
 }
