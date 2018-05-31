@@ -123,18 +123,6 @@ set(TrioBcftoolsYLinked-STDOUT-FAIL
   "\r?\n5\t126385924\t[^\r\n]*\;LIBRARY\;"
 )
 
-
-###############################################################################
-# Test if dng-call works on a trio with a 6 column ped
-
-set(TrioBcftools6ColPed-CMD @DNG_CALL_EXE@ -M autosomal -p ped/trio_6col.ped bcftools/trio.call.vcf)
-set(TrioBcftools6ColPed-WD ${TrioBcftoolsAutosomal-WD})
-set(TrioBcftools6ColPed-RESULT ${TrioBcftoolsAutosomal-RESULT})
-set(TrioBcftools6ColPed-STDOUT ${TrioBcftoolsAutosomal-STDOUT})
-
-string(REPLACE "GL/NA12892" "GL/1" TrioBcftools6ColPed-STDOUT "${TrioBcftools6ColPed-STDOUT}")
-string(REPLACE "GL/NA12891" "GL/2" TrioBcftools6ColPed-STDOUT "${TrioBcftools6ColPed-STDOUT}")
-
 ###############################################################################
 # Test if dng-call supports regions
 
@@ -226,7 +214,6 @@ CheckProcessTests(DngCall.Vcf
   TrioBcftoolsAutosomal
   TrioBcftoolsXLinked
   TrioBcftoolsYLinked
-  TrioBcftools6ColPed
   TrioRegion
   TrioExtraSample
   MissingData
