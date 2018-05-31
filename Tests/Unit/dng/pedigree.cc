@@ -77,7 +77,7 @@ BOOST_AUTO_TEST_CASE(test_parse_text) {
 
     const char ped[] = 
         "##PEDNG v1.0\n"
-        "A . . 1 =\n"
+        "A . . 1 .\n"
         "B@founder\t.:0.1\t.\t2\tB1\n"
         "C    A    B    1    C1    C2\n"
         "D A:0.01 B:0.5 2\t=\n"
@@ -100,7 +100,7 @@ BOOST_AUTO_TEST_CASE(test_parse_text) {
         boost::none, boost::none, boost::none, 0.5, boost::none
     };
     std::vector<std::vector<std::string>> expected_samples = {
-        {"A"},{"B1"},{"C1","C2"},{"D"},{"E"}
+        {},{"B1"},{"C1","C2"},{"D"},{"E"}
     };
     std::vector<std::vector<std::string>> expected_tags = {
         {},{"founder"},{},{},{"founder","haploid"}

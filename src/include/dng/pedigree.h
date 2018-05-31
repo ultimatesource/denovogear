@@ -154,7 +154,8 @@ Pedigree Pedigree::parse_text(const Range &text) {
     // <newline>s end the row
     auto tokens = utility::make_tokenizer_dropempty(text, "\t ", "\n");
 
-    if(tokens.begin() == tokens.end() || *tokens.begin() != "##PEDNG") {
+    auto token_it = tokens.begin();
+    if(token_it == tokens.end() || *token_it != "##PEDNG") {
         throw std::invalid_argument("Pedigree parsing failed; "
             "unknown pedigree format; missing '##PEDNG' header line.");
     }
@@ -164,7 +165,8 @@ Pedigree Pedigree::parse_text(const Range &text) {
     bool in_comment = false;
     vector<vector<string>> string_table;
     string_table.reserve(64);
-    for(auto && token : tokens) {
+    for(; token_it != tokens.end(); ++token_it) {
+        const auto & token = *token_it;
         if(token == "\n") {
             k = 0;
             in_comment = false;

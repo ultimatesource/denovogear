@@ -159,13 +159,13 @@ bool dng::RelationshipGraph::Construct(const Pedigree& pedigree,
     //         std::cout 
     //                   << source(e,pedigree_graph) << ":"
     //                   << get(boost::vertex_label, pedigree_graph)[source(e,pedigree_graph)]
-    //                   << "@p="
-    //                   << get(boost::vertex_ploidy, pedigree_graph)[source(e,pedigree_graph)]
+    //                   // << "@p="
+    //                   // << get(boost::vertex_ploidy, pedigree_graph)[source(e,pedigree_graph)]
     //                   << " -> "
     //                   << target(e,pedigree_graph) << ":"
     //                   << get(boost::vertex_label, pedigree_graph)[target(e,pedigree_graph)]
-    //                   << "@p="
-    //                   << get(boost::vertex_ploidy, pedigree_graph)[target(e,pedigree_graph)]
+    //                   // << "@p="
+    //                   // << get(boost::vertex_ploidy, pedigree_graph)[target(e,pedigree_graph)]
     //                   << "\n";
     //     }
     //     std::cout << "\n";
@@ -326,7 +326,7 @@ void prune_pedigree_ylinked(Graph &pedigree_graph) {
         vertex_t b = target(e, pedigree_graph);
         return (get(boost::vertex_sex, pedigree_graph, std::max(a,b)) != Sex::Male);
     };
-    remove_edge_if(is_x, pedigree_graph);    
+    remove_edge_if(is_x, pedigree_graph);
 
     auto vertex_range = boost::make_iterator_range(vertices(pedigree_graph));
     for (vertex_t v : vertex_range) {
@@ -385,6 +385,16 @@ void prune_pedigree_wlinked(Graph &pedigree_graph) {
     auto sexes  = get(boost::vertex_sex, pedigree_graph);
     auto ploidies  = get(boost::vertex_ploidy, pedigree_graph);
 
+    auto is_z = [&](edge_t e) -> bool {
+        if(get(boost::edge_type, pedigree_graph, e) == EdgeType::Paternal) {
+            return true;
+        }
+        vertex_t a = source(e, pedigree_graph);
+        vertex_t b = target(e, pedigree_graph);
+        return (get(boost::vertex_sex, pedigree_graph, std::max(a,b)) != Sex::Female);
+    };
+    remove_edge_if(is_z, pedigree_graph);
+
     auto vertex_range = boost::make_iterator_range(vertices(pedigree_graph));
     for (vertex_t v : vertex_range) {
         switch(sexes[v]) {
@@ -406,12 +416,15 @@ void prune_pedigree_wlinked(Graph &pedigree_graph) {
 
 void prune_pedigree_zlinked(Graph &pedigree_graph) {
     auto is_w = [&](edge_t e) -> bool {
-        if(get(boost::edge_type, pedigree_graph, e) != EdgeType::Maternal) {
-            return false;
-        }
+        auto type = get(boost::edge_type, pedigree_graph, e);
         vertex_t a = source(e, pedigree_graph);
         vertex_t b = target(e, pedigree_graph);
-        return (get(boost::vertex_sex, pedigree_graph, std::max(a,b)) == Sex::Female);
+        auto sex = get(boost::vertex_sex, pedigree_graph, std::max(a,b));
+        auto ploidy = get(boost::vertex_ploidy, pedigree_graph, std::max(a,b));
+        if(ploidy == 1) {
+            return (sex == Sex::Female);
+        }
+        return (type == EdgeType::Maternal && sex == Sex::Female);
     };
     remove_edge_if(is_w, pedigree_graph);
 
@@ -421,7 +434,7 @@ void prune_pedigree_zlinked(Graph &pedigree_graph) {
     for (vertex_t v : vertex_range) {
         switch(sexes[v]) {
         case Sex::Male:
-            ploidies[v] = 2;
+            ploidies[v] = (ploidies[v] == 2) ? 2 : 1;
             break;
         case Sex::Female:
             ploidies[v] = 1;
@@ -1036,7 +1049,13 @@ void dng::RelationshipGraph::CreatePeelingOps(
 
         // Sort edges based on type and target
         boost::sort(family_edges, [&](edge_t x, edge_t y) -> bool {
-            return (edge_types(x) < edge_types(y)) && (target(x, pedigree_graph) < target(y, pedigree_graph));
+            if(edge_types(x) < edge_types(y)) {
+                return true;
+            }
+            if(edge_types(x) == edge_types(y)) {
+                return target(x, pedigree_graph) < target(y, pedigree_graph);   
+            }
+            return false;
         });
 
         // Find the range of the parent types
@@ -1146,7 +1165,7 @@ void dng::RelationshipGraph::CreatePeelingOps(
             }
 
         } else {
-            throw std::runtime_error("Unable to construct peeler for pedigree; Not a zero-loop pedigree");
+            throw std::invalid_argument("Unable to construct peeler for pedigree; Not a zero-loop pedigree");
         }
     }
 }
