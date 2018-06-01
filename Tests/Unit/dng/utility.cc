@@ -257,3 +257,17 @@ BOOST_AUTO_TEST_CASE(test_set_high_bit) {
     BOOST_CHECK_EQUAL(set_high_bit<uint32_t>(0), 0x80000000u);
     BOOST_CHECK_EQUAL(set_high_bit<uint64_t>(0), 0x8000000000000000llu);
 }
+
+BOOST_AUTO_TEST_CASE(test_percent_decode) {
+    BOOST_CHECK_EQUAL(percent_decode("abc"), "abc");
+    BOOST_CHECK_EQUAL(percent_decode(""), "");
+    BOOST_CHECK_EQUAL(percent_decode("%40abc"), "@abc");
+    BOOST_CHECK_EQUAL(percent_decode("abc%40"), "abc@");
+    BOOST_CHECK_EQUAL(percent_decode("a%40bc"), "a@bc");
+    BOOST_CHECK_EQUAL(percent_decode("a%40%3Abc"), "a@:bc");
+    BOOST_CHECK_EQUAL(percent_decode("a%40b%3Ac"), "a@b:c");
+    BOOST_CHECK_EQUAL(percent_decode("a%40bc%3A"), "a@bc:");
+    BOOST_CHECK_EQUAL(percent_decode("%q0abc"), "abc");
+    BOOST_CHECK_EQUAL(percent_decode("abc%0q"), "abc");
+    BOOST_CHECK_EQUAL(percent_decode("a%qqbc"), "abc");
+}

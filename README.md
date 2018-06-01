@@ -25,28 +25,20 @@ Source code for the most recent beta versions is available at <https://github.co
 
 Compilation of DeNovoGear requires CMake. Most Linux distributions allow you to install CMake using their package software.
 
-#### Build on Unix from a Command Line Terminal
-```
-    tar -xvzf denovogear*.tar.gz
-    cd denovogear*/build
-    cmake ..
-    make
-```
-
-#### Optimized Build
+#### Optimized Build on Unix from a Command Line Terminal
 ```
     tar -xvzf denovogear*.tar.gz
     cd denovogear*/build
     cmake -DCMAKE_BUILD_TYPE=Release ..
-    make
+    make -j4
 ```
 
 ### Dependencies
 
 * Recent C++ compiler, supporting C++11 (eg. gcc 4.8.1+ or clang 3.3+)
 * CMake 3.1+ when compiling <http://www.cmake.org/download/#latest>
-* HTSlib 1.2+ <http://www.htslib.org/>
-* Eigen 3 <http://eigen.tuxfamily.org/>
+* HTSlib 1.3+ <http://www.htslib.org/>
+* Eigen 3+ <http://eigen.tuxfamily.org/>
 * Boost 1.47+ <http://www.boost.org/>
 
 Most Unix distributions contain package software that will install these dependencies for you.
@@ -55,26 +47,29 @@ DNG also can download and build missing dependencies:
 ```
     tar -xvzf denovogear*.tar.gz
     cd denovogear*/build
-    cmake -DBUILD_EXTERNAL_PROJECTS=1 ..
-    make
+    cmake -DBUILD_EXTERNAL_PROJECTS=1 -DCMAKE_BUILD_TYPE=Release  ..
+    make -j4
 ```
 
 ### Local Install
 ```
     cd denovogear*/build
-    cmake -DCMAKE_INSTALL_PREFIX="${HOME}/dng"
+    cmake -DCMAKE_INSTALL_PREFIX="${HOME}/dng" -DCMAKE_BUILD_TYPE=Release ..
+    make -j4
     make install
 ```
 
 ### Global Install (requires root access)
 ```
     cd denovogear*/build
+    cmake -DCMAKE_BUILD_TYPE=Release ..    
+    make -j4
     sudo make install
 ```
 
 ### Testing
 
-Denovogear comes with unit tests as well as full-suite test data available at <https://github.com/denovogear/testdata>. After running the build commands the tests can be downloaded and ran using:
+Denovogear comes with unit tests as well as full-suite test data available at <https://github.com/denovogear/testdata>. After running the build commands the tests can be downloaded and run using:
 ```
     make testdata
     make test  
@@ -106,19 +101,58 @@ Print Usage: `dng help call`
 
 ### Pedigree file format
 
-`dng call` uses a 6-column, tab-separated pedigree file format
+`dng call` uses a 5-column, whitespace (space and tab) separated file format to specify the pedigree and somatic samples. (Note that this format is new as of June 2018.)
 
 ```
-1   1   0   0   1   NA12891
-1   2   0   0   2   NA12892
-1   3   1   2   2   (NA12878a,NA12878b);
+##PEDNG v1.0
+#Individual Father Mother Sex Samples
+NA12891 . . male =
+NA12892 . . female =
+NA12878 NA12891 NA12892 female (NA12878a,NA12878b);
 ```
 
-The columns are Family ID, Individual ID, Father ID (0=unknown), Mother ID (0=unknown), Sex (1=male, 2=female, 0=unknown), and Sample IDs in a newick-formatted tree.
+Features:
+
+ * The file must start with a `##PEDNG` header. This requirement ensures that the user is using a properly curated pedigree file.
+ * Comments are lines that begin with a `#`.
+ * Individual ID (first column) contains an identifier of each individual in the pedigree, along with meta information (see below).
+ * Father ID and Mother ID (second and third columns) contain the identifier of the parents of each sample. The format supported is `id:length`, allowing users to scale germline mutation rates if desired. If length is not specified, it defaults to `1.0`. An id of `.` specifies that the parent is missing or invalid. Founder nodes are specified by indicating that both parents are invalid.
+ * Sex (forth column) contains the information about the sex and sex chromosomes of an individuals. Both numeric and descriptive values are supported: 1=male, 2=female, and 0=autosomal.
+ * Sample IDs (fifth column and beyond) specify which samples that came from the individual. Multiple samples can be specified for each individual via separate columns and/or a newick-formated tree with branch lengths. Users can use the newick tree if something is known about the somatic relationship of the samples. If a sample id is `=`, the value of the individual id will be copied. A value of `.` indicates that the sample is missing/invalid.
+ * Meta information can be specified in the first column as `id@meta1@meta2@...` and can be used to specify information that affects the processing of the pedigree. Supported values:
+     * Individuals default to being diploid, but this can be modified via tags: `@haploid`, `@diploid`, `@ploidy=1`, `@ploidy=2`, `@p=1`, `@p=2`.
+     * Individuals can be specified as founders using the `@founder` tag. Any values in the parental columns will be ignored.
+     * Individuals can be specified as clones/somatic samples of other individuals using `@clone`. Only one parent should be specified, and its ploidy will be copied to the clone.
+     * Individuals can be specified as a gamete of another individual using `@gamete`. Only the appropriate parent should be specified. This tag will also set the ploidy of the individual to 1.
+ * If an identifier contains a special character that would otherwise affect parsing (e.g. spaces), they can be encoded using [percent encoding](https://en.wikipedia.org/wiki/Percent-encoding).
+
+#### Mixed Ploidy and Mutation Accumulation Example
+
+```
+##PEDNG v1.0
+Anc@diploid . . autosomal Anc-1 Anc-2 Anc-3
+MA1@clone Anc:3.0 . autosomal .
+MA2@clone Anc:2.0 . autosomal =
+A1a@gamete MA1 . autosomal = 
+A1b@gamete MA1 . autosomal =
+```
+
+#### Haplo-Diploidy Example
+
+```
+##PEDNG v1.0
+drone@founder@haploid . . 1 =
+queen@founder . . 2 =
+bee1 drone queen 2 =
+bee2@gamete . queen 1 =
+```
+
+Note that using x-linked inheritance will give you the same result as using autosomal inheritance with specified ploidies in this case
 
 ### Controlling output
 
-`--min-prob`: threshold for reporting a mutation. Based on the probability of at least one mutation (MUP).
+`--min-quality`: threshold for reporting a mutation or variant. Based on the quality of at least one mutation.
+`--all`: include sites with segregating germline variation. Based on the the quality of at least one alt allele at the site.
 
 ### Model parameters
 

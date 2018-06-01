@@ -194,12 +194,15 @@ protected:
 
     std::vector<size_t> ConstructNodes(const Graph &pedigree_graph);
 
+    using pivots_t = std::vector<boost::optional<vertex_t>>;
+
     void CreateFamiliesInfo(Graph &pedigree_graph,
-            family_labels_t &family_labels, std::vector<vertex_t> &pivots);
+            family_labels_t *family_labels, pivots_t *pivots);
 
     void CreatePeelingOps(const Graph &pedigree_graph,
-            const std::vector<size_t> &node_ids, family_labels_t &family_labels,
-            std::vector<vertex_t> &pivots);
+            const std::vector<size_t> &node_ids,
+            family_labels_t &family_labels,
+            const pivots_t &pivots);
 
 private:
     void ClearFamilyInfo();

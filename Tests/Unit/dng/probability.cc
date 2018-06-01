@@ -71,9 +71,9 @@ const auto g_rel_graph = []() {
         {"Mom", "Dad", "Eve"}
     };
     Pedigree ped;
-    ped.AddMember("Dad","0","0",Sex::Male,"");
-    ped.AddMember("Mom","0","0",Sex::Female,"");
-    ped.AddMember("Eve","Dad","Mom",Sex::Female,"");
+    ped.AddMember({"Dad",{},{},{},{},{},Sex::Male,{"Dad"}});
+    ped.AddMember({"Mom",{},{},{},{},{},Sex::Female,{"Mom"}});
+    ped.AddMember({"Eve",{},std::string{"Dad"},{},std::string{"Mom"},{},Sex::Female,{"Eve"}});
 
     RelationshipGraph g;
     g.Construct(ped, libs, 1e-8, 1e-8, 1e-8,true);
@@ -177,9 +177,9 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_autosomal) {
         {"Mom", "Dad", "Eve"}
     };
     Pedigree ped;
-    ped.AddMember("Dad","0","0",Sex::Male,"");
-    ped.AddMember("Mom","0","0",Sex::Female,"");
-    ped.AddMember("Eve","Dad","Mom",Sex::Female,"");
+    ped.AddMember({"Dad",{},{},{},{},{},Sex::Male,{"Dad"}});
+    ped.AddMember({"Mom",{},{},{},{},{},Sex::Female,{"Mom"}});
+    ped.AddMember({"Eve",{},std::string{"Dad"},{},std::string{"Mom"},{},Sex::Female,{"Eve"}});
 
     const double mu_g = 1e-8;
     const double mu_s = 1e-8;
@@ -308,9 +308,9 @@ BOOST_AUTO_TEST_CASE(test_calcualte_ldd_trio_xlinked) {
         {"Mom", "Dad", "Eve"}
     };
     Pedigree ped;
-    ped.AddMember("Dad","0","0",Sex::Male,"");
-    ped.AddMember("Mom","0","0",Sex::Female,"");
-    ped.AddMember("Eve","Dad","Mom",Sex::Female,"");
+    ped.AddMember({"Dad",{},{},{},{},{},Sex::Male,{"Dad"}});
+    ped.AddMember({"Mom",{},{},{},{},{},Sex::Female,{"Mom"}});
+    ped.AddMember({"Eve",{},std::string{"Dad"},{},std::string{"Mom"},{},Sex::Female,{"Eve"}});
 
     const double mu_g = 1e-8;
     const double mu_s = 1e-8;

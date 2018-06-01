@@ -22,6 +22,7 @@
 #include <iostream>
 
 #include <dng/detail/graph.h>
+#include <dng/utility.h>
 
 #include <boost/fusion/adapted/std_pair.hpp>
 #include <boost/fusion/include/std_pair.hpp>
@@ -43,7 +44,7 @@ namespace newick {
 
 struct node_t {
     std::string label;
-    float length;
+    double length;
     std::size_t parent;
 };
 
@@ -53,9 +54,9 @@ typedef std::size_t index_t;
 struct make_tip_impl {
     typedef index_t result_type;
 
-    index_t operator()(std::string label, float length, tree_t &g) const {
+    index_t operator()(std::string label, double length, tree_t &g) const {
         index_t id = g.size();
-        g.push_back({std::move(label), length, static_cast<std::size_t>(-1)});
+        g.push_back({utility::percent_decode(std::move(label)), length, static_cast<std::size_t>(-1)});
         return id;
     }
 };
@@ -65,10 +66,10 @@ struct make_inode_impl {
     typedef index_t result_type;
 
     index_t operator()(std::vector<index_t> v,
-                       std::string label, float length, tree_t &g) const {
+                       std::string label, double length, tree_t &g) const {
         using namespace boost;
         index_t id = g.size();
-        g.push_back({std::move(label), length, static_cast<std::size_t>(-1)});
+        g.push_back({utility::percent_decode(std::move(label)), length, static_cast<std::size_t>(-1)});
         for(auto a : v) {
             g[a].parent = id;
         }
@@ -83,7 +84,7 @@ qi::grammar<Iterator, void(tree_t &), standard::space_type> {
     // http://evolution.genetics.washington.edu/phylip/newick_doc.html
     grammar() : grammar::base_type(start) {
         using standard::char_; using qi::eps; using qi::attr;
-        using qi::float_; using qi::lexeme; using qi::raw; using qi::omit;
+        using qi::double_; using qi::lexeme; using qi::raw; using qi::omit;
         using qi::as_string;
         using qi::_1; using qi::_2; using qi::_3; using qi::_val; using qi::_r1;
         using standard::space;
@@ -93,24 +94,19 @@ qi::grammar<Iterator, void(tree_t &), standard::space_type> {
         start    = -(node(_r1) || ';');
         node     = tip(_r1) | inode(_r1);
 
-        length = (':' >> float_) | attr(1.0);
+        length = (':' >> double_) | attr(1.0);
 
         tip      = (label >> length)[_val = make_tip(_1, _2, _r1)];
         inode    = (('(' >> (node(_r1) % ',') >> ')') >> ilabel >> length)[_val =
-                       make_inode(_1,
-                                  _2, _3, _r1)];
+                       make_inode(_1, _2, _3, _r1)];
 
         ilabel = label | attr("");
-        label    = unquoted | squoted | dquoted;
-        unquoted = as_string[+(char_ - (char_(":,)(;'\"[]|") | space))];
-        squoted   = as_string[lexeme['\'' >> *(char_ - '\'') >> '\'']];
-        dquoted   = as_string[lexeme['"' >> *(char_ - '"') >> '"']];
+        label  = as_string[+(char_ - (char_(":,)(;'\"[]|") | space))];
     }
 
     qi::rule<Iterator, void(tree_t &), standard::space_type> start;
     qi::rule<Iterator, index_t(tree_t &), standard::space_type> node, tip, inode;
-    qi::rule<Iterator, std::string(), standard::space_type> label, unquoted,
-    squoted, dquoted, ilabel;
+    qi::rule<Iterator, std::string(), standard::space_type> label, ilabel;
     qi::rule<Iterator, double(), standard::space_type> length;
 };
 
@@ -132,20 +128,20 @@ void normalize(newick::tree_t &tree) {
 
 }} // namespace dng::newick
 
-int dng::detail::graph::parse_newick(const std::string &text, vertex_t root, Graph &graph,
+bool dng::detail::graph::parse_newick(const std::string &text, vertex_t root, Graph &graph,
     bool normalize) {
     using standard::space; using phoenix::ref;
     newick::grammar<std::string::const_iterator> newick_parser;
     std::string::const_iterator first = text.begin();
     qi::parse(first, text.end(), *space);
     if(first == text.end()) {
-        return 0;
+        return false;
     }
     newick::tree_t tree;
     bool r = qi::phrase_parse(first, text.end(), newick_parser(phoenix::ref(tree)),
                               space);
     if(first != text.end() || !r) {
-        return -1;
+        return false;
     }
     float scale = 1.0;
     if(normalize) {
@@ -156,11 +152,10 @@ int dng::detail::graph::parse_newick(const std::string &text, vertex_t root, Gra
     // insert nodes in reverse order so that parents come before children
     for(std::size_t i = tree.size(); i > 0; --i) {
         auto &&a = tree[i - 1];
-        boost::trim_fill(a.label, "_");
         vertex_t v = add_vertex({a.label,VertexType::Somatic}, graph);
         add_edge((a.parent == -1) ? root : offset - a.parent,
-                 v, {EdgeType::Mitotic, a.length}, graph);
+                 v, {EdgeType::Mitotic, static_cast<float>(a.length)}, graph);
     }
 
-    return 1;
+    return true;
 }

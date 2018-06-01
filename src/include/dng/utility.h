@@ -388,6 +388,20 @@ constexpr auto make_array(T&&... values) ->
         sizeof...(T)>{std::forward<T>(values)...};
 }
 
+// decode a percent encoded string
+namespace detail {
+void percent_decode_core(std::string *str, size_t start);
+} // namespace detail
+
+inline
+std::string percent_decode(std::string str) {
+    auto pos = str.find('%');
+    if(pos != std::string::npos) {
+        detail::percent_decode_core(&str, pos);
+    }
+    return std::move(str);
+}
+
 } // namespace dng::utility
 
 using utility::location_t;
