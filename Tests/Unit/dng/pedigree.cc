@@ -48,6 +48,15 @@ operator<<(std::basic_ostream<CharType, CharTrait>& o, const std::vector<std::st
     o << dng::rangeio::wrap(m);
     return o;
 }
+
+template<typename CharType, typename CharTrait>
+inline
+std::basic_ostream<CharType, CharTrait>&
+operator<<(std::basic_ostream<CharType, CharTrait>& o, nullptr_t) {
+    o << 0;
+    return o;
+}
+
 } //namespace std
 
 
