@@ -22,6 +22,8 @@
 namespace dng {
 
 Pedigree Pedigree::parse_table(const std::vector<std::vector<std::string>> &table) {
+    using utility::percent_decode;
+
    // Build Pedigree Object
     Pedigree ret;
     int row_num = 0;
@@ -51,8 +53,10 @@ Pedigree Pedigree::parse_table(const std::vector<std::vector<std::string>> &tabl
                 );
             }
             auto it = tokens.begin();
-            member.name = *(it++);
-            member.tags.assign(it, tokens.end());
+            member.name = percent_decode(*(it++));
+            for(;it != tokens.end();++it) {
+                member.tags.push_back(percent_decode(*it));
+            }
         }
         // process dad column
         {
@@ -65,13 +69,16 @@ Pedigree Pedigree::parse_table(const std::vector<std::vector<std::string>> &tabl
             }
             if(member.dad.get() == ".") {
                 member.dad = boost::none;
-            } else if(pos != std::string::npos) {
-                char *str_end;
-                member.dad_length = std::strtod(row[1].c_str()+pos+1, &str_end);
-                if(pos+1 == row[1].size() || str_end != row[1].c_str()+row[1].size()) {
-                    throw std::invalid_argument("Pedigree parsing failed. Row "
-                        + std::to_string(row_num) + " has invalid dad length."
-                    );
+            } else {
+                member.dad = percent_decode(member.dad.get());
+                if(pos != std::string::npos) {
+                    char *str_end;
+                    member.dad_length = std::strtod(row[1].c_str()+pos+1, &str_end);
+                    if(pos+1 == row[1].size() || str_end != row[1].c_str()+row[1].size()) {
+                        throw std::invalid_argument("Pedigree parsing failed. Row "
+                            + std::to_string(row_num) + " has invalid dad length."
+                        );
+                    }
                 }
             }
         }
@@ -86,13 +93,16 @@ Pedigree Pedigree::parse_table(const std::vector<std::vector<std::string>> &tabl
             }
             if(member.mom.get() == ".") {
                 member.mom = boost::none;
-            } else if(pos != std::string::npos) {
-                char *str_end;
-                member.mom_length = std::strtod(row[2].c_str()+pos+1, &str_end);
-                if(pos+1 == row[2].size() || str_end != row[2].c_str()+row[2].size()) {
-                    throw std::invalid_argument("Pedigree parsing failed. Row "
-                        + std::to_string(row_num) + " has invalid mom length."
-                    );
+            } else {
+                member.mom = percent_decode(member.mom.get());
+                if(pos != std::string::npos) {
+                    char *str_end;
+                    member.mom_length = std::strtod(row[2].c_str()+pos+1, &str_end);
+                    if(pos+1 == row[2].size() || str_end != row[2].c_str()+row[2].size()) {
+                        throw std::invalid_argument("Pedigree parsing failed. Row "
+                            + std::to_string(row_num) + " has invalid mom length."
+                        );
+                    }
                 }
             }
         }

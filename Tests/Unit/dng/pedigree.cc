@@ -75,6 +75,9 @@ BOOST_AUTO_TEST_CASE(test_parse_text) {
     using boost::adaptors::filtered;
     using boost::adaptors::transformed;
 
+    auto Male = Pedigree::Sex::Male;
+    auto Female = Pedigree::Sex::Female;
+
     const char ped[] = 
         "##PEDNG v1.0\n"
         "A . . 1 .\n"
@@ -82,33 +85,37 @@ BOOST_AUTO_TEST_CASE(test_parse_text) {
         "C    A    B    1    C1    C2\n"
         "D A:0.01 B:0.5 2\t=\n"
         "E@founder@haploid . . 2 =\n"
+        "%46 %41 %42 1 %46\n"
+        "%40@diploid %3a:0.1 %2e 1 %3D\n"
     ;
 
     std::vector<std::string> expected_names = {
-        "A", "B", "C", "D", "E"
+        "A", "B", "C", "D", "E", "F", "@"
     };
     std::vector<boost::optional<std::string>> expected_dads = {
-        boost::none, boost::none, std::string{"A"}, std::string{"A"}, boost::none
+        boost::none, boost::none, std::string{"A"}, std::string{"A"}, boost::none,
+        std::string("A"), std::string(":")
     };
     std::vector<boost::optional<std::string>> expected_moms = {
-        boost::none, boost::none, std::string{"B"}, std::string{"B"}, boost::none
+        boost::none, boost::none, std::string{"B"}, std::string{"B"}, boost::none,
+        std::string("B"), std::string(".")
     };    
     std::vector<boost::optional<double>> expected_dad_lens = {
-        boost::none, boost::none, boost::none, 0.01, boost::none
+        boost::none, boost::none, boost::none, 0.01, boost::none,
+        boost::none, 0.1
     };
     std::vector<boost::optional<double>> expected_mom_lens = {
-        boost::none, boost::none, boost::none, 0.5, boost::none
+        boost::none, boost::none, boost::none, 0.5, boost::none,
+        boost::none, boost::none
     };
     std::vector<std::vector<std::string>> expected_samples = {
-        {},{"B1"},{"C1","C2"},{"D"},{"E"}
+        {},{"B1"},{"C1","C2"},{"D"},{"E"},{"%46"},{"%3D"}
     };
     std::vector<std::vector<std::string>> expected_tags = {
-        {},{"founder"},{},{},{"founder","haploid"}
+        {},{"founder"},{},{},{"founder","haploid"},{},{"diploid"}
     };
-    auto Male = Pedigree::Sex::Male;
-    auto Female = Pedigree::Sex::Female;
     std::vector<Pedigree::Sex> expected_sexes = {
-        Male,Female,Male,Female,Female
+        Male,Female,Male,Female,Female,Male,Male
     };
 
     Pedigree pedigree;

@@ -715,6 +715,36 @@ BOOST_AUTO_TEST_CASE(test_RelationshipGraph_Construct_nodes) {
         test(graph, expected);        
     }
 
+    BOOST_TEST_CONTEXT("graph=trio_graph_percent_encoded") {
+        libraries_t libs = {
+            {"Mom", "Dad","Eve 1","Eve 2"},
+            {"Mom", "Dad", "Eve 1", "Eve 2"}
+        };
+
+        Pedigree ped;
+        ped.AddMember({"Dad ",{},{},{},{},{},Sex::Male,{"Dad"}});
+        ped.AddMember({"Mom ",{},{},{},{},{},Sex::Female,{"Mom"}});
+        ped.AddMember({"Eve",{},std::string{"Dad "},{},std::string{"Mom "},{},Sex::Female,{"(Eve%201,Eve%202);"}});
+
+        constexpr float g = 1e-8, s = 3e-8, l = 4e-8;
+
+        //Construct Graph
+        RelationshipGraph graph;
+        BOOST_REQUIRE_NO_THROW(graph.Construct(ped, libs, InheritanceModel::Autosomal, g, s, l, false));
+
+        const expected_graph_nodes_t expected = {
+            {"GL/Dad ", DIPLOID, GERMLINE, ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
+            {"GL/Mom ", DIPLOID, GERMLINE, !ROOT, FOUNDER, -1, 0.0f, -1, 0.0f, ""},
+            {"SM/unnamed_node_2", DIPLOID, SOMATIC,  !ROOT, TRIO, 0, s+g, 1, s+g, ""},
+            {"LB/Mom", DIPLOID, LIBRARY,  !ROOT, PAIR, 1, s+l, -1, 0.0f, "Mom"},
+            {"LB/Dad", DIPLOID, LIBRARY,  !ROOT, PAIR, 0, s+l, -1, 0.0f, "Dad"},
+            {"LB/Eve 1", DIPLOID, LIBRARY,  !ROOT, PAIR, 2, s+l, -1, 0.0f, "Eve 1"},
+            {"LB/Eve 2", DIPLOID, LIBRARY,  !ROOT, PAIR, 2, s+l, -1, 0.0f, "Eve 2"},
+          };
+
+        test(graph, expected);        
+    }
+
 
     BOOST_TEST_CONTEXT("graph=halfsibs_graph") {
         libraries_t libs = {

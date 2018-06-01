@@ -22,6 +22,7 @@
 #include <iostream>
 
 #include <dng/detail/graph.h>
+#include <dng/utility.h>
 
 #include <boost/fusion/adapted/std_pair.hpp>
 #include <boost/fusion/include/std_pair.hpp>
@@ -55,7 +56,7 @@ struct make_tip_impl {
 
     index_t operator()(std::string label, double length, tree_t &g) const {
         index_t id = g.size();
-        g.push_back({std::move(label), length, static_cast<std::size_t>(-1)});
+        g.push_back({utility::percent_decode(std::move(label)), length, static_cast<std::size_t>(-1)});
         return id;
     }
 };
@@ -68,7 +69,7 @@ struct make_inode_impl {
                        std::string label, double length, tree_t &g) const {
         using namespace boost;
         index_t id = g.size();
-        g.push_back({std::move(label), length, static_cast<std::size_t>(-1)});
+        g.push_back({utility::percent_decode(std::move(label)), length, static_cast<std::size_t>(-1)});
         for(auto a : v) {
             g[a].parent = id;
         }
@@ -97,20 +98,15 @@ qi::grammar<Iterator, void(tree_t &), standard::space_type> {
 
         tip      = (label >> length)[_val = make_tip(_1, _2, _r1)];
         inode    = (('(' >> (node(_r1) % ',') >> ')') >> ilabel >> length)[_val =
-                       make_inode(_1,
-                                  _2, _3, _r1)];
+                       make_inode(_1, _2, _3, _r1)];
 
         ilabel = label | attr("");
-        label    = unquoted | squoted | dquoted;
-        unquoted = as_string[+(char_ - (char_(":,)(;'\"[]|") | space))];
-        squoted   = as_string[lexeme['\'' >> *(char_ - '\'') >> '\'']];
-        dquoted   = as_string[lexeme['"' >> *(char_ - '"') >> '"']];
+        label  = as_string[+(char_ - (char_(":,)(;'\"[]|") | space))];
     }
 
     qi::rule<Iterator, void(tree_t &), standard::space_type> start;
     qi::rule<Iterator, index_t(tree_t &), standard::space_type> node, tip, inode;
-    qi::rule<Iterator, std::string(), standard::space_type> label, unquoted,
-    squoted, dquoted, ilabel;
+    qi::rule<Iterator, std::string(), standard::space_type> label, ilabel;
     qi::rule<Iterator, double(), standard::space_type> length;
 };
 
@@ -156,7 +152,6 @@ bool dng::detail::graph::parse_newick(const std::string &text, vertex_t root, Gr
     // insert nodes in reverse order so that parents come before children
     for(std::size_t i = tree.size(); i > 0; --i) {
         auto &&a = tree[i - 1];
-        boost::trim_fill(a.label, "_");
         vertex_t v = add_vertex({a.label,VertexType::Somatic}, graph);
         add_edge((a.parent == -1) ? root : offset - a.parent,
                  v, {EdgeType::Mitotic, static_cast<float>(a.length)}, graph);

@@ -124,6 +124,7 @@ Features:
      * Individuals can be specified as founders using the `@founder` tag. Any values in the parental columns will be ignored.
      * Individuals can be specified as clones/somatic samples of other individuals using `@clone`. Only one parent should be specified, and its ploidy will be copied to the clone.
      * Individuals can be specified as a gamete of another individual using `@gamete`. Only the appropriate parent should be specified. This tag will also set the ploidy of the individual to 1.
+ * If an identifier contains a special character that would otherwise affect parsing (e.g. spaces), they can be encoded using [percent encoding](https://en.wikipedia.org/wiki/Percent-encoding).
 
 #### Mixed Ploidy and Mutation Accumulation Example
 
