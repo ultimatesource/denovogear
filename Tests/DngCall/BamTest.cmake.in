@@ -1,7 +1,7 @@
 ###############################################################################
 # Test if dng-call can identify mutations correctly from a bam file
 
-set(Trio-CMD @DNG_CALL_EXE@ -p ped/trio.ped -f trio.fasta.gz trio.bam)
+set(Trio-CMD "@DNG_CALL_EXE@" -p ped/trio.ped -f trio.fasta.gz trio.bam)
 set(Trio-WD "@TESTDATA_DIR@/human_trio")
 set(Trio-RESULT 0)
 set(Trio-STDOUT
@@ -37,21 +37,21 @@ set(Trio-STDOUT
 ###############################################################################
 # Test if dng-call --rgtag works properly
 
-set(TagLB-CMD @DNG_CALL_EXE@ --rgtag "LB" -p ped/trio.ped -f trio.fasta.gz trio.bam)
+set(TagLB-CMD "@DNG_CALL_EXE@" --rgtag "LB" -p ped/trio.ped -f trio.fasta.gz trio.bam)
 set(TagLB-WD "@TESTDATA_DIR@/human_trio")
 set(TagLB-RESULT 0)
 set(TagLB-STDOUT
   "FORMAT\tGL/NA12892\tGL/NA12891\tLB/NA12891/Solexa-135851\tLB/NA12878/Solexa-135852\tLB/NA12892/Solexa-135853\r?\n"
 )
 
-set(TagSM-CMD @DNG_CALL_EXE@ --rgtag "SM" -p ped/trio.ped -f trio.fasta.gz trio.bam)
+set(TagSM-CMD "@DNG_CALL_EXE@" --rgtag "SM" -p ped/trio.ped -f trio.fasta.gz trio.bam)
 set(TagSM-WD "@TESTDATA_DIR@/human_trio")
 set(TagSM-RESULT 0)
 set(TagSM-STDOUT
   "FORMAT\tGL/NA12892\tGL/NA12891\tLB/NA12891\tLB/NA12878\tLB/NA12892\r?\n"
 )
 
-set(TagID-CMD @DNG_CALL_EXE@ --rgtag "ID" -p ped/trio.ped -f trio.fasta.gz trio.bam)
+set(TagID-CMD "@DNG_CALL_EXE@" --rgtag "ID" -p ped/trio.ped -f trio.fasta.gz trio.bam)
 set(TagID-WD "@TESTDATA_DIR@/human_trio")
 set(TagID-RESULT 0)
 set(TagID-STDOUT
@@ -61,7 +61,7 @@ set(TagID-STDOUT
 ###############################################################################
 # Test if dng-call --header works properly
 
-set(SepHeader1-CMD @DNG_CALL_EXE@ --header trio_new_header.sam -p ped/trio.ped -f trio.fasta.gz trio.bam)
+set(SepHeader1-CMD "@DNG_CALL_EXE@" --header trio_new_header.sam -p ped/trio.ped -f trio.fasta.gz trio.bam)
 set(SepHeader1-WD "@TESTDATA_DIR@/human_trio")
 set(SepHeader1-RESULT 0)
 set(SepHeader1-STDOUT
@@ -71,7 +71,7 @@ set(SepHeader1-STDOUT
 ###############################################################################
 # Test if dng-call crashes on partial pedigree
 
-set(PartialPed-CMD @DNG_CALL_EXE@ --ped ped/duo.ped --fasta trio.fasta.gz trio.bam)
+set(PartialPed-CMD "@DNG_CALL_EXE@" --ped ped/duo.ped --fasta trio.fasta.gz trio.bam)
 set(PartialPed-WD "@TESTDATA_DIR@/human_trio/")
 set(PartialPed-RESULT 0)
 set(PartialPed-STDOUT
@@ -81,7 +81,7 @@ set(PartialPed-STDOUT
 ###############################################################################
 # Test if dng-call crashes on empty pedigree
 
-set(EmptyPed-CMD @DNG_CALL_EXE@ --ped ped/empty.ped --fasta trio.fasta.gz trio.bam)
+set(EmptyPed-CMD "@DNG_CALL_EXE@" --ped ped/empty.ped --fasta trio.fasta.gz trio.bam)
 set(EmptyPed-WD "@TESTDATA_DIR@/human_trio/")
 set(EmptyPed-RESULT 0)
 
@@ -90,7 +90,7 @@ set(EmptyPed-RESULT 0)
 
 # "5:126,385,700-126,385,704 5:126,385,706-126,385,710"
 
-set(Region1-CMD @DNG_CALL_EXE@ -m 0 --region "5:126,385,700-126,385,704 5:126,385,706-126,385,710" --ped ped/trio.ped --fasta trio.fasta.gz trio.bam)
+set(Region1-CMD "@DNG_CALL_EXE@" -m 0 --region "5:126,385,700-126,385,704 5:126,385,706-126,385,710" --ped ped/trio.ped --fasta trio.fasta.gz trio.bam)
 set(Region1-WD "@TESTDATA_DIR@/human_trio/")
 set(Region1-RESULT 0)
 set(Region1-STDOUT
@@ -114,7 +114,7 @@ set(Region1-STDOUT-FAIL
 ###############################################################################
 # Test if dng-call can identify mutations correctly from a pipe
 
-set(PipedTrio-CMD sh -c "cat trio.bam | @DNG_CALL_EXE@ -p ped/trio.ped -f trio.fasta.gz bam:-")
+set(PipedTrio-CMD sh -c "cat trio.bam | '@DNG_CALL_EXE@' -p ped/trio.ped -f trio.fasta.gz bam:-")
 set(PipedTrio-WD ${Trio-WD})
 set(PipedTrio-RESULT ${Trio-RESULT})
 set(PipedTrio-STDOUT ${Trio-STDOUT})

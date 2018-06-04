@@ -1,4 +1,4 @@
-set(Help-CMD @DNG_CALL_EXE@ --help)
+set(Help-CMD "@DNG_CALL_EXE@" --help)
 set(Help-WD ".")
 set(Help-RESULT 0)
 set(Help-STDERR "Usage:\n  dng call")

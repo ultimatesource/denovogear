@@ -1,14 +1,14 @@
 ###############################################################################
 # Test if dng-call crashes on partial pedigrees
 
-set(PartialPed-CMD @DNG_CALL_EXE@ --ped ped/duo.ped bcftools/trio.call.vcf)
+set(PartialPed-CMD "@DNG_CALL_EXE@" --ped ped/duo.ped bcftools/trio.call.vcf)
 set(PartialPed-WD "@TESTDATA_DIR@/human_trio/")
 set(PartialPed-RESULT 0)
 set(PartialPed-STDOUT
   "##PEDIGREE=<Derived=LB/NA12878,Original=GL/1,OriginalMR=0\\.0,Ploidy=2,Germline=1,Somatic=1,Library=1>"
 )
 
-set(PartialPed2-CMD @DNG_CALL_EXE@ -m 0 --ped ped/trio.ped vcf/duo.vcf)
+set(PartialPed2-CMD "@DNG_CALL_EXE@" -m 0 --ped ped/trio.ped vcf/duo.vcf)
 set(PartialPed2-WD "@TESTDATA_DIR@/human_trio/")
 set(PartialPed2-RESULT 0)
 set(PartialPed2-STDOUT
@@ -22,14 +22,14 @@ set(PartialPed2-STDOUT-FAIL
 ###############################################################################
 # Test if dng-call crashes on empty pedigrees
 
-set(EmptyPed-CMD @DNG_CALL_EXE@ --ped ped/empty.ped bcftools/trio.call.vcf)
+set(EmptyPed-CMD "@DNG_CALL_EXE@" --ped ped/empty.ped bcftools/trio.call.vcf)
 set(EmptyPed-WD "@TESTDATA_DIR@/human_trio/")
 set(EmptyPed-RESULT 0)
 
 ###############################################################################
 # Test if dng-call works on a trio with mpileup format
 
-set(TrioMpileup-CMD @DNG_CALL_EXE@ -p ped/trio.ped bcftools/trio.mpileup.vcf)
+set(TrioMpileup-CMD "@DNG_CALL_EXE@" -p ped/trio.ped bcftools/trio.mpileup.vcf)
 set(TrioMpileup-WD "@TESTDATA_DIR@/human_trio")
 set(TrioMpileup-RESULT 0)
 set(TrioMpileup-STDOUT
@@ -60,12 +60,12 @@ set(TrioMpileup-STDOUT
 ###############################################################################
 # Test if dng-call works on a trio with bcftools call
 
-set(TrioBcftoolsAutosomal-CMD @DNG_CALL_EXE@ -M autosomal -p ped/trio.ped bcftools/trio.call.vcf)
+set(TrioBcftoolsAutosomal-CMD "@DNG_CALL_EXE@" -M autosomal -p ped/trio.ped bcftools/trio.call.vcf)
 set(TrioBcftoolsAutosomal-WD "@TESTDATA_DIR@/human_trio")
 set(TrioBcftoolsAutosomal-RESULT 0)
 set(TrioBcftoolsAutosomal-STDOUT "${TrioMpileup-STDOUT}")
 
-set(TrioBcftoolsXLinked-CMD @DNG_CALL_EXE@ -M xlinked -p ped/trio.ped bcftools/trio.call.vcf)
+set(TrioBcftoolsXLinked-CMD "@DNG_CALL_EXE@" -M xlinked -p ped/trio.ped bcftools/trio.call.vcf)
 set(TrioBcftoolsXLinked-WD "@TESTDATA_DIR@/human_trio")
 set(TrioBcftoolsXLinked-RESULT 0)
 set(TrioBcftoolsXLinked-STDOUT
@@ -93,7 +93,7 @@ set(TrioBcftoolsXLinked-STDOUT
   "\r?\n#CHROM[^\r\n]*\r?\n[^\r\n]*\r?\n$"
 )
 
-set(TrioBcftoolsYLinked-CMD @DNG_CALL_EXE@ -m 0 -M ylinked -p ped/trio.ped bcftools/trio.call.vcf)
+set(TrioBcftoolsYLinked-CMD "@DNG_CALL_EXE@" -m 0 -M ylinked -p ped/trio.ped bcftools/trio.call.vcf)
 set(TrioBcftoolsYLinked-WD "@TESTDATA_DIR@/human_trio")
 set(TrioBcftoolsYLinked-RESULT 0)
 set(TrioBcftoolsYLinked-STDOUT
@@ -126,7 +126,7 @@ set(TrioBcftoolsYLinked-STDOUT-FAIL
 ###############################################################################
 # Test if dng-call supports regions
 
-set(TrioRegion-CMD @DNG_CALL_EXE@ -p ped/trio.ped -m 0 -r 5:126385921-126385925 bcftools/trio.mpileup.vcf.gz)
+set(TrioRegion-CMD "@DNG_CALL_EXE@" -p ped/trio.ped -m 0 -r 5:126385921-126385925 bcftools/trio.mpileup.vcf.gz)
 set(TrioRegion-WD "@TESTDATA_DIR@/human_trio")
 set(TrioRegion-RESULT 0)
 set(TrioRegion-STDOUT
@@ -145,7 +145,7 @@ set(TrioRegion-STDOUT-FAIL
 ###############################################################################
 # Test if dng-call ignores samples
 
-set(TrioExtraSample-CMD @DNG_CALL_EXE@ -p ped/trio.ped vcf/extra_sample.vcf)
+set(TrioExtraSample-CMD "@DNG_CALL_EXE@" -p ped/trio.ped vcf/extra_sample.vcf)
 set(TrioExtraSample-WD "@TESTDATA_DIR@/human_trio")
 set(TrioExtraSample-RESULT 0)
 set(TrioExtraSample-STDOUT
@@ -158,7 +158,7 @@ set(TrioExtraSample-FAIL
 ###############################################################################
 # Test how dng-call handles missing data
 
-set(MissingData-CMD @DNG_CALL_EXE@ -m 0 --ped trio.ped trio_missing.vcf)
+set(MissingData-CMD "@DNG_CALL_EXE@" -m 0 --ped trio.ped trio_missing.vcf)
 set(MissingData-WD "@TESTDATA_DIR@/vcf_missing_data/")
 set(MissingData-RESULT 0)
 set(MissingData-STDOUT
@@ -178,7 +178,7 @@ set(MissingData-STDOUT
 ###############################################################################
 # Test if dng-call works on a pipe
 
-set(PipedTrio-CMD sh -c "cat bcftools/trio.mpileup.vcf | @DNG_CALL_EXE@ -p ped/trio.ped vcf:-")
+set(PipedTrio-CMD sh -c "cat bcftools/trio.mpileup.vcf | '@DNG_CALL_EXE@' -p ped/trio.ped vcf:-")
 set(PipedTrio-WD ${TrioMpileup-WD})
 set(PipedTrio-RESULT ${TrioMpileup-RESULT})
 set(PipedTrio-STDOUT ${TrioMpileup-STDOUT})
@@ -186,17 +186,17 @@ set(PipedTrio-STDOUT ${TrioMpileup-STDOUT})
 ###############################################################################
 # Test if dng-call can output specific file types
 
-set(OutputVcf-CMD sh -c "@DNG_CALL_EXE@ -p ped/trio.ped -o vcf:- bcftools/trio.call.vcf | htsfile -")
+set(OutputVcf-CMD sh -c "'@DNG_CALL_EXE@' -p ped/trio.ped -o vcf:- bcftools/trio.call.vcf | htsfile -")
 set(OutputVcf-WD ${TrioMpileup-WD})
 set(OutputVcf-RESULT 0)
 set(OutputVcf-STDOUT "^-:\tVCF version [0-9.]+ variant calling text\r?\n$")
 
-set(OutputVcfGz-CMD sh -c "@DNG_CALL_EXE@ -p ped/trio.ped -o vcf.gz:- bcftools/trio.call.vcf | htsfile -")
+set(OutputVcfGz-CMD sh -c "'@DNG_CALL_EXE@' -p ped/trio.ped -o vcf.gz:- bcftools/trio.call.vcf | htsfile -")
 set(OutputVcfGz-WD ${TrioMpileup-WD})
 set(OutputVcfGz-RESULT 0)
 set(OutputVcfGz-STDOUT "^-:\tVCF version [0-9.]+ BGZF-compressed variant calling data\r?\n$")
 
-set(OutputBcf-CMD sh -c "@DNG_CALL_EXE@ -p ped/trio.ped -o bcf:- bcftools/trio.call.vcf | htsfile -")
+set(OutputBcf-CMD sh -c "'@DNG_CALL_EXE@' -p ped/trio.ped -o bcf:- bcftools/trio.call.vcf | htsfile -")
 set(OutputBcf-WD ${TrioMpileup-WD})
 set(OutputBcf-RESULT 0)
 set(OutputBcf-STDOUT "^-:\tBCF version [0-9.]+ compressed variant calling data\r?\n$")

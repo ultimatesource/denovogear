@@ -1,4 +1,4 @@
-set(TrioVcf-CMD @DNG_DNM_EXE@ auto --ped sample_CEU.ped --vcf sample_CEU.vcf --snp_mrate 2e-10 --indel_mrate 0.001)
+set(TrioVcf-CMD "@DNG_DNM_EXE@" auto --ped sample_CEU.ped --vcf sample_CEU.vcf --snp_mrate 2e-10 --indel_mrate 0.001)
 set(TrioVcf-WD "@TESTDATA_DIR@/sample_CEU/")
 set(TrioVcf-RESULT 0)
 set(TrioVcf-STDOUT
@@ -25,7 +25,7 @@ set(TrioVcf-STDOUT
   "maxlike_null: 1.51281[0-9]*e-26 pp_null: 3.16414[0-9]*e-14"
 )
 
-set(TrioBcf-CMD @DNG_DNM_EXE@ auto --ped sample_CEU.ped --bcf sample_CEU.bcf --snp_mrate 2e-10 --indel_mrate 0.001)
+set(TrioBcf-CMD "@DNG_DNM_EXE@" auto --ped sample_CEU.ped --bcf sample_CEU.bcf --snp_mrate 2e-10 --indel_mrate 0.001)
 set(TrioBcf-WD "@TESTDATA_DIR@/sample_CEU/")
 set(TrioBcf-RESULT 0)
 set(TrioBcf-STDOUT
@@ -48,7 +48,7 @@ set(TrioBcf-STDOUT
   "MAPPING_QUALITY child: 59 dad: 59 mom: 59"
 )
 
-set(PairVcf-CMD @DNG_DNM_EXE@ auto --ped sample_paired.ped --vcf sample_CEU.vcf)
+set(PairVcf-CMD "@DNG_DNM_EXE@" auto --ped sample_paired.ped --vcf sample_CEU.vcf)
 set(PairVcf-WD "@TESTDATA_DIR@/sample_CEU/")
 set(PairVcf-RESULT 0)
 set(PairVcf-STDOUT
@@ -72,7 +72,7 @@ set(PairVcf-STDOUT
   "dnm_snpcode: 2"
 )
 
-set(TrioAT-CMD @DNG_DNM_EXE@ auto --ped mutationAT.ped --vcf mutationAT.vcf --snp_mrate 1e-8 --poly_rate 0.001)
+set(TrioAT-CMD "@DNG_DNM_EXE@" auto --ped mutationAT.ped --vcf mutationAT.vcf --snp_mrate 1e-8 --poly_rate 0.001)
 set(TrioAT-WD "@TESTDATA_DIR@/trio/")
 set(TrioAT-RESULT 0)
 set(TrioAT-STDOUT
@@ -90,7 +90,7 @@ set(TrioAT-STDOUT
   "flag: 0"
 )
 
-set(TrioFloat-CMD @DNG_DNM_EXE@ auto auto --ped sample_CEU.ped --bcf sample_CEU_float.vcf --snp_mrate 2e-10 --indel_mrate 0.001)
+set(TrioFloat-CMD "@DNG_DNM_EXE@" auto auto --ped sample_CEU.ped --bcf sample_CEU_float.vcf --snp_mrate 2e-10 --indel_mrate 0.001)
 set(TrioFloat-WD "@TESTDATA_DIR@/sample_CEU/")
 set(TrioFloat-RESULT 0)
 set(TrioFloat-STDOUT
@@ -98,7 +98,7 @@ set(TrioFloat-STDOUT
 )
 
 
-set(MultiTrios-CMD @DNG_DNM_EXE@ auto auto --ped multi_trio.ped --bcf sample_CEU_mulit.vcf --write "-")
+set(MultiTrios-CMD "@DNG_DNM_EXE@" auto auto --ped multi_trio.ped --bcf sample_CEU_mulit.vcf --write "-")
 set(MultiTrios-WD "@TESTDATA_DIR@/sample_CEU/")
 set(MultiTrios-RESULT 0)
 set(MultiTrios-STDOUT
@@ -108,7 +108,7 @@ set(MultiTrios-STDOUT
   "\\.:\\.:\\.:\\.:\\.:\\.	DD/RD/RD:1\\.62015e-05:DD/RR/RR:0\\.999984:46:59"
 )
 
-set(MixedTrios-CMD @DNG_DNM_EXE@ auto auto --ped multi_trio_mixed.ped --bcf sample_mixed_trios.vcf --write "-")
+set(MixedTrios-CMD "@DNG_DNM_EXE@" auto auto --ped multi_trio_mixed.ped --bcf sample_mixed_trios.vcf --write "-")
 set(MixedTrios-WD "@TESTDATA_DIR@/sample_CEU/")
 set(MixedTrios-RESULT 0)
 set(MixedTrios-STDOUT
