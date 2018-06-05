@@ -1,4 +1,4 @@
-set(Data-CMD @DNG_PHASER_EXE@ --dnm sample_phasing_dnm_f --pgt sample_phasing_GTs_f --bam test1.bam)
+set(Data-CMD "@DNG_PHASER_EXE@" --dnm sample_phasing_dnm_f --pgt sample_phasing_GTs_f --bam test1.bam)
 set(Data-WD "@TESTDATA_DIR@/sample_Phaser/")
 set(Data-RESULT 0)
 set(Data-STDOUT

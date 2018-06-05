@@ -1,7 +1,7 @@
 ###############################################################################
 # Test dng-loglike functioning with vcf file
 
-set(BasicTest-CMD @DNG_LOGLIKE_EXE@ -p ped/trio.ped bcftools/trio.mpileup.vcf)
+set(BasicTest-CMD "@DNG_LOGLIKE_EXE@" -p ped/trio.ped bcftools/trio.mpileup.vcf)
 set(BasicTest-WD "@TESTDATA_DIR@/human_trio")
 set(BasicTest-Result 0)
 set(BasicTest-STDOUT
@@ -12,7 +12,7 @@ set(BasicTest-STDOUT
 
 ###############################################################################
 # Test if dng-loglike fails on missing vcf 
-set(EmptyVcf-CMD @DNG_LOGLIKE_EXE@ -p ped/trio.ped -f trio.fasta.gz empty.vcf)
+set(EmptyVcf-CMD "@DNG_LOGLIKE_EXE@" -p ped/trio.ped -f trio.fasta.gz empty.vcf)
 set(EmptyVcf-WD "@TESTDATA_DIR@/human_trio")
 set(EmptyVcf-Result 1)
 set(EmptyVcf-STDERR
@@ -21,7 +21,7 @@ set(EmptyVcf-STDERR
 
 ###############################################################################
 # Test if dng-loglike crashes on more than one input file
-set(MultiInput-CMD @DNG_LOGLIKE_EXE@ -p ped/trio.ped -f trio.fasta.gz test1.vcf test1.vcf)
+set(MultiInput-CMD "@DNG_LOGLIKE_EXE@" -p ped/trio.ped -f trio.fasta.gz test1.vcf test1.vcf)
 set(MultiInput-WD "@TESTDATA_DIR@/human_trio")
 set(MultiInput-Result 1)
 set(MultiInput-STDERR
@@ -30,7 +30,7 @@ set(MultiInput-STDERR
 
 ###############################################################################
 # Test if dng-loglike works on a pipe
-set(PipedTrio-CMD sh -c "cat bcftools/trio.mpileup.vcf | @DNG_LOGLIKE_EXE@ -p ped/trio.ped vcf:-")
+set(PipedTrio-CMD sh -c "cat bcftools/trio.mpileup.vcf | '@DNG_LOGLIKE_EXE@' -p ped/trio.ped vcf:-")
 set(PipedTrio-WD ${BasicTest-WD})
 set(PipedTrio-RESULT ${BasicTest-RESULT})
 set(PipedTrio-STDOUT ${BasicTest-STDOUT})
