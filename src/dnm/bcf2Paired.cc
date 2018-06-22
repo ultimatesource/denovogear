@@ -48,7 +48,7 @@ void writeToSNPObject(pair_t *tumor, bcf1_t *rec, bcf_hdr_t *hdr, int *g, int d,
                       int mq, int &flag, int i, int i0) {
 
   strcpy(tumor->chr, bcf_hdr_id2name(hdr, rec->rid));
-  tumor->pos = rec->pos + 1;
+  tumor->pos = rec->pos;
 
   char **alleles = rec->d.allele;
   uint32_t n_alleles = bcf_hdr_nsamples(hdr);

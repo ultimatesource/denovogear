@@ -113,7 +113,7 @@ void pair_like(pair_t &tumor, pair_t &normal, vector<vector<string> > &tgtPair,
         cout << "DENOVO-PAIR-SNP TUMOR_ID: " << tumor.id;
 	cout << " NORMAL_ID: " << normal.id;
         cout << " chr: " << ref_name;
-	cout << " pos: " << coor;
+	cout << " pos: " << coor+1;
 	cout << " ref: " << tumor.ref_base;
 	cout << " alt: " << alt;
         cout << " maxlike_null: " << maxlike_null;
