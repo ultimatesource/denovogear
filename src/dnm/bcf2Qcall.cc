@@ -34,7 +34,7 @@ void writeToSNPObject(snp_object_t *mom_snp, const bcf_hdr_t *hdr, bcf1_t *rec,
 
 
     strcpy(mom_snp->chr, bcf_hdr_id2name(hdr, rec->rid)); // copy chrom
-    mom_snp->pos = rec->pos + 1; // vcf posistion is stored in 0 based
+    mom_snp->pos = rec->pos; // vcf posistion is stored in 0 based
 
     // Get the ref + alt alleles
     // TODO: just pass in alleles from bcf_2qcall
@@ -85,7 +85,7 @@ void writeToIndelObject(indel_t *mom_indel, const bcf_hdr_t *hdr, bcf1_t *rec,
                         int d, int mq, int &flag, int i, int i0, std::vector<uint32_t> &pl_fields) {
 
     strcpy(mom_indel->chr, bcf_hdr_id2name(hdr, rec->rid)); // copy chrom
-    mom_indel->pos = rec->pos + 1; // vcf posistion is stored in 0 based
+    mom_indel->pos = rec->pos; // vcf posistion is stored in 0 based
     char **alleles = rec->d.allele;
     uint32_t n_alleles = rec->n_allele;
     strcpy(mom_indel->ref_base, alleles[0]); // REF

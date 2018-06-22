@@ -171,7 +171,7 @@ int trio_like_indel(indel_t &child, indel_t &mom, indel_t &dad, int flag,
 
         cout << "DENOVO-INDEL CHILD_ID: " << child.id;
         cout << " chr: " << ref_name;
-        cout << " pos: " << coor; 
+        cout << " pos: " << coor+1; 
         cout << " ref: " << mom.ref_base;
         cout << " alt: " << mom.alt;
         cout << " maxlike_null: " << maxlike_null;

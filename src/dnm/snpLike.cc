@@ -176,7 +176,7 @@ int trio_like_snp(qcall_t &child, qcall_t &mom, qcall_t &dad, int flag,
 
         cout << "DENOVO-SNP CHILD_ID: " << child.id;
         cout << " chr: " << ref_name;
-        cout << " pos: " << coor;
+        cout << " pos: " << coor+1;
         cout << " ref: " << mom.ref_base;
         cout << " alt: " << alt;
         cout << " maxlike_null: " << maxlike_null;
