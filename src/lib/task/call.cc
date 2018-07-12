@@ -469,7 +469,8 @@ int process_bcf(task::Call::argument_type &arg) {
             size_t k = 0;
             for(; k < read_depths[u].size(); ++k) {
                 int count = read_depths[u][k];
-                ad_counts[library_start+u][k] = count;
+                if(k <= ad_counts[0].size()-1)
+                    ad_counts[library_start+u][k] = count;
                 ad_info[k] += count;
             }
             for(; k < n_alleles; ++k) {
