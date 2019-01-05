@@ -1062,7 +1062,7 @@ void dng::RelationshipGraph::CreatePeelingOps(
         auto it = boost::find_if(family_edges, [&](edge_t x) -> bool {
             return (edge_types(x) != EdgeType::Spousal);
         });
-        size_t num_spousal_edges = distance(family_edges.begin(), it);
+        size_t num_spousal_edges = std::distance(family_edges.begin(), it);
 
         // Check to see what type of graph we have
         if (num_spousal_edges == 0) {
