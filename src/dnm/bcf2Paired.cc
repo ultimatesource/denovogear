@@ -155,9 +155,9 @@ int bcf2Paired(const bcf_hdr_t *hdr, bcf1_t *rec, Pair pair1, pair_t *tumor,
       return err;
 
     // get I16 values from INFO field
-    std::array<int, 16> anno;
+    std::array<int, 16> anno = {};
     if(read_I16(rec, hdr, anno) != 0) {
-        d_rest = 0;
+        d_rest = dp = 0;
     } else {
         d_rest = dp = anno[0] + anno[1] + anno[2] + anno[3];
     }
