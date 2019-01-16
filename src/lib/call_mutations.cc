@@ -57,7 +57,8 @@ CallMutations::CallMutations(const RelationshipGraph &graph, params_t params)
     one_mutation_prior_ = CalculateDNP().prob();
 
     // Calculate prior non-ref allele freq
-    alt_freq_prior_ = HaploidPrior(2)(1);
+    haploid_prior_[1] = HaploidPrior(2);
+    alt_freq_prior_ = haploid_prior_[1][1];
 }
 
 Probability::logdiff_t CallMutations::CalculateMUTQ() {
