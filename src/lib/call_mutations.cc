@@ -53,11 +53,11 @@ CallMutations::CallMutations(const RelationshipGraph &graph, params_t params)
     // Calculate P(one mutation) assuming no data and 2 obs alleles
     work_.matrix_index = 1;
     work_.ClearGenotypeLikelihoods(2);
-    work_.SetGermline(DiploidPrior(2), HaploidPrior(2));
+    work_.SetGermline(diploid_prior_[1], haploid_prior_[1]);
     one_mutation_prior_ = CalculateDNP().prob();
 
     // Calculate prior non-ref allele freq
-    alt_freq_prior_ = HaploidPrior(2)(1);
+    alt_freq_prior_ = haploid_prior_[1][1];
 }
 
 Probability::logdiff_t CallMutations::CalculateMUTQ() {
