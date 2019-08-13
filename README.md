@@ -117,7 +117,7 @@ Features:
  * Comments are lines that begin with a `#`.
  * Individual ID (first column) contains an identifier of each individual in the pedigree, along with meta information (see below).
  * Father ID and Mother ID (second and third columns) contain the identifier of the parents of each sample. The format supported is `id:length`, allowing users to scale germline mutation rates if desired. If length is not specified, it defaults to `1.0`. An id of `.` specifies that the parent is missing or invalid. Founder nodes are specified by indicating that both parents are invalid.
- * Sex (forth column) contains the information about the sex and sex chromosomes of an individuals. Both numeric and descriptive values are supported: 1=male, 2=female, and 0=autosomal.
+ * Sex (fourth column) contains the information about the sex and sex chromosomes of an individuals. Both numeric and descriptive values are supported: 1=male, 2=female, and 0=autosomal.
  * Sample IDs (fifth column and beyond) specify which samples that came from the individual. Multiple samples can be specified for each individual via separate columns and/or a newick-formated tree with branch lengths. Users can use the newick tree if something is known about the somatic relationship of the samples. If a sample id is `=`, the value of the individual id will be copied. A value of `.` indicates that the sample is missing/invalid.
  * Meta information can be specified in the first column as `id@meta1@meta2@...` and can be used to specify information that affects the processing of the pedigree. Supported values:
      * Individuals default to being diploid, but this can be modified via tags: `@haploid`, `@diploid`, `@ploidy=1`, `@ploidy=2`, `@p=1`, `@p=2`.
