@@ -19,7 +19,7 @@ macro(AddUnitTest NAME)
 
   target_include_directories("${target}" BEFORE PRIVATE "${CMAKE_SOURCE_DIR}/src/include")
   target_link_libraries("${target}"
-    Boost::UNIT_TEST_FRAMEWORK
+    Boost::unit_test_framework
     libdng
   )
 

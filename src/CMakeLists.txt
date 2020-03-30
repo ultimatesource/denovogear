@@ -43,7 +43,7 @@ foreach(task IN LISTS MODERN_DNG)
 endforeach()
 
 if(DEVEL_MODE)
-  target_link_libraries(dng-call Boost::TIMER)
+  target_link_libraries(dng-call Boost::timer)
 endif()
 
 # Add extra configuration options for DNM
