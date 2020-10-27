@@ -1,0 +1,3 @@
+#!/bin/bash
+
+@RSCRIPT_COMMAND@ --vanilla @MUTMAP_DIR@/build.R @MUTMAP_DIR@ $@

@@ -4,6 +4,7 @@ include(CheckLibraryExists)
 
 add_subdirectory(lib)
 add_subdirectory(treecall)
+add_subdirectory(mutmap)
 
 include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
 
