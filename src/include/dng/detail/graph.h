@@ -26,7 +26,6 @@
 
 #include <dng/pedigree.h>
 #include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/graphviz.hpp>
 
 // Install graph properties for pedigree analysis.
 namespace boost {
@@ -86,6 +85,11 @@ static_assert(std::is_integral<vertex_t>::value,
 	"vertex_t is not an integral type, this violates many assumptions that have been made.");
 
 bool parse_newick(const std::string &text, vertex_t root, Graph &graph, bool normalize);
+
+// These overloaded operators allow boost::write_graphml to work with our
+// EdgeType. Definitions are in src/lib/relationship_graph.cc
+std::ostream& operator<<(std::ostream& stream, const EdgeType edge_type);
+std::istream& operator>>(std::istream& stream, const EdgeType& edge_type);
 
 } // namespace graph
 } // namespace detail
